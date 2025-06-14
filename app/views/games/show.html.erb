@@ -1,0 +1,37 @@
+<h1>Go Game</h1>
+
+<div
+  id="game"
+  data-game-id="<%= @game.id %>"
+  data-player-id="<%= session[:player_id] %>"
+>
+  <%= render "board" %>
+</div>
+
+<h2>Chat</h2>
+<div
+  id="chat-box"
+  style="border:1px solid #ccc; height:150px; overflow-y:auto; margin-bottom:0.5rem;"
+></div>
+<form id="chat-form">
+  <input
+    type="text"
+    id="chat-input"
+    placeholder="Say something..."
+    autocomplete="off"
+  />
+  <button type="submit">Send</button>
+</form>
+
+<style>
+  #board td {
+    width: 32px;
+    height: 32px;
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid #999;
+    font-size: 24px;
+    cursor: pointer;
+    user-select: none;
+  }
+</style>

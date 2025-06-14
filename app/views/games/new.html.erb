@@ -1,0 +1,18 @@
+<h1>Start a New Go Game</h1>
+
+<%= form_with model: @game do |form| %>
+  <div>
+    <label for="invite_email">Invite a friend (optional, you can also share the game URL with them
+      directly once it's created):</label><br>
+    <%= email_field_tag :invite_email, nil, placeholder: "friend@example.com" %>
+  </div>
+
+  <div>
+    <%= form.label :board_size %>
+    <%= form.number_field :board_size, in: 4..19, step: 1, default: 19 %>
+  </div>
+
+  <div style="margin-top: 1rem;">
+    <%= form.submit "Start Game" %>
+  </div>
+<% end %>

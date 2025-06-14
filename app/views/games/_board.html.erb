@@ -1,0 +1,9 @@
+<table id="board">
+  <% @game.board_size.times do |y| %>
+    <tr>
+      <% @game.board_size.times do |x| %>
+        <td id="cell-<%= x %>-<%= y %>" data-x="<%= x %>" data-y="<%= y %>">+</td>
+      <% end %>
+    </tr>
+  <% end %>
+</table>
