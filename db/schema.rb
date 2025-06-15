@@ -10,13 +10,16 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_06_13_235737) do
+ActiveRecord::Schema[8.0].define(version: 2025_06_14_160009) do
   create_table "games", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "player_1_id"
-    t.string "player_2_id"
-    t.integer "board_size"
+    t.integer "cols"
+    t.integer "rows"
+    t.integer "handicap"
+    t.float "komi"
+    t.integer "player_white_id"
+    t.integer "player_black_id"
   end
 
   create_table "moves", force: :cascade do |t|
@@ -28,6 +31,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_13_235737) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["game_id"], name: "index_moves_on_game_id"
+  end
+
+  create_table "players", force: :cascade do |t|
+    t.string "session_token"
+    t.string "email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["session_token"], name: "index_players_on_session_token"
   end
 
   add_foreign_key "moves", "games"

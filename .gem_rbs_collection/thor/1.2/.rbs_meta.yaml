@@ -1,0 +1,9 @@
+---
+name: thor
+version: '1.2'
+source:
+  type: git
+  name: ruby/gem_rbs_collection
+  revision: dc2db3206e64b11914261c93e24a1a913c58b792
+  remote: https://github.com/ruby/gem_rbs_collection.git
+  repo_dir: gems

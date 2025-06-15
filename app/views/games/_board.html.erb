@@ -1,9 +1,19 @@
-<table id="board">
-  <% @game.board_size.times do |y| %>
-    <tr>
-      <% @game.board_size.times do |x| %>
-        <td id="cell-<%= x %>-<%= y %>" data-x="<%= x %>" data-y="<%= y %>">+</td>
-      <% end %>
-    </tr>
+<% @game.rows.times do |row| %>
+  <% @game.cols.times do |col| %>
+    <% move = @moves.find { |m| m.x == col && m.y == row } %>
+
+    <% classes = [] %>
+    <% if move.present? %>
+      <% classes << (move.move_number.even? ? "even" : "odd") %>
+    <% end %>
+
+    <div
+      id="cell-<%= col %>-<%= row %>"
+      class="cell <%= classes.join(' ') %>"
+      data-col="<%= col %>"
+      data-row="<%= row %>"
+      data-turn="<%= move&.move_number %>"
+    >
+    </div>
   <% end %>
-</table>
+<% end %>
