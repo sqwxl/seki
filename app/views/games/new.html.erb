@@ -1,18 +1,49 @@
 <h1>Start a New Go Game</h1>
 
-<%= form_with model: @game do |form| %>
-  <div>
-    <label for="invite_email">Invite a friend (optional, you can also share the game URL with them
-      directly once it's created):</label><br>
-    <%= email_field_tag :invite_email, nil, placeholder: "friend@example.com" %>
-  </div>
+<%= form_with model: @game, local: true do |form| %>
+  <fieldset>
+    <legend>Game settings:</legend>
 
-  <div>
-    <%= form.label :board_size %>
-    <%= form.number_field :board_size, in: 4..19, step: 1, default: 19 %>
-  </div>
+    <div>
+      <%= form.label :cols, "Board size" %>
+      <%= form.number_field :cols, in: 4..19, step: 1 %>
+    </div>
+
+    <div>
+      <%= form.label :handicap %>
+      <%= form.number_field :handicap, in: 0..9, step: 1 %>
+    </div>
+
+    <div>
+      <%= form.label :komi %>
+      <%= form.number_field :komi, in: 0.5..10.5, step: 0.5 %>
+    </div>
+
+    <div>
+      <%= label_tag :color_black, "⚫" %>
+      <%= radio_button_tag :color, "black", :checked, id: "color_black" %>
+      <%= label_tag :color_white, "⚪" %>
+      <%= radio_button_tag :color, "white", id: "color_white" %>
+      <%= label_tag :color_nigiri, "🎲" %>
+      <%= radio_button_tag :color, "nigiri", id: "color_nigiri" %>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Notifications:</legend>
+    <div>
+      <label for="email">Get notified when it's your turn (optional):</label>
+      <%= email_field_tag :email, nil, placeholder: "your@example.com" %>
+    </div>
+
+    <div>
+      <label for="invite_email">Invite a friend (optional, you can also share the game URL with them
+        once it's been created):</label>
+      <%= email_field_tag :invite_email, nil, placeholder: "friend@example.com" %>
+    </div>
+  </fieldset>
 
   <div style="margin-top: 1rem;">
-    <%= form.submit "Start Game" %>
+    <%= form.submit %>
   </div>
 <% end %>
