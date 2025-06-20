@@ -9,33 +9,31 @@ class GameChannel < ApplicationCable::Channel
     # Any cleanup needed when channel is unsubscribed
   end
 
-  def make_move(data)
-    x = data["x"]
-    y = data["y"]
-    session_id = connection.session_id
+  def place_stone(data)
+    col = data["col"]
+    row = data["row"]
 
     @game = Game.find(params[:id])
-    color =
-      if session_id == @game.player_1_id
-        "black"
-      elsif session_id == @game.player_2_id
-        "white"
-      else
-        "spectator"
-      end
+    session_id = connection.session_id
 
-    return if color == "spectator"
+    player = Player.find_by(session_token: session_id)
 
-    move_number = @game.moves.count + 1
+    raise "Only players can make a move" unless player&.id == @game.player_black_id || player&.id == @game.player_white_id
 
-    move = @game.moves.create!(x: x, y: y, color: color, move_number: move_number)
+    player_stone = (player.id == @game.player_black_id) ? Go::Stone::BLACK : Go::Stone::WHITE
+
+    engine = @game.engine
+    current_stone = engine.current_turn_stone
+
+    raise "Out of turn, it's #{current_stone}'s turn" if player_stone != current_stone
+
+    if engine.try_play([col, row])
+      Move.create!(game: @game, player: player, col: col, row: row, move_number: @game.engine.moves.count, kind: Go::MoveKind::PLAY)
+    end
 
     ActionCable.server.broadcast(@stream_id, {
       kind: "move",
-      x: move.x,
-      y: move.y,
-      color: move.color,
-      move_number: move.move_number
+      payload: JSON.parse(engine.serialize) # TODO: it's silly to parse this since it's going to get encoded straight away again
     })
   end
 
@@ -43,8 +41,11 @@ class GameChannel < ApplicationCable::Channel
     message = data["message"].to_s.strip
     return if message.blank?
 
-    sender = connection.session_id == @game.player_1_id ? "Black" :
-            connection.session_id == @game.player_2_id ? "White" : "Spectator"
+    sender = if connection.session_id == @game.player_1_id
+      "Black"
+    else
+      (connection.session_id == @game.player_2_id) ? "White" : "Spectator"
+    end
 
     ActionCable.server.broadcast(@stream_id, {
       kind: "chat",

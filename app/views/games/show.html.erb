@@ -1,18 +1,18 @@
 <h1>Go Game</h1>
 
+<style>
+  .game {}
+</style>
+
 <div
   id="game"
+  class="game"
   data-game-id="<%= @game.id %>"
   data-player-id="<%= session[:player_id] %>"
->
-  <%= render "board" %>
-</div>
-
-<h2>Chat</h2>
-<div
-  id="chat-box"
-  style="border:1px solid #ccc; height:150px; overflow-y:auto; margin-bottom:0.5rem;"
+  data-game="<%= @game.engine.serialize %>"
 ></div>
+
+<div id="chat-box" class="chat-box"></div>
 <form id="chat-form">
   <input
     type="text"

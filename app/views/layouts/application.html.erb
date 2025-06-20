@@ -19,10 +19,19 @@
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
-    <%= javascript_importmap_tags %>
+    <%= stylesheet_link_tag "goban" %>
+    <%= javascript_include_tag "application",
+    "data-turbo-track": "reload",
+    type: "module",
+    defer: true %>
   </head>
 
   <body>
+    <% if flash[:alert] %>
+      <div class=".flash">
+        <%= flash[:alert] %>
+      </div>
+    <% end %>
     <%= yield %>
   </body>
 </html>

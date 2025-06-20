@@ -10,18 +10,16 @@ class ApplicationController < ActionController::Base
 
   protected
 
-    def current_player
-      @current_player
-    end
+  attr_reader :current_player
 
   private
 
-    def ensure_player!
-      @current_player = CurrentPlayerResolver.new(session).resolve!
-    end
+  def ensure_player!
+    @current_player = CurrentPlayerResolver.new(session).resolve!
+  end
 
-    def render_not_found
-      # TODO Redirect to root with an alert?
-      render file: Rails.root.join("public/404.html"), status: :not_found, layout: false
-    end
+  def render_not_found
+    # TODO Redirect to root with an alert?
+    render file: Rails.root.join("public/404.html"), status: :not_found, layout: false
+  end
 end

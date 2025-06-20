@@ -1,7 +1,7 @@
 module Go
   class Error < StandardError; end
 
-  class OccupiedPoint < Error; end
+  class Overwrite < Error; end
 
   class NotOnBoard < Error; end
 

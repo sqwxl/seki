@@ -7,9 +7,12 @@ module Go
   end
 
   class Move < Struct.new(:kind, :point)
-    def initialize(kind:, point: nil)
-      raise ArgumentError, "invalid move kind" unless MoveKind::ALL.include?(kind)
-      super(kind, point)
+    def initialize(kind, point = nil)
+      if kind.instance_of? String
+        kind = kind.to_sym
+      end
+      raise ArgumentError, "invalid move kind: #{kind}" unless MoveKind::ALL.include?(kind)
+      super
     end
 
     def play? = kind == MoveKind::PLAY

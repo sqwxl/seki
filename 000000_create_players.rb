@@ -1,11 +1,11 @@
 class CreatePlayers < ActiveRecord::Migration[8.0]
   def change
     create_table :players do |t|
-      t.string :session_token
-      t.string :email
+      t.string :session_token, index: true
+      t.string :email, index: true
+      t.string :name
 
       t.timestamps
     end
-    add_index :players, :session_token
   end
 end

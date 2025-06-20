@@ -1,6 +1,6 @@
 class Move < ApplicationRecord
   belongs_to :game
+  belongs_to :player
 
-  validates :x, :y, :color, :move_number, presence: true
-  validates :color, inclusion: { in: %w[black white] }
+  validates :move_number, :kind, :col, :row, presence: true
 end

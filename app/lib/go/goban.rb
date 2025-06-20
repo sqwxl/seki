@@ -47,7 +47,7 @@ module Go
 
     def is_legal?(point, stone)
       begin
-        play_stone(point, stone)
+        place_stone(point, stone)
       rescue
         return false
       end
@@ -58,7 +58,7 @@ module Go
     def play(point, stone)
       return self if stone == Stone::EMPTY
 
-      goban, dead_stones, liberties = play_stone(point, stone)
+      goban, dead_stones, liberties = place_stone(point, stone)
 
       # detect future ko
       is_ko = dead_stones.length == 1 &&
@@ -68,8 +68,6 @@ module Go
 
       goban.instance_variable_set(:@ko, is_ko ? KoStatus.new(dead_stones.first, -stone) : NO_KO)
 
-      goban.send(:inspect)
-
       goban
     end
 
@@ -77,15 +75,15 @@ module Go
       @ko = NO_KO
     end
 
-    protected
+    def stone_at((col, row))
+      on_board?([col, row]) ? @mtrx[row][col] : nil
+    end
 
     def on_board?((col, row))
       !col.nil? && !row.nil? && col.between?(0, @cols - 1) && row.between?(0, @rows - 1)
     end
 
-    def stone_at((col, row))
-      on_board?([col, row]) ? @mtrx[row][col] : nil
-    end
+    protected
 
     def set_stone!((col, row), stone)
       @mtrx[row][col] = stone if on_board?([col, row])
@@ -110,10 +108,10 @@ module Go
       @mtrx.all? { |row| row.all?(&:zero?) }
     end
 
-    def play_stone(point, stone)
+    def place_stone(point, stone)
       raise NotOnBoard unless on_board?(point)
 
-      raise OccupiedPoint, "Point occupied" unless stone_at(point)&.zero?
+      raise Overwrite unless stone_at(point)&.zero?
 
       goban = dup
       goban.set_stone!(point, stone)
@@ -227,10 +225,10 @@ module Go
 
         goban = new(mtrx)
 
-        moves.each do |(point, stone)|
+        moves.each_with_index do |move, i|
           # point may be absent for passed turn
-          next unless goban.on_board?(point)
-          goban = goban.play(point, stone)
+          next unless move.play?
+          goban = goban.play(move.point, (i % 2 == 0) ? Stone::BLACK : Stone::WHITE)
         end
 
         goban

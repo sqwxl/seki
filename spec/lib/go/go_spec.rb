@@ -31,7 +31,7 @@ RSpec.describe Go do
       goban = goban.play([0, 0], Go::Stone::BLACK)
       expect {
         goban.play([0, 0], Go::Stone::WHITE)
-      }.to raise_error(Go::OccupiedPoint)
+      }.to raise_error(Go::Overwrite)
     end
 
     it "prevents ko violation" do

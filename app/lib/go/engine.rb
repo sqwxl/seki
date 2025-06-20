@@ -1,6 +1,6 @@
 module Go
   class Engine
-    attr_reader :cols, :rows, :moves
+    attr_reader :cols, :rows, :moves, :goban
 
     def initialize(cols:, rows: nil, moves: [])
       @cols = cols
@@ -9,8 +9,32 @@ module Go
       @goban = Goban.with_dimensions(cols: @cols, rows: @rows, moves: @moves)
     end
 
+    def board
+      @goban.mtrx
+    end
+
+    def ko
+      @goban.ko
+    end
+
+    def captures
+      @goban.captures
+    end
+
+    def stone_captures(stone)
+      stone = Stone.normalize(stone)
+
+      raise ArgumentError, "Invalid stone, EMPTY. Expected BLACK or WHITE" if stone == Stone::EMPTY
+
+      @goban.captures[stone]
+    end
+
     def current_turn_stone
-      moves.length.even? ? BLACK : WHITE
+      moves.length.even? ? Stone::BLACK : Stone::WHITE
+    end
+
+    def stone_at(point)
+      @goban.stone_at(point)
     end
 
     def try_play(point)
@@ -54,12 +78,8 @@ module Go
       @goban.is_legal?(point, stone)
     end
 
-    def captures(stone)
-      stone = Stone.normalize(stone)
-
-      raise ArgumentError, "Invalid stone, EMPTY. Expected BLACK or WHITE" if stone == EMPTY
-
-      @goban.captures[stone]
+    def serialize
+      Serializer.serialize(self)
     end
   end
 end

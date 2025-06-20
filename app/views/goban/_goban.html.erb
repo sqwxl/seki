@@ -1,0 +1,56 @@
+<% width = 760 %>
+<% height = 760 %>
+<style>
+    .board {
+      display: grid;
+      grid-template-rows: repeat(<%= @game.rows %>, 1fr);
+      grid-template-columns: repeat(<%= @game.cols %>, 1fr);
+      position: relative;
+      width: <%= width %>px;
+      height: <%= height %>px;
+    }
+
+    .cell {
+      z-index: 100;
+
+      &:hover {
+        border-radius: 100%;
+        border: 2px dotted grey;
+      }
+
+      &.empty {
+      }
+
+      &.black {
+        border-radius: 100%;
+        background: #111
+      }
+
+      &.white {
+        border-radius: 100%;
+        background: #eee
+      }
+
+    }
+</style>
+<div class="board">
+  <%= render partial: "goban/grid", locals: { width: width, height: height } %>
+  <% @game.rows.times do |row| %>
+    <% @game.cols.times do |col| %>
+      <% classes = [] %>
+      <% stone = @engine.stone_at([col, row]) %>
+      <% if stone == Go::Stone::EMPTY %>
+        <% classes << ("empty") %>
+      <% else %>
+        <% classes << (stone == Go::Stone::BLACK ? "black" : "white") %>
+      <% end %>
+      <div
+        id="cell-<%= col %>-<%= row %>"
+        class="cell <%= classes.join(' ') %>"
+        data-col="<%= col %>"
+        data-row="<%= row %>"
+        style="grid-row:<%= row %>, grid-col:<%= col %>"
+      ></div>
+    <% end %>
+  <% end %>
+</div>

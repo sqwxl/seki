@@ -1,0 +1,52 @@
+<% cell_w = width / @game.cols %>
+<% cell_h = height / @game.rows %>
+<% cell_w2 = cell_w / 2 %>
+<% cell_h2 = cell_h / 2 %>
+<% bounds = [cell_w2, cell_h2, width - cell_w2, height - cell_h2] %>
+<style>
+    .grid {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      stroke: black;
+
+      & line {
+      }
+
+      & rect {
+        stroke-width: 2;
+        fill: none;
+      }
+    }
+</style>
+<svg
+  class="grid"
+  viewBox="0 0 <%= width %> <%= height %>"
+  shape-rendering="crispEdges"
+>
+  <rect
+    x="<%= bounds[0] %>"
+    y="<%= bounds[1] %>"
+    width="<%= bounds[2] - cell_w2 %>"
+    height="<%= bounds[3] - cell_h2 %>"
+  />
+  <% (@game.rows - 2).times do |row| %>
+    <line
+      x1="<%= bounds[0] %>"
+      y1="<%= cell_h + cell_h2 + row * cell_h %>"
+      x2="<%= bounds[2] %>"
+      y2="<%= cell_h + cell_h2 + row * cell_h %>"
+    />
+  <% end %>
+  <% (@game.cols - 2).times do |col| %>
+    <line
+      x1="<%= cell_w + cell_w2 + col * cell_w %>"
+      y1="<%= bounds[1] %>"
+      x2="<%= cell_w + cell_w2 + col * cell_w %>"
+      y2="<%= bounds[3] %>"
+    />
+  <% end %>
+</svg>
