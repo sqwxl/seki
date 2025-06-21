@@ -1,7 +1,7 @@
 class GameChannel < ApplicationCable::Channel
   def subscribed
-    @game = Game.find(params[:id])
-    @stream_id = "game_#{@game.id}"
+    game = current_game
+    @stream_id = "game_#{game.id}"
     stream_from @stream_id
   end
 
@@ -13,44 +13,139 @@ class GameChannel < ApplicationCable::Channel
     col = data["col"]
     row = data["row"]
 
-    @game = Game.find(params[:id])
-    session_id = connection.session_id
-
-    player = Player.find_by(session_token: session_id)
-
-    raise "Only players can make a move" unless player&.id == @game.player_black_id || player&.id == @game.player_white_id
-
-    player_stone = (player.id == @game.player_black_id) ? Go::Stone::BLACK : Go::Stone::WHITE
-
-    engine = @game.engine
-    current_stone = engine.current_turn_stone
-
-    raise "Out of turn, it's #{current_stone}'s turn" if player_stone != current_stone
-
-    if engine.try_play([col, row])
-      Move.create!(game: @game, player: player, col: col, row: row, move_number: @game.engine.moves.count, kind: Go::MoveKind::PLAY)
+    with_game_and_player(:play) do |game, engine, player|
+      if engine.try_play(game.player_stone(player), [col, row])
+        Move.create!(
+          game: game,
+          player: player,
+          stone: game.player_stone(player),
+          move_number: game.moves.count,
+          kind: Go::MoveKind::PLAY,
+          col: col,
+          row: row
+        )
+        broadcast_state(engine)
+      else
+        # TODO Handle failed move
+      end
     end
-
-    ActionCable.server.broadcast(@stream_id, {
-      kind: "move",
-      payload: JSON.parse(engine.serialize) # TODO: it's silly to parse this since it's going to get encoded straight away again
-    })
   end
 
-  def speak(data)
+  def pass
+    with_game_and_player(:pass) do |game, engine, player|
+      stage = engine.try_pass(game.player_stone(player))
+
+      Move.create!(
+        game: game,
+        player: player,
+        stone: game.player_stone(player),
+        kind: Go::MoveKind::PASS
+      )
+
+      if stage == Go::Stage::TERRITORY_REVIEW
+        TerritoryReview.create!(game: game)
+      end
+
+      broadcast_state(stage, engine)
+    end
+  end
+
+  def resign
+    game = current_game
+    player = current_player
+    engine = game.engine
+
+    raise "The game is over" if game.stage == Go::Stage::DONE
+
+    stage = engine.try_resign(game.player_stone(player))
+
+    if stage == Go::Stage::DONE
+      game.update(ended_at: Time.current, result: engine.result)
+      Move.create!(
+        game: game,
+        player: player,
+        stone: game.player_stone(player),
+        kind: Go::MoveKind::RESIGN
+      )
+    end
+
+    broadcast_state(stage, engine)
+  end
+
+  def toggle_chain(data)
+    game = current_game
+    player = current_player
+
+    raise "Not in territory counting phase" unless game.stage == Go::Stage::TERRITORY_COUNT
+
+    only_players_can("count territory", game, player)
+
+    # TODO update dead_stones
+  end
+
+  def territory_accept
+    game = current_game
+    player = current_player
+
+    raise "Not in territory counting phase" unless game.stage == Go::Stage::TERRITORY_COUNT
+
+    only_players_can("accept territory", game, player)
+
+    # TODO update territory_review -> game
+  end
+
+  def chat(data)
     message = data["message"].to_s.strip
     return if message.blank?
 
-    sender = if connection.session_id == @game.player_1_id
-      "Black"
-    else
-      (connection.session_id == @game.player_2_id) ? "White" : "Spectator"
-    end
+    game = current_game
+    player = current_player
+
+    msg = Message.create!(game: game, player: player, text: message)
 
     ActionCable.server.broadcast(@stream_id, {
       kind: "chat",
-      sender: sender,
-      text: message
+      sender: msg.sender_label,
+      text: msg.text
+    })
+  end
+
+  private
+
+  def current_player
+    connection.current_player
+  end
+
+  def current_game
+    @game ||= Game.find(params[:id])
+  end
+
+  def with_game_and_player(action)
+    game = current_game
+    player = current_player
+
+    raise "The game is already over" if game.stage == Go::Stage::DONE
+
+    only_players_can(action, game, player)
+
+    player_stone = (player == game.player_black) ? Go::Stone::BLACK : Go::Stone::WHITE
+    engine = game.engine
+    current_stone = engine.current_turn_stone
+
+    raise "Out of turn, it's #{Go::Stone.to_s(current_stone)}'s turn" if player_stone != current_stone
+
+    yield(game, player, engine)
+  end
+
+  def only_players_can(action, game, player)
+    raise "Only players can #{action}" unless game.players.include?(player)
+  end
+
+  def broadcast_state(stage, engine)
+    ActionCable.server.broadcast(@stream_id, {
+      kind: "state",
+      stage: stage,
+      state: JSON.parse(engine.serialize) # TODO: it's silly to parse this since it's going to get encoded straight away again
     })
   end
 end

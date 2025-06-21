@@ -59,7 +59,7 @@ class GamesController < ApplicationController
     end
 
     moves = @game.moves.map do |move|
-      Go::Move.new(move.kind.to_sym, [move.col, move.row])
+      Go::Move.new(move.kind, move.stone, [move.col, move.row])
     end
 
     @engine = Go::Engine.new(cols: @game.cols, rows: @game.rows, moves: moves)

@@ -19,11 +19,10 @@
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
-    <%= stylesheet_link_tag "goban" %>
     <%= javascript_include_tag "application",
     "data-turbo-track": "reload",
-    type: "module",
-    defer: true %>
+    type: "module" %>
+    <script src="https://cdn.jsdelivr.net/gh/gnat/css-scope-inline@main/script.js"></script>
   </head>
 
   <body>

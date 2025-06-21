@@ -6,8 +6,8 @@ module Go
     ALL = [PLAY, PASS, RESIGN]
   end
 
-  class Move < Struct.new(:kind, :point)
-    def initialize(kind, point = nil)
+  class Move < Struct.new(:kind, :stone, :point)
+    def initialize(kind, stone, point = nil)
       if kind.instance_of? String
         kind = kind.to_sym
       end

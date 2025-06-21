@@ -6,8 +6,10 @@ module Go
       def serialize(engine)
         JSON.generate({
           ko: engine.goban.ko,
-          captures: {B: engine.captures[:black], W: engine.captures[:white]},
-          board: engine.board
+          captures: engine.captures,
+          board: engine.board,
+          status: engine.status,
+          stage: engine.stage
         })
       end
     end

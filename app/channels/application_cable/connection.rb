@@ -1,9 +1,9 @@
 module ApplicationCable
   class Connection < ActionCable::Connection::Base
-    identified_by :session_id
+    identified_by :current_player
 
     def connect
-      self.session_id = request.session[:player_id] ||= SecureRandom.uuid
+      self.current_player ||= CurrentPlayerResolver.new(request.session).resolve!
     end
   end
 end

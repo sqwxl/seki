@@ -23,11 +23,3 @@ body,
   height: 3em;
   padding: 5em 0;
 }
-
-.chat-box {
-  border: 1px solid black;
-  height: 150px;
-  min-width: 400px;
-  overflow-y: auto;
-  margin: 1em;
-}

@@ -6,6 +6,16 @@ module Go
 
     module_function
 
+    def to_s(value)
+      case normalize(value)
+      when BLACK then "Black"
+      when WHITE then "White"
+      when EMPTY then "Empty"
+      end
+    end
+
+    module_function
+
     def normalize(value)
       case value
       when BLACK, :black then BLACK
