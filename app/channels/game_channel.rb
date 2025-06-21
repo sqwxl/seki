@@ -13,26 +13,23 @@ class GameChannel < ApplicationCable::Channel
     col = data["col"]
     row = data["row"]
 
-    with_game_and_player(:play) do |game, engine, player|
-      if engine.try_play(game.player_stone(player), [col, row])
-        Move.create!(
-          game: game,
-          player: player,
-          stone: game.player_stone(player),
-          move_number: game.moves.count,
-          kind: Go::MoveKind::PLAY,
-          col: col,
-          row: row
-        )
-        broadcast_state(engine)
-      else
-        # TODO Handle failed move
-      end
+    with_game_and_player(:play) do |game, player, engine|
+      stage = engine.try_play(game.player_stone(player), [col, row])
+      Move.create!(
+        game: game,
+        player: player,
+        stone: game.player_stone(player),
+        move_number: game.moves.count,
+        kind: Go::MoveKind::PLAY,
+        col: col,
+        row: row
+      )
+      broadcast_state(stage, engine)
     end
   end
 
   def pass
-    with_game_and_player(:pass) do |game, engine, player|
+    with_game_and_player(:pass) do |game, player, engine|
       stage = engine.try_pass(game.player_stone(player))
 
       Move.create!(

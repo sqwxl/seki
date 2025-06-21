@@ -14,7 +14,8 @@ if (root != null) {
 	const gameId = document.getElementById("game").dataset.gameId;
 
 	const initialStage = root.dataset.stage;
-	const initialGameState = JSON.parse(root.dataset.state);
+	const initialGameState = JSON.parse(root.dataset.gameState);
+	console.log(initialGameState);
 
 	const channel = consumer.subscriptions.create(
 		{ channel: "GameChannel", id: gameId },
@@ -70,7 +71,7 @@ if (root != null) {
 			Array(board[0].length).fill(null),
 		);
 
-		if (ko) {
+		if (ko.stone !== 0) {
 			markerMap[ko.point.col][ko.point.row] = koMarker;
 		}
 

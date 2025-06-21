@@ -31,7 +31,7 @@ module Go
     end
 
     def current_turn_stone
-      moves.last.nil? ? BLACK : -moves.last.stone
+      moves.last.nil? ? Stone::BLACK : -moves.last.stone
     end
 
     def stone_at(point)
@@ -45,12 +45,10 @@ module Go
 
         # TODO Add detection for when board is full
       rescue Go::Error
-        puts "[Go::Engine] #{e.message}"
-
-        return false
+        raise "[Go::Engine] #{e.message}"
       end
 
-      true
+      stage
     end
 
     def try_pass(stone)

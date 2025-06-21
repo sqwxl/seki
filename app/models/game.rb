@@ -22,7 +22,7 @@ class Game < ApplicationRecord
   end
 
   def player_stone(player)
-    raise "Player not part of game" unless players.include? player
+    raise "Player not part of game: #{player.inspect}" unless players.include? player
 
     case player
     when player_black then Go::Stone::BLACK

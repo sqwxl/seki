@@ -5,8 +5,8 @@ module Go
     class << self
       def serialize(engine)
         JSON.generate({
-          ko: engine.goban.ko,
-          captures: engine.captures,
+          ko: engine.goban.ko.to_h,
+          captures: engine.captures.to_h,
           board: engine.board,
           status: engine.status,
           stage: engine.stage
