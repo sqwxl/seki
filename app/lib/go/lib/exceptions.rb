@@ -1,6 +1,8 @@
 module Go
   class Error < StandardError; end
 
+  class OutOfTurn < Error; end
+
   class Overwrite < Error; end
 
   class NotOnBoard < Error; end

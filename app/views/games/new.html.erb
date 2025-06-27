@@ -10,6 +10,11 @@
     </div>
 
     <div>
+      <%= form.label :is_handicap, "Handicap game?" %>
+      <%= form.checkbox :is_handicap %>
+    </div>
+
+    <div>
       <%= form.label :handicap %>
       <%= form.number_field :handicap, in: 0..9, step: 1 %>
     </div>

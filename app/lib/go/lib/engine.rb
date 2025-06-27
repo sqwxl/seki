@@ -31,7 +31,7 @@ module Go
     end
 
     def current_turn_stone
-      moves.last.nil? ? Stone::BLACK : -moves.last.stone
+      @moves.last.nil? ? Stone::BLACK : -@moves.last.stone
     end
 
     def stone_at(point)
@@ -39,14 +39,14 @@ module Go
     end
 
     def try_play(stone, point)
-      begin
-        @goban = @goban.play(point, stone)
-        @moves << Move.new(MoveKind::PLAY, stone, point)
+      puts "try_play: #{stone} @ #{point.inspect}, current stone: #{current_turn_stone}"
+      raise OutOfTurn unless stone == current_turn_stone
 
-        # TODO Add detection for when board is full
-      rescue Go::Error
-        raise "[Go::Engine] #{e.message}"
-      end
+      # TODO: Lift game logic out of Goban class
+      @goban = @goban.play(point, stone)
+      @moves << Move.new(MoveKind::PLAY, stone, point)
+
+      # TODO Add detection for when board is full
 
       stage
     end
@@ -73,24 +73,20 @@ module Go
       @goban.is_legal?(point, stone)
     end
 
-    def status
-      # TODO
-    end
-
     def stage
-      if @moves.length == 0
-        Stage::UNSTARTED
-      elsif !@result.nil?
-        Stage::FINISHED
-      elsif @moves.last.kind == MoveKind::PLAY
-        Stage::PLAY
-      elsif @moves.length > 1 && @moves[-2..2].all? { |m| m.kind == MoveKind::PASS }
-        Stage::TERRITORY_REVIEW
+      if @moves.empty?
+        Go::Stage::UNSTARTED
+      elsif @result
+        Go::Stage::FINISHED
+      elsif @moves.length >= 2 && @moves[-2..2].all? { |m| m.kind == MoveKind::PASS }
+        Go::Stage::TERRITORY_REVIEW
+      else
+        Go::Stage::PLAY
       end
     end
 
     def serialize
-      Serializer.serialize(self)
+      EngineSerializer.call(self)
     end
   end
 end

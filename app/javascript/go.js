@@ -1,9 +1,9 @@
 import htm from "htm";
 import { h, render } from "preact";
 
-import "./controllers";
+import "./controllers/index.js";
 import consumer from "./channels/consumer.js";
-import { Goban } from "./goban";
+import { Goban } from "./goban/index.js";
 
 const html = htm.bind(h);
 const root = document.getElementById("game");
@@ -15,18 +15,23 @@ if (root != null) {
 
 	const initialStage = root.dataset.stage;
 	const initialGameState = JSON.parse(root.dataset.gameState);
-	console.log(initialGameState);
 
 	const channel = consumer.subscriptions.create(
 		{ channel: "GameChannel", id: gameId },
 		{
 			received(data) {
-				if (data.kind === "state") {
-					renderGoban(data.stage, data.state);
-					renderStatus(data.payload.status);
-					renderCaptures(data.payload.captures);
-				} else if (data.kind === "chat") {
-					appendToChat(data.sender, data.text);
+				switch (data.kind) {
+					case "state":
+						renderGoban(data.stage, data.state);
+						renderStatus(data.payload.status);
+						renderCaptures(data.payload.captures);
+						break;
+					case "chat":
+						appendToChat(data.sender, data.text);
+						break;
+					case "error":
+						showError(data.message);
+						break;
 				}
 			},
 
@@ -124,5 +129,10 @@ if (root != null) {
 		p.textContent = `${sender}: ${text}`;
 		box.appendChild(p);
 		box.scrollTop = box.scrollHeight;
+	}
+
+	function showError(message) {
+		if (!message) return;
+		document.getElementById("game-error").innerText = message;
 	}
 }

@@ -6,8 +6,8 @@ class Message < ApplicationRecord
 
   def sender_label
     stone = case player
-    when game.player_black then "B"
-    when game.player_white then "W"
+    when game.black then "B"
+    when game.white then "W"
     else "S"
     end
 

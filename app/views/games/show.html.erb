@@ -1,14 +1,14 @@
 <% content_for :head do %>
-  <%= stylesheet_link_tag "goban" %>
+  <%= stylesheet_link_tag "go" %>
 <% end %>
-<%= javascript_include_tag "game", type: "module", defer: true %>
+<%= javascript_include_tag "go", type: "module", defer: true %>
 
 <div
   id="game"
   data-game-id="<%= @game.id %>"
   data-player-id="<%= session[:player_id] %>"
   data-stage="<%= @game.stage %>"
-  data-game-state="<%= @game.engine.serialize %>"
+  data-game-state="<%= @engine.serialize.to_json %>"
 >
   <style>
     me {
@@ -19,6 +19,7 @@
   <div id="status"></div>
   <div id="captures"></div>
 </div>
+<div id="game-error"></div>
 
 <div id="chat" class="chat">
   <style>

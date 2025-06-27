@@ -5,7 +5,7 @@ class Player < ApplicationRecord
   has_many :moves
   has_many :games, ->(player) do
     unscope(:where).where(
-      "player_black_id = :id OR player_white_id = :id",
+      "black_id = :id OR white_id = :id",
       id: player.id
     )
   end, class_name: "Game"

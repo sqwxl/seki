@@ -13,23 +13,29 @@ class GameChannel < ApplicationCable::Channel
     col = data["col"]
     row = data["row"]
 
-    with_game_and_player(:play) do |game, player, engine|
-      stage = engine.try_play(game.player_stone(player), [col, row])
-      Move.create!(
-        game: game,
-        player: player,
-        stone: game.player_stone(player),
-        move_number: game.moves.count,
-        kind: Go::MoveKind::PLAY,
-        col: col,
-        row: row
-      )
-      broadcast_state(stage, engine)
+    begin
+      with_game_and_player(:play) do |game, player, engine, stone|
+        stage = engine.try_play(stone, [col, row])
+        Move.create!(
+          game: game,
+          player: player,
+          stone: stone,
+          move_number: game.moves.count,
+          kind: Go::MoveKind::PLAY,
+          col: col,
+          row: row
+        )
+        broadcast_state(stage, engine)
+      end
+    rescue => e
+      puts "ERROR: #{e.message}"
+      transmit({kind: "error", message: e.message})
     end
   end
 
   def pass
     with_game_and_player(:pass) do |game, player, engine|
+      only_players_can("pass", game, player)
       stage = engine.try_pass(game.player_stone(player))
 
       Move.create!(
@@ -114,24 +120,19 @@ class GameChannel < ApplicationCable::Channel
   end
 
   def current_game
-    @game ||= Game.find(params[:id])
+    Game.find(params[:id])
   end
 
   def with_game_and_player(action)
     game = current_game
     player = current_player
 
-    raise "The game is already over" if game.stage == Go::Stage::DONE
-
     only_players_can(action, game, player)
 
-    player_stone = (player == game.player_black) ? Go::Stone::BLACK : Go::Stone::WHITE
     engine = game.engine
-    current_stone = engine.current_turn_stone
+    stone = game.player_stone(player)
 
-    raise "Out of turn, it's #{Go::Stone.to_s(current_stone)}'s turn" if player_stone != current_stone
-
-    yield(game, player, engine)
+    yield(game, player, engine, stone)
   end
 
   def only_players_can(action, game, player)
@@ -142,7 +143,7 @@ class GameChannel < ApplicationCable::Channel
     ActionCable.server.broadcast(@stream_id, {
       kind: "state",
       stage: stage,
-      state: JSON.parse(engine.serialize) # TODO: it's silly to parse this since it's going to get encoded straight away again
+      state: engine.serialize
     })
   end
 end
