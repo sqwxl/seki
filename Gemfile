@@ -48,7 +48,7 @@ group :development, :test do
   gem "brakeman", require: false
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
-  # gem "rubocop-rails-omakase", require: false
+  gem "rubocop-rails-omakase", require: false
 
   gem "rspec"
   gem "rspec-rails", "~> 8.0.0"
@@ -66,3 +66,5 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
 end
+
+gem "standard", "~> 1.50", group: :development
