@@ -16,8 +16,9 @@ class CreateGames < ActiveRecord::Migration[8.0]
 
       t.boolean :is_handicap, default: false
 
-      t.belongs_to :black, foreign_key: {to_table: :players}
-      t.belongs_to :white, foreign_key: {to_table: :players}
+      t.belongs_to :creator, foreign_key: { to_table: :players }
+      t.belongs_to :black, foreign_key: { to_table: :players }
+      t.belongs_to :white, foreign_key: { to_table: :players }
 
       t.datetime :started_at
       t.datetime :ended_at
@@ -29,8 +30,8 @@ class CreateGames < ActiveRecord::Migration[8.0]
 
     create_table :challenge do |t|
       t.belongs_to :game, null: false, foreign_key: true
-      t.belongs_to :challenger, null: false, foreign_key: {to_table: :players}
-      t.belongs_to :challengee, null: false, foreign_key: {to_table: :players}
+      t.belongs_to :challenger, null: false, foreign_key: { to_table: :players }
+      t.belongs_to :challengee, null: false, foreign_key: { to_table: :players }
       t.boolean :accepted
     end
 
@@ -50,7 +51,7 @@ class CreateGames < ActiveRecord::Migration[8.0]
       t.belongs_to :player, null: false, foreign_key: true
 
       t.integer :move_number, null: false
-      t.string :kind, null: false, default: Go::MoveKind::PLAY
+      t.string :kind, null: false
       t.integer :stone, null: false
       t.integer :col
       t.integer :row

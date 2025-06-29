@@ -7,16 +7,20 @@ class GamesController < ApplicationController
   end
 
   def create
-    @game = Games::Creator.new(current_player, params)
+    @game = Games::Creator.call(current_player, params)
+
+    redirect_to @game
   rescue ActiveRecord::RecordInvalid => e
     flash.now.alert = e.record.errors.full_messages.to_sentence
+
     render :new, status: :unprocessable_entity
   end
 
   def show
     @game = Game.find(params[:id])
 
-    @engine = Games::EngineBuilder.call(game)
+    puts("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #{@game.moves.inspect}")
+    @engine = Games::EngineBuilder.call(@game)
   end
 
   def join

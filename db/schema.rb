@@ -24,9 +24,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
   create_table "games", force: :cascade do |t|
     t.integer "cols", default: 19, null: false
     t.integer "rows", default: 19, null: false
+    t.integer "handicap", default: 2, null: false
     t.float "komi", default: 0.5, null: false
     t.boolean "is_handicap", default: false
-    t.integer "handicap", default: 2, null: false
+    t.integer "creator_id"
     t.integer "black_id"
     t.integer "white_id"
     t.datetime "started_at"
@@ -35,6 +36,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["black_id"], name: "index_games_on_black_id"
+    t.index ["creator_id"], name: "index_games_on_creator_id"
     t.index ["white_id"], name: "index_games_on_white_id"
   end
 
@@ -52,7 +54,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.integer "game_id", null: false
     t.integer "player_id", null: false
     t.integer "move_number", null: false
-    t.string "kind", default: "play", null: false
+    t.string "kind", null: false
     t.integer "stone", null: false
     t.integer "col"
     t.integer "row"
@@ -88,6 +90,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
   add_foreign_key "challenge", "players", column: "challengee_id"
   add_foreign_key "challenge", "players", column: "challenger_id"
   add_foreign_key "games", "players", column: "black_id"
+  add_foreign_key "games", "players", column: "creator_id"
   add_foreign_key "games", "players", column: "white_id"
   add_foreign_key "messages", "games"
   add_foreign_key "messages", "players"

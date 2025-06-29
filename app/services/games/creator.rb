@@ -1,11 +1,9 @@
 module Games
   class Creator
-    def initialize(current_player, params)
+    def self.call(current_player, params)
       @player = current_player
       @params = params
-    end
 
-    def call
       Game.transaction do
         game = Game.new(game_params)
         game.creator = @player
@@ -19,19 +17,19 @@ module Games
 
     private
 
-    def game_params
-      @params.require(:game).permit(:cols, :rows, :handicap, :komi)
+    def self.game_params
+      @params.require(:game).permit(:cols, :rows, :is_handicap, :handicap, :komi)
     end
 
-    def find_or_create_friend
+    def self.find_or_create_friend
       Player.find_or_create_by(email: @params[:invite_email]) if @params[:invite_email].present?
     end
 
-    def assign_colors(game, friend)
+    def self.assign_colors(game, friend)
       case @params[:color]
       when "black" then game.black, game.white = @player, friend
       when "white" then game.black, game.white = friend, @player
-      else game.black, game.white = [@player, friend].shuffle
+      else game.black, game.white = [ @player, friend ].shuffle
       end
     end
   end

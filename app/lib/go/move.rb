@@ -1,11 +1,4 @@
 module Go
-  module MoveKind
-    PLAY = :play
-    PASS = :pass
-    RESIGN = :resign
-    ALL = [PLAY, PASS, RESIGN]
-  end
-
   class Move < Struct.new(:kind, :stone, :point)
     def initialize(kind, stone, point)
       if kind.instance_of? String

@@ -1,6 +1,6 @@
 module Go
   KoStatus = Struct.new("KoStatus", :point, :stone)
-  NO_KO = KoStatus.new([-1, -1], Stone::EMPTY).freeze
+  NO_KO = KoStatus.new([ -1, -1 ], Stone::EMPTY).freeze
 
   class Goban
     attr_reader :mtrx, :ko, :captures
@@ -15,7 +15,7 @@ module Go
         raise ArgumentError, "Malformed board matrix: #{mtrx.inspect}"
       end
 
-      @captures = {black: 0, white: 0}
+      @captures = { black: 0, white: 0 }
       @ko = NO_KO
     end
 
@@ -35,7 +35,7 @@ module Go
           l << case stone
           when Stone::BLACK then "B"
           when Stone::WHITE then "W"
-          when Stone::EMPTY then (@ko.point == [i, j]) ? "x" : "."
+          when Stone::EMPTY then (@ko.point == [ i, j ]) ? "x" : "."
           end
         end
 
@@ -76,7 +76,7 @@ module Go
     end
 
     def stone_at((col, row))
-      on_board?([col, row]) ? @mtrx[row][col] : nil
+      on_board?([ col, row ]) ? @mtrx[row][col] : nil
     end
 
     def on_board?((col, row))
@@ -86,7 +86,7 @@ module Go
     protected
 
     def set_stone!((col, row), stone)
-      @mtrx[row][col] = stone if on_board?([col, row])
+      @mtrx[row][col] = stone if on_board?([ col, row ])
     end
 
     def add_captures!(stone, count)
@@ -129,7 +129,7 @@ module Go
 
       raise Suicide if liberties.empty?
 
-      [goban, dead_stones, liberties]
+      [ goban, dead_stones, liberties ]
     end
 
     def capture(stones)
@@ -151,13 +151,13 @@ module Go
     end
 
     def neighbors((col, row))
-      return [] unless on_board?([col, row])
+      return [] unless on_board?([ col, row ])
 
       [
-        [col - 1, row],
-        [col + 1, row],
-        [col, row - 1],
-        [col, row + 1]
+        [ col - 1, row ],
+        [ col + 1, row ],
+        [ col, row - 1 ],
+        [ col, row + 1 ]
       ].select { |v| on_board?(v) }
     end
 

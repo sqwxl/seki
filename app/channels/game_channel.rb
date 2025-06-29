@@ -15,7 +15,8 @@ class GameChannel < ApplicationCable::Channel
 
     begin
       with_game_and_player(:play) do |game, player, engine, stone|
-        stage = engine.try_play(stone, [col, row])
+        stage = engine.try_play(stone, [ col, row ])
+
         Move.create!(
           game: game,
           player: player,
@@ -25,11 +26,12 @@ class GameChannel < ApplicationCable::Channel
           col: col,
           row: row
         )
+
         broadcast_state(stage, engine)
       end
     rescue => e
       puts "ERROR: #{e.message}"
-      transmit({kind: "error", message: e.message})
+      transmit({ kind: "error", message: e.message })
     end
   end
 
@@ -64,6 +66,7 @@ class GameChannel < ApplicationCable::Channel
 
     if stage == Go::Stage::DONE
       game.update(ended_at: Time.current, result: engine.result)
+
       Move.create!(
         game: game,
         player: player,
