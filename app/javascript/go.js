@@ -3,7 +3,7 @@ import { h, render } from "preact";
 
 import "./controllers/index.js";
 import consumer from "./channels/consumer.js";
-import { Goban } from "./goban/index.js";
+import { BoundedGoban as Goban } from "./goban/index.js";
 
 const html = htm.bind(h);
 const root = document.getElementById("game");
@@ -82,6 +82,8 @@ if (root != null) {
 
 		render(
 			html`<${Goban} 
+			maxWidth=800
+			maxHeight=800
 			signMap=${signMap} 
 			markerMap=${markerMap}
 			fuzzyStonePlacement

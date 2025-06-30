@@ -3,10 +3,12 @@ class Game < ApplicationRecord
   belongs_to :black, class_name: "Player", optional: true
   belongs_to :white, class_name: "Player", optional: true
 
-  has_many :moves, dependent: :destroy
   has_many :messages, dependent: :destroy
   has_one :territory_review, dependent: :destroy, required: false
 
+  has_many :moves, class_name: "GameMove", dependent: :destroy
+
+  # game settings
   validates :creator, presence: true
   validates :cols, :rows, numericality: { only_integer: true, greater_than_or_equal_to: 2 }
   validates :komi, presence: true
@@ -30,13 +32,13 @@ class Game < ApplicationRecord
 
   def stage
     if moves.empty?
-      Go::Stage::UNSTARTED
+      Go::Status::Stage::UNSTARTED
     elsif result
-      Go::Stage::FINISHED
+      Go::Status::Stage::FINISHED
     elsif territory_review && !territory_review.settled
-      Go::Stage::TERRITORY_REVIEW
+      Go::Status::Stage::TERRITORY_REVIEW
     else
-      Go::Stage::PLAY
+      Go::Status::Stage::PLAY
     end
   end
 

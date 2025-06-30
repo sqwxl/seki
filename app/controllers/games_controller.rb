@@ -10,7 +10,9 @@ class GamesController < ApplicationController
     @game = Games::Creator.call(current_player, params)
 
     redirect_to @game
+
   rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error e.message
     flash.now.alert = e.record.errors.full_messages.to_sentence
 
     render :new, status: :unprocessable_entity
@@ -19,7 +21,6 @@ class GamesController < ApplicationController
   def show
     @game = Game.find(params[:id])
 
-    puts("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! #{@game.moves.inspect}")
     @engine = Games::EngineBuilder.call(@game)
   end
 
@@ -32,21 +33,11 @@ class GamesController < ApplicationController
         @game.update!(white: current_player)
       end
     end
+
     redirect_to @game
   end
 
   private
-
-  def game_params
-    params.expect(game: [
-      :cols,
-      :rows,
-      :color,
-      :is_handicap,
-      :handicap,
-      :komi
-    ])
-  end
 
   def find_or_create_session_player
     if session[:player_id]

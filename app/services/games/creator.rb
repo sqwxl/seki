@@ -18,7 +18,14 @@ module Games
     private
 
     def self.game_params
-      @params.require(:game).permit(:cols, :rows, :is_handicap, :handicap, :komi)
+      @params.require(:game).permit(
+        :cols,
+        :rows,
+        :is_private,
+        :is_handicap,
+        :handicap,
+        :komi
+      )
     end
 
     def self.find_or_create_friend

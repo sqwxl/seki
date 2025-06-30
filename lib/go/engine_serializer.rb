@@ -7,7 +7,6 @@ module Go
         ko: engine.goban.ko.to_h,
         captures: engine.captures.to_h,
         board: engine.board,
-        status: engine.status,
         stage: engine.stage
       }
     end

@@ -21,15 +21,30 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.index ["game_id"], name: "index_challenge_on_game_id"
   end
 
+  create_table "game_moves", force: :cascade do |t|
+    t.integer "game_id", null: false
+    t.integer "player_id", null: false
+    t.integer "move_number", null: false
+    t.string "kind", null: false
+    t.integer "stone", null: false
+    t.integer "col"
+    t.integer "row"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_id"], name: "index_game_moves_on_game_id"
+    t.index ["player_id"], name: "index_game_moves_on_player_id"
+  end
+
   create_table "games", force: :cascade do |t|
-    t.integer "cols", default: 19, null: false
-    t.integer "rows", default: 19, null: false
-    t.integer "handicap", default: 2, null: false
-    t.float "komi", default: 0.5, null: false
-    t.boolean "is_handicap", default: false
     t.integer "creator_id"
     t.integer "black_id"
     t.integer "white_id"
+    t.integer "cols", default: 19, null: false
+    t.integer "rows", default: 19, null: false
+    t.float "komi", default: 0.5, null: false
+    t.boolean "is_private", default: false
+    t.boolean "is_handicap", default: false
+    t.integer "handicap", default: 2, null: false
     t.datetime "started_at"
     t.datetime "ended_at"
     t.string "result"
@@ -48,20 +63,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.datetime "updated_at", null: false
     t.index ["game_id"], name: "index_messages_on_game_id"
     t.index ["player_id"], name: "index_messages_on_player_id"
-  end
-
-  create_table "moves", force: :cascade do |t|
-    t.integer "game_id", null: false
-    t.integer "player_id", null: false
-    t.integer "move_number", null: false
-    t.string "kind", null: false
-    t.integer "stone", null: false
-    t.integer "col"
-    t.integer "row"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["game_id"], name: "index_moves_on_game_id"
-    t.index ["player_id"], name: "index_moves_on_player_id"
   end
 
   create_table "players", force: :cascade do |t|
@@ -89,12 +90,12 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
   add_foreign_key "challenge", "games"
   add_foreign_key "challenge", "players", column: "challengee_id"
   add_foreign_key "challenge", "players", column: "challenger_id"
+  add_foreign_key "game_moves", "games"
+  add_foreign_key "game_moves", "players"
   add_foreign_key "games", "players", column: "black_id"
   add_foreign_key "games", "players", column: "creator_id"
   add_foreign_key "games", "players", column: "white_id"
   add_foreign_key "messages", "games"
   add_foreign_key "messages", "players"
-  add_foreign_key "moves", "games"
-  add_foreign_key "moves", "players"
   add_foreign_key "territory_reviews", "games"
 end

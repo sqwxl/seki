@@ -109,14 +109,14 @@ module Go
     end
 
     def place_stone(point, stone)
-      raise NotOnBoard unless on_board?(point)
+      raise Error::NotOnBoard unless on_board?(point)
 
-      raise Overwrite unless stone_at(point)&.zero?
+      raise Error::Overwrite unless stone_at(point)&.zero?
 
       goban = dup
       goban.set_stone!(point, stone)
 
-      raise KoViolation if goban.ko?(point, stone)
+      raise Error::KoViolation if goban.ko?(point, stone)
 
       # captures
       dead_stones = []
@@ -127,7 +127,7 @@ module Go
 
       liberties = goban.get_liberties(point)
 
-      raise Suicide if liberties.empty?
+      raise Error::Suicide if liberties.empty?
 
       [ goban, dead_stones, liberties ]
     end
@@ -172,7 +172,7 @@ module Go
         neighbors(p).each { |n| acc << n if stone_at(n)&.zero? }
       end.to_a
 
-      # puts "Chain liberties: #{s.inspect}"
+      # Rails.logger.debug "Chain liberties: #{s.inspect}"
     end
 
     def neighbor_chains(point)

@@ -39,8 +39,8 @@ module Go
     end
 
     def try_play(stone, point)
-      puts "try_play: #{stone} @ #{point.inspect}, current stone: #{current_turn_stone}"
-      raise OutOfTurn unless stone == current_turn_stone
+      Rails.logger.debug "try_play: #{stone} @ #{point.inspect}, current stone: #{current_turn_stone}"
+        raise Error::OutOfTurn unless stone == current_turn_stone
 
       # TODO: Lift game logic out of Goban class
       @goban = @goban.play(point, stone)
@@ -74,14 +74,15 @@ module Go
     end
 
     def stage
+      Rails.logger.debug(@moves)
       if @moves.empty?
-        Go::Stage::UNSTARTED
+        Status::Stage::UNSTARTED
       elsif @result
-        Go::Stage::FINISHED
-      elsif @moves.length >= 2 && @moves[-2..2].all? { |m| m.kind == MoveKind::PASS }
-        Go::Stage::TERRITORY_REVIEW
+        Status::Stage::FINISHED
+      elsif @moves.length >= 2 && @moves[-2..].all? { |m| m.kind == MoveKind::PASS }
+        Status::Stage::TERRITORY_REVIEW
       else
-        Go::Stage::PLAY
+        Status::Stage::PLAY
       end
     end
 

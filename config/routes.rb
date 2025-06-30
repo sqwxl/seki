@@ -1,7 +1,7 @@
 Rails.application.routes.draw do
   root "games#new"
 
-  resources :games, only: [:index, :new, :create, :show]
+  resources :games, only: [ :index, :new, :create, :show ]
   post "games/:id/join", to: "games#join", as: :join_game
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

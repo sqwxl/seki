@@ -27,6 +27,7 @@
     margin: 1em;
 
     .chat-box {
+      background-color: #eee;
       border: 1px solid black;
       height: 150px;
       overflow-y: auto;
@@ -42,6 +43,9 @@
     }
   }
   </style>
+  <% if @current_player != @game.creator && ! @game.is_private && @game.players.any?(&:nil?) %>
+    <%= button_to "Join Game", join_game_path(@game.id), method: :post %>
+  <% end %>
   <div
     id="chat-box"
     class="chat-box"

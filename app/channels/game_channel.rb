@@ -17,7 +17,7 @@ class GameChannel < ApplicationCable::Channel
       with_game_and_player(:play) do |game, player, engine, stone|
         stage = engine.try_play(stone, [ col, row ])
 
-        Move.create!(
+        GameMove.create!(
           game: game,
           player: player,
           stone: stone,
@@ -30,7 +30,7 @@ class GameChannel < ApplicationCable::Channel
         broadcast_state(stage, engine)
       end
     rescue => e
-      puts "ERROR: #{e.message}"
+      Rails.logger.error e.message
       transmit({ kind: "error", message: e.message })
     end
   end
@@ -40,14 +40,14 @@ class GameChannel < ApplicationCable::Channel
       only_players_can("pass", game, player)
       stage = engine.try_pass(game.player_stone(player))
 
-      Move.create!(
+      GameMove.create!(
         game: game,
         player: player,
         stone: game.player_stone(player),
         kind: Go::MoveKind::PASS
       )
 
-      if stage == Go::Stage::TERRITORY_REVIEW
+      if stage == Go::Status::Stage::TERRITORY_REVIEW
         TerritoryReview.create!(game: game)
       end
 
@@ -67,7 +67,7 @@ class GameChannel < ApplicationCable::Channel
     if stage == Go::Stage::DONE
       game.update(ended_at: Time.current, result: engine.result)
 
-      Move.create!(
+      GameMove.create!(
         game: game,
         player: player,
         stone: game.player_stone(player),
@@ -82,7 +82,7 @@ class GameChannel < ApplicationCable::Channel
     game = current_game
     player = current_player
 
-    raise "Not in territory counting phase" unless game.stage == Go::Stage::TERRITORY_COUNT
+    raise "Not in territory counting phase" unless game.stage == Go::Status::Stage::TERRITORY_COUNT
 
     only_players_can("count territory", game, player)
 
@@ -93,7 +93,7 @@ class GameChannel < ApplicationCable::Channel
     game = current_game
     player = current_player
 
-    raise "Not in territory counting phase" unless game.stage == Go::Stage::TERRITORY_COUNT
+    raise "Not in territory counting phase" unless game.stage == Go::Status::Stage::TERRITORY_COUNT
 
     only_players_can("accept territory", game, player)
 
@@ -132,7 +132,7 @@ class GameChannel < ApplicationCable::Channel
 
     only_players_can(action, game, player)
 
-    engine = game.engine
+    engine = Games::EngineBuilder.call(game)
     stone = game.player_stone(player)
 
     yield(game, player, engine, stone)

@@ -66,7 +66,7 @@ export default class Goban extends Component {
 
 		const {
 			innerProps = {},
-			vertexSize = 24,
+			vertexSize = 32,
 			coordX,
 			coordY,
 			busy,
