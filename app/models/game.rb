@@ -6,7 +6,8 @@ class Game < ApplicationRecord
   has_many :messages, dependent: :destroy
   has_one :territory_review, dependent: :destroy, required: false
 
-  has_many :moves, class_name: "GameMove", dependent: :destroy
+  has_many :moves, -> { order(:move_number) }, class_name: "GameMove", dependent: :destroy
+  has_one :undo_request, dependent: :destroy, required: false
 
   # game settings
   validates :creator, presence: true
@@ -31,10 +32,10 @@ class Game < ApplicationRecord
   end
 
   def stage
-    if moves.empty?
+    if result
+      Go::Status::Stage::DONE
+    elsif moves.empty?
       Go::Status::Stage::UNSTARTED
-    elsif result
-      Go::Status::Stage::FINISHED
     elsif territory_review && !territory_review.settled
       Go::Status::Stage::TERRITORY_REVIEW
     else
@@ -42,10 +43,27 @@ class Game < ApplicationRecord
     end
   end
 
+  def can_request_undo?(player)
+    return false unless stage == Go::Status::Stage::PLAY
+    return false unless players.include?(player)
+
+    last_move = moves.order(:move_number).last
+    return false unless last_move.kind == Go::MoveKind::PLAY.to_s
+    return false unless last_move.player == player
+    return false if has_pending_undo_request?
+
+    true
+  end
+
+  def has_pending_undo_request?
+    undo_request&.pending?
+  end
+
   private
 
   def send_invite_email
     friend = (white == creator) ? black : white
+    return unless friend&.email.present?
     GameMailer.with(game: self, email: friend.email).invite.deliver_later
   end
 end

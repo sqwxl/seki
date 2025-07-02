@@ -4,9 +4,7 @@ module Go
     WHITE = -1
     EMPTY = 0
 
-    module_function
-
-    def to_s(value)
+    def self.name(value)
       case normalize(value)
       when BLACK then "Black"
       when WHITE then "White"
@@ -14,9 +12,7 @@ module Go
       end
     end
 
-    module_function
-
-    def normalize(value)
+    def self.normalize(value)
       case value
       when BLACK, :black then BLACK
       when EMPTY, :empty then EMPTY

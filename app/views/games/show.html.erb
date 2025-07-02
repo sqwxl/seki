@@ -18,6 +18,17 @@
   <div id="goban"></div>
   <div id="status"></div>
   <div id="captures"></div>
+  
+  <!-- Undo Controls -->
+  <div id="undo-controls">
+    <button id="request-undo-btn" style="display: none;">Request Undo</button>
+    <div id="undo-notification" style="display: none;"></div>
+    <div id="undo-response-controls" style="display: none;">
+      <p>Opponent has requested to undo their last move.</p>
+      <button id="accept-undo-btn">Accept</button>
+      <button id="reject-undo-btn">Reject</button>
+    </div>
+  </div>
 </div>
 <div id="game-error"></div>
 

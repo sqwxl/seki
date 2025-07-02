@@ -10,6 +10,6 @@ class GameMove < ApplicationRecord
   private
 
   def set_move_number
-    self.move_number ||= game.moves.count
+    self.move_number ||= game&.moves&.count || 0
   end
 end

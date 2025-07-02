@@ -13,6 +13,7 @@ class GamesController < ApplicationController
 
   rescue ActiveRecord::RecordInvalid => e
     Rails.logger.error e.message
+    @game = e.record
     flash.now.alert = e.record.errors.full_messages.to_sentence
 
     render :new, status: :unprocessable_entity

@@ -4,7 +4,7 @@ module Go
 
     def initialize(cols:, rows: nil, moves: [], result: nil)
       @cols = cols
-      @rows = rows
+      @rows = rows || cols
       @moves = moves
       @result = result
       @goban = Goban.with_dimensions(cols: @cols, rows: @rows, moves: @moves)
@@ -52,14 +52,16 @@ module Go
     end
 
     def try_pass(stone)
+      raise Error::OutOfTurn unless stone == current_turn_stone
+      
       @goban.pass! # TODO don't mutate
-      @moves << Move.new(MoveKind::PASS, stone)
+      @moves << Move.new(MoveKind::PASS, stone, nil)
 
       stage
     end
 
     def try_resign(stone)
-      @result ||= "#{Stone.to_s(-stone)}+R"
+      @result ||= "#{Stone.name(-stone)}+R"
 
       stage
     end
@@ -78,7 +80,7 @@ module Go
       if @moves.empty?
         Status::Stage::UNSTARTED
       elsif @result
-        Status::Stage::FINISHED
+        Status::Stage::DONE
       elsif @moves.length >= 2 && @moves[-2..].all? { |m| m.kind == MoveKind::PASS }
         Status::Stage::TERRITORY_REVIEW
       else
@@ -88,6 +90,29 @@ module Go
 
     def serialize
       EngineSerializer.call(self)
+    end
+
+    def restore_state!(goban_state:, moves:)
+      @goban.restore_state!(
+        board: goban_state[:board],
+        captures: goban_state[:captures],
+        ko: goban_state[:ko]
+      )
+      @moves = moves
+    end
+
+    def self.deserialize(cols:, rows:, moves:, state:)
+      # Create empty engine and restore cached state
+      engine = new(cols: cols, rows: rows, moves: [])
+      engine.restore_state!(
+        goban_state: {
+          board: state["board"],
+          captures: state["captures"],
+          ko: state["ko"]
+        },
+        moves: moves
+      )
+      engine
     end
   end
 end

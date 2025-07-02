@@ -11,8 +11,8 @@ const root = document.getElementById("game");
 const koMarker = { type: "triangle", label: "ko" };
 
 if (root != null) {
-	const gameId = document.getElementById("game").dataset.gameId;
-
+	const gameId = root.dataset.gameId;
+	const playerId = root.dataset.playerId;
 	const initialStage = root.dataset.stage;
 	const initialGameState = JSON.parse(root.dataset.gameState);
 
@@ -25,12 +25,24 @@ if (root != null) {
 						renderGoban(data.stage, data.state);
 						renderStatus(data.payload.status);
 						renderCaptures(data.payload.captures);
+						updateUndoControls(data.stage);
 						break;
 					case "chat":
 						appendToChat(data.sender, data.text);
 						break;
 					case "error":
 						showError(data.message);
+						break;
+					case "undo_request":
+						showUndoRequest(data.requesting_player, data.move_number);
+						break;
+					case "undo_accepted":
+						showUndoResult("accepted", data.responding_player);
+						renderGoban(data.stage, data.state);
+						updateUndoControls(data.stage);
+						break;
+					case "undo_rejected":
+						showUndoResult("rejected", data.responding_player);
 						break;
 				}
 			},
@@ -53,6 +65,14 @@ if (root != null) {
 
 			chat(text) {
 				this.perform("chat", { message: text });
+			},
+
+			requestUndo() {
+				this.perform("request_undo");
+			},
+
+			respondToUndo(response) {
+				this.perform("respond_to_undo", { response });
 			},
 		},
 	);
@@ -137,4 +157,67 @@ if (root != null) {
 		if (!message) return;
 		document.getElementById("game-error").innerText = message;
 	}
+
+	function updateUndoControls(stage) {
+		const requestBtn = document.getElementById("request-undo-btn");
+		const responseControls = document.getElementById("undo-response-controls");
+
+		// Show request undo button only during play stage
+		if (stage === "play") {
+			requestBtn.style.display = "inline-block";
+		} else {
+			requestBtn.style.display = "none";
+		}
+
+		// Hide response controls when game state updates
+		responseControls.style.display = "none";
+	}
+
+	function showUndoRequest(requestingPlayer, moveNumber) {
+		const responseControls = document.getElementById("undo-response-controls");
+		const notification = document.getElementById("undo-notification");
+
+		responseControls.style.display = "block";
+		notification.style.display = "block";
+		notification.textContent = `${requestingPlayer} has requested to undo move ${moveNumber}`;
+	}
+
+	function showUndoResult(result, respondingPlayer) {
+		const notification = document.getElementById("undo-notification");
+		const responseControls = document.getElementById("undo-response-controls");
+
+		responseControls.style.display = "none";
+		notification.style.display = "block";
+
+		if (result === "accepted") {
+			notification.textContent = `${respondingPlayer} accepted the undo request. Move has been undone.`;
+		} else {
+			notification.textContent = `${respondingPlayer} rejected the undo request.`;
+		}
+
+		// Hide notification after 5 seconds
+		setTimeout(() => {
+			notification.style.display = "none";
+		}, 5000);
+	}
+
+	// Event listeners for undo controls
+	document.getElementById("request-undo-btn").addEventListener("click", () => {
+		channel.requestUndo();
+		document.getElementById("request-undo-btn").disabled = true;
+		document.getElementById("undo-notification").style.display = "block";
+		document.getElementById("undo-notification").textContent =
+			"Undo request sent. Waiting for opponent response...";
+	});
+
+	document.getElementById("accept-undo-btn").addEventListener("click", () => {
+		channel.respondToUndo("accept");
+	});
+
+	document.getElementById("reject-undo-btn").addEventListener("click", () => {
+		channel.respondToUndo("reject");
+	});
+
+	// Initialize undo controls
+	updateUndoControls(initialStage);
 }

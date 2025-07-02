@@ -15,7 +15,7 @@ module Go
         raise ArgumentError, "Malformed board matrix: #{mtrx.inspect}"
       end
 
-      @captures = { black: 0, white: 0 }
+      @captures = { Stone::BLACK => 0, Stone::WHITE => 0 }
       @ko = NO_KO
     end
 
@@ -41,8 +41,8 @@ module Go
 
         puts l
       end
-      puts "Black captures: #{@captures[:black]}"
-      puts "White captures: #{@captures[:white]}"
+      puts "Black captures: #{@captures[Stone::BLACK]}"
+      puts "White captures: #{@captures[Stone::WHITE]}"
     end
 
     def is_legal?(point, stone)
@@ -83,6 +83,20 @@ module Go
       !col.nil? && !row.nil? && col.between?(0, @cols - 1) && row.between?(0, @rows - 1)
     end
 
+    def empty?
+      @mtrx.all? { |row| row.all?(&:zero?) }
+    end
+
+    def restore_state!(board:, captures:, ko:)
+      @mtrx = board
+      @captures = captures
+      if ko["point"] && ko["point"] != [-1, -1]
+        @ko = KoStatus.new(ko["point"], ko["stone"])
+      else
+        @ko = NO_KO
+      end
+    end
+
     protected
 
     def set_stone!((col, row), stone)
@@ -90,22 +104,14 @@ module Go
     end
 
     def add_captures!(stone, count)
-      sym = if stone == Stone::BLACK
-        :black
-      elsif stone == Stone::WHITE
-        :white
-      else
+      unless [Stone::BLACK, Stone::WHITE].include?(stone)
         raise ArgumentError, "Got unexpected stone: #{stone.inspect}"
       end
-      @captures[sym] += count
+      @captures[stone] += count
     end
 
     def ko?(point, stone)
       @ko[:point] == point && @ko[:stone] == stone
-    end
-
-    def empty?
-      @mtrx.all? { |row| row.all?(&:zero?) }
     end
 
     def place_stone(point, stone)
