@@ -48,7 +48,7 @@ class Game < ApplicationRecord
     return false unless players.include?(player)
 
     last_move = moves.order(:move_number).last
-    return false unless last_move.kind == Go::MoveKind::PLAY.to_s
+    return false unless last_move.kind.to_sym == Go::MoveKind::PLAY
     return false unless last_move.player == player
     return false if has_pending_undo_request?
 
