@@ -1,18 +1,6 @@
 require "rails_helper"
 
 RSpec.describe Go::Goban do
-  def goban_from_layout(layout)
-    rows = layout.map { |row|
-      row.chars.map { |c|
-        case c
-        when "B" then Go::Stone::BLACK
-        when "W" then Go::Stone::WHITE
-        when "+" then Go::Stone::EMPTY
-        end
-      }
-    }
-    Go::Goban.new(rows)
-  end
 
   describe "initialization" do
     it "rejects malformed board" do

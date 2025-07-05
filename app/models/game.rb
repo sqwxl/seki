@@ -11,15 +11,15 @@ class Game < ApplicationRecord
 
   # game settings
   validates :creator, presence: true
-  validates :cols, :rows, numericality: { only_integer: true, greater_than_or_equal_to: 2 }
+  validates :cols, :rows, numericality: {only_integer: true, greater_than_or_equal_to: 2}
   validates :komi, presence: true
-  validates :handicap, numericality: { only_integer: true, greater_than_or_equal_to: 2 }
+  validates :handicap, numericality: {only_integer: true, greater_than_or_equal_to: 2}
   validates :result, absence: true, on: :create
 
   after_create_commit :send_invite_email, if: -> { white&.email.present? || black&.email.present? }
 
   def players
-    [ black, white ]
+    [black, white]
   end
 
   def player_stone(player)
@@ -57,6 +57,12 @@ class Game < ApplicationRecord
 
   def has_pending_undo_request?
     undo_request&.pending?
+  end
+
+  def go_moves
+    moves.map do |m|
+      Go::Move.new(m.kind, m.stone, [m.col, m.row])
+    end
   end
 
   private

@@ -90,8 +90,8 @@ module Go
     def restore_state!(board:, captures:, ko:)
       @mtrx = board
       @captures = captures
-      if ko["point"] && ko["point"] != [-1, -1]
-        @ko = KoStatus.new(ko["point"], ko["stone"])
+      if ko && ko[:point] && ko[:point] != [-1, -1]
+        @ko = KoStatus.new(ko[:point], ko[:stone])
       else
         @ko = NO_KO
       end

@@ -136,15 +136,15 @@ RSpec.describe Go::Engine do
 
     it "rejects suicidal moves" do
       # Create a position where [1,1] would be suicide for white
-      engine.try_play(Go::Stone::BLACK, [ 0, 1 ])  # Black
-      engine.try_play(Go::Stone::WHITE, [ 3, 0 ])  # White
-      engine.try_play(Go::Stone::BLACK, [ 2, 1 ])  # Black
-      engine.try_play(Go::Stone::WHITE, [ 3, 1 ])  # White
-      engine.try_play(Go::Stone::BLACK, [ 1, 0 ])  # Black
-      engine.try_play(Go::Stone::WHITE, [ 3, 2 ])  # White
-      engine.try_play(Go::Stone::BLACK, [ 1, 2 ])  # Black
+      layout = [
+        "+B++",
+        "B+B+", 
+        "+B++",
+        "++++"
+      ]
+      engine = engine_from_layout(layout)
 
-      expect(engine.is_legal?([ 1, 1 ])).to be false
+      expect(engine.is_legal?([ 1, 1 ], Go::Stone::WHITE)).to be false
     end
   end
 
@@ -191,4 +191,5 @@ RSpec.describe Go::Engine do
       expect(engine.stone_at([ 0, 0 ])).to eq(Go::Stone::EMPTY)
     end
   end
+
 end

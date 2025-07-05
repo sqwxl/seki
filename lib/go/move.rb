@@ -7,6 +7,8 @@ module Go
       raise ArgumentError, "invalid move kind: #{kind}" unless MoveKind::ALL.include?(kind)
       raise ArgumentError, ":point cannot be nil" if kind == MoveKind::PLAY && point.nil?
 
+      point = nil unless kind == MoveKind::PLAY
+
       super
     end
 

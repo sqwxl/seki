@@ -206,10 +206,12 @@ class GameChannel < ApplicationCable::Channel
   end
 
   def broadcast_state(stage, engine)
+    game = current_game
+    game_state = Games::StateSerializer.call(game, engine)
+    
     ActionCable.server.broadcast(@stream_id, {
       kind: "state",
-      stage: stage,
-      state: engine.serialize
+      **game_state
     })
   end
 end

@@ -398,11 +398,12 @@ RSpec.describe GameChannel, type: :channel do
       it 'broadcasts state to the game channel' do
         expect(ActionCable.server).to receive(:broadcast).with(
           "game_#{game.id}",
-          {
+          hash_including(
             kind: "state",
-            stage: Go::Status::Stage::PLAY,
-            state: { board: "test_board" }
-          }
+            stage: Go::Status::Stage::UNSTARTED,
+            state: { board: "test_board" },
+            negotiations: {}
+          )
         )
         subscription.send(:broadcast_state, Go::Status::Stage::PLAY, mock_engine)
       end

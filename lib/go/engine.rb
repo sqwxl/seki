@@ -40,7 +40,7 @@ module Go
 
     def try_play(stone, point)
       Rails.logger.debug "try_play: #{stone} @ #{point.inspect}, current stone: #{current_turn_stone}"
-        raise Error::OutOfTurn unless stone == current_turn_stone
+      raise Error::OutOfTurn unless stone == current_turn_stone
 
       # TODO: Lift game logic out of Goban class
       @goban = @goban.play(point, stone)
@@ -53,7 +53,7 @@ module Go
 
     def try_pass(stone)
       raise Error::OutOfTurn unless stone == current_turn_stone
-      
+
       @goban.pass! # TODO don't mutate
       @moves << Move.new(MoveKind::PASS, stone, nil)
 
@@ -69,8 +69,8 @@ module Go
     def finish
     end
 
-    def is_legal?(point)
-      stone = current_turn_stone
+    def is_legal?(point, stone = nil)
+      stone ||= current_turn_stone
 
       @goban.is_legal?(point, stone)
     end
@@ -89,7 +89,11 @@ module Go
     end
 
     def serialize
-      EngineSerializer.call(self)
+      EngineSerializer.serialize(self)
+    end
+
+    def self.deserialize(cols:, rows:, moves:, state:)
+      EngineSerializer.deserialize(cols: cols, rows: rows, moves: moves, state: state)
     end
 
     def restore_state!(goban_state:, moves:)
@@ -99,20 +103,6 @@ module Go
         ko: goban_state[:ko]
       )
       @moves = moves
-    end
-
-    def self.deserialize(cols:, rows:, moves:, state:)
-      # Create empty engine and restore cached state
-      engine = new(cols: cols, rows: rows, moves: [])
-      engine.restore_state!(
-        goban_state: {
-          board: state["board"],
-          captures: state["captures"],
-          ko: state["ko"]
-        },
-        moves: moves
-      )
-      engine
     end
   end
 end
