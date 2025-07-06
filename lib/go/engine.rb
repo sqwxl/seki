@@ -97,11 +97,7 @@ module Go
     end
 
     def restore_state!(goban_state:, moves:)
-      @goban.restore_state!(
-        board: goban_state[:board],
-        captures: goban_state[:captures],
-        ko: goban_state[:ko]
-      )
+      @goban.restore_state!(**goban_state)
       @moves = moves
     end
   end

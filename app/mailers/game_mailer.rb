@@ -1,7 +1,7 @@
 class GameMailer < ApplicationMailer
   def invite
     @game = params[:game]
-    @url = game_url(@game)
+    @url = game_invitation_url(@game) << "?email=#{params[:email]}&token=#{params[:token]}"
 
     mail(
       to: params[:email],

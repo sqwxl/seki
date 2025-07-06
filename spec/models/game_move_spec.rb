@@ -182,7 +182,7 @@ RSpec.describe GameMove, type: :model do
           )
         end
 
-        expect(moves.map(&:move_number)).to eq([1, 2, 3, 4, 5])
+        expect(moves.map(&:move_number)).to eq([ 1, 2, 3, 4, 5 ])
       end
     end
 
@@ -288,7 +288,7 @@ RSpec.describe GameMove, type: :model do
         row: 15
       )
 
-      expect(game.moves.pluck(:id)).to eq([first_move.id, second_move.id])
+      expect(game.moves.pluck(:id)).to eq([ first_move.id, second_move.id ])
     end
   end
 end

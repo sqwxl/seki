@@ -766,5 +766,171 @@ RSpec.describe GameChannel, type: :channel do
       end
     end
   end
+
+  describe 'auto-rejection of undo requests' do
+    let!(:game_move) do
+      GameMove.create!(
+        game: game,
+        player: player,
+        stone: Go::Stone::BLACK,
+        move_number: 0,
+        kind: Go::MoveKind::PLAY,
+        col: 3,
+        row: 3
+      )
+    end
+    let!(:undo_request) do
+      UndoRequest.create!(
+        game: game,
+        requesting_player: player,
+        target_move: game_move,
+        status: UndoRequestStatus::PENDING
+      )
+    end
+
+    before do
+      subscribe(id: game.id)
+      allow(mock_engine).to receive(:try_play).and_return(Go::Status::Stage::PLAY)
+      allow(mock_engine).to receive(:try_pass).and_return(Go::Status::Stage::PLAY)
+    end
+
+    describe '#place_stone with pending undo request' do
+      context 'when opponent plays a move' do
+        before do
+          stub_connection(current_player: other_player)
+          subscribe(id: game.id)
+        end
+
+        it 'auto-rejects the undo request' do
+          expect do
+            perform(:place_stone, { 'col' => 4, 'row' => 4 })
+          end.to change { undo_request.reload.status }.to(UndoRequestStatus::REJECTED)
+        end
+
+        it 'sets the responding player' do
+          perform(:place_stone, { 'col' => 4, 'row' => 4 })
+          expect(undo_request.reload.responded_by).to eq(other_player)
+        end
+
+        it 'broadcasts undo rejection' do
+          expect(ActionCable.server).to receive(:broadcast).with(
+            "game_#{game.id}",
+            hash_including(
+              kind: "undo_rejected",
+              request_id: undo_request.id,
+              responding_player: "Anonymous"
+            )
+          )
+          expect(ActionCable.server).to receive(:broadcast).with(
+            "game_#{game.id}",
+            hash_including(kind: "state")
+          )
+
+          perform(:place_stone, { 'col' => 4, 'row' => 4 })
+        end
+
+        it 'still creates the game move' do
+          expect do
+            perform(:place_stone, { 'col' => 4, 'row' => 4 })
+          end.to change { GameMove.count }.by(1)
+        end
+
+        it 'still broadcasts game state' do
+          expect(ActionCable.server).to receive(:broadcast).with(
+            "game_#{game.id}",
+            hash_including(kind: "undo_rejected")
+          )
+          expect(ActionCable.server).to receive(:broadcast).with(
+            "game_#{game.id}",
+            hash_including(kind: "state")
+          )
+
+          perform(:place_stone, { 'col' => 4, 'row' => 4 })
+        end
+      end
+
+      context 'when requesting player plays a move' do
+        it 'does not auto-reject the undo request' do
+          expect do
+            perform(:place_stone, { 'col' => 4, 'row' => 4 })
+          end.not_to change { undo_request.reload.status }
+        end
+
+        it 'does not broadcast undo rejection' do
+          expect(subscription).not_to receive(:transmit).with(hash_including(kind: "undo_rejected"))
+          perform(:place_stone, { 'col' => 4, 'row' => 4 })
+        end
+      end
+    end
+
+    describe '#pass with pending undo request' do
+      context 'when opponent passes' do
+        before do
+          stub_connection(current_player: other_player)
+          subscribe(id: game.id)
+        end
+
+        it 'auto-rejects the undo request' do
+          expect do
+            perform(:pass)
+          end.to change { undo_request.reload.status }.to(UndoRequestStatus::REJECTED)
+        end
+
+        it 'sets the responding player' do
+          perform(:pass)
+          expect(undo_request.reload.responded_by).to eq(other_player)
+        end
+
+        it 'broadcasts undo rejection' do
+          expect(ActionCable.server).to receive(:broadcast).with(
+            "game_#{game.id}",
+            hash_including(
+              kind: "undo_rejected",
+              request_id: undo_request.id,
+              responding_player: "Anonymous"
+            )
+          )
+          expect(ActionCable.server).to receive(:broadcast).with(
+            "game_#{game.id}",
+            hash_including(kind: "state")
+          )
+
+          perform(:pass)
+        end
+      end
+
+      context 'when requesting player passes' do
+        it 'does not auto-reject the undo request' do
+          expect do
+            perform(:pass)
+          end.not_to change { undo_request.reload.status }
+        end
+      end
+    end
+
+    describe 'without pending undo request' do
+      before do
+        undo_request.update!(status: UndoRequestStatus::REJECTED, responded_by: other_player)
+      end
+
+      it 'does not attempt auto-rejection' do
+        expect(UndoRequest).not_to receive(:find)
+        perform(:place_stone, { 'col' => 4, 'row' => 4 })
+      end
+    end
+
+    describe 'edge cases' do
+      context 'when undo request is deleted during processing' do
+        it 'handles missing undo request gracefully' do
+          allow(game).to receive(:has_pending_undo_request?).and_return(true)
+          allow(game).to receive(:undo_request).and_return(nil)
+
+          expect do
+            perform(:place_stone, { 'col' => 4, 'row' => 4 })
+          end.not_to raise_error
+        end
+      end
+    end
+  end
 end
 

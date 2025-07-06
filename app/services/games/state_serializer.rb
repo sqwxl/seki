@@ -21,17 +21,17 @@ module Games
 
     def build_negotiations
       negotiations = {}
-      
+
       # Add undo request state
       if @game.has_pending_undo_request?
         negotiations[:undo_request] = build_undo_request_state
       end
-      
-      # Add territory review state  
+
+      # Add territory review state
       if @game.territory_review && !@game.territory_review.settled
         negotiations[:territory_review] = build_territory_review_state
       end
-      
+
       negotiations
     end
 
@@ -49,7 +49,7 @@ module Games
       territory_review = @game.territory_review
       {
         id: territory_review.id,
-        settled: territory_review.settled,
+        settled: territory_review.settled
         # Add other territory review fields as needed
       }
     end

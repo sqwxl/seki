@@ -13,6 +13,7 @@ const koMarker = { type: "triangle", label: "ko" };
 if (root != null) {
 	const gameId = root.dataset.gameId;
 	const playerId = root.dataset.playerId;
+	const playerName = root.dataset.playerName;
 	const initialStage = root.dataset.stage;
 	const initialGameState = JSON.parse(root.dataset.gameState);
 
@@ -25,7 +26,7 @@ if (root != null) {
 						renderGoban(data.stage, data.state);
 						renderStatus(data.payload.status);
 						renderCaptures(data.payload.captures);
-						updateUndoControls(data.stage);
+						updateUndoControls(data.stage, data.negotiations);
 						break;
 					case "chat":
 						appendToChat(data.sender, data.text);
@@ -33,13 +34,10 @@ if (root != null) {
 					case "error":
 						showError(data.message);
 						break;
-					case "undo_request":
-						showUndoRequest(data.requesting_player, data.move_number);
-						break;
 					case "undo_accepted":
 						showUndoResult("accepted", data.responding_player);
 						renderGoban(data.stage, data.state);
-						updateUndoControls(data.stage);
+						updateUndoControls(data.stage, {});
 						break;
 					case "undo_rejected":
 						showUndoResult("rejected", data.responding_player);
@@ -158,9 +156,15 @@ if (root != null) {
 		document.getElementById("game-error").innerText = message;
 	}
 
-	function updateUndoControls(stage) {
+	function updateUndoControls(stage, negotiations = {}) {
 		const requestBtn = document.getElementById("request-undo-btn");
 		const responseControls = document.getElementById("undo-response-controls");
+		const notification = document.getElementById("undo-notification");
+
+		// Reset UI state
+		requestBtn.disabled = false;
+		responseControls.style.display = "none";
+		notification.style.display = "none";
 
 		// Show request undo button only during play stage
 		if (stage === "play") {
@@ -169,18 +173,24 @@ if (root != null) {
 			requestBtn.style.display = "none";
 		}
 
-		// Hide response controls when game state updates
-		responseControls.style.display = "none";
+		// Handle pending undo request
+		if (negotiations.undo_request) {
+			const undoRequest = negotiations.undo_request;
+			
+			if (undoRequest.requesting_player === playerName) {
+				// Show pending state for requesting player
+				requestBtn.disabled = true;
+				notification.style.display = "block";
+				notification.textContent = `Undo request sent. Waiting for opponent response...`;
+			} else {
+				// Show response controls for the other player
+				responseControls.style.display = "block";
+				notification.style.display = "block";
+				notification.textContent = `${undoRequest.requesting_player} has requested to undo move ${undoRequest.target_move_number}`;
+			}
+		}
 	}
 
-	function showUndoRequest(requestingPlayer, moveNumber) {
-		const responseControls = document.getElementById("undo-response-controls");
-		const notification = document.getElementById("undo-notification");
-
-		responseControls.style.display = "block";
-		notification.style.display = "block";
-		notification.textContent = `${requestingPlayer} has requested to undo move ${moveNumber}`;
-	}
 
 	function showUndoResult(result, respondingPlayer) {
 		const notification = document.getElementById("undo-notification");

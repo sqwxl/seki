@@ -29,6 +29,8 @@ class GameChannel < ApplicationCable::Channel
     col = data["col"]
     row = data["row"]
     with_game_and_player(:play) do |game, player, engine, stone|
+      auto_reject_undo_request(game, player)
+
       stage = engine.try_play(stone, [ col, row ])
 
       GameMove.create!(
@@ -111,6 +113,8 @@ class GameChannel < ApplicationCable::Channel
   end
   def pass
     with_game_and_player(:pass) do |game, player, engine, stone|
+      auto_reject_undo_request(game, player)
+
       stage = engine.try_pass(stone)
 
       GameMove.create!(
@@ -208,10 +212,24 @@ class GameChannel < ApplicationCable::Channel
   def broadcast_state(stage, engine)
     game = current_game
     game_state = Games::StateSerializer.call(game, engine)
-    
+
     ActionCable.server.broadcast(@stream_id, {
       kind: "state",
       **game_state
+    })
+  end
+
+  def auto_reject_undo_request(game, player)
+    return unless game.has_pending_undo_request?
+
+    undo_request = game.undo_request
+    return if undo_request.requesting_player == player
+
+    undo_request.reject!(player)
+    ActionCable.server.broadcast(@stream_id, {
+      kind: "undo_rejected",
+      request_id: undo_request.id,
+      responding_player: player.username || "Anonymous"
     })
   end
 end

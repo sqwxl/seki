@@ -39,12 +39,13 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.integer "creator_id"
     t.integer "black_id"
     t.integer "white_id"
-    t.integer "cols", default: 19, null: false
-    t.integer "rows", default: 19, null: false
-    t.float "komi", default: 0.5, null: false
+    t.string "invite_token"
+    t.integer "cols", null: false
+    t.integer "rows", null: false
+    t.float "komi", null: false
+    t.integer "handicap", null: false
     t.boolean "is_private", default: false
     t.boolean "is_handicap", default: false
-    t.integer "handicap", default: 2, null: false
     t.datetime "started_at"
     t.datetime "ended_at"
     t.string "result"

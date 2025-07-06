@@ -183,7 +183,7 @@ RSpec.describe GamesController, type: :request do
         original_white = game.white
 
         post "/games/#{game.id}/join"
-        
+
         game.reload
         expect(game.black).to eq(original_black)
         expect(game.white).to eq(original_white)
@@ -207,7 +207,7 @@ RSpec.describe GamesController, type: :request do
         original_white = game.white
 
         post "/games/#{game.id}/join"
-        
+
         game.reload
         expect(game.black).to eq(original_black)
         expect(game.white).to eq(original_white)
@@ -236,7 +236,7 @@ RSpec.describe GamesController, type: :request do
     it 'uses Games::Creator for game creation' do
       allow(Games::Creator).to receive(:call).and_return(game)
       expect(Games::Creator).to receive(:call)
-      
+
       post '/games', params: {
         game: { cols: 19, rows: 19, komi: 6.5, handicap: 2 }
       }
@@ -247,7 +247,7 @@ RSpec.describe GamesController, type: :request do
       allow(mock_engine).to receive(:serialize).and_return({})
       allow(Games::EngineBuilder).to receive(:call).and_return(mock_engine)
       expect(Games::EngineBuilder).to receive(:call).with(game)
-      
+
       get game_path(game)
     end
   end
@@ -355,7 +355,7 @@ RSpec.describe GamesController, type: :request do
   describe 'parameter handling' do
     it 'handles string parameters correctly' do
       allow(Games::Creator).to receive(:call).and_return(game)
-      
+
       post '/games', params: {
         game: {
           cols: '19',      # String instead of integer
@@ -364,13 +364,13 @@ RSpec.describe GamesController, type: :request do
           handicap: '2'
         }
       }
-      
+
       expect(response).to redirect_to(game_path(game))
     end
 
     it 'handles missing optional parameters' do
       allow(Games::Creator).to receive(:call).and_return(game)
-      
+
       post '/games', params: {
         game: {
           cols: 19,
@@ -380,7 +380,7 @@ RSpec.describe GamesController, type: :request do
         }
         # No color or invite_email
       }
-      
+
       expect(response).to redirect_to(game_path(game))
     end
   end

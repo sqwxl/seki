@@ -3,10 +3,17 @@
 <% end %>
 <%= javascript_include_tag "go", type: "module", defer: true %>
 
+<pre>
+ debug
+ game: <%= @game.id %>
+ player: <%= @current_player.id %> (<%= begin Go::Stone.name(@game.player_stone(@current_player)) rescue "Spectator" end %>)
+ stage: <%= @game.stage %>
+</pre>
 <div
   id="game"
   data-game-id="<%= @game.id %>"
   data-player-id="<%= session[:player_id] %>"
+  data-player-name="<%= @current_player.username || 'Anonymous' %>"
   data-stage="<%= @game.stage %>"
   data-game-state="<%= @engine.serialize.to_json %>"
 >

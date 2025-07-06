@@ -12,13 +12,15 @@ class CreateGames < ActiveRecord::Migration[8.0]
       t.belongs_to :creator, foreign_key: { to_table: :players }
       t.belongs_to :black, foreign_key: { to_table: :players }
       t.belongs_to :white, foreign_key: { to_table: :players }
+      
+      t.string :invite_token
 
-      t.integer :cols, null: false, default: 19
-      t.integer :rows, null: false, default: 19
-      t.float :komi, null: false, default: 0.5
+      t.integer :cols, null: false
+      t.integer :rows, null: false
+      t.float :komi, null: false
+      t.integer :handicap, null: false
       t.boolean :is_private, default: false
       t.boolean :is_handicap, default: false
-      t.integer :handicap, null: false, default: 2
 
       t.datetime :started_at
       t.datetime :ended_at

@@ -16,13 +16,13 @@ module GoTestHelpers
     goban = goban_from_layout(layout)
     cols = layout.first.length
     rows = layout.length
-    
+
     # Create engine with the same dimensions
     engine = Go::Engine.new(cols: cols, rows: rows)
-    
+
     # Replace the engine's goban with our custom one
     engine.instance_variable_set(:@goban, goban)
-    
+
     engine
   end
 end

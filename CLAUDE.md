@@ -89,4 +89,10 @@ Real-time features use ActionCable channels:
 - Both test databases configured (SQLite)
 
 ## Migration Management
-- When editing schemas, don't generate a new migration. Instead, rollback the current -- and only -- migration, edit it directly, and migrate back.
+- When editing schemas, don't generate a new migration. Instead, roll back the current -- and only -- migration, edit it directly, and migrate back.
+
+## Debugging and Development Tips
+- When working on failing tests, remember to consider that the underlying code may be at fault, and not the test itself.
+
+## Go Game Rules
+- The minimum handicap in a game of Go is 2 stones.

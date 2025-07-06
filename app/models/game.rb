@@ -9,7 +9,13 @@ class Game < ApplicationRecord
   has_many :moves, -> { order(:move_number) }, class_name: "GameMove", dependent: :destroy
   has_one :undo_request, dependent: :destroy, required: false
 
+
   # game settings
+  after_initialize :set_default_size, if: :new_record?
+  after_initialize :set_default_komi, if: :new_record?
+  after_initialize :set_default_handicap, if: :new_record?
+  after_initialize :set_invite_token, if: :new_record?
+
   validates :creator, presence: true
   validates :cols, :rows, numericality: {only_integer: true, greater_than_or_equal_to: 2}
   validates :komi, presence: true
@@ -67,9 +73,27 @@ class Game < ApplicationRecord
 
   private
 
+  def set_default_size
+    self.cols ||= cols || 19
+    self.rows ||= rows || self.cols
+  end
+
+  def set_default_komi
+    self.komi ||= komi || 0.5
+  end
+
+  def set_default_handicap
+    self.handicap ||= handicap || 2
+  end
+
+  def set_invite_token
+    self.invite_token = SecureRandom.uuid
+  end
+
   def send_invite_email
     friend = (white == creator) ? black : white
     return unless friend&.email.present?
-    GameMailer.with(game: self, email: friend.email).invite.deliver_later
+    GameMailer.with(game: self, email: friend.email, token: self.invite_token).invite.deliver_later
   end
+
 end

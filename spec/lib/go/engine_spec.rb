@@ -138,7 +138,7 @@ RSpec.describe Go::Engine do
       # Create a position where [1,1] would be suicide for white
       layout = [
         "+B++",
-        "B+B+", 
+        "B+B+",
         "+B++",
         "++++"
       ]
@@ -191,5 +191,4 @@ RSpec.describe Go::Engine do
       expect(engine.stone_at([ 0, 0 ])).to eq(Go::Stone::EMPTY)
     end
   end
-
 end

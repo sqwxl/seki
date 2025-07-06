@@ -1,5 +1,3 @@
-require "json"
-
 module Go
   module Status
     module Result

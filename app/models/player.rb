@@ -9,4 +9,11 @@ class Player < ApplicationRecord
       id: player.id
     )
   end, class_name: "Game"
+
+  def ensure_session_token!
+    return session_token if session_token.present?
+    
+    update!(session_token: SecureRandom.uuid)
+    session_token
+  end
 end

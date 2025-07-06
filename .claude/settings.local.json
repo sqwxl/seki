@@ -5,7 +5,9 @@
       "Bash(bundle exec rspec spec/lib/go/engine_spec.rb -e \"defaults rows to cols when not specified\")",
       "Bash(rg:*)",
       "Bash(find:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(timeout:*)",
+      "Bash(echo:*)"
     ],
     "deny": []
   }

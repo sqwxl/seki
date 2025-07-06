@@ -35,7 +35,7 @@ RSpec.describe Player, type: :model do
           'test.email+tag@domain.co.uk',
           'valid.email@subdomain.domain.com'
         ]
-        
+
         valid_emails.each do |email|
           player = Player.new(email: email)
           expect(player).to be_valid, "#{email} should be valid"
@@ -50,7 +50,7 @@ RSpec.describe Player, type: :model do
           'invalid.email',
           'spaces in@email.com'
         ]
-        
+
         invalid_emails.each do |email|
           player = Player.new(email: email)
           expect(player).not_to be_valid, "#{email} should be invalid"
@@ -156,6 +156,40 @@ RSpec.describe Player, type: :model do
       )
       expect(player.session_token).to eq('abc123')
       expect(player.email).to eq('test@example.com')
+    end
+  end
+
+  describe "#ensure_session_token!" do
+    let(:player) { Player.create! }
+
+    it "returns existing session token if present" do
+      token = SecureRandom.uuid
+      player.update!(session_token: token)
+      
+      result = player.ensure_session_token!
+      
+      expect(result).to eq(token)
+      expect(player.reload.session_token).to eq(token)
+    end
+
+    it "creates and returns new session token if none exists" do
+      expect(player.session_token).to be_nil
+      
+      result = player.ensure_session_token!
+      
+      expect(result).to be_present
+      expect(result).to match(/\A[0-9a-f-]{36}\z/) # UUID format
+      expect(player.reload.session_token).to eq(result)
+    end
+
+    it "creates and returns new session token if blank" do
+      player.update!(session_token: "")
+      
+      result = player.ensure_session_token!
+      
+      expect(result).to be_present
+      expect(result).to match(/\A[0-9a-f-]{36}\z/) # UUID format
+      expect(player.reload.session_token).to eq(result)
     end
   end
 end

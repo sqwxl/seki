@@ -18,7 +18,7 @@ module Games
 
     def self.build_from_cache(game)
       moves = game.moves.map do |m|
-        Go::Move.new(m.kind, m.stone, [m.col, m.row])
+        Go::Move.new(m.kind, m.stone, [ m.col, m.row ])
       end
 
       Go::Engine.deserialize(

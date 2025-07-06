@@ -101,7 +101,7 @@ RSpec.describe Games::EngineBuilder do
 
     context "when cached move count is 0 and current move count is 0" do
       before do
-        game.update!(cached_engine_state: {"move_count" => 0, "some_state" => "data"})
+        game.update!(cached_engine_state: { "move_count" => 0, "some_state" => "data" })
       end
 
       it "rebuilds from scratch (does not use cache for 0 moves)" do
@@ -171,7 +171,7 @@ RSpec.describe Games::EngineBuilder do
       before do
         move1
         # Simulate cache corruption by setting wrong move count
-        game.update!(cached_engine_state: {"move_count" => 5, "corrupted" => "data"})
+        game.update!(cached_engine_state: { "move_count" => 5, "corrupted" => "data" })
       end
 
       it "rebuilds fresh when cache move count is incorrect" do
@@ -221,8 +221,8 @@ RSpec.describe Games::EngineBuilder do
 
       expect(Go::Engine).to have_received(:deserialize) do |args|
         moves = args[:moves]
-        expect(moves[0].point).to eq([3, 3])   # First move
-        expect(moves[1].point).to eq([15, 15]) # Second move
+        expect(moves[0].point).to eq([ 3, 3 ])   # First move
+        expect(moves[1].point).to eq([ 15, 15 ]) # Second move
       end
     end
   end
@@ -253,15 +253,15 @@ RSpec.describe Games::EngineBuilder do
 
       expect(Go::Engine).to have_received(:new) do |args|
         moves = args[:moves]
-        expect(moves[0].point).to eq([3, 3])   # First move
-        expect(moves[1].point).to eq([15, 15]) # Second move
+        expect(moves[0].point).to eq([ 3, 3 ])   # First move
+        expect(moves[1].point).to eq([ 15, 15 ]) # Second move
       end
     end
   end
 
   describe ".cache_engine_state" do
     let(:engine) { double("engine") }
-    let(:serialized_state) { {"board" => "state", "player" => "black"} }
+    let(:serialized_state) { { "board" => "state", "player" => "black" } }
 
     before do
       allow(engine).to receive(:serialize).and_return(serialized_state)

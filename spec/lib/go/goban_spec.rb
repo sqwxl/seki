@@ -1,7 +1,6 @@
 require "rails_helper"
 
 RSpec.describe Go::Goban do
-
   describe "initialization" do
     it "rejects malformed board" do
       layout = [

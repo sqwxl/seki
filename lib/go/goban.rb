@@ -1,6 +1,6 @@
 module Go
   KoStatus = Struct.new("KoStatus", :point, :stone)
-  NO_KO = KoStatus.new([ -1, -1 ], Stone::EMPTY).freeze
+  NO_KO = KoStatus.new([-1, -1], Stone::EMPTY).freeze
 
   class Goban
     attr_reader :mtrx, :ko, :captures
@@ -15,7 +15,7 @@ module Go
         raise ArgumentError, "Malformed board matrix: #{mtrx.inspect}"
       end
 
-      @captures = { Stone::BLACK => 0, Stone::WHITE => 0 }
+      @captures = {Stone::BLACK => 0, Stone::WHITE => 0}
       @ko = NO_KO
     end
 
@@ -28,21 +28,20 @@ module Go
     end
 
     def inspect
-      puts
+      b = ""
       @mtrx.each_with_index do |row, j|
         l = ""
         row.each_with_index do |stone, i|
           l << case stone
           when Stone::BLACK then "B"
           when Stone::WHITE then "W"
-          when Stone::EMPTY then (@ko.point == [ i, j ]) ? "x" : "."
+          when Stone::EMPTY then (@ko.point == [i, j]) ? "#" : "+"
           end
         end
-
-        puts l
+        b << l + "\n"
       end
-      puts "Black captures: #{@captures[Stone::BLACK]}"
-      puts "White captures: #{@captures[Stone::WHITE]}"
+
+      [b, "Black captures: #{@captures[Stone::BLACK]}", "White captures: #{@captures[Stone::WHITE]}"].join("\n")
     end
 
     def is_legal?(point, stone)
@@ -76,7 +75,7 @@ module Go
     end
 
     def stone_at((col, row))
-      on_board?([ col, row ]) ? @mtrx[row][col] : nil
+      on_board?([col, row]) ? @mtrx[row][col] : nil
     end
 
     def on_board?((col, row))
@@ -90,17 +89,17 @@ module Go
     def restore_state!(board:, captures:, ko:)
       @mtrx = board
       @captures = captures
-      if ko && ko[:point] && ko[:point] != [-1, -1]
-        @ko = KoStatus.new(ko[:point], ko[:stone])
+      @ko = if ko && ko[:point] && ko[:point] != [-1, -1]
+        KoStatus.new(ko[:point], ko[:stone])
       else
-        @ko = NO_KO
+        NO_KO
       end
     end
 
     protected
 
     def set_stone!((col, row), stone)
-      @mtrx[row][col] = stone if on_board?([ col, row ])
+      @mtrx[row][col] = stone if on_board?([col, row])
     end
 
     def add_captures!(stone, count)
@@ -135,7 +134,7 @@ module Go
 
       raise Error::Suicide if liberties.empty?
 
-      [ goban, dead_stones, liberties ]
+      [goban, dead_stones, liberties]
     end
 
     def capture(stones)
@@ -157,13 +156,13 @@ module Go
     end
 
     def neighbors((col, row))
-      return [] unless on_board?([ col, row ])
+      return [] unless on_board?([col, row])
 
       [
-        [ col - 1, row ],
-        [ col + 1, row ],
-        [ col, row - 1 ],
-        [ col, row + 1 ]
+        [col - 1, row],
+        [col + 1, row],
+        [col, row - 1],
+        [col, row + 1]
       ].select { |v| on_board?(v) }
     end
 

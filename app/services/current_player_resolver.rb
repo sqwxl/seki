@@ -22,9 +22,8 @@ class CurrentPlayerResolver
   end
 
   def create_new_player
-    token = SecureRandom.uuid
-    player = Player.create!(session_token: token)
-    @session[:player_id] = token
+    player = Player.create!
+    @session[:player_id] = player.ensure_session_token!
     Rails.logger.debug "[CurrentPlayerResolver] New player created: #{player.id}"
     player
   end

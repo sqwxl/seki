@@ -40,10 +40,10 @@ RSpec.describe Game, type: :model do
     end
 
     context 'komi' do
-      it 'requires komi to be present' do
+      it 'sets default komi if not given' do
         game = Game.new(creator: creator, cols: 19, rows: 19, komi: nil, handicap: 2)
-        expect(game).not_to be_valid
-        expect(game.errors[:komi]).to include("can't be blank")
+        expect(game).to be_valid
+        expect(game.komi).to eq(0.5)
       end
     end
 
@@ -54,6 +54,12 @@ RSpec.describe Game, type: :model do
           expect(game).not_to be_valid
           expect(game.errors[:handicap]).to be_present
         end
+      end
+
+      it 'sets default handicap if not given' do
+        game = Game.new(creator: creator, cols: 19, rows: 19, komi: 6.5, handicap: nil)
+        expect(game).to be_valid
+        expect(game.handicap).to eq(2)
       end
     end
 

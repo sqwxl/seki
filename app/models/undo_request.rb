@@ -73,5 +73,4 @@ class UndoRequest < ApplicationRecord
     errors.add(:game, "must be in play stage") unless game.stage == Go::Status::Stage::PLAY
     errors.add(:game, "must have at least one move") if game.moves.empty?
   end
-
 end

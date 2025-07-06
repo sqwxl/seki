@@ -3,6 +3,7 @@ Rails.application.routes.draw do
 
   resources :games, only: [ :index, :new, :create, :show ]
   post "games/:id/join", to: "games#join", as: :join_game
+  get "games/:id/invite", to: "games#invitation", as: :game_invitation
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
