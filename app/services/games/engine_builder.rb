@@ -18,7 +18,7 @@ module Games
 
     def self.build_from_cache(game)
       moves = game.moves.map do |m|
-        Go::Move.new(m.kind, m.stone, [ m.col, m.row ])
+        Go::Move.new(m.kind, m.stone, [m.col, m.row])
       end
 
       Go::Engine.deserialize(
@@ -33,8 +33,11 @@ module Games
       Go::Engine.new(cols: game.cols, rows: game.rows, moves: game.go_moves)
     end
 
-    def self.cache_engine_state(game, engine, move_count)
-      cached_state = engine.serialize.merge(move_count: move_count)
+    def self.cache_engine_state(game, engine, move_count, metadata: {})
+      cached_state = engine.serialize.merge(
+        move_count: move_count,
+        **metadata
+      )
       game.update_column(:cached_engine_state, cached_state)
     end
   end

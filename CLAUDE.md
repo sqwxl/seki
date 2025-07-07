@@ -87,12 +87,15 @@ Real-time features use ActionCable channels:
 - RSpec for Ruby code (models, services, channels)
 - Legacy Minitest in `test/` directory
 - Both test databases configured (SQLite)
+- **Tests should reflect the current implementation, and not past implementations, or changes in implementation details.**
 
 ## Migration Management
 - When editing schemas, don't generate a new migration. Instead, roll back the current -- and only -- migration, edit it directly, and migrate back.
+- Always adjust db schema by rolling back and editing the one and only migration file.
 
 ## Debugging and Development Tips
 - When working on failing tests, remember to consider that the underlying code may be at fault, and not the test itself.
+- When working on code, always make sure the problem you are working hasn't already been solved or worked on elsewhere in the codebase.
 
 ## Go Game Rules
 - The minimum handicap in a game of Go is 2 stones.

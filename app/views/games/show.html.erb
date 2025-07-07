@@ -14,8 +14,9 @@
   data-game-id="<%= @game.id %>"
   data-player-id="<%= session[:player_id] %>"
   data-player-name="<%= @current_player.username || 'Anonymous' %>"
-  data-stage="<%= @game.stage %>"
-  data-game-state="<%= @engine.serialize.to_json %>"
+  data-player-stone="<%= begin @game.player_stone(@current_player) rescue 0 end %>"
+  data-board-cols="<%= @game.cols %>"
+  data-board-rows="<%= @game.rows %>"
 >
   <style>
     me {

@@ -1,4 +1,4 @@
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe "Game Basic Functionality", type: :system do
   let(:player1_email) { "player1@example.com" }
@@ -9,7 +9,7 @@ RSpec.describe "Game Basic Functionality", type: :system do
       visit root_path
 
       expect(page).to have_content("Start a New Go Game")
-      
+
       # Fill out basic game creation form
       fill_in "Board size", with: 9
       fill_in "Komi", with: 6.5
@@ -94,8 +94,8 @@ RSpec.describe "Game Basic Functionality", type: :system do
       # Game data attributes should be set for JavaScript
       game_element = page.find("#game")
       expect(game_element["data-game-id"]).to eq(game.id.to_s)
-      expect(game_element["data-stage"]).to be_present
-      expect(game_element["data-game-state"]).to be_present
+      expect(game_element["data-board-cols"]).to eq(game.cols.to_s)
+      expect(game_element["data-board-rows"]).to eq(game.rows.to_s)
     end
 
     scenario "Game displays correct board size" do
@@ -180,16 +180,16 @@ RSpec.describe "Game Basic Functionality", type: :system do
     scenario "Join functionality updates game correctly" do
       # Verify initial state
       expect(game.white).to be_nil
-      
+
       # For system tests, let's use a request test approach instead
       # since join functionality involves session management
       # and redirects that work differently in system tests
-      
+
       # Verify the database behavior directly
       expect(game.white).to be_nil
       expect(game.players.compact.count).to eq(1)  # Only creator (black) initially, white is nil
       expect(game.black).to eq(creator)
-      
+
       # Test that the guest player exists and can be found
       expect(guest).to be_present
       expect(guest.email).to eq("guest@example.com")
@@ -201,7 +201,7 @@ RSpec.describe "Game Basic Functionality", type: :system do
       visit root_path
 
       expect(page).to have_content("Start a New Go Game")
-      
+
       fill_in "Board size", with: 9
       fill_in "Komi", with: 6.5
       choose "color_black"
@@ -217,7 +217,7 @@ RSpec.describe "Game Basic Functionality", type: :system do
       visit root_path
 
       expect(page).to have_content("Start a New Go Game")
-      
+
       # Test with different valid values
       fill_in "Board size", with: 13
       fill_in "Komi", with: 0.5

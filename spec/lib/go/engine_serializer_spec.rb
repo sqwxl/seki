@@ -10,7 +10,7 @@ RSpec.describe Go::EngineSerializer do
       expect(result).to be_a(Hash)
       expect(result["ko"]).to have_key(:point)
       expect(result["ko"]).to have_key(:stone)
-      expect(result["ko"][:point]).to eq([ -1, -1 ])
+      expect(result["ko"][:point]).to eq([-1, -1])
       expect(result["ko"][:stone]).to eq(Go::Stone::EMPTY)
       expect(result["captures"]).to eq({
         Go::Stone::BLACK => 0,
@@ -24,9 +24,9 @@ RSpec.describe Go::EngineSerializer do
     end
 
     it "serializes engine with moves and captures" do
-      engine.try_play(Go::Stone::BLACK, [ 0, 1 ])
-      engine.try_play(Go::Stone::WHITE, [ 0, 0 ])
-      engine.try_play(Go::Stone::BLACK, [ 1, 0 ])
+      engine.try_play(Go::Stone::BLACK, [0, 1])
+      engine.try_play(Go::Stone::WHITE, [0, 0])
+      engine.try_play(Go::Stone::BLACK, [1, 0])
 
       result = described_class.serialize(engine)
 
@@ -53,13 +53,13 @@ RSpec.describe Go::EngineSerializer do
       engine = engine_from_layout(layout)
 
       # Now play black at [2,1] to capture white at [1,1], creating ko
-      engine.try_play(Go::Stone::BLACK, [ 2, 1 ])
+      engine.try_play(Go::Stone::BLACK, [2, 1])
 
       result = described_class.serialize(engine)
 
-      expect(result["ko"][:point]).to_not eq([ -1, -1 ])
+      expect(result["ko"][:point]).to_not eq([-1, -1])
       expect(result["ko"][:stone]).to eq(Go::Stone::WHITE)
-      expect(result["ko"][:point]).to eq([ 1, 1 ])
+      expect(result["ko"][:point]).to eq([1, 1])
     end
   end
 
@@ -83,9 +83,9 @@ RSpec.describe Go::EngineSerializer do
     end
 
     it "deserializes engine with moves and captures" do
-      engine.try_play(Go::Stone::BLACK, [ 0, 1 ])
-      engine.try_play(Go::Stone::WHITE, [ 0, 0 ])
-      engine.try_play(Go::Stone::BLACK, [ 1, 0 ])
+      engine.try_play(Go::Stone::BLACK, [0, 1])
+      engine.try_play(Go::Stone::WHITE, [0, 0])
+      engine.try_play(Go::Stone::BLACK, [1, 0])
 
       original_state = described_class.serialize(engine)
       moves = engine.moves.dup
@@ -117,7 +117,7 @@ RSpec.describe Go::EngineSerializer do
       engine = engine_from_layout(layout)
 
       # Now play black at [2,1] to capture white at [1,1], creating ko
-      engine.try_play(Go::Stone::BLACK, [ 2, 1 ])
+      engine.try_play(Go::Stone::BLACK, [2, 1])
 
       original_state = described_class.serialize(engine)
       moves = engine.moves.dup
@@ -130,7 +130,7 @@ RSpec.describe Go::EngineSerializer do
       )
 
       expect(restored_engine.ko).to eq(engine.ko)
-      expect(restored_engine.ko.point).to eq([ 1, 1 ])
+      expect(restored_engine.ko.point).to eq([1, 1])
       expect(restored_engine.ko.stone).to eq(Go::Stone::WHITE)
       expect(restored_engine.board).to eq(engine.board)
       expect(restored_engine.captures).to eq(engine.captures)
@@ -138,7 +138,7 @@ RSpec.describe Go::EngineSerializer do
 
     it "handles rectangular boards" do
       rect_engine = Go::Engine.new(cols: 5, rows: 3)
-      rect_engine.try_play(Go::Stone::BLACK, [ 2, 1 ])
+      rect_engine.try_play(Go::Stone::BLACK, [2, 1])
 
       original_state = described_class.serialize(rect_engine)
       moves = rect_engine.moves.dup
@@ -153,11 +153,11 @@ RSpec.describe Go::EngineSerializer do
       expect(restored_engine.cols).to eq(5)
       expect(restored_engine.rows).to eq(3)
       expect(restored_engine.board).to eq(rect_engine.board)
-      expect(restored_engine.stone_at([ 2, 1 ])).to eq(Go::Stone::BLACK)
+      expect(restored_engine.stone_at([2, 1])).to eq(Go::Stone::BLACK)
     end
 
     it "handles serialized state consistently" do
-      engine.try_play(Go::Stone::BLACK, [ 0, 0 ])
+      engine.try_play(Go::Stone::BLACK, [0, 0])
       original_state = described_class.serialize(engine)
 
       restored_engine = described_class.deserialize(
@@ -169,15 +169,15 @@ RSpec.describe Go::EngineSerializer do
 
       expect(restored_engine.board).to eq(engine.board)
       expect(restored_engine.captures).to eq(engine.captures)
-      expect(restored_engine.stone_at([ 0, 0 ])).to eq(Go::Stone::BLACK)
+      expect(restored_engine.stone_at([0, 0])).to eq(Go::Stone::BLACK)
     end
   end
 
   describe "round-trip serialization" do
     it "preserves engine state through serialize/deserialize cycle" do
-      engine.try_play(Go::Stone::BLACK, [ 0, 0 ])
-      engine.try_play(Go::Stone::WHITE, [ 1, 1 ])
-      engine.try_play(Go::Stone::BLACK, [ 2, 2 ])
+      engine.try_play(Go::Stone::BLACK, [0, 0])
+      engine.try_play(Go::Stone::WHITE, [1, 1])
+      engine.try_play(Go::Stone::BLACK, [2, 2])
       engine.try_pass(Go::Stone::WHITE)
 
       serialized = described_class.serialize(engine)
@@ -196,12 +196,12 @@ RSpec.describe Go::EngineSerializer do
     end
 
     it "handles complex game states with captures" do
-      engine.try_play(Go::Stone::BLACK, [ 0, 1 ])
-      engine.try_play(Go::Stone::WHITE, [ 0, 0 ])
-      engine.try_play(Go::Stone::BLACK, [ 1, 0 ])
-      engine.try_play(Go::Stone::WHITE, [ 2, 0 ])
-      engine.try_play(Go::Stone::BLACK, [ 3, 0 ])
-      engine.try_play(Go::Stone::WHITE, [ 3, 1 ])
+      engine.try_play(Go::Stone::BLACK, [0, 1])
+      engine.try_play(Go::Stone::WHITE, [0, 0])
+      engine.try_play(Go::Stone::BLACK, [1, 0])
+      engine.try_play(Go::Stone::WHITE, [2, 0])
+      engine.try_play(Go::Stone::BLACK, [3, 0])
+      engine.try_play(Go::Stone::WHITE, [3, 1])
 
       serialized = described_class.serialize(engine)
       restored = described_class.deserialize(

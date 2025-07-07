@@ -3,6 +3,6 @@ module Go
     PLAY = :play
     PASS = :pass
     RESIGN = :resign
-    ALL = [ PLAY, PASS, RESIGN ]
+    ALL = [PLAY, PASS, RESIGN]
   end
 end

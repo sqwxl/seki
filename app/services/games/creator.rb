@@ -36,7 +36,7 @@ module Games
       case @params[:color]
       when "black" then game.black, game.white = @player, friend
       when "white" then game.black, game.white = friend, @player
-      else game.black, game.white = [ @player, friend ].shuffle
+      else game.black, game.white = [@player, friend].shuffle
       end
     end
   end

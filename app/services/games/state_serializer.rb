@@ -13,7 +13,8 @@ module Games
       {
         stage: @game.stage,
         state: @engine.serialize,
-        negotiations: build_negotiations
+        negotiations: build_negotiations,
+        current_turn_stone: @game.current_turn_stone
       }
     end
 
@@ -21,11 +22,6 @@ module Games
 
     def build_negotiations
       negotiations = {}
-
-      # Add undo request state
-      if @game.has_pending_undo_request?
-        negotiations[:undo_request] = build_undo_request_state
-      end
 
       # Add territory review state
       if @game.territory_review && !@game.territory_review.settled
@@ -35,15 +31,7 @@ module Games
       negotiations
     end
 
-    def build_undo_request_state
-      undo_request = @game.undo_request
-      {
-        id: undo_request.id,
-        requesting_player: undo_request.requesting_player.username || "Anonymous",
-        target_move_number: undo_request.target_move.move_number,
-        status: undo_request.status
-      }
-    end
+    # Remove build_undo_request_state - no longer needed with targeted messaging
 
     def build_territory_review_state
       territory_review = @game.territory_review

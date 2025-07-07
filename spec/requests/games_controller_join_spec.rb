@@ -1,4 +1,4 @@
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe "GamesController#invitation", type: :request do
   let(:creator) { Player.create!(email: "creator@example.com", session_token: SecureRandom.uuid) }
@@ -26,10 +26,10 @@ RSpec.describe "GamesController#invitation", type: :request do
         }
 
         expect(response).to redirect_to(game_path(game))
-        
+
         # Verify session was updated
         expect(session[:player_id]).to be_present
-        
+
         # Verify invited player now has a session token
         invited_player.reload
         expect(invited_player.session_token).to be_present
@@ -54,7 +54,7 @@ RSpec.describe "GamesController#invitation", type: :request do
         }
 
         expect(response).to redirect_to(game_path(game_with_opening))
-        
+
         game_with_opening.reload
         expect(game_with_opening.white).to eq(invited_player)
       end
@@ -77,7 +77,7 @@ RSpec.describe "GamesController#invitation", type: :request do
         }
 
         expect(response).to redirect_to(game_path(game_white_taken))
-        
+
         game_white_taken.reload
         expect(game_white_taken.black).to eq(invited_player)
       end
@@ -92,7 +92,7 @@ RSpec.describe "GamesController#invitation", type: :request do
         }
 
         expect(response).to redirect_to(game_path(game))
-        
+
         game.reload
         expect(game.white).to eq(invited_player) # Still white
         expect(game.black).to eq(creator) # Unchanged
@@ -108,7 +108,7 @@ RSpec.describe "GamesController#invitation", type: :request do
 
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.body).to include("invalid")
-        
+
         # Session should not be updated to the invited player's token
         expect(session[:player_id]).not_to eq(invited_player.session_token)
       end

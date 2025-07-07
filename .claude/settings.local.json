@@ -7,7 +7,11 @@
       "Bash(find:*)",
       "Bash(ls:*)",
       "Bash(timeout:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(bin/rails:*)",
+      "Bash(yarn build)",
+      "Bash(grep:*)",
+      "Bash(ruby:*)"
     ],
     "deny": []
   }

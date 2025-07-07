@@ -12,7 +12,7 @@ class Player < ApplicationRecord
 
   def ensure_session_token!
     return session_token if session_token.present?
-    
+
     update!(session_token: SecureRandom.uuid)
     session_token
   end

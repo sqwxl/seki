@@ -14,19 +14,40 @@ if (root != null) {
 	const gameId = root.dataset.gameId;
 	const playerId = root.dataset.playerId;
 	const playerName = root.dataset.playerName;
-	const initialStage = root.dataset.stage;
-	const initialGameState = JSON.parse(root.dataset.gameState);
+	const playerStone = parseInt(root.dataset.playerStone); // 1 for BLACK, -1 for WHITE, 0 for spectator
+	const boardCols = parseInt(root.dataset.boardCols);
+	const boardRows = parseInt(root.dataset.boardRows);
+	
+	console.log("Game initialized:", { gameId, playerId, playerName, playerStone, boardCols, boardRows });
+	
+	// Create empty board for initial render
+	const emptyBoard = Array(boardRows).fill().map(() => Array(boardCols).fill(0));
+	const emptyKo = { point: [-1, -1], stone: 0 };
+	
+	// Game state will be received via WebSocket
+	let currentStage = null;
+	let currentGameState = { board: emptyBoard, ko: emptyKo };
+	let currentNegotiations = {};
+	let currentTurnStone = null;
 
 	const channel = consumer.subscriptions.create(
 		{ channel: "GameChannel", id: gameId },
 		{
 			received(data) {
+				console.log("WebSocket received:", data);
 				switch (data.kind) {
 					case "state":
-						renderGoban(data.stage, data.state);
-						renderStatus(data.payload.status);
-						renderCaptures(data.payload.captures);
-						updateUndoControls(data.stage, data.negotiations);
+						// Update current state variables
+						currentStage = data.stage;
+						currentGameState = data.state;
+						currentNegotiations = data.negotiations || {};
+						currentTurnStone = data.current_turn_stone;
+						
+						console.log("State updated:", { currentStage, currentTurnStone, playerStone, playerName });
+						
+						// Render the updated state
+						renderGoban(currentStage, currentGameState);
+						updateUndoControls(currentStage, currentNegotiations, currentTurnStone);
 						break;
 					case "chat":
 						appendToChat(data.sender, data.text);
@@ -35,12 +56,22 @@ if (root != null) {
 						showError(data.message);
 						break;
 					case "undo_accepted":
-						showUndoResult("accepted", data.responding_player);
-						renderGoban(data.stage, data.state);
-						updateUndoControls(data.stage, {});
-						break;
 					case "undo_rejected":
-						showUndoResult("rejected", data.responding_player);
+						// Both use the same handler now with unified messaging
+						showUndoResult(data.message);
+						if (data.stage && data.state) {
+							renderGoban(data.stage, data.state);
+							currentTurnStone = data.current_turn_stone;
+							updateUndoControls(data.stage, {}, currentTurnStone);
+						}
+						break;
+					case "undo_request_sent":
+						// Show waiting state for requesting player
+						showUndoWaitingState(data.message);
+						break;
+					case "undo_response_needed":
+						// Show response controls for opponent
+						showUndoResponseControls(data.requesting_player, data.message);
 						break;
 				}
 			},
@@ -75,18 +106,23 @@ if (root != null) {
 		},
 	);
 
-	function vertexCallback(stage) {
-		if (stage === "unstarted" || stage === "play") {
+	function vertexCallback() {
+		if (currentStage === "unstarted" || currentStage === "play") {
 			return (_, position) => channel.placeStone(position[0], position[1]);
 		}
 
-		if (stage === "territory") {
+		if (currentStage === "territory") {
 			return (_, position) => channel.toggleChain(position[0], position[1]);
 		}
 	}
 
-	function renderGoban(stage, { board, ko }) {
-		const onVertexClick = vertexCallback(stage);
+	function renderGoban(stage, gameState) {
+		if (!gameState || !gameState.board) {
+			return;
+		}
+		
+		const { board, ko } = gameState;
+		const onVertexClick = vertexCallback();
 
 		const signMap = board;
 
@@ -94,8 +130,8 @@ if (root != null) {
 			Array(board[0].length).fill(null),
 		);
 
-		if (ko.stone !== 0) {
-			markerMap[ko.point.col][ko.point.row] = koMarker;
+		if (ko && ko.stone !== 0) {
+			markerMap[ko.point[0]][ko.point[1]] = koMarker;
 		}
 
 		render(
@@ -117,7 +153,9 @@ if (root != null) {
 		document.getElementById("status").innerText(text);
 	}
 
-	renderGoban(initialStage, initialGameState);
+	// Render empty board immediately so user sees the game board
+	renderGoban(null, currentGameState);
+	
 	renderChatLog();
 
 	document.getElementById("chat-form").addEventListener("submit", (e) => {
@@ -156,59 +194,83 @@ if (root != null) {
 		document.getElementById("game-error").innerText = message;
 	}
 
-	function updateUndoControls(stage, negotiations = {}) {
+	function updateUndoControls(stage, negotiations = {}, turnStone = null) {
+		console.log("updateUndoControls called:", { stage, negotiations, turnStone, playerStone, playerName });
+		
 		const requestBtn = document.getElementById("request-undo-btn");
 		const responseControls = document.getElementById("undo-response-controls");
 		const notification = document.getElementById("undo-notification");
+
+		if (!requestBtn) {
+			console.error("request-undo-btn not found!");
+			return;
+		}
 
 		// Reset UI state
 		requestBtn.disabled = false;
 		responseControls.style.display = "none";
 		notification.style.display = "none";
 
-		// Show request undo button only during play stage
-		if (stage === "play") {
-			requestBtn.style.display = "inline-block";
-		} else {
+		// Only show controls during play stage and if player is actually playing (not spectating)
+		if (stage !== "play" || playerStone === 0) {
+			console.log("Hiding button: stage =", stage, "playerStone =", playerStone);
 			requestBtn.style.display = "none";
+			return;
 		}
 
-		// Handle pending undo request
-		if (negotiations.undo_request) {
-			const undoRequest = negotiations.undo_request;
-			
-			if (undoRequest.requesting_player === playerName) {
-				// Show pending state for requesting player
-				requestBtn.disabled = true;
-				notification.style.display = "block";
-				notification.textContent = `Undo request sent. Waiting for opponent response...`;
-			} else {
-				// Show response controls for the other player
-				responseControls.style.display = "block";
-				notification.style.display = "block";
-				notification.textContent = `${undoRequest.requesting_player} has requested to undo move ${undoRequest.target_move_number}`;
-			}
+		console.log("Showing button");
+		requestBtn.style.display = "inline-block";
+
+		// Basic button state - server will send specific messages for undo requests
+		// Disable button if it's the player's turn (they should play, not undo)
+		if (turnStone === playerStone) {
+			console.log("Disabling button: player's turn");
+			requestBtn.disabled = true;
+			requestBtn.title = "Cannot undo on your turn";
+		} else {
+			console.log("Enabling button: can request undo");
+			requestBtn.disabled = false;
+			requestBtn.title = "Request to undo your last move";
 		}
 	}
 
 
-	function showUndoResult(result, respondingPlayer) {
+	function showUndoResult(message) {
 		const notification = document.getElementById("undo-notification");
 		const responseControls = document.getElementById("undo-response-controls");
 
 		responseControls.style.display = "none";
 		notification.style.display = "block";
-
-		if (result === "accepted") {
-			notification.textContent = `${respondingPlayer} accepted the undo request. Move has been undone.`;
-		} else {
-			notification.textContent = `${respondingPlayer} rejected the undo request.`;
-		}
+		notification.textContent = message;
 
 		// Hide notification after 5 seconds
 		setTimeout(() => {
 			notification.style.display = "none";
 		}, 5000);
+	}
+
+	function showUndoWaitingState(message) {
+		const requestBtn = document.getElementById("request-undo-btn");
+		const notification = document.getElementById("undo-notification");
+		const responseControls = document.getElementById("undo-response-controls");
+
+		// Hide response controls and show waiting state
+		responseControls.style.display = "none";
+		requestBtn.disabled = true;
+		notification.style.display = "block";
+		notification.textContent = message;
+	}
+
+	function showUndoResponseControls(requestingPlayer, message) {
+		const requestBtn = document.getElementById("request-undo-btn");
+		const notification = document.getElementById("undo-notification");
+		const responseControls = document.getElementById("undo-response-controls");
+
+		// Hide request button and show response controls
+		requestBtn.disabled = true;
+		responseControls.style.display = "block";
+		notification.style.display = "block";
+		notification.textContent = message;
 	}
 
 	// Event listeners for undo controls
@@ -227,7 +289,4 @@ if (root != null) {
 	document.getElementById("reject-undo-btn").addEventListener("click", () => {
 		channel.respondToUndo("reject");
 	});
-
-	// Initialize undo controls
-	updateUndoControls(initialStage);
 }

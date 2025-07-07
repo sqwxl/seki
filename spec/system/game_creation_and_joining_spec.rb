@@ -1,4 +1,4 @@
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe "Game E2E: Creating and Joining -", type: :system do
   let(:player1_email) { "player1@example.com" }
@@ -96,7 +96,7 @@ RSpec.describe "Game E2E: Creating and Joining -", type: :system do
       visit game_path(game)
       expect(page).to have_css("#game")
       # Note: Join button logic requires JavaScript to differentiate players
-      
+
       # Verify game is accessible and shows correct game elements
       expect(page).to have_css("#goban")
       expect(page).to have_css("#game")
@@ -104,7 +104,7 @@ RSpec.describe "Game E2E: Creating and Joining -", type: :system do
 
     scenario "Private games are accessible" do
       game.update!(is_private: true)
-      
+
       visit game_path(game)
       expect(page).to have_css("#game")
       expect(page).to have_css("#goban")
@@ -185,8 +185,8 @@ RSpec.describe "Game E2E: Creating and Joining -", type: :system do
       # Game data attributes for JavaScript
       game_element = page.find("#game")
       expect(game_element["data-game-id"]).to eq(game.id.to_s)
-      expect(game_element["data-stage"]).to be_present
-      expect(game_element["data-game-state"]).to be_present
+      expect(game_element["data-board-cols"]).to eq(game.cols.to_s)
+      expect(game_element["data-board-rows"]).to eq(game.rows.to_s)
     end
 
     scenario "Chat interface is present" do

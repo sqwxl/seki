@@ -164,9 +164,14 @@ RSpec.describe "Game Playing Workflow", type: :system do
         visit game_path(game)
         wait_for_actioncable
 
-        # Initial stage should be unstarted (no moves)
+        # Game board should be rendered and functional
+        expect(page).to have_css("#goban")
+        expect(page).to have_css("#game")
+
+        # Board dimensions should be available
         game_element = page.find("#game")
-        expect(game_element["data-stage"]).to eq("unstarted")
+        expect(game_element["data-board-cols"]).to eq(game.cols.to_s)
+        expect(game_element["data-board-rows"]).to eq(game.rows.to_s)
       end
 
       # Add a move to change the stage
@@ -185,9 +190,9 @@ RSpec.describe "Game Playing Workflow", type: :system do
         visit game_path(game)
         wait_for_actioncable
 
-        # Stage should now be play
-        game_element = page.find("#game")
-        expect(game_element["data-stage"]).to eq("play")
+        # Game should still be functional with moves
+        expect(page).to have_css("#goban")
+        expect(page).to have_css("#game")
       end
     end
   end
@@ -227,4 +232,3 @@ RSpec.describe "Game Playing Workflow", type: :system do
     end
   end
 end
-

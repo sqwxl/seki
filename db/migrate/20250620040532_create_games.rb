@@ -9,10 +9,11 @@ class CreateGames < ActiveRecord::Migration[8.0]
     end
 
     create_table :games do |t|
-      t.belongs_to :creator, foreign_key: { to_table: :players }
-      t.belongs_to :black, foreign_key: { to_table: :players }
-      t.belongs_to :white, foreign_key: { to_table: :players }
-      
+      t.belongs_to :creator, foreign_key: {to_table: :players}
+      t.belongs_to :black, foreign_key: {to_table: :players}
+      t.belongs_to :white, foreign_key: {to_table: :players}
+      t.belongs_to :undo_requesting_player, null: true, foreign_key: {to_table: :players}
+
       t.string :invite_token
 
       t.integer :cols, null: false
@@ -33,8 +34,8 @@ class CreateGames < ActiveRecord::Migration[8.0]
 
     create_table :challenge do |t|
       t.belongs_to :game, null: false, foreign_key: true
-      t.belongs_to :challenger, null: false, foreign_key: { to_table: :players }
-      t.belongs_to :challengee, null: false, foreign_key: { to_table: :players }
+      t.belongs_to :challenger, null: false, foreign_key: {to_table: :players}
+      t.belongs_to :challengee, null: false, foreign_key: {to_table: :players}
       t.boolean :accepted
     end
 
@@ -68,18 +69,6 @@ class CreateGames < ActiveRecord::Migration[8.0]
       t.text :text, null: false
 
       t.timestamps
-    end
-
-    create_table :undo_requests do |t|
-      t.references :game, null: false, foreign_key: true, index: { unique: true }
-      t.references :requesting_player, null: false, foreign_key: { to_table: :players }
-      t.references :target_move, null: false, foreign_key: { to_table: :game_moves, on_delete: :cascade }
-      t.string :status, null: false, default: 'pending'
-      t.references :responded_by, null: true, foreign_key: { to_table: :players }
-
-      t.timestamps
-
-      t.index [ :requesting_player_id, :created_at ]
     end
   end
 end

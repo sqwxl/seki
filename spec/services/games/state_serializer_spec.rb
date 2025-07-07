@@ -1,8 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Games::StateSerializer do
-  let(:creator) { Player.create!(email: 'creator@example.com') }
-  let(:opponent) { Player.create!(email: 'opponent@example.com') }
+  let(:creator) { Player.create!(email: "creator@example.com") }
+  let(:opponent) { Player.create!(email: "opponent@example.com") }
   let(:game) do
     Game.create!(
       creator: creator,
@@ -51,13 +51,8 @@ RSpec.describe Games::StateSerializer do
           row: 3
         )
       end
-      let!(:undo_request) do
-        UndoRequest.create!(
-          game: game,
-          requesting_player: creator,
-          target_move: game_move,
-          status: UndoRequestStatus::PENDING
-        )
+      before do
+        game.update!(undo_requesting_player: creator)
       end
 
       it "includes undo request in negotiations" do
@@ -67,10 +62,7 @@ RSpec.describe Games::StateSerializer do
       it "includes correct undo request data" do
         undo_data = subject[:negotiations][:undo_request]
 
-        expect(undo_data[:id]).to eq(undo_request.id)
         expect(undo_data[:requesting_player]).to eq("Anonymous")
-        expect(undo_data[:target_move_number]).to eq(game_move.move_number)
-        expect(undo_data[:status]).to eq(UndoRequestStatus::PENDING)
       end
 
       it "uses player username when available" do
@@ -93,14 +85,9 @@ RSpec.describe Games::StateSerializer do
           row: 3
         )
       end
-      let!(:undo_request) do
-        UndoRequest.create!(
-          game: game,
-          requesting_player: creator,
-          target_move: game_move,
-          status: UndoRequestStatus::REJECTED,
-          responded_by: opponent
-        )
+      before do
+        # No undo requesting player means no pending undo request
+        game.update!(undo_requesting_player: nil)
       end
 
       it "does not include settled undo request in negotiations" do
@@ -147,13 +134,8 @@ RSpec.describe Games::StateSerializer do
           row: 3
         )
       end
-      let!(:undo_request) do
-        UndoRequest.create!(
-          game: game,
-          requesting_player: creator,
-          target_move: game_move,
-          status: UndoRequestStatus::PENDING
-        )
+      before do
+        game.update!(undo_requesting_player: creator)
       end
       let!(:territory_review) { TerritoryReview.create!(game: game, settled: false) }
 
@@ -184,17 +166,12 @@ RSpec.describe Games::StateSerializer do
           row: 3
         )
       end
-      let!(:undo_request) do
-        UndoRequest.create!(
-          game: game,
-          requesting_player: creator,
-          target_move: game_move,
-          status: UndoRequestStatus::PENDING
-        )
+      before do
+        game.update!(undo_requesting_player: creator)
       end
 
-      it "calls undo_request association correctly" do
-        expect(game).to receive(:undo_request).at_least(:once).and_return(undo_request)
+      it "calls undo_requesting_player correctly" do
+        expect(game).to receive(:undo_requesting_player).at_least(:once).and_call_original
         described_class.call(game, engine)
       end
     end
@@ -222,13 +199,8 @@ RSpec.describe Games::StateSerializer do
           row: 3
         )
       end
-      let!(:undo_request) do
-        UndoRequest.create!(
-          game: game,
-          requesting_player: creator,
-          target_move: game_move,
-          status: UndoRequestStatus::PENDING
-        )
+      before do
+        game.update!(undo_requesting_player: creator)
       end
 
       it "is called when undo request is pending" do

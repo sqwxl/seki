@@ -39,6 +39,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.integer "creator_id"
     t.integer "black_id"
     t.integer "white_id"
+    t.integer "undo_requesting_player_id"
     t.string "invite_token"
     t.integer "cols", null: false
     t.integer "rows", null: false
@@ -54,6 +55,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.datetime "updated_at", null: false
     t.index ["black_id"], name: "index_games_on_black_id"
     t.index ["creator_id"], name: "index_games_on_creator_id"
+    t.index ["undo_requesting_player_id"], name: "index_games_on_undo_requesting_player_id"
     t.index ["white_id"], name: "index_games_on_white_id"
   end
 
@@ -89,21 +91,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.index ["game_id"], name: "index_territory_reviews_on_game_id"
   end
 
-  create_table "undo_requests", force: :cascade do |t|
-    t.integer "game_id", null: false
-    t.integer "requesting_player_id", null: false
-    t.integer "target_move_id", null: false
-    t.string "status", default: "pending", null: false
-    t.integer "responded_by_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["game_id"], name: "index_undo_requests_on_game_id", unique: true
-    t.index ["requesting_player_id", "created_at"], name: "index_undo_requests_on_requesting_player_id_and_created_at"
-    t.index ["requesting_player_id"], name: "index_undo_requests_on_requesting_player_id"
-    t.index ["responded_by_id"], name: "index_undo_requests_on_responded_by_id"
-    t.index ["target_move_id"], name: "index_undo_requests_on_target_move_id"
-  end
-
   add_foreign_key "challenge", "games"
   add_foreign_key "challenge", "players", column: "challengee_id"
   add_foreign_key "challenge", "players", column: "challenger_id"
@@ -111,12 +98,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
   add_foreign_key "game_moves", "players"
   add_foreign_key "games", "players", column: "black_id"
   add_foreign_key "games", "players", column: "creator_id"
+  add_foreign_key "games", "players", column: "undo_requesting_player_id"
   add_foreign_key "games", "players", column: "white_id"
   add_foreign_key "messages", "games"
   add_foreign_key "messages", "players"
   add_foreign_key "territory_reviews", "games"
-  add_foreign_key "undo_requests", "game_moves", column: "target_move_id", on_delete: :cascade
-  add_foreign_key "undo_requests", "games"
-  add_foreign_key "undo_requests", "players", column: "requesting_player_id"
-  add_foreign_key "undo_requests", "players", column: "responded_by_id"
 end

@@ -51,4 +51,3 @@ RSpec.describe Go::Stone do
     end
   end
 end
-

@@ -1,8 +1,8 @@
 require "rails_helper"
 
 RSpec.describe GameMailer, type: :mailer do
-  let(:player) { Player.create!(email: 'player@example.com') }
-  let(:other_player) { Player.create!(email: 'invited@example.com') }
+  let(:player) { Player.create!(email: "player@example.com") }
+  let(:other_player) { Player.create!(email: "invited@example.com") }
   let(:game) do
     Game.create!(
       creator: player,
@@ -22,8 +22,8 @@ RSpec.describe GameMailer, type: :mailer do
 
     it "renders the headers" do
       expect(mail.subject).to eq("You're invited to join a game of go!")
-      expect(mail.to).to eq([ other_player.email ])
-      expect(mail.from).to eq([ "from@example.com" ]) # Adjust based on your app config
+      expect(mail.to).to eq([other_player.email])
+      expect(mail.from).to eq(["from@example.com"]) # Adjust based on your app config
     end
 
     it "includes the game URL in the body" do

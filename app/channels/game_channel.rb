@@ -1,8 +1,48 @@
 class GameChannel < ApplicationCable::Channel
   def subscribed
     game = current_game
+    player = current_player
     @stream_id = "game_#{game.id}"
+    @player_stream_id = "game_#{game.id}_player_#{player.id}"
+
     stream_from @stream_id
+    stream_from @player_stream_id
+
+    # Send current game state to the newly connected client
+    engine = Games::EngineBuilder.call(game)
+    game_state = Games::StateSerializer.call(game, engine)
+
+    transmit({
+      kind: "state",
+      stage: game_state[:stage],
+      state: game_state[:state],
+      negotiations: game_state[:negotiations],
+      current_turn_stone: game_state[:current_turn_stone]
+    })
+
+    # If there's already a pending undo request, send the appropriate targeted message
+    if game.has_pending_undo_request?
+      if game.undo_requesting_player == player
+        # This player made the request, show waiting state
+        transmit({
+          kind: "undo_request_sent",
+          stage: game_state[:stage],
+          state: game_state[:state],
+          current_turn_stone: game_state[:current_turn_stone],
+          message: "Undo request sent. Waiting for opponent response..."
+        })
+      else
+        # This player needs to respond, show response controls
+        transmit({
+          kind: "undo_response_needed",
+          stage: game_state[:stage],
+          state: game_state[:state],
+          current_turn_stone: game_state[:current_turn_stone],
+          requesting_player: game.undo_requesting_player.username || "Anonymous",
+          message: "#{game.undo_requesting_player.username || "Opponent"} has requested to undo their last move"
+        })
+      end
+    end
   end
 
   def unsubscribed
@@ -29,15 +69,11 @@ class GameChannel < ApplicationCable::Channel
     col = data["col"]
     row = data["row"]
     with_game_and_player(:play) do |game, player, engine, stone|
-      auto_reject_undo_request(game, player)
+      stage = engine.try_play(stone, [col, row])
 
-      stage = engine.try_play(stone, [ col, row ])
-
-      GameMove.create!(
-        game: game,
+      game.create_move!(
         player: player,
         stone: stone,
-        move_number: game.moves.count,
         kind: Go::MoveKind::PLAY,
         col: col,
         row: row
@@ -47,78 +83,52 @@ class GameChannel < ApplicationCable::Channel
     end
   rescue => e
     Rails.logger.error e.message
-    transmit({ kind: "error", message: e.message })
+    transmit({kind: "error", message: e.message})
   end
 
   def request_undo
     with_game_and_player("request undo") do |game, player, engine, stone|
-      raise "Cannot request undo at this time" unless game.can_request_undo?(player)
+      game.request_undo!(player)
 
-      last_move = game.moves.order(:move_number).last
-      undo_request = UndoRequest.create!(
-        game: game,
-        requesting_player: player,
-        target_move: last_move,
-        status: UndoRequestStatus::PENDING
-      )
-
-      ActionCable.server.broadcast(@stream_id, {
-        kind: "undo_request",
-        request_id: undo_request.id,
-        requesting_player: player.username || "Anonymous",
-        move_number: last_move.move_number
-      })
+      # Send targeted messages to each player
+      send_undo_request_states(game, player, engine)
     end
   rescue => e
     Rails.logger.error e.message
-    transmit({ kind: "error", message: e.message })
+    transmit({kind: "error", message: e.message})
   end
 
   def respond_to_undo(data)
-    response = data["response"]
+    response = data["response"]&.strip&.downcase
+
+    # Validate input early
+    unless %w[accept reject].include?(response)
+      transmit({kind: "error", message: "Invalid response"})
+      return
+    end
 
     with_game_and_player("respond to undo") do |game, player, engine, stone|
-      undo_request = game.undo_request
-      raise "No pending undo request found" unless undo_request.present? && undo_request.pending?
-      raise "You cannot respond to this undo request" unless undo_request.can_respond?(player)
+      requesting_player = game.undo_requesting_player
 
-      case response
-      when "accept"
-        undo_request.accept!(player)
-
-        # Rebuild engine state after move removal
+      if response == "accept"
+        game.accept_undo!(player)
         updated_engine = Games::EngineBuilder.call(game)
-
-        ActionCable.server.broadcast(@stream_id, {
-          kind: "undo_accepted",
-          request_id: undo_request.id,
-          responding_player: player.username || "Anonymous",
-          state: updated_engine.serialize,
-          stage: game.stage
-        })
-      when "reject"
-        undo_request.reject!(player)
-        ActionCable.server.broadcast(@stream_id, {
-          kind: "undo_rejected",
-          request_id: undo_request.id,
-          responding_player: player.username || "Anonymous"
-        })
+        send_undo_result_messages(game, "accepted", player, requesting_player, updated_engine)
       else
-        raise "Invalid response. Must be 'accept' or 'reject'"
+        game.reject_undo!(player)
+        send_undo_result_messages(game, "rejected", player, requesting_player, engine)
       end
     end
   rescue => e
-    Rails.logger.error e.message
-    transmit({ kind: "error", message: e.message })
+    Rails.logger.error "Undo response error: #{e.message}"
+    transmit({kind: "error", message: "Unable to process undo response"})
   end
+
   def pass
     with_game_and_player(:pass) do |game, player, engine, stone|
-      auto_reject_undo_request(game, player)
-
       stage = engine.try_pass(stone)
 
-      GameMove.create!(
-        game: game,
+      game.create_move!(
         player: player,
         stone: stone,
         kind: Go::MoveKind::PASS
@@ -144,8 +154,7 @@ class GameChannel < ApplicationCable::Channel
     if stage == Go::Status::Stage::DONE
       game.update(ended_at: Time.current, result: engine.result)
 
-      GameMove.create!(
-        game: game,
+      game.create_move!(
         player: player,
         stone: game.player_stone(player),
         kind: Go::MoveKind::RESIGN
@@ -154,7 +163,6 @@ class GameChannel < ApplicationCable::Channel
 
     broadcast_state(stage, engine)
   end
-
 
   def toggle_chain(data)
     game = current_game
@@ -177,8 +185,6 @@ class GameChannel < ApplicationCable::Channel
 
     # TODO update territory_review -> game
   end
-
-
 
   private
 
@@ -215,21 +221,62 @@ class GameChannel < ApplicationCable::Channel
 
     ActionCable.server.broadcast(@stream_id, {
       kind: "state",
-      **game_state
+      stage: game_state[:stage],
+      state: game_state[:state],
+      negotiations: game_state[:negotiations],
+      current_turn_stone: game_state[:current_turn_stone]
     })
   end
 
-  def auto_reject_undo_request(game, player)
-    return unless game.has_pending_undo_request?
+  def send_undo_request_states(game, requesting_player, engine)
+    base_state = Games::StateSerializer.call(game, engine)
 
-    undo_request = game.undo_request
-    return if undo_request.requesting_player == player
-
-    undo_request.reject!(player)
-    ActionCable.server.broadcast(@stream_id, {
-      kind: "undo_rejected",
-      request_id: undo_request.id,
-      responding_player: player.username || "Anonymous"
+    # Send "waiting" state to requesting player
+    ActionCable.server.broadcast("game_#{game.id}_player_#{requesting_player.id}", {
+      kind: "undo_request_sent",
+      stage: base_state[:stage],
+      state: base_state[:state],
+      current_turn_stone: base_state[:current_turn_stone],
+      message: "Undo request sent. Waiting for opponent response..."
     })
+
+    # Send "response needed" state to opponent
+    opponent = find_opponent(game, requesting_player)
+    if opponent
+      ActionCable.server.broadcast("game_#{game.id}_player_#{opponent.id}", {
+        kind: "undo_response_needed",
+        stage: base_state[:stage],
+        state: base_state[:state],
+        current_turn_stone: base_state[:current_turn_stone],
+        requesting_player: safe_username(requesting_player),
+        message: "#{safe_username(requesting_player)} has requested to undo their last move"
+      })
+    end
+  end
+
+  def send_undo_result_messages(game, result, responding_player, requesting_player, engine)
+    base_state = Games::StateSerializer.call(game, engine)
+    result_message = "#{safe_username(responding_player)} #{result} the undo request"
+    result_message += ". Move has been undone." if result == "accepted"
+
+    # Send result to both players
+    [requesting_player, responding_player].each do |player|
+      ActionCable.server.broadcast("game_#{game.id}_player_#{player.id}", {
+        kind: "undo_#{result}",
+        stage: base_state[:stage],
+        state: base_state[:state],
+        current_turn_stone: base_state[:current_turn_stone],
+        responding_player: safe_username(responding_player),
+        message: result_message
+      })
+    end
+  end
+
+  def find_opponent(game, player)
+    game.players.find { |p| p != player }
+  end
+
+  def safe_username(player)
+    player&.username&.present? ? player.username : "Opponent"
   end
 end

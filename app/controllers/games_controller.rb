@@ -20,8 +20,6 @@ class GamesController < ApplicationController
 
   def show
     @game = Game.find(params[:id])
-
-    @engine = Games::EngineBuilder.call(@game)
   end
 
   def join
@@ -51,7 +49,6 @@ class GamesController < ApplicationController
 
     guest = Player.find_by(email: email)
     raise "player not found" if guest.nil?
-
 
     unless @game.players.include?(guest)
       if @game.black.nil?
