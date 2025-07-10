@@ -2,8 +2,8 @@ require "uri"
 require "rails_helper"
 
 RSpec.describe "Game Playing Workflow", type: :system do
-  let!(:creator) { Player.create!(email: "creator@example.com", session_token: SecureRandom.uuid) }
-  let!(:opponent) { Player.create!(email: "opponent@example.com", session_token: SecureRandom.uuid) }
+  let!(:creator) { Player.create!(email: "creator@example.com", session_token: SecureRandom.alphanumeric) }
+  let!(:opponent) { Player.create!(email: "opponent@example.com", session_token: SecureRandom.alphanumeric) }
 
   describe "Complete game creation to playing flow", js: true do
     scenario "Two players create, join, and interact with a game" do

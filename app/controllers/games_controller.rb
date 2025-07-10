@@ -19,11 +19,11 @@ class GamesController < ApplicationController
   end
 
   def show
-    @game = Game.find(params[:id])
+    @game = Game.with_players.find(params[:id])
   end
 
   def join
-    @game = Game.find(params[:id])
+    @game = Game.with_players.find(params[:id])
 
     unless @game.players.include?(current_player)
       if @game.black.nil?
@@ -37,29 +37,58 @@ class GamesController < ApplicationController
   end
 
   def invitation
-    @game = Game.find(params[:id])
+    @game = Game.with_players.find(params[:id])
 
-    token = params[:token]
-    raise "missing token parameter" if token.nil?
-
-    raise "token mismatch" if @game.invite_token != token
-
-    email = params[:email]
-    raise "missing email parameter" if email.nil?
-
-    guest = Player.find_by(email: email)
-    raise "player not found" if guest.nil?
-
-    unless @game.players.include?(guest)
-      if @game.black.nil?
-        @game.update!(black: guest)
-      elsif @game.white.nil?
-        @game.update!(white: guest)
-      end
+    if current_player && @game.players.include?(current_player)
+      redirect_to @game
     end
 
-    # Update session to recognize the guest as the current player
-    session[:player_id] = guest.ensure_session_token!
+    # Validate required parameters
+    token = params.require(:token)
+    email = params.require(:email)
+    
+
+    # Verify invitation token matches
+    unless secure_compare(@game.invite_token.to_s, token.to_s)
+      raise "Invalid invitation token"
+    end
+
+    # Validate email format
+    unless email.match?(URI::MailTo::EMAIL_REGEXP)
+      raise "Invalid email format"
+    end
+
+    guest = Player.find_by(email: email)
+    if guest.nil?
+      raise "Player with email #{email} not found"
+    end
+
+    # Verify the invitation is still valid (not expired, game not full, etc.)
+    if @game.black.present? && @game.white.present?
+      raise "Game is already full"
+    end
+
+    # Only allow session transfer if no current player or current player is not in this game
+    current_player_in_game = current_player && @game.players.include?(current_player)
+    if current_player_in_game && current_player != guest
+      raise "You are already logged in as a different player in this game"
+    end
+
+    # Add guest to game if not already a player
+    if @game.black.nil?
+      @game.update!(black: guest)
+    elsif @game.white.nil?
+      @game.update!(white: guest)
+    end
+
+    # Only update session if guest is not the current player
+    if current_player != guest
+      # Log the session transfer for security auditing
+      Rails.logger.info("Session transferred from #{current_player&.id || 'anonymous'} to #{guest.id} for game #{@game.id}")
+      
+      # Update session to the invited player
+      session[:player_id] = guest.ensure_session_token!
+    end
 
     redirect_to @game
   rescue => e

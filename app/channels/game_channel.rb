@@ -2,6 +2,21 @@ class GameChannel < ApplicationCable::Channel
   def subscribed
     game = current_game
     player = current_player
+    
+    # Handle missing player
+    unless player
+      Rails.logger.warn("Channel subscription attempted without valid player for game #{game.id}")
+      reject
+      return
+    end
+    
+    # Authorization: For private games, only players can subscribe
+    if game.is_private && !game.players.include?(player)
+      Rails.logger.warn("Unauthorized private game access: Player #{player.id} tried to access private game #{game.id}")
+      reject
+      return
+    end
+    
     @stream_id = "game_#{game.id}"
     @player_stream_id = "game_#{game.id}_player_#{player.id}"
 
@@ -53,10 +68,19 @@ class GameChannel < ApplicationCable::Channel
     message = data["message"].to_s.strip
     return if message.blank?
 
+    # Validate message length (1000 characters should be plenty for chat)
+    if message.length > 1000
+      transmit({kind: "error", message: "Message too long (max 1000 characters)"})
+      return
+    end
+
+    # TODO: Re-implement message sanitization to prevent XSS
+    sanitized_message = message
+
     game = current_game
     player = current_player
 
-    msg = Message.create!(game: game, player: player, text: message)
+    msg = Message.create!(game: game, player: player, text: sanitized_message)
 
     ActionCable.server.broadcast(@stream_id, {
       kind: "chat",
@@ -103,7 +127,7 @@ class GameChannel < ApplicationCable::Channel
 
     # Validate input early
     unless %w[accept reject].include?(response)
-      transmit({kind: "error", message: "Invalid response"})
+      transmit({kind: "error", message: "Invalid response. Must be 'accept' or 'reject'"})
       return
     end
 
@@ -193,7 +217,7 @@ class GameChannel < ApplicationCable::Channel
   end
 
   def current_game
-    Game.find(params[:id])
+    Game.with_players.find(params[:id])
   end
 
   def with_game_and_player(action)

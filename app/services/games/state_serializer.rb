@@ -28,7 +28,19 @@ module Games
         negotiations[:territory_review] = build_territory_review_state
       end
 
+      # Add undo request state
+      if @game.has_pending_undo_request?
+        negotiations[:undo_request] = build_undo_request_state
+      end
+
       negotiations
+    end
+
+    def build_undo_request_state
+      requesting_player = @game.undo_requesting_player
+      {
+        requesting_player: requesting_player.username || "Anonymous"
+      }
     end
 
     # Remove build_undo_request_state - no longer needed with targeted messaging

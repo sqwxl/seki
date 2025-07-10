@@ -32,6 +32,11 @@ class CreateGames < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
+    add_index :games, :invite_token
+    add_index :games, :is_private
+    add_index :games, [:started_at, :ended_at]
+    add_index :games, [:creator_id, :created_at]
+
     create_table :challenge do |t|
       t.belongs_to :game, null: false, foreign_key: true
       t.belongs_to :challenger, null: false, foreign_key: {to_table: :players}
@@ -50,6 +55,8 @@ class CreateGames < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
+    add_index :territory_reviews, :settled
+
     create_table :game_moves do |t|
       t.belongs_to :game, null: false, foreign_key: true
       t.belongs_to :player, null: false, foreign_key: true
@@ -63,6 +70,10 @@ class CreateGames < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
+    add_index :game_moves, [:game_id, :move_number]
+    add_index :game_moves, [:game_id, :id]
+    add_index :game_moves, [:player_id, :created_at]
+
     create_table :messages do |t|
       t.references :game, null: false, foreign_key: true
       t.references :player, null: false, foreign_key: true
@@ -70,5 +81,7 @@ class CreateGames < ActiveRecord::Migration[8.0]
 
       t.timestamps
     end
+
+    add_index :messages, [:game_id, :created_at]
   end
 end

@@ -11,7 +11,8 @@
       "Bash(bin/rails:*)",
       "Bash(yarn build)",
       "Bash(grep:*)",
-      "Bash(ruby:*)"
+      "Bash(ruby:*)",
+      "Bash(bundle exec rails console:*)"
     ],
     "deny": []
   }

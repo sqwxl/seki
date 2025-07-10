@@ -1,17 +1,17 @@
 require "rails_helper"
 
 RSpec.describe "GamesController#invitation", type: :request do
-  let(:creator) { Player.create!(email: "creator@example.com", session_token: SecureRandom.uuid) }
+  let(:creator) { Player.create!(email: "creator@example.com", session_token: SecureRandom.alphanumeric) }
   let(:invited_player) { Player.create!(email: "invited@example.com") }
   let(:game) do
     Game.create!(
       creator: creator,
       black: creator,
-      white: invited_player, # Invited player assigned during game creation
+      white: nil, # Ensure white is nil for invitation tests
       cols: 9,
       rows: 9,
       komi: 6.5,
-      invite_token: SecureRandom.uuid
+      invite_token: SecureRandom.alphanumeric
     )
   end
 
@@ -34,6 +34,9 @@ RSpec.describe "GamesController#invitation", type: :request do
         invited_player.reload
         expect(invited_player.session_token).to be_present
         expect(session[:player_id]).to eq(invited_player.session_token)
+
+        game.reload
+        expect(game.white).to eq(invited_player)
       end
 
       it "assigns the invited player to an available position" do
@@ -45,7 +48,7 @@ RSpec.describe "GamesController#invitation", type: :request do
           cols: 9,
           rows: 9,
           komi: 6.5,
-          invite_token: SecureRandom.uuid
+          invite_token: SecureRandom.alphanumeric
         )
 
         get game_invitation_path(game_with_opening), params: {
@@ -68,7 +71,7 @@ RSpec.describe "GamesController#invitation", type: :request do
           cols: 9,
           rows: 9,
           komi: 6.5,
-          invite_token: SecureRandom.uuid
+          invite_token: SecureRandom.alphanumeric
         )
 
         get game_invitation_path(game_white_taken), params: {
@@ -84,18 +87,25 @@ RSpec.describe "GamesController#invitation", type: :request do
 
       it "doesn't change assignment if player is already in the game" do
         # Player is already assigned as white
-        expect(game.white).to eq(invited_player)
+        game_with_invited_player = Game.create!(
+          creator: creator,
+          black: creator,
+          white: invited_player,
+          cols: 9,
+          rows: 9,
+          komi: 6.5,
+          invite_token: SecureRandom.alphanumeric
+        )
 
-        get game_invitation_path(game), params: {
-          token: game.invite_token,
+        get game_invitation_path(game_with_invited_player), params: {
+          token: game_with_invited_player.invite_token,
           email: invited_player.email
         }
 
-        expect(response).to redirect_to(game_path(game))
-
-        game.reload
-        expect(game.white).to eq(invited_player) # Still white
-        expect(game.black).to eq(creator) # Unchanged
+        expect(response).to redirect_to(game_path(game_with_invited_player))
+        game_with_invited_player.reload
+        expect(game_with_invited_player.white).to eq(invited_player)
+        expect(game_with_invited_player.black).to eq(creator)
       end
     end
 
@@ -107,7 +117,7 @@ RSpec.describe "GamesController#invitation", type: :request do
         }
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.body).to include("invalid")
+        expect(response.body).to include("The invite link you used is invalid")
 
         # Session should not be updated to the invited player's token
         expect(session[:player_id]).not_to eq(invited_player.session_token)
@@ -119,7 +129,7 @@ RSpec.describe "GamesController#invitation", type: :request do
         }
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.body).to include("invalid")
+        expect(response.body).to include("The invite link you used is invalid")
       end
     end
 
@@ -131,7 +141,7 @@ RSpec.describe "GamesController#invitation", type: :request do
         }
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.body).to include("invalid")
+        expect(response.body).to include("The invite link you used is invalid")
       end
 
       it "renders error for missing email" do
@@ -140,7 +150,7 @@ RSpec.describe "GamesController#invitation", type: :request do
         }
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.body).to include("invalid")
+        expect(response.body).to include("The invite link you used is invalid")
       end
 
       it "renders error when player doesn't exist" do
@@ -150,7 +160,7 @@ RSpec.describe "GamesController#invitation", type: :request do
         }
 
         expect(response).to have_http_status(:unprocessable_entity)
-        expect(response.body).to include("invalid")
+        expect(response.body).to include("The invite link you used is invalid")
       end
     end
 
@@ -169,7 +179,7 @@ RSpec.describe "GamesController#invitation", type: :request do
       end
 
       it "uses existing session token if player already has one" do
-        existing_token = SecureRandom.uuid
+        existing_token = SecureRandom.alphanumeric
         invited_player.update!(session_token: existing_token)
 
         get game_invitation_path(game), params: {

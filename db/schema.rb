@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
+ActiveRecord::Schema[8.0].define(version: 2025_07_07_230358) do
   create_table "challenge", force: :cascade do |t|
     t.integer "game_id", null: false
     t.integer "challenger_id", null: false
@@ -31,7 +31,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.integer "row"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["game_id", "id"], name: "index_game_moves_on_game_id_and_id"
+    t.index ["game_id", "move_number"], name: "index_game_moves_on_game_id_and_move_number"
     t.index ["game_id"], name: "index_game_moves_on_game_id"
+    t.index ["player_id", "created_at"], name: "index_game_moves_on_player_id_and_created_at"
     t.index ["player_id"], name: "index_game_moves_on_player_id"
   end
 
@@ -54,7 +57,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["black_id"], name: "index_games_on_black_id"
+    t.index ["creator_id", "created_at"], name: "index_games_on_creator_id_and_created_at"
     t.index ["creator_id"], name: "index_games_on_creator_id"
+    t.index ["invite_token"], name: "index_games_on_invite_token"
+    t.index ["is_private"], name: "index_games_on_is_private"
+    t.index ["started_at", "ended_at"], name: "index_games_on_started_at_and_ended_at"
     t.index ["undo_requesting_player_id"], name: "index_games_on_undo_requesting_player_id"
     t.index ["white_id"], name: "index_games_on_white_id"
   end
@@ -65,6 +72,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.text "text", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["game_id", "created_at"], name: "index_messages_on_game_id_and_created_at"
     t.index ["game_id"], name: "index_messages_on_game_id"
     t.index ["player_id"], name: "index_messages_on_player_id"
   end
@@ -89,6 +97,22 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["game_id"], name: "index_territory_reviews_on_game_id"
+    t.index ["settled"], name: "index_territory_reviews_on_settled"
+  end
+
+  create_table "undo_requests", force: :cascade do |t|
+    t.integer "game_id", null: false
+    t.integer "requesting_player_id", null: false
+    t.integer "target_move_id", null: false
+    t.string "status", default: "pending", null: false
+    t.integer "responded_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["game_id"], name: "index_undo_requests_on_game_id", unique: true
+    t.index ["requesting_player_id", "created_at"], name: "index_undo_requests_on_requesting_player_id_and_created_at"
+    t.index ["requesting_player_id"], name: "index_undo_requests_on_requesting_player_id"
+    t.index ["responded_by_id"], name: "index_undo_requests_on_responded_by_id"
+    t.index ["target_move_id"], name: "index_undo_requests_on_target_move_id"
   end
 
   add_foreign_key "challenge", "games"
@@ -103,4 +127,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_20_040532) do
   add_foreign_key "messages", "games"
   add_foreign_key "messages", "players"
   add_foreign_key "territory_reviews", "games"
+  add_foreign_key "undo_requests", "game_moves", column: "target_move_id", on_delete: :cascade
+  add_foreign_key "undo_requests", "games"
+  add_foreign_key "undo_requests", "players", column: "requesting_player_id"
+  add_foreign_key "undo_requests", "players", column: "responded_by_id"
 end

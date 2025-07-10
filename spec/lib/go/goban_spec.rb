@@ -122,9 +122,6 @@ RSpec.describe Go::Goban do
     it "captures corner stone with fewer surrounding stones" do
       goban = Go::Goban.with_dimensions(cols: 4, rows: 4)
 
-      # Corner moves should be legal
-      expect(goban.is_legal?([0, 0], Go::Stone::BLACK)).to be true
-
       # Test that corner stones can be captured with only adjacent stones
       goban = goban.play([0, 0], Go::Stone::BLACK)
       goban = goban.play([1, 0], Go::Stone::WHITE)
@@ -133,14 +130,6 @@ RSpec.describe Go::Goban do
       # Black corner stone should be captured (only needs 2 surrounding stones)
       expect(goban.stone_at([0, 0])).to eq(Go::Stone::EMPTY)
       expect(goban.captures[Go::Stone::WHITE]).to eq(1)
-    end
-
-    it "validates legal moves" do
-      goban = Go::Goban.with_dimensions(cols: 4, rows: 4)
-      expect(goban.is_legal?([0, 0], Go::Stone::BLACK)).to be true
-
-      goban = goban.play([0, 0], Go::Stone::BLACK)
-      expect(goban.is_legal?([0, 0], Go::Stone::WHITE)).to be false
     end
   end
 end

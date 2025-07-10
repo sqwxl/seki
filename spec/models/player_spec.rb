@@ -163,7 +163,7 @@ RSpec.describe Player, type: :model do
     let(:player) { Player.create! }
 
     it "returns existing session token if present" do
-      token = SecureRandom.uuid
+      token = SecureRandom.alphanumeric
       player.update!(session_token: token)
 
       result = player.ensure_session_token!

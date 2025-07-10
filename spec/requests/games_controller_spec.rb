@@ -370,4 +370,201 @@ RSpec.describe GamesController, type: :request do
       expect(response).to redirect_to(game_path(game))
     end
   end
+
+  describe "GET /games/:id/invitation - Security Tests" do
+    let(:invited_game) do
+      Game.create!(
+        creator: player,
+        black: nil, # Ensure black is nil for invitation tests
+        white: nil, # Ensure white is nil for invitation tests
+        cols: 19,
+        rows: 19,
+        komi: 6.5,
+        handicap: 2
+      )
+    end
+    let(:guest_player) { Player.create!(email: "guest@example.com") }
+
+    context "with valid invitation parameters" do
+      before do
+        allow_any_instance_of(CurrentPlayerResolver).to receive(:resolve!).and_return(player)
+      end
+
+      it "successfully processes valid invitation" do
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: invited_game.invite_token,
+          email: guest_player.email
+        }
+
+        expect(response).to redirect_to(game_path(invited_game))
+        expect(invited_game.reload.white).to eq(guest_player)
+      end
+
+      it "updates session to invited player" do
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: invited_game.invite_token,
+          email: guest_player.email
+        }
+
+        expect(session[:player_id]).to eq(guest_player.ensure_session_token!)
+      end
+
+      it "logs session transfer for security auditing" do
+        expect(Rails.logger).to receive(:info).with(
+          "Session transferred from #{player.id} to #{guest_player.id} for game #{invited_game.id}"
+        )
+
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: invited_game.invite_token,
+          email: guest_player.email
+        }
+      end
+    end
+
+    context "security validations" do
+      it "rejects invitation with missing token" do
+        get "/games/#{invited_game.id}/invitation", params: {
+          email: guest_player.email
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("The invite link you used is invalid")
+      end
+
+      it "rejects invitation with blank token" do
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: "",
+          email: guest_player.email
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("The invite link you used is invalid")
+      end
+
+      it "rejects invitation with missing email" do
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: "valid-token-123"
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("The invite link you used is invalid")
+      end
+
+      it "rejects invitation with blank email" do
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: "valid-token-123",
+          email: ""
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("The invite link you used is invalid")
+      end
+
+      it "rejects invitation with invalid token (prevents timing attacks)" do
+        expect(Rails.logger).to receive(:warn).with("Invite link failed: Invalid invitation token")
+
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: "invalid-token",
+          email: guest_player.email
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("The invite link you used is invalid")
+      end
+
+      it "rejects invitation with malformed email" do
+        expect(Rails.logger).to receive(:warn).with("Invite link failed: Invalid email format")
+
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: invited_game.invite_token,
+          email: "not-an-email"
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("The invite link you used is invalid")
+      end
+
+      it "rejects invitation for non-existent player" do
+        expect(Rails.logger).to receive(:warn).with("Invite link failed: Player with email nonexistent@example.com not found")
+
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: invited_game.invite_token,
+          email: "nonexistent@example.com"
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("The invite link you used is invalid")
+      end
+
+      it "rejects invitation when game is already full" do
+        invited_game.update!(white: other_player)  # Fill the white slot
+
+        expect(Rails.logger).to receive(:warn).with("Invite link failed: Game is already full")
+
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: invited_game.invite_token,
+          email: guest_player.email
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("The invite link you used is invalid")
+      end
+
+      it "prevents session hijacking when current player is different game participant" do
+        # Set current player to someone already in the game
+        allow_any_instance_of(CurrentPlayerResolver).to receive(:resolve!).and_return(other_player)
+        invited_game.update!(white: other_player)
+
+        expect(Rails.logger).to receive(:warn).with("Invite link failed: You are already logged in as a different player in this game")
+
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: invited_game.invite_token,
+          email: guest_player.email
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.body).to include("The invite link you used is invalid")
+      end
+    end
+
+    context "CSRF protection" do
+      it "has CSRF protection enabled" do
+        # This test verifies CSRF protection is configured
+        expect(ApplicationController.new.forgery_protection_strategy).to be_a(ActionController::RequestForgeryProtection::ProtectionMethods::Exception)
+      end
+    end
+
+    context "when player is already in the game" do
+      before do
+        invited_game.update!(white: guest_player)
+        allow_any_instance_of(CurrentPlayerResolver).to receive(:resolve!).and_return(player)
+      end
+
+      it "does not transfer session if guest is current player" do
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: invited_game.invite_token,
+          email: guest_player.email
+        }
+
+        # Should redirect without changing session since guest is current player
+        expect(response).to redirect_to(game_path(invited_game))
+      end
+    end
+
+    context "edge cases" do
+      it "handles concurrent invitation attempts gracefully" do
+        # Simulate race condition by having another player join between token check and assignment
+        allow(invited_game).to receive(:players).and_return([player, other_player])
+
+        expect(Rails.logger).to receive(:warn).with("Invite link failed: Game is full")
+
+        get "/games/#{invited_game.id}/invitation", params: {
+          token: invited_game.invite_token,
+          email: guest_player.email
+        }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+  end
 end

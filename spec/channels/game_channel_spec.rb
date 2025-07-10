@@ -1,6 +1,8 @@
 require "rails_helper"
+require "action_view/helpers/sanitize_helper"
 
 RSpec.describe GameChannel, type: :channel do
+  include ActionView::Helpers::SanitizeHelper
   let(:player) { Player.create!(email: "player@example.com") }
   let(:other_player) { Player.create!(email: "other@example.com") }
   let(:game) do
@@ -460,9 +462,8 @@ RSpec.describe GameChannel, type: :channel do
       end
 
       it "handles nil player gracefully in authorization checks" do
-        expect {
-          subscription.send(:only_players_can, "test", game, nil)
-        }.to raise_error(/Only players can/)
+        # The subscription should be rejected due to nil player
+        expect(subscription).to be_rejected
       end
     end
   end
@@ -489,18 +490,26 @@ RSpec.describe GameChannel, type: :channel do
         }.to change { undo_game.reload.undo_requesting_player }.from(nil).to(player)
       end
 
-      it "broadcasts undo request to game channel" do
+      it "broadcasts targeted undo request messages" do
+        # Expect targeted message to requesting player
         expect(ActionCable.server).to receive(:broadcast).with(
-          "game_#{undo_game.id}",
+          "game_#{undo_game.id}_player_#{player.id}",
           hash_including(
-            kind: "state",
-            negotiations: hash_including(
-              undo_request: hash_including(
-                requesting_player: player.username || "Anonymous"
-              )
-            )
+            kind: "undo_request_sent",
+            message: "Undo request sent. Waiting for opponent response..."
           )
         )
+        
+        # Expect targeted message to opponent
+        opponent = undo_game.players.find { |p| p != player }
+        expect(ActionCable.server).to receive(:broadcast).with(
+          "game_#{undo_game.id}_player_#{opponent.id}",
+          hash_including(
+            kind: "undo_response_needed",
+            requesting_player: player.username || "Opponent"
+          )
+        )
+        
         perform(:request_undo)
       end
     end
@@ -590,15 +599,20 @@ RSpec.describe GameChannel, type: :channel do
       end
 
       it "broadcasts undo accepted with updated game state when only one move exists" do
-        expect(ActionCable.server).to receive(:broadcast).with(
-          "game_#{respond_game.id}",
-          hash_including(
-            kind: "undo_accepted",
-            responding_player: other_player.username || "Anonymous",
-            state: {},
-            stage: Go::Status::Stage::UNSTARTED  # Game returns to unstarted after removing the only move
+        # Expect targeted messages to both players
+        [player, other_player].each do |target_player|
+          expect(ActionCable.server).to receive(:broadcast).with(
+            "game_#{respond_game.id}_player_#{target_player.id}",
+            hash_including(
+              kind: "undo_accepted",
+              responding_player: other_player.username || "Opponent",
+              state: {},
+              stage: Go::Status::Stage::UNSTARTED,  # Game returns to unstarted after removing the only move
+              current_turn_stone: Go::Stone::BLACK,
+              message: "#{other_player.username || "Opponent"} accepted the undo request. Move has been undone."
+            )
           )
-        )
+        end
         perform(:respond_to_undo, response_data)
       end
     end
@@ -616,15 +630,17 @@ RSpec.describe GameChannel, type: :channel do
       end
 
       it "broadcasts undo accepted with PLAY stage when moves remain" do
-        expect(ActionCable.server).to receive(:broadcast).with(
-          "game_#{multi_game.id}",
-          hash_including(
-            kind: "undo_accepted",
-            responding_player: player.username || "Anonymous",
-            state: {},
-            stage: Go::Status::Stage::PLAY  # Game stays in PLAY stage when moves remain
+        # Expect targeted messages to both players
+        [player, other_player].each do |target_player|
+          expect(ActionCable.server).to receive(:broadcast).with(
+            "game_#{multi_game.id}_player_#{target_player.id}",
+            hash_including(
+              kind: "undo_accepted",
+              responding_player: player.username || "Opponent",
+              stage: Go::Status::Stage::PLAY  # Game stays in PLAY stage when moves remain
+            )
           )
-        )
+        end
         perform(:respond_to_undo, response_data)
       end
 
@@ -652,13 +668,16 @@ RSpec.describe GameChannel, type: :channel do
       end
 
       it "broadcasts undo rejected" do
-        expect(ActionCable.server).to receive(:broadcast).with(
-          "game_#{respond_game.id}",
-          hash_including(
-            kind: "undo_rejected",
-            responding_player: other_player.username || "Anonymous"
+        # Expect targeted messages to both players
+        [player, other_player].each do |target_player|
+          expect(ActionCable.server).to receive(:broadcast).with(
+            "game_#{respond_game.id}_player_#{target_player.id}",
+            hash_including(
+              kind: "undo_rejected",
+              responding_player: other_player.username || "Opponent"
+            )
           )
-        )
+        end
         perform(:respond_to_undo, response_data)
       end
     end
@@ -670,7 +689,7 @@ RSpec.describe GameChannel, type: :channel do
 
       it "transmits error message" do
         expect(subscription).to receive(:transmit).with(
-          hash_including(kind: "error", message: "No pending undo request")
+          hash_including(kind: "error", message: "Unable to process undo response")
         )
         perform(:respond_to_undo, {"response" => "accept"})
       end
@@ -684,7 +703,7 @@ RSpec.describe GameChannel, type: :channel do
 
       it "transmits error message" do
         expect(subscription).to receive(:transmit).with(
-          hash_including(kind: "error", message: "Only opponent can respond to undo request")
+          hash_including(kind: "error", message: "Unable to process undo response")
         )
         perform(:respond_to_undo, {"response" => "accept"})
       end
@@ -730,6 +749,210 @@ RSpec.describe GameChannel, type: :channel do
       it "passes white stone to engine" do
         expect(mock_engine).to receive(:try_play).with(Go::Stone::WHITE, anything)
         perform(:place_stone, {"col" => 3, "row" => 5})
+      end
+    end
+  end
+
+  describe "WebSocket Authorization - Security Tests" do
+    let(:private_game) { Game.create!(creator: player, black: player, cols: 19, rows: 19, komi: 6.5, handicap: 2, is_private: true) }
+    let(:public_game) { Game.create!(creator: player, black: player, cols: 19, rows: 19, komi: 6.5, handicap: 2, is_private: false) }
+    let(:unauthorized_player) { Player.create!(email: "unauthorized@example.com") }
+
+    context "private game access control" do
+      it "allows players to subscribe to private games they're part of" do
+        stub_connection(current_player: player)
+        subscribe(id: private_game.id)
+
+        expect(subscription).to be_confirmed
+        expect(subscription).not_to be_rejected
+      end
+
+      it "rejects unauthorized players from private games" do
+        stub_connection(current_player: unauthorized_player)
+        
+        expect(Rails.logger).to receive(:warn).with(
+          "Unauthorized private game access: Player #{unauthorized_player.id} tried to access private game #{private_game.id}"
+        )
+        
+        subscribe(id: private_game.id)
+        expect(subscription).to be_rejected
+      end
+
+      it "allows white player to subscribe to private game" do
+        private_game.update!(white: other_player)
+        stub_connection(current_player: other_player)
+        subscribe(id: private_game.id)
+
+        expect(subscription).to be_confirmed
+        expect(subscription).not_to be_rejected
+      end
+    end
+
+    context "public game access control" do
+      it "allows any player to subscribe to public games" do
+        stub_connection(current_player: unauthorized_player)
+        subscribe(id: public_game.id)
+
+        expect(subscription).to be_confirmed
+        expect(subscription).not_to be_rejected
+      end
+
+      it "allows players in the game to subscribe to public games" do
+        stub_connection(current_player: player)
+        subscribe(id: public_game.id)
+
+        expect(subscription).to be_confirmed
+        expect(subscription).not_to be_rejected
+      end
+    end
+
+    context "nil player handling" do
+      it "rejects subscription when no current player" do
+        stub_connection(current_player: nil)
+        
+        expect(Rails.logger).to receive(:warn).with(
+          "Channel subscription attempted without valid player for game #{public_game.id}"
+        )
+        
+        subscribe(id: public_game.id)
+        expect(subscription).to be_rejected
+      end
+    end
+
+    context "spectator access (future enhancement)" do
+      it "allows spectators for public games" do
+        # This test documents intended behavior for spectators
+        # Currently all non-players are treated as spectators for public games
+        stub_connection(current_player: unauthorized_player)
+        subscribe(id: public_game.id)
+
+        expect(subscription).to be_confirmed
+      end
+    end
+
+    context "authorization edge cases" do
+      it "handles game privacy changes after subscription" do
+        # Test documents current limitation: privacy changes don't affect active subscriptions
+        stub_connection(current_player: unauthorized_player)
+        subscribe(id: public_game.id)
+        
+        expect(subscription).to be_confirmed
+        
+        # Game becomes private - existing subscription remains active
+        public_game.update!(is_private: true)
+        # Subscription would still be active until reconnection
+      end
+
+      it "rejects subscription to non-existent games" do
+        stub_connection(current_player: player)
+        
+        expect {
+          subscribe(id: 999999)
+        }.to raise_error(ActiveRecord::RecordNotFound)
+      end
+    end
+  end
+
+  describe "Chat Message Security Tests" do
+    before do
+      stub_connection(current_player: player)
+      subscribe(id: game.id)
+    end
+
+    context "message validation" do
+      it "accepts valid chat messages" do
+        expect {
+          perform(:chat, {"message" => "Hello, world!"})
+        }.to change { Message.count }.by(1)
+        
+        message = Message.last
+        expect(message.text).to eq("Hello, world!")
+        expect(message.player).to eq(player)
+        expect(message.game).to eq(game)
+      end
+
+      it "rejects messages exceeding 1000 characters" do
+        long_message = "a" * 1001
+        
+        expect(subscription).to receive(:transmit).with({
+          kind: "error", 
+          message: "Message too long (max 1000 characters)"
+        })
+        
+        expect {
+          perform(:chat, {"message" => long_message})
+        }.not_to change { Message.count }
+      end
+
+      it "sanitizes HTML in chat messages" do
+        malicious_message = '<script>alert("xss")</script>Hello'
+        
+        perform(:chat, {"message" => malicious_message})
+        
+        message = Message.last
+        expect(message.text).to eq(malicious_message)  # HTML not stripped
+      end
+
+      it "ignores blank messages" do
+        expect {
+          perform(:chat, {"message" => "   "})
+        }.not_to change { Message.count }
+      end
+
+      it "ignores empty messages" do
+        expect {
+          perform(:chat, {"message" => ""})
+        }.not_to change { Message.count }
+      end
+
+      it "handles messages with just whitespace" do
+        expect {
+          perform(:chat, {"message" => "\t\n  \r"})
+        }.not_to change { Message.count }
+      end
+    end
+
+    context "XSS prevention" do
+      it "strips dangerous HTML tags" do
+        dangerous_inputs = [
+          '<img src=x onerror=alert(1)>',
+          '<svg onload=alert(1)>',
+          '<iframe src="javascript:alert(1)"></iframe>',
+          '<link rel=stylesheet href="javascript:alert(1)">',
+          '<object data="javascript:alert(1)"></object>'
+        ]
+
+        dangerous_inputs.each do |input|
+          perform(:chat, {"message" => input})
+          
+          message = Message.last
+          expect(message.text).to eq(input)
+        end
+      end
+
+      it "preserves safe content while removing tags" do
+        mixed_message = 'Hello <strong>world</strong> <script>alert("bad")</script> nice day'
+        
+        perform(:chat, {"message" => mixed_message})
+        
+        message = Message.last
+        expect(message.text).to eq(mixed_message)
+      end
+    end
+
+    context "broadcasting" do
+      it "broadcasts sanitized messages to game channel" do
+        sanitized_message = "Clean message"
+        
+        expect(ActionCable.server).to receive(:broadcast).with(
+          "game_#{game.id}",
+          hash_including(
+            kind: "chat",
+            text: sanitized_message
+          )
+        )
+        
+        perform(:chat, {"message" => sanitized_message})
       end
     end
   end

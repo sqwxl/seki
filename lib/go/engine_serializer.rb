@@ -12,16 +12,10 @@ module Go
     end
 
     def deserialize(cols:, rows:, moves:, state:)
-      # Create empty engine and restore cached state
-      engine = Engine.new(cols: cols, rows: rows)
-      engine.restore_state!(
-        goban_state: {
-          board: state["board"],
-          captures: state["captures"],
-          ko: state["ko"]
-        },
-        moves: moves
-      )
+      goban = Goban.from_state(board: state["board"], captures: state["captures"], ko: state["ko"])
+
+      engine = Engine.new(cols: cols, rows: rows, moves: moves)
+      engine.instance_variable_set(:@goban, goban)
       engine
     end
   end

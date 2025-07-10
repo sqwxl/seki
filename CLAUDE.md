@@ -88,6 +88,7 @@ Real-time features use ActionCable channels:
 - Legacy Minitest in `test/` directory
 - Both test databases configured (SQLite)
 - **Tests should reflect the current implementation, and not past implementations, or changes in implementation details.**
+- When writing tests, first take a look at the code you are testing.
 
 ## Migration Management
 - When editing schemas, don't generate a new migration. Instead, roll back the current -- and only -- migration, edit it directly, and migrate back.
@@ -99,3 +100,6 @@ Real-time features use ActionCable channels:
 
 ## Go Game Rules
 - The minimum handicap in a game of Go is 2 stones.
+
+## Communication Guidelines
+- When responding, stick to the subject at hand, no need to compliment me or use phrases like "You're absolutely right!". Just get to the point, please.

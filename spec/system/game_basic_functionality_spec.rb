@@ -109,8 +109,8 @@ RSpec.describe "Game Basic Functionality", type: :system do
   end
 
   describe "Game with existing moves" do
-    let!(:creator) { Player.create!(email: "creator@example.com", session_token: SecureRandom.uuid) }
-    let!(:opponent) { Player.create!(email: "opponent@example.com", session_token: SecureRandom.uuid) }
+    let!(:creator) { Player.create!(email: "creator@example.com", session_token: SecureRandom.alphanumeric) }
+    let!(:opponent) { Player.create!(email: "opponent@example.com", session_token: SecureRandom.alphanumeric) }
     let!(:game) do
       Game.create!(
         creator: creator,

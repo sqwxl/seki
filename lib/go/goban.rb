@@ -1,6 +1,6 @@
 module Go
-  KoStatus = Struct.new("KoStatus", :point, :stone)
-  NO_KO = KoStatus.new([-1, -1], Stone::EMPTY).freeze
+  KoStatus = Struct.new("KoStatus", :point, :stone, keyword_init: true)
+  NO_KO = KoStatus.new(point: [-1, -1], stone: Stone::EMPTY).freeze
 
   class Goban
     attr_reader :mtrx, :ko, :captures
@@ -23,8 +23,7 @@ module Go
       super
       @mtrx = original.instance_variable_get(:@mtrx).map(&:dup)
       @captures = original.instance_variable_get(:@captures).dup
-      ko = original.instance_variable_get(:@ko).dup
-      @ko = KoStatus.new(ko.point.dup, ko.stone)
+      @ko = original.instance_variable_get(:@ko).dup
     end
 
     def inspect
@@ -44,34 +43,21 @@ module Go
       [b, "Black captures: #{@captures[Stone::BLACK]}", "White captures: #{@captures[Stone::WHITE]}"].join("\n")
     end
 
-    def is_legal?(point, stone)
-      begin
-        place_stone(point, stone)
-      rescue
-        return false
-      end
-
-      true
-    end
-
     def play(point, stone)
       return self if stone == Stone::EMPTY
 
       goban, dead_stones, liberties = place_stone(point, stone)
 
-      # detect future ko
-      is_ko = dead_stones.length == 1 &&
-        liberties.length == 1 &&
-        liberties.first == dead_stones.first &&
-        goban.neighbors(point).none? { |n| stone_at(n) == stone }
-
-      goban.instance_variable_set(:@ko, is_ko ? KoStatus.new(dead_stones.first, -stone) : NO_KO)
+      ko = detect_ko(goban, dead_stones, liberties, point, stone)
+      goban.instance_variable_set(:@ko, ko)
 
       goban
     end
 
-    def pass!
-      @ko = NO_KO
+    def pass
+      goban = dup
+      goban.instance_variable_set(:@ko, NO_KO)
+      goban
     end
 
     def stone_at((col, row))
@@ -84,33 +70,6 @@ module Go
 
     def empty?
       @mtrx.all? { |row| row.all?(&:zero?) }
-    end
-
-    def restore_state!(board:, captures:, ko:)
-      @mtrx = board
-      @captures = captures
-      @ko = if ko && ko[:point] && ko[:point] != [-1, -1]
-        KoStatus.new(ko[:point], ko[:stone])
-      else
-        NO_KO
-      end
-    end
-
-    protected
-
-    def set_stone!((col, row), stone)
-      @mtrx[row][col] = stone if on_board?([col, row])
-    end
-
-    def add_captures!(stone, count)
-      unless [Stone::BLACK, Stone::WHITE].include?(stone)
-        raise ArgumentError, "Got unexpected stone: #{stone.inspect}"
-      end
-      @captures[stone] += count
-    end
-
-    def ko?(point, stone)
-      @ko[:point] == point && @ko[:stone] == stone
     end
 
     def place_stone(point, stone)
@@ -128,7 +87,7 @@ module Go
       goban.neighbor_chains(point)
         .each { |c| dead_stones.concat(c) if goban.get_chain_liberties(c).empty? }
 
-      goban.capture(dead_stones)
+      goban = goban.capture(dead_stones)
 
       liberties = goban.get_liberties(point)
 
@@ -138,7 +97,7 @@ module Go
     end
 
     def capture(stones)
-      return if stones.empty?
+      return self if stones.empty?
 
       if stones.any? { |s| stone_at(s)&.zero? }
         raise ArgumentError, "Expected dead stones, got an empty point."
@@ -150,9 +109,10 @@ module Go
         raise ArgumentError, "Expected all dead stones to share color"
       end
 
-      stones.each { |s| set_stone!(s, Stone::EMPTY) }
-
-      add_captures!(-stone, stones.length)
+      new_goban = dup
+      stones.each { |s| new_goban.set_stone!(s, Stone::EMPTY) }
+      new_goban.add_captures!(-stone, stones.length)
+      new_goban
     end
 
     def neighbors((col, row))
@@ -176,8 +136,6 @@ module Go
       chain.each_with_object(Set.new) do |p, acc|
         neighbors(p).each { |n| acc << n if stone_at(n)&.zero? }
       end.to_a
-
-      # Rails.logger.debug "Chain liberties: #{s.inspect}"
     end
 
     def neighbor_chains(point)
@@ -196,8 +154,6 @@ module Go
 
           chains << ch unless ch.empty?
         end
-
-      # puts "Neighbor chains: #{chains.inspect}"
 
       chains
     end
@@ -223,6 +179,34 @@ module Go
       result
     end
 
+    protected
+
+    def set_stone!((col, row), stone)
+      @mtrx[row][col] = stone if on_board?([col, row])
+    end
+
+    def add_captures!(stone, count)
+      unless [Stone::BLACK, Stone::WHITE].include?(stone)
+        raise ArgumentError, "Got unexpected stone: #{stone.inspect}"
+      end
+      @captures[stone] += count
+    end
+
+    def ko?(point, stone)
+      @ko[:point] == point && @ko[:stone] == stone
+    end
+
+    private
+
+    def detect_ko(goban, dead_stones, liberties, point, stone)
+      is_ko = dead_stones.length == 1 &&
+        liberties.length == 1 &&
+        liberties.first == dead_stones.first &&
+        goban.neighbors(point).none? { |n| goban.stone_at(n) == stone }
+
+      is_ko ? KoStatus.new(point: dead_stones.first, stone: -stone) : NO_KO
+    end
+
     class << self
       def with_dimensions(cols:, rows: nil, moves: [])
         rows ||= cols
@@ -236,6 +220,14 @@ module Go
           goban = goban.play(move.point, (i % 2 == 0) ? Stone::BLACK : Stone::WHITE)
         end
 
+        goban
+      end
+
+      def from_state(board:, captures:, ko:)
+        goban = new(board)
+        goban.instance_variable_set(:@captures, captures)
+        ko_status = (ko && ko[:point] && ko[:point] != [-1, -1]) ? KoStatus.new(point: ko[:point], stone: ko[:stone]) : NO_KO
+        goban.instance_variable_set(:@ko, ko_status)
         goban
       end
     end

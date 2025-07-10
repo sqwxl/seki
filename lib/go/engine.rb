@@ -41,12 +41,11 @@ module Go
     def try_play(stone, point)
       Rails.logger.debug "try_play: #{stone} @ #{point.inspect}, current stone: #{current_turn_stone}"
       raise Error::OutOfTurn unless stone == current_turn_stone
+      raise Error::Overwrite unless is_legal?(point, stone)
 
       # TODO: Lift game logic out of Goban class
       @goban = @goban.play(point, stone)
       @moves << Move.new(MoveKind::PLAY, stone, point)
-
-      # TODO Add detection for when board is full
 
       stage
     end
@@ -54,7 +53,7 @@ module Go
     def try_pass(stone)
       raise Error::OutOfTurn unless stone == current_turn_stone
 
-      @goban.pass! # TODO don't mutate
+      @goban = @goban.pass
       @moves << Move.new(MoveKind::PASS, stone, nil)
 
       stage
@@ -72,7 +71,18 @@ module Go
     def is_legal?(point, stone = nil)
       stone ||= current_turn_stone
 
-      @goban.is_legal?(point, stone)
+      begin
+        @goban.place_stone(point, stone)
+      rescue Error::NotOnBoard, Error::Overwrite, Error::KoViolation, Error::Suicide
+        return false
+      end
+
+      true
+    end
+
+    def board_full?
+      # TODO: Implement this method
+      false
     end
 
     def stage
@@ -81,7 +91,7 @@ module Go
         Status::Stage::UNSTARTED
       elsif @result
         Status::Stage::DONE
-      elsif @moves.length >= 2 && @moves[-2..].all? { |m| m.kind == MoveKind::PASS }
+      elsif @moves.length >= 2 && @moves[-2..].all? { |m| m.kind == MoveKind::PASS } || board_full?
         Status::Stage::TERRITORY_REVIEW
       else
         Status::Stage::PLAY
@@ -96,9 +106,6 @@ module Go
       EngineSerializer.deserialize(cols: cols, rows: rows, moves: moves, state: state)
     end
 
-    def restore_state!(goban_state:, moves:)
-      @goban.restore_state!(**goban_state)
-      @moves = moves
-    end
+    
   end
 end
