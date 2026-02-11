@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>
+            {% block title %}Seki{% endblock %}
+        </title>
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="mobile-web-app-capable" content="yes">
+        <link rel="icon" href="/static/images/icon.png" type="image/png">
+        <link rel="stylesheet" href="/static/css/application.css">
+        {% block head %}{% endblock %}
+    </head>
+    <body>
+        {% block flash %}{% endblock %}
+        {% block content %}{% endblock %}
+    </body>
+</html>

@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: seki
+      POSTGRES_PASSWORD: seki
+      POSTGRES_DB: seki
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seki -d seki"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://seki:seki@db:5432/seki
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

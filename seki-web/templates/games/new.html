@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block flash %}
+    {% if let Some(msg) = flash %}<div class="flash">{{ msg }}</div>{% endif %}
+{% endblock %}
+{% block content %}
+    <h1>Start a new go game</h1>
+    <form action="/games" method="post">
+        <fieldset>
+            <legend>Game settings</legend>
+            <div>
+                <label for="cols">Board size</label>
+                <input type="number"
+                       name="cols"
+                       id="cols"
+                       min="4"
+                       max="19"
+                       step="1"
+                       value="19">
+            </div>
+            <div>
+                <label for="komi">Komi</label>
+                <input type="number"
+                       name="komi"
+                       id="komi"
+                       min="0.5"
+                       max="10.5"
+                       step="0.5"
+                       value="0.5">
+            </div>
+            <div>
+                <label for="handicap">Handicap</label>
+                <input type="number"
+                       name="handicap"
+                       id="handicap"
+                       min="1"
+                       max="9"
+                       step="1"
+                       value="1">
+            </div>
+        </fieldset>
+        <fieldset>
+            <legend>Your color</legend>
+            <label for="color_black">⚫</label>
+            <input type="radio" name="color" value="black" id="color_black" checked>
+            <label for="color_white">⚪</label>
+            <input type="radio" name="color" value="white" id="color_white">
+            <label for="color_nigiri">🎲</label>
+            <input type="radio" name="color" value="nigiri" id="color_nigiri">
+        </fieldset>
+        <fieldset>
+            <legend>Notifications</legend>
+            <div>
+                <label for="is_private">Private game? (no spectators allowed)</label>
+                <input type="checkbox" name="is_private" id="is_private" value="true">
+            </div>
+            <div>
+                <label for="email">Get notified when it's your turn to play (optional)</label>
+                <input type="email"
+                       name="creator_email"
+                       id="creator_email"
+                       placeholder="your@email.com">
+            </div>
+            <div>
+                <label for="invite_email">
+                    Invite a friend (optional; you can also share the game URL with them once it's been created)
+                </label>
+                <input type="email"
+                       name="invite_email"
+                       id="invite_email"
+                       placeholder="friend@email.com">
+            </div>
+        </fieldset>
+        <button type="submit">Create Game</button>
+    </form>
+{% endblock %}
