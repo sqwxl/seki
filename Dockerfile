@@ -1,8 +1,7 @@
-FROM rust:1.84-bookworm AS builder
+FROM rust:1.93 AS deps
 
 WORKDIR /app
 
-# Copy manifests first for dependency caching
 COPY Cargo.toml Cargo.lock ./
 COPY go-engine/Cargo.toml go-engine/Cargo.toml
 COPY seki-web/Cargo.toml seki-web/Cargo.toml
@@ -14,24 +13,30 @@ RUN mkdir -p go-engine/src seki-web/src \
 
 RUN cargo build --release -p seki-web
 
-# Now copy real sources and rebuild
+FROM deps AS builder
+
 RUN rm -rf go-engine/src seki-web/src
+
 COPY go-engine/src go-engine/src
 COPY seki-web/src seki-web/src
+COPY seki-web/templates seki-web/templates
 COPY seki-web/migrations seki-web/migrations
 
-# Touch main.rs so cargo detects the change
-RUN touch seki-web/src/main.rs && cargo build --release -p seki-web
+RUN touch go-engine/src/lib.rs seki-web/src/main.rs && cargo build --release -p seki-web
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/seki-web /usr/local/bin/seki-web
 COPY seki-web/static /app/static
 
+RUN useradd -r -s /bin/false seki
+USER seki
 WORKDIR /app
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:3000/up || exit 1
 
 CMD ["seki-web"]

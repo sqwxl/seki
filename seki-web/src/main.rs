@@ -68,7 +68,10 @@ async fn main() {
         // Health check
         .route("/up", get(routes::health::health_check))
         // Static files
-        .nest_service("/static", ServeDir::new(concat!(env!("CARGO_MANIFEST_DIR"), "/static")))
+        .nest_service("/static", ServeDir::new(
+            std::env::var("STATIC_DIR")
+                .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()),
+        ))
         // Middleware
         .layer(session_layer)
         .with_state(state);
