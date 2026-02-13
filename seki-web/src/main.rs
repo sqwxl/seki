@@ -71,8 +71,16 @@ async fn main() {
         .route("/games/{id}", get(routes::games::show_game))
         .route("/games/{id}/join", post(routes::games::join_game))
         .route("/games/{id}/invitation", get(routes::games::invitation))
+        // Auth routes
+        .route("/register", get(routes::auth::register_form))
+        .route("/register", post(routes::auth::register))
+        .route("/login", get(routes::auth::login_form))
+        .route("/login", post(routes::auth::login))
+        .route("/logout", post(routes::auth::logout))
         // WebSocket
         .route("/games/{id}/ws", get(ws::handler::ws_upgrade))
+        // API
+        .nest("/api", routes::api::router())
         // Health check
         .route("/up", get(routes::health::health_check))
         // Static files

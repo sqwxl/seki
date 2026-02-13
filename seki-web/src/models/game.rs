@@ -70,6 +70,22 @@ impl GameWithPlayers {
 }
 
 impl Game {
+    pub async fn list_public(pool: &DbPool) -> Result<Vec<Game>, sqlx::Error> {
+        sqlx::query_as::<_, Game>(
+            "SELECT * FROM games WHERE is_private = false ORDER BY created_at DESC",
+        )
+        .fetch_all(pool)
+        .await
+    }
+
+    pub async fn delete(pool: &DbPool, game_id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM games WHERE id = $1")
+            .bind(game_id)
+            .execute(pool)
+            .await?;
+        Ok(())
+    }
+
     pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>("SELECT * FROM games WHERE id = $1")
             .bind(id)
