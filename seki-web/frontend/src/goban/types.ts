@@ -64,6 +64,9 @@ export type BoundedGobanProps = GobanProps & {
   onResized?: () => void;
 };
 
+// Keep in sync with go-engine Stage enum (go-engine/src/engine.rs)
+export type GameStage = "unstarted" | "play" | "territory_review" | "done";
+
 // WebSocket message types
 
 export type GameState = {
@@ -73,7 +76,7 @@ export type GameState = {
 
 export type StateMessage = {
   kind: "state";
-  stage: string;
+  stage: GameStage;
   state: GameState;
   negotiations?: Record<string, unknown>;
   current_turn_stone: number | null;
@@ -93,7 +96,7 @@ export type ErrorMessage = {
 export type UndoAcceptedMessage = {
   kind: "undo_accepted";
   message: string;
-  stage?: string;
+  stage?: GameStage;
   state?: GameState;
   current_turn_stone?: number | null;
 };
@@ -101,7 +104,7 @@ export type UndoAcceptedMessage = {
 export type UndoRejectedMessage = {
   kind: "undo_rejected";
   message: string;
-  stage?: string;
+  stage?: GameStage;
   state?: GameState;
   current_turn_stone?: number | null;
 };

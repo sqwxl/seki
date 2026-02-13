@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { BoundedGoban as Goban } from "./goban/index";
 import type {
+  GameStage,
   GameState,
   IncomingMessage,
   MarkerData,
@@ -32,7 +33,7 @@ if (root != null) {
     Array(boardCols).fill(0),
   );
 
-  let currentStage: string | null = null;
+  let currentStage: GameStage | null = null;
   let currentGameState: GameState = { board: emptyBoard, ko: null };
   let currentNegotiations: Record<string, unknown> = {};
   let currentTurnStone: number | null = null;
@@ -142,7 +143,7 @@ if (root != null) {
       return (_: Event, position: Position) =>
         channel.play(position[0], position[1]);
     }
-    if (currentStage === "territory") {
+    if (currentStage === "territory_review") {
       return (_: Event, position: Position) =>
         channel.toggleChain(position[0], position[1]);
     }
@@ -150,7 +151,7 @@ if (root != null) {
   }
 
   function renderGoban(
-    _stage: string | null,
+    _stage: GameStage | null,
     gameState: GameState,
   ): void {
     if (!gameState?.board) return;
@@ -221,7 +222,7 @@ if (root != null) {
   }
 
   function updateUndoControls(
-    stage: string,
+    stage: GameStage,
     _negotiations: Record<string, unknown> = {},
     turnStone: number | null = null,
   ): void {
