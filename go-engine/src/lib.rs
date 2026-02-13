@@ -2,6 +2,7 @@ pub mod engine;
 pub mod error;
 pub mod goban;
 pub mod ko;
+pub mod sgf;
 pub mod stone;
 pub mod turn;
 
