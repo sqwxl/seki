@@ -11,13 +11,42 @@ use crate::models::message::Message;
 use crate::services::game_creator::{self, CreateGameParams};
 use crate::services::state_serializer;
 use crate::session::CurrentPlayer;
+use crate::templates::games_list::GamesListTemplate;
 use crate::templates::games_new::GamesNewTemplate;
-use crate::templates::games_show::GamesShowTemplate;
+use crate::templates::games_show::{GamesShowTemplate, InitialGameProps};
+use crate::templates::PlayerData;
 use crate::AppState;
 
-// GET / and GET /games
-pub async fn new_game(_current_player: CurrentPlayer) -> Result<Response, AppError> {
-    let tmpl = GamesNewTemplate { flash: None };
+fn serialize_player_data(player: &CurrentPlayer) -> String {
+    serde_json::to_string(&PlayerData::from(&player.player)).unwrap_or_else(|_| "{}".to_string())
+}
+
+// GET /
+pub async fn new_game(current_player: CurrentPlayer) -> Result<Response, AppError> {
+    let tmpl = GamesNewTemplate {
+        player_username: current_player.username.clone(),
+        player_data: serialize_player_data(&current_player),
+        flash: None,
+    };
+    Ok(Html(
+        tmpl.render()
+            .map_err(|e| AppError::Internal(e.to_string()))?,
+    )
+    .into_response())
+}
+
+// GET /games
+pub async fn list_games(
+    State(state): State<AppState>,
+    current_player: CurrentPlayer,
+) -> Result<Response, AppError> {
+    let tmpl = GamesListTemplate {
+        player_username: current_player.username.clone(),
+        player_data: serialize_player_data(&current_player),
+        player_games: Game::list_for_player(&state.db, current_player.id).await?,
+        public_games: Game::list_public_with_players(&state.db, Some(current_player.id)).await?,
+    };
+
     Ok(Html(
         tmpl.render()
             .map_err(|e| AppError::Internal(e.to_string()))?,
@@ -60,6 +89,8 @@ pub async fn create_game(
         Ok(game) => Ok(Redirect::to(&format!("/games/{}", game.id)).into_response()),
         Err(e) => {
             let tmpl = GamesNewTemplate {
+                player_username: current_player.username.clone(),
+                player_data: serialize_player_data(&current_player),
                 flash: Some(e.to_string()),
             };
             Ok((
@@ -81,14 +112,6 @@ pub async fn show_game(
     Path(id): Path<i64>,
 ) -> Result<Response, AppError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
-    let player_stone = gwp.player_stone(current_player.id);
-    let player_name = current_player.display_name().to_string();
-    let player_token = current_player.session_token.clone().unwrap_or_default();
-
-    let stage = state_serializer::game_stage(
-        &gwp,
-        &crate::services::engine_builder::build_engine(&state.db, &gwp.game).await?,
-    );
 
     // Build chat log JSON
     let messages = Message::find_by_game_id(&state.db, id).await?;
@@ -119,14 +142,22 @@ pub async fn show_game(
     let is_creator = gwp.game.creator_id == Some(current_player.id);
     let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
 
+    let game_props = serde_json::to_string(&InitialGameProps {
+        state: state
+            .registry
+            .get_or_init_engine(&state.db, &gwp.game)
+            .await?
+            .game_state(),
+        black: gwp.black.as_ref().map(PlayerData::from),
+        white: gwp.white.as_ref().map(PlayerData::from),
+    })
+    .unwrap();
+
     let tmpl = GamesShowTemplate {
+        player_username: current_player.username.clone(),
+        player_data: serialize_player_data(&current_player),
         game_id: gwp.game.id,
-        player_token,
-        player_name,
-        player_stone,
-        board_cols: gwp.game.cols,
-        board_rows: gwp.game.rows,
-        stage: stage.to_string(),
+        game_props,
         is_player,
         is_creator,
         is_private: gwp.game.is_private,

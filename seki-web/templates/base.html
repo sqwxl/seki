@@ -1,18 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
         <title>
             {% block title %}Seki{% endblock %}
         </title>
+        <meta name="description" content="Seki">
+        <meta name="keywords" content="go,weiqi,baduk">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="mobile-web-app-capable" content="yes">
         <link rel="icon" href="/static/images/icon.png" type="image/png">
-        <link rel="stylesheet" href="/static/css/application.css">
+        <link rel="stylesheet" href="/static/css/base.css">
+        <script id="player-data" type="application/json">{{ player_data }}</script>
         {% block head %}{% endblock %}
     </head>
     <body>
-        {% block flash %}{% endblock %}
+        <nav>
+            <a href="/">Home</a>
+            <a href="/games">Games</a>
+            <a href="/analysis">Analysis Board</a>
+            {% if let Some(name) = player_username %}
+                <span>{{ name }}</span>
+                <form action="/logout" method="post" style="display:inline">
+                    <button type="submit">Log out</button>
+                </form>
+            {% else %}
+                <a href="/login">Log in</a>
+                <a href="/register">Register</a>
+            {% endif %}
+        </nav>
+        <div class="flash">
+            {% block flash %}{% endblock %}
+        </div>
         {% block content %}{% endblock %}
     </body>
 </html>

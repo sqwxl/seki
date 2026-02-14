@@ -1,7 +1,7 @@
 import type { CSSProperties } from "preact";
 
 export type Sign = 0 | 1 | -1;
-export type Position = [number, number];
+export type Point = [number, number];
 export type SignMap = Sign[][];
 
 export type MarkerData = {
@@ -21,57 +21,52 @@ export type GhostStoneData = {
 };
 
 export type LineData = {
-  v1: Position;
-  v2: Position;
+  v1: Point;
+  v2: Point;
   type?: string;
 };
 
-export type VertexEventHandler = (evt: Event, position: Position) => void;
+export type VertexEventHandler = (evt: Event, position: Point) => void;
 
-export type GobanProps = {
-  id?: string;
-  class?: string;
-  className?: string;
-  innerProps?: Record<string, unknown> & {
-    ref?: (el: HTMLElement | null) => void;
-  };
-  style?: CSSProperties;
-  vertexSize?: number;
-  coordX?: (i: number) => string;
-  coordY?: (i: number) => number | string;
-  busy?: boolean;
-  signMap: number[][];
-  paintMap?: (number | null)[][];
-  heatMap?: (HeatData | null)[][];
-  markerMap?: (MarkerData | null)[][];
-  ghostStoneMap?: (GhostStoneData | null)[][];
-  fuzzyStonePlacement?: boolean;
-  showCoordinates?: boolean;
-  animateStonePlacement?: boolean;
-  animationDuration?: number;
-  lines?: LineData[];
-  selectedVertices?: Position[];
-  dimmedVertices?: Position[];
-  rangeX?: [number, number];
-  rangeY?: [number, number];
-  onVertexClick?: VertexEventHandler;
-};
-
-export type BoundedGobanProps = GobanProps & {
-  maxWidth: number;
-  maxHeight: number;
-  maxVertexSize?: number;
-  onResized?: () => void;
-};
+export enum Stone {
+  Black = 1,
+  White = -1,
+}
 
 // Keep in sync with go-engine Stage enum (go-engine/src/engine.rs)
 export type GameStage = "unstarted" | "play" | "territory_review" | "done";
 
-// WebSocket message types
+export type Captures = {
+  black: number;
+  white: number;
+};
 
+export type Ko = {
+  pos: [number, number];
+  illegal: Stone;
+};
+
+// Keep in sync with go-engine GameState (go-engine/src/engine.rs)
 export type GameState = {
-  board: number[][];
-  ko: { pos: [number, number]; stone: number } | null;
+  board: number[];
+  cols: number;
+  rows: number;
+  captures: Captures;
+  ko?: { pos: [number, number]; stone: number } | null;
+  stage: GameStage;
+};
+
+export type PlayerData = {
+  id: number;
+  display_name: string;
+  is_registered: boolean;
+};
+
+// Baked into the #game element dataset as JSON on initial render
+export type InitialGameProps = {
+  state: GameState;
+  black: PlayerData | null;
+  white: PlayerData | null;
 };
 
 export type StateMessage = {
