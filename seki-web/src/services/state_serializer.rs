@@ -5,7 +5,7 @@ use crate::models::game::GameWithPlayers;
 
 /// Serialize the full game state for sending to WebSocket clients.
 pub fn serialize_state(gwp: &GameWithPlayers, engine: &Engine) -> serde_json::Value {
-    let stage = game_stage(gwp, engine);
+    let stage = game_stage(gwp);
     let current_turn_stone = current_turn_stone(gwp, engine);
 
     let mut negotiations = json!({});
@@ -26,13 +26,9 @@ pub fn serialize_state(gwp: &GameWithPlayers, engine: &Engine) -> serde_json::Va
     })
 }
 
-/// Determine game stage from DB state
-pub fn game_stage(gwp: &GameWithPlayers, engine: &Engine) -> Stage {
-    if gwp.game.result.is_some() || gwp.game.ended_at.is_some() {
-        Stage::Done
-    } else {
-        engine.stage()
-    }
+/// Determine game stage — uses the DB column, no engine needed.
+pub fn game_stage(gwp: &GameWithPlayers) -> Stage {
+    gwp.game.stage.parse().unwrap_or(Stage::Unstarted)
 }
 
 fn current_turn_stone(_gwp: &GameWithPlayers, engine: &Engine) -> i32 {

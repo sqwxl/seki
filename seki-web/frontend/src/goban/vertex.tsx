@@ -1,18 +1,18 @@
-import type { JSX } from "preact";
+import type { CSSProperties, JSX } from "preact";
 import { useCallback } from "preact/hooks";
 import classnames from "classnames";
 import type {
   MarkerData,
   HeatData,
   GhostStoneData,
-  Position,
+  Point,
   VertexEventHandler,
 } from "./types";
 import { avg, signEquals } from "./helper";
 import Marker from "./marker";
 
 interface VertexProps {
-  position: Position;
+  position: Point;
   shift?: number;
   random?: number;
   sign?: number;
@@ -38,7 +38,7 @@ interface VertexProps {
   onClick?: VertexEventHandler;
 }
 
-const absoluteStyle = (zIndex?: number): JSX.CSSProperties => ({
+const absoluteStyle = (zIndex?: number): CSSProperties => ({
   position: "absolute",
   zIndex,
 });
@@ -101,7 +101,7 @@ export default function Vertex(props: VertexProps): JSX.Element {
       data-x={position[0]}
       data-y={position[1]}
       title={marker?.label}
-      style={{ position: "relative" } as JSX.CSSProperties}
+      style={{ position: "relative" } as CSSProperties}
       className={classnames(
         "shudan-vertex",
         `shudan-random_${random}`,
@@ -189,7 +189,7 @@ export default function Vertex(props: VertexProps): JSX.Element {
                     })`,
                 )
                 .join(","),
-            } as JSX.CSSProperties
+            } as CSSProperties
           }
         />
       )}

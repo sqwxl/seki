@@ -23,7 +23,7 @@ pub async fn send_initial_state(
 
     let engine = state
         .registry
-        .get_or_init_engine(game_id, &state.db, &gwp.game)
+        .get_or_init_engine(&state.db, &gwp.game)
         .await?;
     let game_state = state_serializer::serialize_state(&gwp, &engine);
 
@@ -155,10 +155,7 @@ async fn handle_chat(
     player_id: i64,
     data: &serde_json::Value,
 ) -> Result<(), crate::error::AppError> {
-    let text = data
-        .get("message")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let text = data.get("message").and_then(|v| v.as_str()).unwrap_or("");
 
     let chat = game_actions::send_chat(state, game_id, player_id, text).await?;
 
@@ -256,7 +253,10 @@ async fn handle_respond_to_undo(
             result.responding_player_name
         )
     } else {
-        format!("{} rejected the undo request", result.responding_player_name)
+        format!(
+            "{} rejected the undo request",
+            result.responding_player_name
+        )
     };
 
     for pid in [result.requesting_player_id, player_id] {
@@ -280,3 +280,4 @@ async fn handle_respond_to_undo(
 
     Ok(())
 }
+

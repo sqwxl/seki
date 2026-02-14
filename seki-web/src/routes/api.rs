@@ -164,9 +164,7 @@ pub fn router() -> Router<AppState> {
 
 // -- Game handlers --
 
-async fn list_games(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<GameListItem>>, ApiError> {
+async fn list_games(State(state): State<AppState>) -> Result<Json<Vec<GameListItem>>, ApiError> {
     let games = Game::list_public(&state.db).await?;
     let items: Vec<GameListItem> = games
         .into_iter()
@@ -207,7 +205,7 @@ async fn create_game(
     let gwp = Game::find_with_players(&state.db, game.id).await?;
     let engine = state
         .registry
-        .get_or_init_engine(game.id, &state.db, &gwp.game)
+        .get_or_init_engine(&state.db, &gwp.game)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
@@ -221,7 +219,7 @@ async fn get_game(
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state
         .registry
-        .get_or_init_engine(id, &state.db, &gwp.game)
+        .get_or_init_engine(&state.db, &gwp.game)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
@@ -236,7 +234,9 @@ async fn delete_game(
     let game = Game::find_by_id(&state.db, id).await?;
 
     if game.creator_id != Some(current_player.id) {
-        return Err(AppError::BadRequest("Only the creator can delete this game".to_string()).into());
+        return Err(
+            AppError::BadRequest("Only the creator can delete this game".to_string()).into(),
+        );
     }
     if game.started_at.is_some() {
         return Err(
@@ -270,7 +270,7 @@ async fn join_game(
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state
         .registry
-        .get_or_init_engine(id, &state.db, &gwp.game)
+        .get_or_init_engine(&state.db, &gwp.game)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
@@ -285,8 +285,7 @@ async fn play_move(
     Path(id): Path<i64>,
     Json(body): Json<PlayRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let engine =
-        game_actions::play_move(&state, id, current_player.id, body.col, body.row).await?;
+    let engine = game_actions::play_move(&state, id, current_player.id, body.col, body.row).await?;
     game_actions::broadcast_game_state(&state, id, &engine).await;
 
     let gwp = Game::find_with_players(&state.db, id).await?;
@@ -358,10 +357,10 @@ async fn respond_to_undo(
 ) -> Result<Json<GameResponse>, ApiError> {
     let response = body.response.trim().to_lowercase();
     if response != "accept" && response != "reject" {
-        return Err(
-            AppError::BadRequest("Invalid response. Must be 'accept' or 'reject'".to_string())
-                .into(),
-        );
+        return Err(AppError::BadRequest(
+            "Invalid response. Must be 'accept' or 'reject'".to_string(),
+        )
+        .into());
     }
 
     let accept = response == "accept";
@@ -379,7 +378,10 @@ async fn respond_to_undo(
             result.responding_player_name
         )
     } else {
-        format!("{} rejected the undo request", result.responding_player_name)
+        format!(
+            "{} rejected the undo request",
+            result.responding_player_name
+        )
     };
 
     for pid in [result.requesting_player_id, current_player.id] {
@@ -453,10 +455,7 @@ async fn send_message(
         "sender": chat.sender_label,
         "text": chat.message.text
     });
-    state
-        .registry
-        .broadcast(id, &chat_msg.to_string())
-        .await;
+    state.registry.broadcast(id, &chat_msg.to_string()).await;
 
     Ok(Json(MessageResponse {
         id: chat.message.id,
@@ -511,10 +510,10 @@ async fn register(
 
     let username = body.username.trim().to_string();
     if username.is_empty() || username.len() > 30 {
-        return Err(
-            AppError::BadRequest("Username must be between 1 and 30 characters".to_string())
-                .into(),
-        );
+        return Err(AppError::BadRequest(
+            "Username must be between 1 and 30 characters".to_string(),
+        )
+        .into());
     }
     if body.password.len() < 8 {
         return Err(
@@ -608,7 +607,10 @@ fn build_game_response(
         created_at: gwp.game.created_at,
         started_at: gwp.game.started_at,
         ended_at: gwp.game.ended_at,
-        stage: serialized["stage"].as_str().unwrap_or("unknown").to_string(),
+        stage: serialized["stage"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string(),
         state: serialized["state"].clone(),
         current_turn_stone: serialized["current_turn_stone"].as_i64().unwrap_or(1) as i32,
         negotiations: serialized["negotiations"].clone(),

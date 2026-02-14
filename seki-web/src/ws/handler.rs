@@ -18,11 +18,9 @@ pub async fn ws_upgrade(
     ws: WebSocketUpgrade,
 ) -> Result<Response, AppError> {
     // Verify game exists
-    let _game = Game::find_by_id(&state.db, game_id).await?;
+    Game::find_by_id(&state.db, game_id).await?;
 
-    let player_id = current_player.id;
-
-    Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, game_id, player_id)))
+    Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, game_id, current_player.id)))
 }
 
 async fn handle_socket(socket: WebSocket, state: AppState, game_id: i64, player_id: i64) {

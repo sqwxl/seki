@@ -1,52 +1,47 @@
-import type { JSX } from "preact";
-import { alpha } from "./helper";
+import type { CSSProperties, JSX } from "preact";
 
-interface CoordXProps {
-  style?: JSX.CSSProperties;
-  xs: number[];
-  coordX?: (i: number) => string;
+type CoordColsProps = {
+  style?: CSSProperties;
+  cols: number;
+};
+
+const CAPITAL_A_CHAR_CODE = 65;
+
+function colToCoord(i: number): string {
+  let coord = String.fromCharCode(CAPITAL_A_CHAR_CODE + i);
+  return coord.repeat(1 + (i % 26));
 }
 
-export function CoordX({
-  style,
-  xs,
-  coordX = (i) => alpha[i] || alpha[alpha.length - 1],
-}: CoordXProps): JSX.Element {
+function rowToCoord(i: number, rows: number): string {
+  return String(rows - i);
+}
+
+export function CoordCols({ style, cols }: CoordColsProps): JSX.Element {
   return (
     <div
       className="shudan-coordx"
       style={{ display: "flex", textAlign: "center", ...style }}
     >
-      {xs.map((i) => (
-        <div key={i} style={{ width: "1em" }}>
-          <span style={{ display: "block" }}>{coordX(i)}</span>
+      {Array(cols).map((i) => (
+        <div key={i}>
+          <span style={{ display: "block" }}>{colToCoord(i)}</span>
         </div>
       ))}
     </div>
   );
 }
 
-interface CoordYProps {
-  style?: JSX.CSSProperties;
-  height: number;
-  ys: number[];
-  coordY?: (i: number) => number | string;
-}
+type CoordRowsProps = {
+  style?: CSSProperties;
+  rows: number;
+};
 
-export function CoordY({
-  style,
-  height,
-  ys,
-  coordY = (i) => height - i,
-}: CoordYProps): JSX.Element {
+export function CoordRows({ style, rows }: CoordRowsProps): JSX.Element {
   return (
-    <div
-      className="shudan-coordy"
-      style={{ textAlign: "center", ...style }}
-    >
-      {ys.map((i) => (
-        <div key={i} style={{ height: "1em" }}>
-          <span style={{ display: "block" }}>{coordY(i)}</span>
+    <div className="shudan-coordy" style={{ textAlign: "center", ...style }}>
+      {Array(rows).map((i) => (
+        <div key={i}>
+          <span style={{ display: "block" }}>{rowToCoord(i, rows)}</span>
         </div>
       ))}
     </div>

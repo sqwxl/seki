@@ -8,28 +8,16 @@ use crate::db::DbPool;
 use crate::models::game::Game;
 use crate::services::engine_builder;
 
-/// A message to be sent to a WebSocket client.
-pub type WsMessage = String;
-pub type WsSender = mpsc::UnboundedSender<WsMessage>;
+pub type WsSender = mpsc::UnboundedSender<String>;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct GameRoom {
-    /// Map of player_id -> list of senders (a player may have multiple tabs open).
+    /// Map of player_id -> list of ws senders (a player may have multiple tabs open).
     players: HashMap<i64, Vec<WsSender>>,
-    /// Cached engine instance, populated on first access and updated on mutations.
+    /// In-memory engine, built on first access, then mutated
     engine: Option<Engine>,
 }
 
-impl Default for GameRoom {
-    fn default() -> Self {
-        GameRoom {
-            players: HashMap::new(),
-            engine: None,
-        }
-    }
-}
-
-/// Tracks connected players per game room.
 #[derive(Debug, Clone)]
 pub struct GameRegistry {
     rooms: Arc<RwLock<HashMap<i64, GameRoom>>>,
@@ -95,14 +83,13 @@ impl GameRegistry {
     /// On cache miss, builds from DB (no lock held), then stores under write lock.
     pub async fn get_or_init_engine(
         &self,
-        game_id: i64,
         pool: &DbPool,
         game: &Game,
     ) -> Result<Engine, sqlx::Error> {
         // Fast path: read lock check
         {
             let rooms = self.rooms.read().await;
-            if let Some(room) = rooms.get(&game_id) {
+            if let Some(room) = rooms.get(&game.id) {
                 if let Some(ref engine) = room.engine {
                     return Ok(engine.clone());
                 }
@@ -115,7 +102,7 @@ impl GameRegistry {
         // Store under write lock
         {
             let mut rooms = self.rooms.write().await;
-            let room = rooms.entry(game_id).or_default();
+            let room = rooms.entry(game.id).or_default();
             room.engine = Some(engine.clone());
         }
 
@@ -154,8 +141,6 @@ impl GameRegistry {
     /// Get a clone of the cached engine (read-only).
     pub async fn get_engine(&self, game_id: i64) -> Option<Engine> {
         let rooms = self.rooms.read().await;
-        rooms
-            .get(&game_id)
-            .and_then(|room| room.engine.clone())
+        rooms.get(&game_id).and_then(|room| room.engine.clone())
     }
 }

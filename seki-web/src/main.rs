@@ -3,6 +3,8 @@ use axum::middleware::{self, Next};
 use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Router;
+use tower::Layer as _;
+use tower_http::normalize_path::NormalizePathLayer;
 use tower_http::services::ServeDir;
 use tower_sessions::cookie::time::Duration;
 use tower_sessions::{Expiry, SessionManagerLayer};
@@ -66,7 +68,7 @@ async fn main() {
     let app = Router::new()
         // Game routes
         .route("/", get(routes::games::new_game))
-        .route("/games", get(routes::games::new_game))
+        .route("/games", get(routes::games::list_games))
         .route("/games", post(routes::games::create_game))
         .route("/games/{id}", get(routes::games::show_game))
         .route("/games/{id}/join", post(routes::games::join_game))
@@ -84,10 +86,13 @@ async fn main() {
         // Health check
         .route("/up", get(routes::health::health_check))
         // Static files
-        .nest_service("/static", ServeDir::new(
-            std::env::var("STATIC_DIR")
-                .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()),
-        ))
+        .nest_service(
+            "/static",
+            ServeDir::new(
+                std::env::var("STATIC_DIR")
+                    .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()),
+            ),
+        )
         // Middleware
         .layer(session_layer)
         .with_state(state);
@@ -106,7 +111,17 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .expect("Failed to bind");
-    axum::serve(listener, app).await.expect("Server error");
+
+    // NormalizePathLayer must wrap the router (not .layer()) so it runs
+    // before routing — this makes /games/ equivalent to /games.
+
+    let app = NormalizePathLayer::trim_trailing_slash().layer(app);
+    axum::serve(
+        listener,
+        axum::ServiceExt::<Request>::into_make_service(app),
+    )
+    .await
+    .expect("Server error");
 }
 
 #[cfg(debug_assertions)]
@@ -122,7 +137,10 @@ async fn log_request(req: Request, next: Next) -> Response {
     if bytes.is_empty() {
         tracing::debug!("{method} {uri}");
     } else if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-        tracing::debug!("{method} {uri}\n{}", serde_json::to_string_pretty(&json).unwrap());
+        tracing::debug!(
+            "{method} {uri}\n{}",
+            serde_json::to_string_pretty(&json).unwrap()
+        );
     } else if let Ok(text) = std::str::from_utf8(&bytes) {
         tracing::debug!("{method} {uri}\n{text}");
     } else {

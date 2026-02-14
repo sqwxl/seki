@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Log in — Seki{% endblock %}
+{% block flash %}
+    {% if let Some(msg) = flash %}<div class="flash">{{ msg }}</div>{% endif %}
+{% endblock %}
+{% block content %}
+    <h1>Log in</h1>
+    <form action="/login" method="post">
+        <div>
+            <label for="username">Username</label>
+            <input type="text" name="username" id="username" required autofocus>
+        </div>
+        <div>
+            <label for="password">Password</label>
+            <input type="password" name="password" id="password" required>
+        </div>
+        <button type="submit">Log in</button>
+    </form>
+    <p>Don't have an account? <a href="/register">Register</a></p>
+{% endblock %}

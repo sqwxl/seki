@@ -68,6 +68,9 @@ pub async fn play_move(
         return Err(AppError::Internal(e.to_string()));
     }
 
+    // Update stage
+    persist_stage(state, game_id, &engine).await?;
+
     // Clear pending undo request
     if gwp.has_pending_undo_request() {
         Game::set_undo_requesting_player(&state.db, game_id, None)
@@ -78,11 +81,7 @@ pub async fn play_move(
     Ok(engine)
 }
 
-pub async fn pass(
-    state: &AppState,
-    game_id: i64,
-    player_id: i64,
-) -> Result<Engine, AppError> {
+pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engine, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
     let stone = player_stone(&gwp, player_id)?;
 
@@ -111,6 +110,9 @@ pub async fn pass(
         return Err(AppError::Internal(e.to_string()));
     }
 
+    // Update stage
+    persist_stage(state, game_id, &engine).await?;
+
     // Clear pending undo request
     if gwp.has_pending_undo_request() {
         Game::set_undo_requesting_player(&state.db, game_id, None)
@@ -121,11 +123,7 @@ pub async fn pass(
     Ok(engine)
 }
 
-pub async fn resign(
-    state: &AppState,
-    game_id: i64,
-    player_id: i64,
-) -> Result<Engine, AppError> {
+pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<Engine, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if gwp.game.result.is_some() {
@@ -224,16 +222,15 @@ pub async fn request_undo(
     let last_turn = TurnRow::last_turn(&state.db, game_id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
-    let last_turn = last_turn.ok_or_else(|| AppError::BadRequest("No turns to undo".to_string()))?;
+    let last_turn =
+        last_turn.ok_or_else(|| AppError::BadRequest("No turns to undo".to_string()))?;
     if last_turn.player_id != player_id {
         return Err(AppError::BadRequest(
             "Can only undo your own turn".to_string(),
         ));
     }
     if last_turn.kind != "play" {
-        return Err(AppError::BadRequest(
-            "Can only undo play turns".to_string(),
-        ));
+        return Err(AppError::BadRequest("Can only undo play turns".to_string()));
     }
 
     Game::set_undo_requesting_player(&state.db, game_id, Some(player_id))
@@ -242,7 +239,7 @@ pub async fn request_undo(
 
     let engine = state
         .registry
-        .get_or_init_engine(game_id, &state.db, &gwp.game)
+        .get_or_init_engine(&state.db, &gwp.game)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
     let game_state = state_serializer::serialize_state(&gwp, &engine);
@@ -269,9 +266,7 @@ pub async fn respond_to_undo(
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if !gwp.has_pending_undo_request() {
-        return Err(AppError::BadRequest(
-            "No pending undo request".to_string(),
-        ));
+        return Err(AppError::BadRequest("No pending undo request".to_string()));
     }
 
     let requesting_player_id = gwp.game.undo_requesting_player_id.unwrap();
@@ -300,10 +295,10 @@ pub async fn respond_to_undo(
         let engine = engine_builder::build_engine(&state.db, &game)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        state
-            .registry
-            .replace_engine(game_id, engine.clone())
-            .await;
+        state.registry.replace_engine(game_id, engine.clone()).await;
+
+        // Update stage after undo
+        persist_stage(state, game_id, &engine).await?;
 
         let gwp = Game::find_with_players(&state.db, game_id)
             .await
@@ -321,7 +316,7 @@ pub async fn respond_to_undo(
     } else {
         let engine = state
             .registry
-            .get_or_init_engine(game_id, &state.db, &gwp.game)
+            .get_or_init_engine(&state.db, &gwp.game)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
 
@@ -419,7 +414,7 @@ where
 {
     state
         .registry
-        .get_or_init_engine(game_id, &state.db, game)
+        .get_or_init_engine(&state.db, game)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
@@ -430,8 +425,15 @@ where
     }
 }
 
+async fn persist_stage(state: &AppState, game_id: i64, engine: &Engine) -> Result<(), AppError> {
+    Game::set_stage(&state.db, game_id, &engine.stage().to_string())
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))
+}
+
 async fn rollback_engine(state: &AppState, game_id: i64, game: &Game) {
     if let Ok(rebuilt) = engine_builder::build_engine(&state.db, game).await {
         state.registry.replace_engine(game_id, rebuilt).await;
     }
 }
+

@@ -1,6 +1,6 @@
 * {
   box-sizing: border-box;
-  /* font-family: sans-serif; */
+  font-family: sans-serif;
 }
 
 html,
@@ -25,15 +25,9 @@ legend {
   font-variant-caps: small-caps;
 }
 
-body,
-.flash {
+body {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-
-.flash {
-  height: 3em;
-  padding: 5em 0;
 }

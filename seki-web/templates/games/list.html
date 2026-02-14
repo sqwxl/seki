@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% import "macros/game.html" as game_macros %}
+{% block head %}
+    <link rel="stylesheet" href="/static/css/go.css" />
+    <script src="/static/dist/bundle.js" type="module" defer></script>
+{% endblock %}
+{% macro game_link(gwp) %}
+    <li>
+        <a href="/games/{{ gwp.game.id }}">{{ game_macros::game_short_desc(gwp) }}</a>
+    </li>
+{% endmacro %}
+{% block content %}
+    <h1>Your games</h1>
+    <ul>
+        {% for gwp in player_games %}{{ game_link(gwp) }}{% endfor %}
+    </ul>
+    <h1>Public games</h1>
+    <ul>
+        {% for gwp in public_games %}{{ game_link(gwp) }}{% endfor %}
+    </ul>
+{% endblock %}

@@ -5,10 +5,8 @@ use tower_sessions::Session;
 use crate::error::AppError;
 use crate::models::player::Player;
 
-const PLAYER_ID_KEY: &str = "player_id";
+pub const PLAYER_ID_KEY: &str = "player_id";
 
-/// Axum extractor that resolves the current player from the session.
-/// Creates a new player if none exists (mirrors CurrentPlayerResolver).
 pub struct CurrentPlayer {
     pub player: Player,
 }
@@ -47,7 +45,7 @@ impl FromRequestParts<crate::AppState> for CurrentPlayer {
             let _ = session.remove::<String>(PLAYER_ID_KEY).await;
         }
 
-        // Create new player
+        // Create anonymous player
         let player = Player::create(pool).await?;
         let token = player
             .session_token

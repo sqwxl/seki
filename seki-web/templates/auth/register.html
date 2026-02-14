@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Register — Seki{% endblock %}
+{% block flash %}
+    {% if let Some(msg) = flash %}{{ msg }}{% endif %}
+{% endblock %}
+{% block content %}
+    <h1>Register</h1>
+    <form action="/register" method="post">
+        <div>
+            <label for="username">Username</label>
+            <input type="text"
+                   name="username"
+                   id="username"
+                   required
+                   maxlength="30"
+                   autofocus>
+        </div>
+        <div>
+            <label for="password">Password</label>
+            <input type="password" name="password" id="password" required minlength="8">
+        </div>
+        <div>
+            <label for="password_confirmation">Confirm password</label>
+            <input type="password"
+                   name="password_confirmation"
+                   id="password_confirmation"
+                   required
+                   minlength="8">
+        </div>
+        <button type="submit">Register</button>
+    </form>
+    <p>
+        Already have an account? <a href="/login">Log in</a>
+    </p>
+{% endblock %}

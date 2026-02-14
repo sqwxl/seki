@@ -29,6 +29,20 @@ impl fmt::Display for Stage {
     }
 }
 
+impl std::str::FromStr for Stage {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "unstarted" => Ok(Stage::Unstarted),
+            "play" => Ok(Stage::Play),
+            "territory_review" => Ok(Stage::TerritoryReview),
+            "done" => Ok(Stage::Done),
+            _ => Err(format!("unknown stage: {s}")),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GameState {
     pub board: Vec<i8>,

@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS players (
     session_token TEXT,
     email TEXT,
     username TEXT,
+    password_hash TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -10,6 +11,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_players_session_token ON players (
     session_token
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_players_email ON players (email);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_players_username ON players (username);
 
 CREATE TABLE IF NOT EXISTS games (
     id BIGSERIAL PRIMARY KEY,

@@ -1,14 +1,13 @@
-const esbuild = require("esbuild");
+import * as esbuild from "esbuild";
 const watch = process.argv.includes("--watch");
 
 const config = {
-  entryPoints: ["src/go.tsx"],
+  entryPoints: ["src/index.ts"],
+  jsx: "automatic",
+  jsxImportSource: "preact",
   bundle: true,
   outfile: "../static/dist/bundle.js",
   format: "esm",
-  target: "es2020",
-  jsx: "automatic",
-  jsxImportSource: "preact",
   sourcemap: true,
   logLevel: "info",
 };

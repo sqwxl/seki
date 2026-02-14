@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
@@ -5,7 +7,7 @@ use crate::db::DbPool;
 use crate::models::player::Player;
 
 #[derive(Debug, Clone, FromRow)]
-#[allow(dead_code)] // Fields populated by SELECT * via sqlx
+#[allow(dead_code)]
 pub struct Game {
     pub id: i64,
     pub creator_id: Option<i64>,
@@ -23,59 +25,98 @@ pub struct Game {
     pub ended_at: Option<DateTime<Utc>>,
     pub result: Option<String>,
     pub cached_engine_state: Option<String>,
+    pub stage: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-}
-
-/// Game with eagerly loaded player associations.
-#[derive(Debug, Clone)]
-pub struct GameWithPlayers {
-    pub game: Game,
-    #[allow(dead_code)] // Loaded for completeness; not yet read
-    pub creator: Option<Player>,
-    pub black: Option<Player>,
-    pub white: Option<Player>,
-    pub undo_requesting_player: Option<Player>,
-}
-
-impl GameWithPlayers {
-    pub fn has_player(&self, player_id: i64) -> bool {
-        self.black.as_ref().is_some_and(|p| p.id == player_id)
-            || self.white.as_ref().is_some_and(|p| p.id == player_id)
-    }
-
-    pub fn player_stone(&self, player_id: i64) -> i32 {
-        if self.black.as_ref().is_some_and(|p| p.id == player_id) {
-            1
-        } else if self.white.as_ref().is_some_and(|p| p.id == player_id) {
-            -1
-        } else {
-            0
-        }
-    }
-
-    pub fn has_pending_undo_request(&self) -> bool {
-        self.game.undo_requesting_player_id.is_some()
-    }
-
-    pub fn opponent_of(&self, player_id: i64) -> Option<&Player> {
-        if self.black.as_ref().is_some_and(|p| p.id == player_id) {
-            self.white.as_ref()
-        } else if self.white.as_ref().is_some_and(|p| p.id == player_id) {
-            self.black.as_ref()
-        } else {
-            None
-        }
-    }
 }
 
 impl Game {
     pub async fn list_public(pool: &DbPool) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
-            "SELECT * FROM games WHERE is_private = false ORDER BY created_at DESC",
+            "SELECT * FROM games WHERE is_private = false ORDER BY updated_at DESC",
         )
         .fetch_all(pool)
         .await
+    }
+
+    pub async fn list_public_with_players(
+        pool: &DbPool,
+        exclude_id: Option<i64>,
+    ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
+        let mut games = Self::list_public(pool).await?;
+
+        if let Some(id) = exclude_id {
+            games.retain(|g| g.black_id != Some(id) && g.white_id != Some(id))
+        }
+
+        Self::batch_with_players(pool, games).await
+    }
+
+    pub async fn list_for_player(
+        pool: &DbPool,
+        player_id: i64,
+    ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
+        let games = sqlx::query_as::<_, Game>(
+            "SELECT * FROM games WHERE black_id = $1 OR white_id = $1 ORDER BY updated_at DESC",
+        )
+        .bind(player_id)
+        .fetch_all(pool)
+        .await?;
+
+        Self::batch_with_players(pool, games).await
+    }
+
+    /// Load players for a batch of games in a single query (avoids N+1).
+    async fn batch_with_players(
+        pool: &DbPool,
+        games: Vec<Game>,
+    ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
+        // Collect all unique player IDs
+        let mut player_ids: Vec<i64> = games
+            .iter()
+            .flat_map(|g| {
+                [
+                    g.creator_id,
+                    g.black_id,
+                    g.white_id,
+                    g.undo_requesting_player_id,
+                ]
+                .into_iter()
+                .flatten()
+            })
+            .collect();
+        player_ids.sort_unstable();
+        player_ids.dedup();
+
+        // Batch fetch all players
+        let players_map: HashMap<i64, Player> = if player_ids.is_empty() {
+            HashMap::new()
+        } else {
+            Player::find_by_ids(pool, &player_ids)
+                .await?
+                .into_iter()
+                .map(|p| (p.id, p))
+                .collect()
+        };
+
+        Ok(games
+            .into_iter()
+            .map(|game| {
+                let creator = game.creator_id.and_then(|id| players_map.get(&id).cloned());
+                let black = game.black_id.and_then(|id| players_map.get(&id).cloned());
+                let white = game.white_id.and_then(|id| players_map.get(&id).cloned());
+                let undo_requesting_player = game
+                    .undo_requesting_player_id
+                    .and_then(|id| players_map.get(&id).cloned());
+                GameWithPlayers {
+                    game,
+                    creator,
+                    black,
+                    white,
+                    undo_requesting_player,
+                }
+            })
+            .collect())
     }
 
     pub async fn delete(pool: &DbPool, game_id: i64) -> Result<(), sqlx::Error> {
@@ -93,10 +134,7 @@ impl Game {
             .await
     }
 
-    pub async fn find_with_players(
-        pool: &DbPool,
-        id: i64,
-    ) -> Result<GameWithPlayers, sqlx::Error> {
+    pub async fn find_with_players(pool: &DbPool, id: i64) -> Result<GameWithPlayers, sqlx::Error> {
         let game = Self::find_by_id(pool, id).await?;
         let creator = if let Some(cid) = game.creator_id {
             Player::find_by_id(pool, cid).await.ok()
@@ -183,24 +221,33 @@ impl Game {
         game_id: i64,
         player_id: Option<i64>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE games SET undo_requesting_player_id = $1, updated_at = NOW() WHERE id = $2")
-            .bind(player_id)
+        sqlx::query(
+            "UPDATE games SET undo_requesting_player_id = $1, updated_at = NOW() WHERE id = $2",
+        )
+        .bind(player_id)
+        .bind(game_id)
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn set_stage(pool: &DbPool, game_id: i64, stage: &str) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE games SET stage = $1, updated_at = NOW() WHERE id = $2")
+            .bind(stage)
             .bind(game_id)
             .execute(pool)
             .await?;
         Ok(())
     }
 
-    pub async fn set_ended(
-        pool: &DbPool,
-        game_id: i64,
-        result: &str,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE games SET ended_at = NOW(), result = $1, updated_at = NOW() WHERE id = $2")
-            .bind(result)
-            .bind(game_id)
-            .execute(pool)
-            .await?;
+    pub async fn set_ended(pool: &DbPool, game_id: i64, result: &str) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET ended_at = NOW(), result = $1, stage = 'done', updated_at = NOW() WHERE id = $2",
+        )
+        .bind(result)
+        .bind(game_id)
+        .execute(pool)
+        .await?;
         Ok(())
     }
 
@@ -215,5 +262,47 @@ impl Game {
             .execute(pool)
             .await?;
         Ok(())
+    }
+}
+
+/// Game with eagerly loaded player associations.
+#[derive(Debug, Clone)]
+pub struct GameWithPlayers {
+    pub game: Game,
+    #[allow(dead_code)] // Loaded for completeness; not yet read
+    pub creator: Option<Player>,
+    pub black: Option<Player>,
+    pub white: Option<Player>,
+    pub undo_requesting_player: Option<Player>,
+}
+
+impl GameWithPlayers {
+    pub fn has_player(&self, player_id: i64) -> bool {
+        self.black.as_ref().is_some_and(|p| p.id == player_id)
+            || self.white.as_ref().is_some_and(|p| p.id == player_id)
+    }
+
+    pub fn player_stone(&self, player_id: i64) -> i32 {
+        if self.black.as_ref().is_some_and(|p| p.id == player_id) {
+            1
+        } else if self.white.as_ref().is_some_and(|p| p.id == player_id) {
+            -1
+        } else {
+            0
+        }
+    }
+
+    pub fn has_pending_undo_request(&self) -> bool {
+        self.game.undo_requesting_player_id.is_some()
+    }
+
+    pub fn opponent_of(&self, player_id: i64) -> Option<&Player> {
+        if self.black.as_ref().is_some_and(|p| p.id == player_id) {
+            self.white.as_ref()
+        } else if self.white.as_ref().is_some_and(|p| p.id == player_id) {
+            self.black.as_ref()
+        } else {
+            None
+        }
     }
 }
