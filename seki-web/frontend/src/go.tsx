@@ -164,6 +164,15 @@ export function go(root: HTMLElement) {
     return;
   }
 
+  const gobanEl = document.getElementById("goban")!;
+
+  function vertexSize(cols: number, rows: number): number {
+    const avail = gobanEl.clientWidth;
+    // Board border (0.15em each side) + padding (0.25em each side) = 0.8em extra
+    const extra = 0.8;
+    return Math.max(avail / (Math.max(cols, rows) + extra), 12);
+  }
+
   function renderGoban(state: GameState): void {
     if (state.board.length === 0) {
       return;
@@ -183,16 +192,18 @@ export function go(root: HTMLElement) {
       <Goban
         cols={cols}
         rows={rows}
-        vertexSize={30}
+        vertexSize={vertexSize(cols, rows)}
         signMap={board}
         markerMap={markerMap}
         fuzzyStonePlacement
         animateStonePlacement
         onVertexClick={onVertexClick}
       />,
-      document.getElementById("goban")!,
+      gobanEl,
     );
   }
+
+  window.addEventListener("resize", () => renderGoban(gameState));
 
   // Render initial board
   renderGoban(gameState);
