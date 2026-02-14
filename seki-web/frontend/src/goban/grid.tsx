@@ -12,7 +12,7 @@ export default function Grid({ cols, rows, hoshis }: GridProps): JSX.Element {
   return useMemo(
     () => (
       <svg
-        className="shudan-grid"
+        className="goban-grid"
         style={{
           position: "absolute",
           top: 0,
@@ -27,31 +27,27 @@ export default function Grid({ cols, rows, hoshis }: GridProps): JSX.Element {
         {Array.from({ length: rows }, (_, y) => (
           <line
             key={`h${y}`}
-            className="shudan-gridline"
+            className="goban-gridline"
             x1={0}
             y1={y}
             x2={cols - 1}
             y2={y}
-            stroke="currentColor"
-            strokeWidth={0.03}
           />
         ))}
         {Array.from({ length: cols }, (_, x) => (
           <line
             key={`v${x}`}
-            className="shudan-gridline"
+            className="goban-gridline"
             x1={x}
             y1={0}
             x2={x}
             y2={rows - 1}
-            stroke="currentColor"
-            strokeWidth={0.03}
           />
         ))}
         {hoshis.map(([x, y]) => (
           <circle
             key={`h${x}-${y}`}
-            className="shudan-hoshi"
+            className="goban-hoshi"
             cx={x}
             cy={y}
             r={0.08}

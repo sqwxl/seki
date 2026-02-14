@@ -1,0 +1,456 @@
+.goban {
+  --goban-board-border-width: 0.15em;
+  --goban-board-border-color: #ca933a;
+
+  --goban-board-background-color: #f1b458;
+  --goban-board-foreground-color: #5e2e0c;
+
+  --goban-black-background-color: #222;
+  --goban-black-foreground-color: #eee;
+
+  --goban-white-background-color: #eee;
+  --goban-white-foreground-color: #222;
+
+  position: relative;
+  border: var(--goban-board-border-width) solid var(--goban-board-border-color);
+  color: var(--goban-board-foreground-color);
+}
+.goban * + * {
+  margin-top: 0;
+}
+.goban:not(.goban-coordinates) {
+  padding: 0.25em;
+}
+.goban-image {
+  background: url("/static/images/board.png")
+    var(--goban-board-background-color);
+}
+
+.goban-coordx span,
+.goban-coordy span {
+  font-size: 0.6em;
+}
+
+.goban-vertex div {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Board gradient */
+
+.goban::after {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--goban-board-border-width));
+  left: calc(-1 * var(--goban-board-border-width));
+  bottom: calc(-1 * var(--goban-board-border-width));
+  right: calc(-1 * var(--goban-board-border-width));
+  background:
+    linear-gradient(to bottom, rgba(234, 220, 192, 0.1), transparent),
+    linear-gradient(to bottom, transparent, rgba(23, 10, 2, 0.05));
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Busy screen */
+
+.goban.goban-busy::after {
+  animation: 2s linear -0.5s goban-busy infinite;
+  background-color: rgba(23, 10, 2, 0.1);
+  background-image: linear-gradient(
+    to right,
+    transparent 30%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 70%
+  );
+  background-size: 19em 100%;
+  background-repeat: no-repeat;
+  pointer-events: all;
+}
+
+@keyframes goban-busy {
+  from {
+    background-position: -19em 0;
+  }
+  to {
+    background-position: calc(100% + 19em) 0;
+  }
+}
+
+/* Board grid */
+
+.goban-gridline {
+  stroke: var(--goban-board-foreground-color);
+  stroke-width: 0.03;
+}
+.goban-hoshi {
+  fill: var(--goban-board-foreground-color);
+}
+
+/* Stone render */
+
+.goban-vertex .goban-stone {
+  top: 0.04em;
+  left: 0.04em;
+  width: calc(100% - 0.08em);
+  height: calc(100% - 0.08em);
+}
+.goban-vertex.goban-sign_0 .goban-stone {
+  pointer-events: none;
+}
+.goban-vertex:not(.goban-sign_0) .goban-stone::before {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: rgba(23, 10, 2, 0.4);
+  box-shadow: 0 0.1em 0.2em rgba(23, 10, 2, 0.4);
+}
+.goban-vertex .goban-inner {
+  text-indent: -9999rem;
+}
+.goban-vertex:not(.goban-sign_0).goban-dimmed .goban-stone {
+  opacity: 0.6;
+}
+.goban-stone-image {
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+.goban-stone-image.goban-sign_1 {
+  background-image: url("/static/images/stone_black.svg");
+}
+.goban-stone-image.goban-sign_-1 {
+  background-image: url("/static/images/stone_white.svg");
+}
+
+/* Fuzzy stone placement */
+
+.goban-vertex:not(.goban-sign_0).goban-animate .goban-stone {
+  transition: transform 0.2s;
+}
+.goban-vertex:not(.goban-sign_0).goban-shift_1 .goban-stone {
+  transform: translate(-0.07em, 0);
+}
+.goban-vertex:not(.goban-sign_0).goban-shift_2 .goban-stone {
+  transform: translate(0, -0.07em);
+}
+.goban-vertex:not(.goban-sign_0).goban-shift_3 .goban-stone {
+  transform: translate(0.07em, 0);
+}
+.goban-vertex:not(.goban-sign_0).goban-shift_4 .goban-stone {
+  transform: translate(0, 0.07em);
+}
+.goban-vertex:not(.goban-sign_0).goban-shift_5 .goban-stone {
+  transform: translate(-0.04em, -0.04em);
+}
+.goban-vertex:not(.goban-sign_0).goban-shift_6 .goban-stone {
+  transform: translate(0.04em, -0.04em);
+}
+.goban-vertex:not(.goban-sign_0).goban-shift_7 .goban-stone {
+  transform: translate(0.04em, 0.04em);
+}
+.goban-vertex:not(.goban-sign_0).goban-shift_8 .goban-stone {
+  transform: translate(-0.04em, 0.04em);
+}
+
+/* Markers */
+
+.goban-vertex .goban-marker {
+  left: 0.04em;
+  top: 0.04em;
+  width: calc(100% - 0.08em);
+  height: calc(100% - 0.08em);
+  text-align: center;
+  fill: var(--goban-board-background-color);
+  stroke: var(--goban-board-foreground-color);
+  stroke-width: 0.07em;
+  pointer-events: none;
+}
+.goban-vertex.goban-sign_1 .goban-marker,
+.goban-vertex.goban-sign_-1 .goban-marker {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+}
+.goban-vertex.goban-sign_1 .goban-marker {
+  stroke: var(--goban-black-foreground-color);
+}
+.goban-vertex.goban-sign_-1 .goban-marker {
+  stroke: var(--goban-white-foreground-color);
+}
+
+.goban-vertex.goban-marker_point .goban-marker {
+  stroke: none;
+  fill: var(--goban-board-foreground-color);
+}
+.goban-vertex.goban-marker_point.goban-sign_1 .goban-marker {
+  fill: var(--goban-black-foreground-color);
+}
+.goban-vertex.goban-marker_point.goban-sign_-1 .goban-marker {
+  fill: var(--goban-white-foreground-color);
+}
+
+.goban-vertex.goban-marker_loader .goban-marker {
+  stroke-dasharray: 1em;
+  animation: 1.5s linear 0s goban-rotation infinite;
+}
+
+@keyframes goban-rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.goban-vertex.goban-marker_label .goban-marker {
+  display: inline-block;
+  width: auto;
+  height: auto;
+  left: 50%;
+  top: 50%;
+  max-width: 1.67em;
+  max-height: 1.67em;
+  overflow: hidden;
+  background: var(--goban-board-background-color);
+  color: var(--goban-board-foreground-color);
+  font-size: 0.6em;
+  line-height: 1.26;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: pre;
+  transform: translate(-50%, -50%);
+}
+.goban-vertex.goban-marker_label.goban-sign_1 .goban-marker {
+  background: transparent;
+  color: var(--goban-black-foreground-color);
+}
+.goban-vertex.goban-marker_label.goban-sign_-1 .goban-marker {
+  background: transparent;
+  color: var(--goban-white-foreground-color);
+}
+.goban-vertex.goban-smalllabel .goban-marker {
+  max-height: 2.7em;
+  max-width: 2.7em;
+  font-size: 0.36em;
+}
+
+/* Ghost stones */
+
+.goban-vertex .goban-ghost {
+  left: 50%;
+  top: 50%;
+  width: 0.4em;
+  height: 0.4em;
+  opacity: 0.5;
+  transform: translate(calc(-50% + 0.5px), calc(-50% + 0.5px));
+}
+.goban-vertex .goban-ghost::before {
+  content: "";
+  box-sizing: border-box;
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.4em;
+  height: 0.4em;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.goban-vertex.goban-ghost_faint .goban-ghost {
+  opacity: 0.3;
+}
+.goban-vertex.goban-sign_0.goban-ghost_1 .goban-ghost::before,
+.goban-vertex.goban-sign_0.goban-ghost_-1 .goban-ghost::before {
+  display: block;
+}
+.goban-vertex.goban-ghost_1 .goban-ghost::before {
+  background: rgba(0, 0, 0, 0.8);
+}
+.goban-vertex.goban-ghost_-1 .goban-ghost::before {
+  background: white;
+}
+.goban-vertex.goban-ghost_good .goban-ghost::before {
+  background: #59a80f;
+}
+.goban-vertex.goban-ghost_interesting .goban-ghost::before {
+  background: #4886d5;
+}
+.goban-vertex.goban-ghost_doubtful .goban-ghost::before {
+  background: #92278f;
+}
+.goban-vertex.goban-ghost_bad .goban-ghost::before {
+  background: #f02311;
+}
+
+/* Paint map */
+
+.goban-vertex .goban-paint {
+  overflow: hidden;
+}
+.goban-vertex .goban-paint::before {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  opacity: var(--goban-paint-opacity);
+  box-shadow: var(--goban-paint-box-shadow);
+  background: transparent;
+  border-radius: 0.2em;
+}
+.goban-vertex.goban-paint_1 .goban-paint::before {
+  background: var(--goban-black-background-color);
+}
+.goban-vertex.goban-paint_-1 .goban-paint::before {
+  background: var(--goban-white-background-color);
+}
+.goban-vertex.goban-paintedleft .goban-paint::before {
+  border-left: none;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.goban-vertex.goban-paintedright .goban-paint::before {
+  border-right: none;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.goban-vertex.goban-paintedtop .goban-paint::before {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.goban-vertex.goban-paintedbottom .goban-paint::before {
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Heat map */
+
+.goban-vertex .goban-heat {
+  top: 50%;
+  left: 50%;
+  margin-left: -1px;
+  margin-top: -1px;
+  border-radius: 50%;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.5s,
+    box-shadow 0.5s;
+}
+.goban-vertex.goban-heat_9 .goban-heat {
+  background: #59a80f;
+  box-shadow: 0 0 1em 1em #59a80f;
+  opacity: 0.8;
+}
+.goban-vertex.goban-heat_8 .goban-heat {
+  background: #59a80f;
+  box-shadow: 0 0 1em 0.9em #59a80f;
+  opacity: 0.7;
+}
+.goban-vertex.goban-heat_7 .goban-heat {
+  background: #4886d5;
+  box-shadow: 0 0 1em 0.75em #4886d5;
+  opacity: 0.8;
+}
+.goban-vertex.goban-heat_6 .goban-heat {
+  background: #4886d5;
+  box-shadow: 0 0 1em 0.6em #4886d5;
+  opacity: 0.8;
+}
+.goban-vertex.goban-heat_5 .goban-heat {
+  background: #4886d5;
+  box-shadow: 0 0 0.9em 0.55em #4886d5;
+  opacity: 0.7;
+}
+.goban-vertex.goban-heat_4 .goban-heat {
+  background: #92278f;
+  box-shadow: 0 0 0.85em 0.5em #92278f;
+  opacity: 0.8;
+}
+.goban-vertex.goban-heat_3 .goban-heat {
+  background: #92278f;
+  box-shadow: 0 0 0.8em 0.45em #92278f;
+  opacity: 0.7;
+}
+.goban-vertex.goban-heat_2 .goban-heat {
+  background: #f02311;
+  box-shadow: 0 0 0.75em 0.4em #f02311;
+  opacity: 0.8;
+}
+.goban-vertex.goban-heat_1 .goban-heat {
+  background: #f02311;
+  box-shadow: 0 0 0.75em 0.4em #f02311;
+  opacity: 0.7;
+}
+
+.goban-vertex .goban-heatlabel {
+  display: inline-block;
+  height: auto;
+  top: 50%;
+  left: 50%;
+  overflow: hidden;
+  color: white;
+  font-size: 0.36em;
+  line-height: 1.26;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow: 0 0.1em 0.3em black;
+  white-space: pre;
+  opacity: 0.9;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Selection */
+
+.goban-vertex .goban-selection {
+  box-sizing: border-box;
+  border: 0.1em solid #0082f0;
+  border-radius: 0.2em;
+  background: rgba(0, 130, 240, 0.2);
+}
+.goban-vertex.goban-selectedleft .goban-selection {
+  border-left: none;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.goban-vertex.goban-selectedright .goban-selection {
+  border-right: none;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.goban-vertex.goban-selectedtop .goban-selection {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.goban-vertex.goban-selectedbottom .goban-selection {
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Lines & arrows */
+
+.goban-line,
+.goban-arrow {
+  fill: none;
+  stroke: var(--goban-board-foreground-color);
+  stroke-width: 0.11em;
+}

@@ -42,7 +42,7 @@ export type GobanProps = {
   rows: number;
   innerProps?: HTMLAttributes<HTMLDivElement>;
   style?: CSSProperties;
-  vertexSize?: number;
+  vertexSize: number;
   busy?: boolean;
   signMap: number[];
   paintMap?: (number | null)[];
@@ -59,7 +59,7 @@ export type GobanProps = {
   onVertexClick?: VertexEventHandler;
 };
 
-export default class Goban extends Component<GobanProps, GobanState> {
+export default class SVGGoban extends Component<GobanProps, GobanState> {
   constructor(props: GobanProps) {
     super(props);
     this.state = {} as GobanState;
@@ -118,7 +118,7 @@ export default class Goban extends Component<GobanProps, GobanState> {
     ) {
       for (const i of this.state.animatedVertices) {
         this.state.shiftMap[i] = random(7) + 1;
-        readjustShifts(this.state.shiftMap, i);
+        readjustShifts(this.state.shiftMap, this.props.cols, i);
       }
 
       this.setState({ shiftMap: this.state.shiftMap });
@@ -138,7 +138,7 @@ export default class Goban extends Component<GobanProps, GobanState> {
     const { cols, rows, hoshis, shiftMap, randomMap } = this.state;
     const {
       innerProps = {},
-      vertexSize = 32,
+      vertexSize,
       busy,
       signMap,
       paintMap,
@@ -166,11 +166,11 @@ export default class Goban extends Component<GobanProps, GobanState> {
         {...(innerProps as HTMLAttributes<HTMLDivElement>)}
         id={this.props.id}
         className={classnames(
-          "shudan-goban",
-          "shudan-goban-image",
+          "goban",
+          "goban-image",
           {
-            "shudan-busy": busy,
-            "shudan-coordinates": showCoordinates,
+            "goban-busy": busy,
+            "goban-coordinates": showCoordinates,
           },
           this.props.class ?? this.props.className,
         )}
@@ -191,9 +191,11 @@ export default class Goban extends Component<GobanProps, GobanState> {
         )}
 
         <div
-          className="shudan-content"
+          className="goban-content"
           style={{
             position: "relative",
+            width: `${cols}em`,
+            height: `${rows}em`,
             gridRow: showCoordinates ? "2" : "1",
             gridColumn: showCoordinates ? "2" : "1",
           }}
@@ -201,7 +203,7 @@ export default class Goban extends Component<GobanProps, GobanState> {
           <Grid cols={cols} rows={rows} hoshis={hoshis} />
 
           <div
-            className="shudan-vertices"
+            className="goban-vertices"
             style={{
               display: "grid",
               gridTemplateColumns: `repeat(${cols}, 1em)`,
@@ -284,7 +286,7 @@ export default class Goban extends Component<GobanProps, GobanState> {
 
           {lines.length > 0 && (
             <svg
-              className="shudan-lines"
+              className="goban-lines"
               style={{
                 position: "absolute",
                 top: 0,
