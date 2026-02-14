@@ -11,6 +11,16 @@ import type {
   TurnData,
 } from "./goban/types";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
+import {
+  ensureWasm,
+  findNavButtons,
+  updateNavButtons as updateNavButtonsShared,
+  renderFromEngine,
+  navigateEngine,
+  setupKeyboardNav,
+  computeVertexSize,
+} from "./wasm-board";
+import { appendToChat, renderChatHistory, setupChat } from "./chat";
 
 let ws: WebSocket;
 
@@ -39,10 +49,9 @@ const channel = {
   rejectUndo(): void {
     ws.send(JSON.stringify({ action: "respond_to_undo", response: "reject" }));
   },
-  respondToUndo(response: string): void {
-    ws.send(JSON.stringify({ action: "respond_to_undo", response }));
-  },
 };
+
+const koMarker: MarkerData = { type: "triangle", label: "ko" };
 
 function readPlayerData(): PlayerData | undefined {
   const el = document.getElementById("player-data");
@@ -69,8 +78,6 @@ function derivePlayerStone(
   return 0;
 }
 
-const koMarker: MarkerData = { type: "triangle", label: "ko" };
-
 export function go(root: HTMLElement) {
   const props: InitialGameProps = JSON.parse(root.dataset.props!);
   const gameId = root.dataset.gameId!;
@@ -96,11 +103,7 @@ export function go(root: HTMLElement) {
 
   // DOM elements
   const gobanEl = document.getElementById("goban")!;
-  const startBtn = document.getElementById("game-start-btn") as HTMLButtonElement | null;
-  const backBtn = document.getElementById("game-back-btn") as HTMLButtonElement | null;
-  const forwardBtn = document.getElementById("game-forward-btn") as HTMLButtonElement | null;
-  const endBtn = document.getElementById("game-end-btn") as HTMLButtonElement | null;
-  const moveCounter = document.getElementById("game-move-counter");
+  const navButtons = findNavButtons("game-");
   const analyzeBtn = document.getElementById("analyze-btn") as HTMLButtonElement | null;
   const analysisControls = document.getElementById("game-analysis-controls");
   const gameControls = document.getElementById("game-controls");
@@ -122,8 +125,7 @@ export function go(root: HTMLElement) {
     }
     wasmLoading = true;
     try {
-      const wasm = await import("/static/wasm/go_engine_wasm.js");
-      await wasm.default();
+      const wasm = await ensureWasm();
       const eng = new wasm.WasmEngine(gameState.cols, gameState.rows);
       if (moves.length > 0) {
         eng.replace_moves(JSON.stringify(moves));
@@ -148,12 +150,10 @@ export function go(root: HTMLElement) {
   }
 
   async function enterAnalysis() {
-    const wasm = await import("/static/wasm/go_engine_wasm.js");
-    await wasm.default();
+    const wasm = await ensureWasm();
 
     analysisEngine = new wasm.WasmEngine(gameState.cols, gameState.rows);
 
-    // Check localStorage for saved analysis first
     const saved = localStorage.getItem(analysisStorageKey);
     if (saved) {
       analysisEngine.replace_moves(saved);
@@ -191,7 +191,7 @@ export function go(root: HTMLElement) {
       renderFromWasm();
     } else {
       renderGoban(gameState);
-      updateNavButtons();
+      updateNavButtonsLocal();
     }
   }
 
@@ -209,26 +209,18 @@ export function go(root: HTMLElement) {
     renderFromWasm();
   }
 
-  function updateNavButtons() {
+  function updateNavButtonsLocal() {
     const eng = activeEngine();
     if (eng) {
-      const atStart = eng.is_at_start();
-      const atLatest = eng.is_at_latest();
-      if (startBtn) { startBtn.disabled = atStart; }
-      if (backBtn) { backBtn.disabled = atStart; }
-      if (forwardBtn) { forwardBtn.disabled = atLatest; }
-      if (endBtn) { endBtn.disabled = atLatest; }
-      if (moveCounter) {
-        moveCounter.textContent = `Move ${eng.view_index()} / ${eng.total_moves()}`;
-      }
+      updateNavButtonsShared(eng, navButtons);
     } else {
       const total = moves.length;
-      if (startBtn) { startBtn.disabled = total === 0; }
-      if (backBtn) { backBtn.disabled = total === 0; }
-      if (forwardBtn) { forwardBtn.disabled = true; }
-      if (endBtn) { endBtn.disabled = true; }
-      if (moveCounter) {
-        moveCounter.textContent = `Move ${total} / ${total}`;
+      if (navButtons.start) { navButtons.start.disabled = total === 0; }
+      if (navButtons.back) { navButtons.back.disabled = total === 0; }
+      if (navButtons.forward) { navButtons.forward.disabled = true; }
+      if (navButtons.end) { navButtons.end.disabled = true; }
+      if (navButtons.counter) {
+        navButtons.counter.textContent = `Move ${total} / ${total}`;
       }
     }
   }
@@ -238,20 +230,10 @@ export function go(root: HTMLElement) {
     if (!eng) {
       return;
     }
-    const board = [...eng.board()] as number[];
-    const cols = eng.cols();
-    const rows = eng.rows();
-    const markerMap: (MarkerData | null)[] = Array(board.length).fill(null);
-
-    if (eng.has_ko()) {
-      const kc = eng.ko_col();
-      const kr = eng.ko_row();
-      markerMap[kr * cols + kc] = koMarker;
-    }
 
     let onVertexClick: ((evt: Event, position: Point) => void) | undefined;
 
-    if (analysisMode && eng.is_at_latest()) {
+    if (analysisMode) {
       onVertexClick = (_: Event, [col, row]: Point) => {
         if (analysisEngine && analysisEngine.try_play(col, row)) {
           saveAnalysis();
@@ -260,21 +242,8 @@ export function go(root: HTMLElement) {
       };
     }
 
-    render(
-      <Goban
-        cols={cols}
-        rows={rows}
-        vertexSize={vertexSize(cols, rows)}
-        signMap={board}
-        markerMap={markerMap}
-        fuzzyStonePlacement
-        animateStonePlacement
-        onVertexClick={onVertexClick}
-      />,
-      gobanEl,
-    );
-
-    updateNavButtons();
+    renderFromEngine(eng, gobanEl, onVertexClick);
+    updateNavButtonsLocal();
   }
 
   async function navigate(action: "back" | "forward" | "start" | "end") {
@@ -289,24 +258,13 @@ export function go(root: HTMLElement) {
       return;
     }
 
-    switch (action) {
-      case "back":
-        if (!eng.back()) { return; }
-        break;
-      case "forward":
-        if (!eng.forward()) { return; }
-        break;
-      case "start":
-        eng.to_start();
-        break;
-      case "end":
-        eng.to_latest();
-        break;
+    if (!navigateEngine(eng, action)) {
+      return;
     }
 
     if (!analysisMode && eng.is_at_latest()) {
       renderGoban(gameState);
-      updateNavButtons();
+      updateNavButtonsLocal();
     } else {
       renderFromWasm();
     }
@@ -349,7 +307,7 @@ export function go(root: HTMLElement) {
             renderGoban(gameState);
           }
           if (!analysisMode) {
-            updateNavButtons();
+            updateNavButtonsLocal();
           }
           updateUndoControls(gameState.stage, currentNegotiations, currentTurn);
           break;
@@ -379,7 +337,7 @@ export function go(root: HTMLElement) {
               renderGoban(data.state);
             }
             if (!analysisMode) {
-              updateNavButtons();
+              updateNavButtonsLocal();
             }
             updateUndoControls(data.state.stage, {}, currentTurn);
           }
@@ -429,12 +387,6 @@ export function go(root: HTMLElement) {
     return;
   }
 
-  function vertexSize(cols: number, rows: number): number {
-    const avail = gobanEl.clientWidth;
-    const extra = 0.8;
-    return Math.max(avail / (Math.max(cols, rows) + extra), 12);
-  }
-
   function renderGoban(state: GameState): void {
     if (state.board.length === 0) {
       return;
@@ -454,7 +406,7 @@ export function go(root: HTMLElement) {
       <Goban
         cols={cols}
         rows={rows}
-        vertexSize={vertexSize(cols, rows)}
+        vertexSize={computeVertexSize(gobanEl, cols, rows)}
         signMap={board}
         markerMap={markerMap}
         fuzzyStonePlacement
@@ -474,14 +426,13 @@ export function go(root: HTMLElement) {
   });
 
   // Navigation button handlers
-  startBtn?.addEventListener("click", () => navigate("start"));
-  backBtn?.addEventListener("click", () => navigate("back"));
-  forwardBtn?.addEventListener("click", () => navigate("forward"));
-  endBtn?.addEventListener("click", () => navigate("end"));
+  navButtons.start?.addEventListener("click", () => navigate("start"));
+  navButtons.back?.addEventListener("click", () => navigate("back"));
+  navButtons.forward?.addEventListener("click", () => navigate("forward"));
+  navButtons.end?.addEventListener("click", () => navigate("end"));
 
   // Analysis mode handlers
   analyzeBtn?.addEventListener("click", () => enterAnalysis());
-
   exitAnalysisBtn?.addEventListener("click", () => exitAnalysis());
 
   analysisUndoBtn?.addEventListener("click", () => {
@@ -492,7 +443,7 @@ export function go(root: HTMLElement) {
   });
 
   analysisPassBtn?.addEventListener("click", () => {
-    if (analysisEngine && analysisEngine.is_at_latest() && analysisEngine.pass()) {
+    if (analysisEngine && analysisEngine.pass()) {
       saveAnalysis();
       renderFromWasm();
     }
@@ -500,43 +451,21 @@ export function go(root: HTMLElement) {
 
   analysisResetBtn?.addEventListener("click", () => resetAnalysis());
 
-  document.addEventListener("keydown", (e: KeyboardEvent) => {
-    const tag = (e.target as HTMLElement)?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
-      return;
-    }
-
-    switch (e.key) {
-      case "ArrowLeft":
-        e.preventDefault();
-        navigate("back");
-        break;
-      case "ArrowRight":
-        e.preventDefault();
-        navigate("forward");
-        break;
-      case "Home":
-        e.preventDefault();
-        navigate("start");
-        break;
-      case "End":
-        e.preventDefault();
-        navigate("end");
-        break;
-      case "Escape":
-        if (analysisMode) {
-          e.preventDefault();
-          exitAnalysis();
-        }
-        break;
-    }
-  });
+  setupKeyboardNav(
+    (action) => navigate(action),
+    () => {
+      if (analysisMode) {
+        exitAnalysis();
+      }
+    },
+  );
 
   // Render initial board
   renderGoban(gameState);
-  updateNavButtons();
+  updateNavButtonsLocal();
 
   renderChatHistory();
+  setupChat((text) => channel.say(text));
 
   function updateUndoControls(
     stage: GameStage,
@@ -579,28 +508,6 @@ export function go(root: HTMLElement) {
       requestBtn.disabled = false;
       requestBtn.title = "Request to undo your last move";
     }
-  }
-}
-
-function appendToChat(sender: string, text: string): void {
-  const box = document.getElementById("chat-box")!;
-  const p = document.createElement("p");
-  p.textContent = `${sender}: ${text}`;
-  box.appendChild(p);
-  box.scrollTop = box.scrollHeight;
-}
-
-function renderChatHistory(): void {
-  const box = document.getElementById("chat-box")!;
-  const rawMessages = box.dataset.chatLog;
-
-  if (!rawMessages) {
-    return;
-  }
-
-  const messages: { sender: string; text: string }[] = JSON.parse(rawMessages);
-  for (const msg of messages) {
-    appendToChat(msg.sender, msg.text);
   }
 }
 
@@ -652,16 +559,6 @@ function showUndoResponseControls(
   notification.style.display = "block";
   notification.textContent = message;
 }
-
-document.getElementById("chat-form")?.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const input = document.getElementById("chat-input") as HTMLInputElement;
-  const text = input.value.trim();
-  if (text) {
-    channel.say(text);
-    input.value = "";
-  }
-});
 
 document.getElementById("request-undo-btn")?.addEventListener("click", () => {
   channel.requestUndo();
