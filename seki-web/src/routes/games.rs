@@ -158,6 +158,8 @@ pub async fn show_game(
         player_data: serialize_player_data(&current_player),
         game_id: gwp.game.id,
         game_props,
+        cols: gwp.game.cols,
+        rows: gwp.game.rows,
         is_player,
         is_creator,
         is_private: gwp.game.is_private,

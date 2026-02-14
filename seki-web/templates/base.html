@@ -11,7 +11,7 @@
         <meta name="mobile-web-app-capable" content="yes">
         <link rel="icon" href="/static/images/icon.png" type="image/png">
         <link rel="stylesheet" href="/static/css/base.css">
-        <script id="player-data" type="application/json">{{ player_data }}</script>
+        <script id="player-data" type="application/json">{{ player_data|safe }}</script>
         {% block head %}{% endblock %}
     </head>
     <body>
