@@ -10,7 +10,10 @@
     "skipLibCheck": true,
     "noEmit": true,
     "isolatedModules": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "/static/wasm/go_engine_wasm.js": ["../static/wasm/go_engine_wasm.d.ts"]
+    }
   },
   "include": ["src"]
 }

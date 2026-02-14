@@ -67,6 +67,7 @@ async fn main() {
     // Build router
     let app = Router::new()
         // Game routes
+        .route("/analysis", get(routes::analysis::analysis_board))
         .route("/", get(routes::games::new_game))
         .route("/games", get(routes::games::list_games))
         .route("/games", post(routes::games::create_game))

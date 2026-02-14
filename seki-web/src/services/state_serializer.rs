@@ -18,11 +18,18 @@ pub fn serialize_state(gwp: &GameWithPlayers, engine: &Engine) -> serde_json::Va
         }
     }
 
+    let moves: Vec<_> = engine
+        .moves()
+        .iter()
+        .map(|t| serde_json::to_value(t).unwrap_or_default())
+        .collect();
+
     json!({
         "stage": stage.to_string(),
         "state": serde_json::to_value(engine.game_state()).unwrap_or_default(),
         "negotiations": negotiations,
-        "current_turn_stone": current_turn_stone
+        "current_turn_stone": current_turn_stone,
+        "moves": moves
     })
 }
 

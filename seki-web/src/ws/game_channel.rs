@@ -33,7 +33,8 @@ pub async fn send_initial_state(
             "stage": game_state["stage"],
             "state": game_state["state"],
             "negotiations": game_state["negotiations"],
-            "current_turn_stone": game_state["current_turn_stone"]
+            "current_turn_stone": game_state["current_turn_stone"],
+            "moves": game_state["moves"]
         })
         .to_string(),
     );
@@ -270,6 +271,7 @@ async fn handle_respond_to_undo(
                     "stage": result.game_state["stage"],
                     "state": result.game_state["state"],
                     "current_turn_stone": result.game_state["current_turn_stone"],
+                    "moves": result.game_state["moves"],
                     "responding_player": result.responding_player_name,
                     "message": message
                 })

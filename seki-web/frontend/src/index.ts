@@ -1,7 +1,13 @@
 import { go } from "./go";
 
-const root = document.getElementById("game");
+const gameRoot = document.getElementById("game");
 
-if (root) {
-  go(root);
+if (gameRoot) {
+  go(gameRoot);
+}
+
+const analysisRoot = document.getElementById("analysis");
+
+if (analysisRoot) {
+  import("./analysis").then((m) => m.analysis(analysisRoot));
 }

@@ -36,7 +36,7 @@ impl fmt::Display for Move {
 }
 
 /// Represents a single turn in a game.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Turn {
     pub kind: Move,
     pub stone: Stone,

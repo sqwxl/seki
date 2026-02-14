@@ -56,6 +56,12 @@ export type GameState = {
   stage: GameStage;
 };
 
+export type TurnData = {
+  kind: "play" | "pass" | "resign";
+  stone: number;
+  pos: [number, number] | null;
+};
+
 export type PlayerData = {
   id: number;
   display_name: string;
@@ -75,6 +81,7 @@ export type StateMessage = {
   state: GameState;
   negotiations?: Record<string, unknown>;
   current_turn_stone: number | null;
+  moves: TurnData[];
 };
 
 export type ChatMessage = {
@@ -94,6 +101,7 @@ export type UndoAcceptedMessage = {
   stage?: GameStage;
   state?: GameState;
   current_turn_stone?: number | null;
+  moves?: TurnData[];
 };
 
 export type UndoRejectedMessage = {
@@ -102,6 +110,7 @@ export type UndoRejectedMessage = {
   stage?: GameStage;
   state?: GameState;
   current_turn_stone?: number | null;
+  moves?: TurnData[];
 };
 
 export type UndoRequestSentMessage = {

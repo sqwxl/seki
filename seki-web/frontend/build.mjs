@@ -9,6 +9,7 @@ const config = {
   outfile: "../static/dist/bundle.js",
   format: "esm",
   sourcemap: true,
+  external: ["/static/wasm/*"],
   logLevel: "info",
 };
 

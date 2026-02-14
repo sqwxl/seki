@@ -372,7 +372,8 @@ pub async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engin
         "stage": game_state["stage"],
         "state": game_state["state"],
         "negotiations": game_state["negotiations"],
-        "current_turn_stone": game_state["current_turn_stone"]
+        "current_turn_stone": game_state["current_turn_stone"],
+        "moves": game_state["moves"]
     });
 
     state.registry.broadcast(game_id, &msg.to_string()).await;

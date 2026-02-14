@@ -1,3 +1,4 @@
+pub mod analysis;
 pub mod auth;
 pub mod games_list;
 pub mod games_new;

@@ -12,10 +12,6 @@ body {
   /* background-color: #282828; */
 }
 
-*:not(legend, label) + * {
-  margin-top: 1.5em;
-}
-
 fieldset {
   padding: 1.5em;
 }

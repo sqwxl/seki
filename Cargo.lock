@@ -677,6 +677,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "go-engine-wasm"
+version = "0.1.0"
+dependencies = [
+ "go-engine",
+ "js-sys",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

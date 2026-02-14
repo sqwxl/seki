@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% import "macros/board_controls.html" as controls %}
+{% block title %}Analysis Board - Seki{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/static/css/goban.css" />
+    <script src="/static/dist/bundle.js" type="module" defer></script>
+{% endblock %}
+{% block content %}
+    <div style="display: flex; flex-direction: column; align-items: center">
+        <h2>Analysis Board</h2>
+        <div id="analysis">
+            <div id="goban"
+                 style="width: min(70vw, 70dvh); aspect-ratio: 19/19"></div>
+            {{ controls::nav_bar("analysis") }}
+            <div id="analysis-info"
+                 style="display: flex; gap: 1em; align-items: center; margin-top: 0.5em">
+                <span id="analysis-turn"></span>
+                <span id="analysis-captures"></span>
+                {{ controls::analysis_actions("analysis") }}
+            </div>
+        </div>
+    </div>
+{% endblock %}

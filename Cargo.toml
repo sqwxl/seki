@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["go-engine", "seki-web"]
+members = ["go-engine", "go-engine-wasm", "seki-web"]
