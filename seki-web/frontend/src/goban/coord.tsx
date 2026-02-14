@@ -19,7 +19,7 @@ function rowToCoord(i: number, rows: number): string {
 export function CoordCols({ style, cols }: CoordColsProps): JSX.Element {
   return (
     <div
-      className="shudan-coordx"
+      className="goban-coordx"
       style={{ display: "flex", textAlign: "center", ...style }}
     >
       {Array(cols).map((i) => (
@@ -38,7 +38,7 @@ type CoordRowsProps = {
 
 export function CoordRows({ style, rows }: CoordRowsProps): JSX.Element {
   return (
-    <div className="shudan-coordy" style={{ textAlign: "center", ...style }}>
+    <div className="goban-coordy" style={{ textAlign: "center", ...style }}>
       {Array(rows).map((i) => (
         <div key={i}>
           <span style={{ display: "block" }}>{rowToCoord(i, rows)}</span>

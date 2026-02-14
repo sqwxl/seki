@@ -20,14 +20,14 @@ export default function Marker({
 
   if (type === "label") {
     return (
-      <div className="shudan-marker" style={containerStyle}>
+      <div className="goban-marker" style={containerStyle}>
         {label}
       </div>
     );
   }
 
   return (
-    <svg className="shudan-marker" style={containerStyle} viewBox="0 0 1 1">
+    <svg className="goban-marker" style={containerStyle} viewBox="0 0 1 1">
       {(type === "circle" || type === "loader" || type === "point") && (
         <circle
           cx={0.5}

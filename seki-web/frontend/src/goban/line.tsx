@@ -33,7 +33,7 @@ export default function Line({
 
   return (
     <path
-      className={`shudan-${type}`}
+      className={`goban-${type}`}
       d={`M ${-length / 2} 0 h ${length} ${arrowPart}`}
       transform={`translate(${cx} ${cy}) rotate(${angle})`}
     />

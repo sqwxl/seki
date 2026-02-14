@@ -103,52 +103,52 @@ export default function Vertex(props: VertexProps): JSX.Element {
       title={marker?.label}
       style={{ position: "relative" } as CSSProperties}
       className={classnames(
-        "shudan-vertex",
-        `shudan-random_${random}`,
-        `shudan-sign_${sign}`,
+        "goban-vertex",
+        `goban-random_${random}`,
+        `goban-sign_${sign}`,
         {
-          [`shudan-shift_${shift}`]: !!shift,
-          [`shudan-heat_${!!heat && heat.strength}`]: !!heat,
-          "shudan-dimmed": dimmed,
-          "shudan-animate": animate,
+          [`goban-shift_${shift}`]: !!shift,
+          [`goban-heat_${!!heat && heat.strength}`]: !!heat,
+          "goban-dimmed": dimmed,
+          "goban-animate": animate,
 
-          [`shudan-paint_${(paint ?? 0) > 0 ? 1 : -1}`]: !!paint,
-          "shudan-paintedleft": !!paint && signEquals(paintLeft, paint),
-          "shudan-paintedright": !!paint && signEquals(paintRight, paint),
-          "shudan-paintedtop": !!paint && signEquals(paintTop, paint),
-          "shudan-paintedbottom": !!paint && signEquals(paintBottom, paint),
+          [`goban-paint_${(paint ?? 0) > 0 ? 1 : -1}`]: !!paint,
+          "goban-paintedleft": !!paint && signEquals(paintLeft, paint),
+          "goban-paintedright": !!paint && signEquals(paintRight, paint),
+          "goban-paintedtop": !!paint && signEquals(paintTop, paint),
+          "goban-paintedbottom": !!paint && signEquals(paintBottom, paint),
 
-          "shudan-selected": selected,
-          "shudan-selectedleft": selectedLeft,
-          "shudan-selectedright": selectedRight,
-          "shudan-selectedtop": selectedTop,
-          "shudan-selectedbottom": selectedBottom,
+          "goban-selected": selected,
+          "goban-selectedleft": selectedLeft,
+          "goban-selectedright": selectedRight,
+          "goban-selectedtop": selectedTop,
+          "goban-selectedbottom": selectedBottom,
 
-          [`shudan-marker_${marker?.type}`]: !!marker?.type,
-          "shudan-smalllabel":
+          [`goban-marker_${marker?.type}`]: !!marker?.type,
+          "goban-smalllabel":
             marker?.type === "label" &&
             (marker.label?.includes("\n") || (marker.label?.length ?? 0) >= 3),
 
-          [`shudan-ghost_${ghostStone?.sign}`]: !!ghostStone,
-          [`shudan-ghost_${ghostStone?.type}`]: !!ghostStone?.type,
-          "shudan-ghost_faint": !!ghostStone?.faint,
+          [`goban-ghost_${ghostStone?.sign}`]: !!ghostStone,
+          [`goban-ghost_${ghostStone?.type}`]: !!ghostStone?.type,
+          "goban-ghost_faint": !!ghostStone?.faint,
         },
       )}
       onClick={handleClick}
     >
       {!sign && markerMarkup(0)}
       {!sign && !!ghostStone && (
-        <div className="shudan-ghost" style={absoluteStyle(1)} />
+        <div className="goban-ghost" style={absoluteStyle(1)} />
       )}
 
-      <div className="shudan-stone" style={absoluteStyle(2)}>
+      <div className="goban-stone" style={absoluteStyle(2)}>
         {!!sign && (
           <div
             className={classnames(
-              "shudan-inner",
-              "shudan-stone-image",
-              `shudan-random_${random}`,
-              `shudan-sign_${sign}`,
+              "goban-inner",
+              "goban-stone-image",
+              `goban-random_${random}`,
+              `goban-sign_${sign}`,
             )}
             style={absoluteStyle()}
           >
@@ -160,12 +160,12 @@ export default function Vertex(props: VertexProps): JSX.Element {
 
       {hasPaintNeighbor && (
         <div
-          className="shudan-paint"
+          className="goban-paint"
           style={
             {
               ...absoluteStyle(3),
-              "--shudan-paint-opacity": String(avg(paintOpacityValues)),
-              "--shudan-paint-box-shadow": [
+              "--goban-paint-opacity": String(avg(paintOpacityValues)),
+              "--goban-paint-box-shadow": [
                 signEquals(paintLeft, paintTop, paintTopLeft)
                   ? [Math.sign(paintTop ?? 0), "-.5em -.5em"]
                   : null,
@@ -184,8 +184,8 @@ export default function Vertex(props: VertexProps): JSX.Element {
                   ([s, translation]) =>
                     `${translation} 0 0 var(${
                       s > 0
-                        ? "--shudan-black-background-color"
-                        : "--shudan-white-background-color"
+                        ? "--goban-black-background-color"
+                        : "--goban-white-background-color"
                     })`,
                 )
                 .join(","),
@@ -195,12 +195,12 @@ export default function Vertex(props: VertexProps): JSX.Element {
       )}
 
       {!!selected && (
-        <div className="shudan-selection" style={absoluteStyle(4)} />
+        <div className="goban-selection" style={absoluteStyle(4)} />
       )}
 
-      <div className="shudan-heat" style={absoluteStyle(5)} />
+      <div className="goban-heat" style={absoluteStyle(5)} />
       {heat?.text != null && (
-        <div className="shudan-heatlabel" style={absoluteStyle(6)}>
+        <div className="goban-heatlabel" style={absoluteStyle(6)}>
           {heat.text.toString()}
         </div>
       )}

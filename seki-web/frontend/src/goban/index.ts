@@ -1,3 +1,3 @@
-import Goban from "./goban";
+import SVGGoban from "./goban";
 
-export { Goban };
+export { SVGGoban as Goban };

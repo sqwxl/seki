@@ -60,42 +60,32 @@ export function getHoshis(width: number, height: number): Point[] {
 
 export function readjustShifts(
   shiftMap: number[],
+  cols: number,
   index: number | null = null,
 ): number[] {
   if (index == null) {
     for (let i = 0; i < shiftMap.length; i++) {
-      readjustShifts(shiftMap, i);
+      readjustShifts(shiftMap, cols, i);
     }
   } else {
+    const rows = shiftMap.length / cols;
+    const x = index % cols;
+    const y = Math.floor(index / cols);
     const direction = shiftMap[index];
 
-    const data: [number[], Point, number[]][] = [
-      [
-        [1, 5, 8],
-        [x - 1, y],
-        [3, 7, 6],
-      ],
-      [
-        [2, 5, 6],
-        [x, y - 1],
-        [4, 7, 8],
-      ],
-      [
-        [3, 7, 6],
-        [x + 1, y],
-        [1, 5, 8],
-      ],
-      [
-        [4, 7, 8],
-        [x, y + 1],
-        [2, 5, 6],
-      ],
+    const neighbors: [number[], [number, number], number[]][] = [
+      [[1, 5, 8], [x - 1, y], [3, 7, 6]],
+      [[2, 5, 6], [x, y - 1], [4, 7, 8]],
+      [[3, 7, 6], [x + 1, y], [1, 5, 8]],
+      [[4, 7, 8], [x, y + 1], [2, 5, 6]],
     ];
 
-    for (const [directions, [qx, qy], removeShifts] of data) {
+    for (const [directions, [qx, qy], removeShifts] of neighbors) {
       if (!directions.includes(direction)) continue;
-      if (shiftMap[qy] && removeShifts.includes(shiftMap[qy][qx])) {
-        shiftMap[qy][qx] = 0;
+      if (qx < 0 || qx >= cols || qy < 0 || qy >= rows) continue;
+      const qi = qy * cols + qx;
+      if (removeShifts.includes(shiftMap[qi])) {
+        shiftMap[qi] = 0;
       }
     }
   }
