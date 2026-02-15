@@ -1,13 +1,14 @@
 import { render } from "preact";
 import { Goban } from "./goban/index";
-import type {
-  GameState,
-  IncomingMessage,
-  InitialGameProps,
-  MarkerData,
-  PlayerData,
-  Point,
-  TurnData,
+import {
+  isPlayStage,
+  type GameState,
+  type IncomingMessage,
+  type InitialGameProps,
+  type MarkerData,
+  type PlayerData,
+  type Point,
+  type TurnData,
 } from "./goban/types";
 import { createBoard, findNavButtons } from "./wasm-board";
 import type { Board } from "./wasm-board";
@@ -86,6 +87,7 @@ export function go(root: HTMLElement) {
   let currentTurn: number | null = null;
   let moves: TurnData[] = [];
   let undoRejected = false;
+  let allowUndo = false;
   let result: string | null = null;
 
   // Analysis mode: when true, vertex clicks go to local engine; when false, live play via WS
@@ -119,7 +121,7 @@ export function go(root: HTMLElement) {
       return true;
     }
     return (
-      (gameState.stage === "unstarted" || gameState.stage === "play") &&
+      (gameState.stage === "unstarted" || isPlayStage(gameState.stage)) &&
       currentTurn === playerStone
     );
   }
@@ -240,10 +242,7 @@ export function go(root: HTMLElement) {
     if (!statusEl) {
       return;
     }
-    if (gameState.stage === "play") {
-      statusEl.textContent =
-        currentTurn === 1 ? "Black to play" : "White to play";
-    } else if (gameState.stage === "done" && result) {
+    if (gameState.stage === "done" && result) {
       statusEl.textContent = result;
     } else {
       statusEl.textContent = "";
@@ -268,6 +267,7 @@ export function go(root: HTMLElement) {
           currentTurn = data.current_turn_stone;
           moves = data.moves ?? [];
           undoRejected = data.undo_rejected;
+          allowUndo = data.allow_undo ?? false;
           result = data.result;
 
           console.debug("WebSocket: state updated", {
@@ -407,7 +407,7 @@ export function go(root: HTMLElement) {
     }
 
     // Live mode
-    const isPlay = gameState.stage === "play";
+    const isPlay = isPlayStage(gameState.stage);
 
     const isMyTurn = currentTurn === playerStone;
     if (passBtn) {
@@ -422,7 +422,7 @@ export function go(root: HTMLElement) {
     if (exitAnalysisBtn) { exitAnalysisBtn.style.display = "none"; }
 
     if (requestUndoBtn) {
-      requestUndoBtn.style.display = isPlay ? "" : "none";
+      requestUndoBtn.style.display = allowUndo && isPlay ? "" : "none";
       const canUndo =
         moves.length > 0 &&
         playerStone !== 0 &&

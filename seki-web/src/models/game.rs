@@ -3,11 +3,10 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
-use go_engine::Stone;
+use go_engine::{Stage, Stone};
 
 use crate::db::DbPool;
 use crate::models::player::Player;
-use crate::utils;
 
 pub const BLACK_SYMBOL: &str = "●";
 pub const WHITE_SYMBOL: &str = "○";
@@ -28,6 +27,7 @@ pub struct Game {
     pub handicap: i32,
     pub is_private: bool,
     pub is_handicap: bool,
+    pub allow_undo: bool,
     pub started_at: Option<DateTime<Utc>>,
     pub ended_at: Option<DateTime<Utc>>,
     pub result: Option<String>,
@@ -169,11 +169,12 @@ impl Game {
         handicap: i32,
         is_private: bool,
         is_handicap: bool,
+        allow_undo: bool,
         invite_token: &str,
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
-            "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, is_private, is_handicap, invite_token)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, is_private, is_handicap, allow_undo, invite_token)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
              RETURNING *",
         )
         .bind(creator_id)
@@ -185,6 +186,7 @@ impl Game {
         .bind(handicap)
         .bind(is_private)
         .bind(is_handicap)
+        .bind(allow_undo)
         .bind(invite_token)
         .fetch_one(pool)
         .await
@@ -286,6 +288,11 @@ impl GameWithPlayers {
     }
 
     pub fn description(&self) -> String {
+        let stage = self.game.stage.parse().unwrap_or(Stage::Unstarted);
+        self.description_with_stage(&stage)
+    }
+
+    pub fn description_with_stage(&self, stage: &Stage) -> String {
         let b = self.black.as_ref().map(|p| p.display_name()).unwrap_or("?");
         let w = self.white.as_ref().map(|p| p.display_name()).unwrap_or("?");
         let status = if let Some(ref result) = self.game.result {
@@ -293,7 +300,13 @@ impl GameWithPlayers {
         } else if self.is_open() {
             "Open".to_string()
         } else {
-            utils::capitalize(&self.game.stage)
+            match stage {
+                Stage::BlackToPlay => "Black to play".to_string(),
+                Stage::WhiteToPlay => "White to play".to_string(),
+                Stage::TerritoryReview => "Territory review".to_string(),
+                Stage::Done => "Done".to_string(),
+                Stage::Unstarted => "Unstarted".to_string(),
+            }
         };
         format!("{BLACK_SYMBOL} {b} vs {WHITE_SYMBOL} {w} - {status}")
     }

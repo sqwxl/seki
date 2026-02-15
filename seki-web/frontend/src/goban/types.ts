@@ -34,7 +34,16 @@ export enum Stone {
 }
 
 // Keep in sync with go-engine Stage enum (go-engine/src/engine.rs)
-export type GameStage = "unstarted" | "play" | "territory_review" | "done";
+export type GameStage =
+  | "unstarted"
+  | "black_to_play"
+  | "white_to_play"
+  | "territory_review"
+  | "done";
+
+export function isPlayStage(stage: GameStage): boolean {
+  return stage === "black_to_play" || stage === "white_to_play";
+}
 
 export type Captures = {
   black: number;
@@ -87,6 +96,7 @@ export type StateMessage = {
   result: string | null;
   description: string;
   undo_rejected: boolean;
+  allow_undo?: boolean;
 };
 
 export type ChatMessage = {

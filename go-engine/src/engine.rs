@@ -13,16 +13,24 @@ use crate::Point;
 #[serde(rename_all = "snake_case")]
 pub enum Stage {
     Unstarted,
-    Play,
+    BlackToPlay,
+    WhiteToPlay,
     TerritoryReview,
     Done,
+}
+
+impl Stage {
+    pub fn is_play(&self) -> bool {
+        matches!(self, Stage::BlackToPlay | Stage::WhiteToPlay)
+    }
 }
 
 impl fmt::Display for Stage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Stage::Unstarted => write!(f, "unstarted"),
-            Stage::Play => write!(f, "play"),
+            Stage::BlackToPlay => write!(f, "black_to_play"),
+            Stage::WhiteToPlay => write!(f, "white_to_play"),
             Stage::TerritoryReview => write!(f, "territory_review"),
             Stage::Done => write!(f, "done"),
         }
@@ -35,7 +43,8 @@ impl std::str::FromStr for Stage {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "unstarted" => Ok(Stage::Unstarted),
-            "play" => Ok(Stage::Play),
+            "black_to_play" => Ok(Stage::BlackToPlay),
+            "white_to_play" => Ok(Stage::WhiteToPlay),
             "territory_review" => Ok(Stage::TerritoryReview),
             "done" => Ok(Stage::Done),
             _ => Err(format!("unknown stage: {s}")),
@@ -189,7 +198,10 @@ impl Engine {
         ) {
             Stage::TerritoryReview
         } else {
-            Stage::Play
+            match self.current_turn_stone() {
+                Stone::Black => Stage::BlackToPlay,
+                Stone::White => Stage::WhiteToPlay,
+            }
         }
     }
 
@@ -348,7 +360,7 @@ mod tests {
     fn play_stage_after_first_move() {
         let mut engine = Engine::new(4, 4);
         engine.try_play(Stone::Black, (0, 0)).unwrap();
-        assert_eq!(engine.stage(), Stage::Play);
+        assert_eq!(engine.stage(), Stage::WhiteToPlay);
     }
 
     #[test]
@@ -356,7 +368,7 @@ mod tests {
         let mut engine = Engine::new(4, 4);
         engine.try_play(Stone::Black, (0, 0)).unwrap();
         engine.try_pass(Stone::White).unwrap();
-        assert_eq!(engine.stage(), Stage::Play);
+        assert!(engine.stage().is_play());
     }
 
     #[test]
@@ -382,7 +394,7 @@ mod tests {
         engine.try_play(Stone::Black, (0, 0)).unwrap();
         engine.try_pass(Stone::White).unwrap();
         engine.try_play(Stone::Black, (1, 0)).unwrap();
-        assert_eq!(engine.stage(), Stage::Play);
+        assert!(engine.stage().is_play());
     }
 
     // -- Move validation --
@@ -507,7 +519,7 @@ mod tests {
         // flat index: row * cols + col
         assert_eq!(gs.board[4], Stone::Black.to_int());
         assert_eq!(gs.board[0], 0);
-        assert_eq!(gs.stage, Stage::Play);
+        assert!(gs.stage.is_play());
     }
 
     #[test]
