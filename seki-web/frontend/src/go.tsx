@@ -89,6 +89,7 @@ export function go(root: HTMLElement) {
   let currentTurn: number | null = null;
   let moves: TurnData[] = [];
   let undoRejected = false;
+  let result: string | null = null;
 
   // Analysis mode: when true, vertex clicks go to local engine; when false, live play via WS
   let analysisMode = false;
@@ -97,6 +98,7 @@ export function go(root: HTMLElement) {
   let board: Board | undefined;
 
   // DOM elements
+  const statusEl = document.getElementById("status");
   const titleEl = document.getElementById("game-title");
   const gobanEl = document.getElementById("goban")!;
   const analyzeBtn = document.getElementById(
@@ -265,6 +267,20 @@ export function go(root: HTMLElement) {
     }
   }
 
+  function updateStatus(): void {
+    if (!statusEl) {
+      return;
+    }
+    if (gameState.stage === "play") {
+      statusEl.textContent =
+        currentTurn === 1 ? "Black to play" : "White to play";
+    } else if (gameState.stage === "done" && result) {
+      statusEl.textContent = result;
+    } else {
+      statusEl.textContent = "";
+    }
+  }
+
   function connectWS(): void {
     const wsURL = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}${window.location.pathname}/ws`;
 
@@ -283,6 +299,7 @@ export function go(root: HTMLElement) {
           currentTurn = data.current_turn_stone;
           moves = data.moves ?? [];
           undoRejected = data.undo_rejected;
+          result = data.result;
 
           console.debug("WebSocket: state updated", {
             currentState: gameState,
@@ -298,6 +315,7 @@ export function go(root: HTMLElement) {
           }
           updateGameActions(gameState.stage, currentTurn);
           updateTitle(data.description);
+          updateStatus();
           break;
         case "chat":
           appendToChat(data.sender, data.text);
@@ -326,6 +344,7 @@ export function go(root: HTMLElement) {
               }
             }
             updateGameActions(data.state.stage, currentTurn);
+            updateStatus();
           }
           break;
         case "undo_request_sent":
@@ -372,6 +391,7 @@ export function go(root: HTMLElement) {
 
   // Render initial board from server state
   renderGoban(gameState);
+  updateStatus();
 
   renderChatHistory();
   setupChat((text) => channel.say(text));
