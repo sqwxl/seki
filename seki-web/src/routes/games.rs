@@ -8,6 +8,8 @@ use serde::Deserialize;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::message::Message;
+use crate::services::engine_builder;
+use crate::services::game_actions;
 use crate::services::game_creator::{self, CreateGameParams};
 use crate::services::state_serializer;
 use crate::session::CurrentPlayer;
@@ -197,6 +199,9 @@ pub async fn join_game(
         } else if gwp.white.is_none() {
             Game::set_white(&state.db, id, current_player.id).await?;
         }
+
+        let engine = engine_builder::build_engine(&state.db, &gwp.game).await?;
+        game_actions::broadcast_game_state(&state, id, &engine).await;
     }
 
     Ok(Redirect::to(&format!("/games/{id}")).into_response())
