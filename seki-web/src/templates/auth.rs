@@ -16,4 +16,5 @@ pub struct LoginTemplate {
     pub player_is_registered: bool,
     pub player_data: String,
     pub flash: Option<String>,
+    pub redirect: String,
 }

@@ -2,7 +2,7 @@ use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use askama::Template;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::Form;
@@ -15,6 +15,15 @@ use crate::session::{CurrentPlayer, PLAYER_ID_KEY};
 use crate::templates::auth::{LoginTemplate, RegisterTemplate};
 use crate::templates::PlayerData;
 use crate::AppState;
+
+fn referer_path(headers: &axum::http::HeaderMap) -> String {
+    headers
+        .get(axum::http::header::REFERER)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<axum::http::Uri>().ok())
+        .map(|uri| uri.path().to_owned())
+        .unwrap_or_default()
+}
 
 fn serialize_player_data(player: &CurrentPlayer) -> String {
     serde_json::to_string(&PlayerData::from(&player.player)).unwrap_or_else(|_| "{}".to_string())
@@ -113,15 +122,20 @@ pub async fn register(
 }
 
 // GET /login
-pub async fn login_form(current_player: CurrentPlayer) -> Result<Response, AppError> {
+pub async fn login_form(
+    current_player: CurrentPlayer,
+    headers: axum::http::HeaderMap,
+) -> Result<Response, AppError> {
     if current_player.is_registered() {
         return Ok(Redirect::to("/").into_response());
     }
+    let redirect = referer_path(&headers);
     let tmpl = LoginTemplate {
         player_username: current_player.username.clone(),
         player_is_registered: false,
         player_data: serialize_player_data(&current_player),
         flash: None,
+        redirect,
     };
     Ok(Html(
         tmpl.render()
@@ -130,18 +144,27 @@ pub async fn login_form(current_player: CurrentPlayer) -> Result<Response, AppEr
     .into_response())
 }
 
+#[derive(Deserialize)]
+pub struct RedirectQuery {
+    #[serde(default)]
+    pub redirect: String,
+}
+
 // POST /login
 pub async fn login(
     State(state): State<AppState>,
     session: Session,
+    Query(query): Query<RedirectQuery>,
     Form(form): Form<LoginForm>,
 ) -> Result<Response, AppError> {
+    let redirect = query.redirect.clone();
     let render_error = |msg: String| -> Result<Response, AppError> {
         let tmpl = LoginTemplate {
             player_username: String::new(),
             player_is_registered: false,
             player_data: "{}".to_string(),
             flash: Some(msg),
+            redirect: redirect.clone(),
         };
         Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -183,7 +206,12 @@ pub async fn login(
         .await
         .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
 
-    Ok(Redirect::to("/").into_response())
+    let target = if query.redirect.is_empty() {
+        "/"
+    } else {
+        &query.redirect
+    };
+    Ok(Redirect::to(target).into_response())
 }
 
 // POST /logout
@@ -196,12 +224,7 @@ pub async fn logout(
         .await
         .map_err(|e| AppError::Internal(format!("Session flush error: {e}")))?;
 
-    let redirect = headers
-        .get(axum::http::header::REFERER)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.parse::<axum::http::Uri>().ok())
-        .map(|uri| uri.path().to_owned())
-        .unwrap_or_else(|| "/".to_owned());
-
-    Ok(Redirect::to(&redirect).into_response())
+    let redirect = referer_path(&headers);
+    let target = if redirect.is_empty() { "/" } else { &redirect };
+    Ok(Redirect::to(target).into_response())
 }
