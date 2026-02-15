@@ -15,6 +15,7 @@ import type { Board } from "./wasm-board";
 import { appendToChat, renderChatHistory, setupChat } from "./chat";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
+const SYSTEM_SENDER = "⚑";
 
 function readPlayerData(): PlayerData | undefined {
   const el = document.getElementById("player-data");
@@ -306,6 +307,7 @@ export function go(root: HTMLElement) {
           break;
         case "undo_accepted":
         case "undo_rejected":
+          appendToChat(SYSTEM_SENDER, data.message);
           showUndoResult(data.message);
           if (data.undo_rejected !== undefined) {
             undoRejected = data.undo_rejected;
@@ -327,9 +329,11 @@ export function go(root: HTMLElement) {
           }
           break;
         case "undo_request_sent":
+          appendToChat(SYSTEM_SENDER, data.message);
           showUndoWaitingState(data.message);
           break;
         case "undo_response_needed":
+          appendToChat(SYSTEM_SENDER, data.message);
           showUndoResponseControls(data.requesting_player, data.message);
           break;
         default:

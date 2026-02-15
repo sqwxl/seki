@@ -9,6 +9,9 @@ use crate::db::DbPool;
 use crate::models::player::Player;
 use crate::utils;
 
+pub const BLACK_SYMBOL: &str = "●";
+pub const WHITE_SYMBOL: &str = "○";
+
 #[derive(Debug, Clone, FromRow)]
 #[allow(dead_code)]
 pub struct Game {
@@ -291,7 +294,7 @@ impl GameWithPlayers {
         } else {
             utils::capitalize(&self.game.stage)
         };
-        format!("● {b} vs ○ {w} - {status}")
+        format!("{BLACK_SYMBOL} {b} vs {WHITE_SYMBOL} {w} - {status}")
     }
 
     /// The player whose turn it is.

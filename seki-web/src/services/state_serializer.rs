@@ -49,15 +49,17 @@ fn current_turn_stone(engine: &Engine) -> i32 {
     engine.current_turn_stone().to_int() as i32
 }
 
-/// Build the sender label for a chat message (e.g. "B (alice)").
+/// Build the sender label for a chat message (e.g. "alice ●").
 pub fn sender_label(gwp: &GameWithPlayers, player_id: i64, username: Option<&str>) -> String {
-    let stone_letter = if gwp.black.as_ref().is_some_and(|p| p.id == player_id) {
-        "B"
+    use crate::models::game::{BLACK_SYMBOL, WHITE_SYMBOL};
+
+    let symbol = if gwp.black.as_ref().is_some_and(|p| p.id == player_id) {
+        BLACK_SYMBOL
     } else if gwp.white.as_ref().is_some_and(|p| p.id == player_id) {
-        "W"
+        WHITE_SYMBOL
     } else {
-        "S"
+        "?"
     };
     let name = username.unwrap_or("-");
-    format!("{stone_letter} ({name})")
+    format!("{name} {symbol}")
 }
