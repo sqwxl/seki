@@ -18,6 +18,7 @@ if (analysisRoot) {
     cols: 19,
     rows: 19,
     gobanEl,
+    moveTreeEl: document.getElementById("move-tree"),
     storageKey: "seki:analysis",
     navButtons: findNavButtons(),
     buttons: {

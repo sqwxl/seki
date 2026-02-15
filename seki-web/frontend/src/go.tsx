@@ -211,6 +211,7 @@ export function go(root: HTMLElement) {
     cols: gameState.cols,
     rows: gameState.rows,
     gobanEl,
+    moveTreeEl: document.getElementById("move-tree"),
     storageKey: analysisStorageKey,
     baseMoves: moves.length > 0 ? JSON.stringify(moves) : undefined,
     navButtons: findNavButtons(),
@@ -350,7 +351,7 @@ export function go(root: HTMLElement) {
   passBtn?.addEventListener("click", () => {
     if (analysisMode) {
       if (board && board.engine.pass()) {
-        localStorage.setItem(analysisStorageKey, board.engine.moves_json());
+        localStorage.setItem(analysisStorageKey, board.engine.tree_json());
         board.render();
       }
     } else {

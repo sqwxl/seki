@@ -71,6 +71,18 @@ export type TurnData = {
   pos: [number, number] | null;
 };
 
+// Keep in sync with go-engine GameTree (go-engine/src/game_tree.rs)
+export type TreeNodeData = {
+  turn: TurnData;
+  parent: number | null;
+  children: number[];
+};
+
+export type GameTreeData = {
+  nodes: TreeNodeData[];
+  root_children: number[];
+};
+
 export type PlayerData = {
   id: number;
   display_name: string;

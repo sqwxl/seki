@@ -1,4 +1,4 @@
-use go_engine::{Replay, Stone};
+use go_engine::{GameTree, Replay, Stone};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -66,13 +66,42 @@ impl WasmEngine {
     // -- JSON serialization (WASM boundary) --
 
     pub fn moves_json(&self) -> String {
-        serde_json::to_string(self.inner.moves()).unwrap_or_else(|_| "[]".to_string())
+        serde_json::to_string(&self.inner.moves()).unwrap_or_else(|_| "[]".to_string())
     }
 
     pub fn replace_moves(&mut self, json: &str) -> bool {
         match serde_json::from_str(json) {
             Ok(moves) => {
                 self.inner.replace_moves(moves);
+                true
+            }
+            Err(_) => false,
+        }
+    }
+
+    // -- Tree API --
+
+    pub fn navigate_to(&mut self, node_id: usize) {
+        self.inner.navigate_to(node_id);
+    }
+
+    pub fn current_node_id(&self) -> i32 {
+        match self.inner.current_node() {
+            Some(id) => id as i32,
+            None => -1,
+        }
+    }
+
+    pub fn tree_json(&self) -> String {
+        serde_json::to_string(self.inner.tree()).unwrap_or_else(|_| {
+            r#"{"nodes":[],"root_children":[]}"#.to_string()
+        })
+    }
+
+    pub fn replace_tree(&mut self, json: &str) -> bool {
+        match serde_json::from_str::<GameTree>(json) {
+            Ok(tree) => {
+                self.inner.replace_tree(tree);
                 true
             }
             Err(_) => false,

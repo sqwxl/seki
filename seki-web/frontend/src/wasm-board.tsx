@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { Goban } from "./goban/index";
-import type { MarkerData, Point } from "./goban/types";
+import type { GameTreeData, MarkerData, Point } from "./goban/types";
+import { MoveTree } from "./move-tree";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
@@ -105,6 +106,28 @@ function renderFromEngine(
   );
 }
 
+function renderMoveTree(
+  engine: WasmEngine,
+  moveTreeEl: HTMLElement,
+  doRender: () => void,
+): void {
+  const treeJson = engine.tree_json();
+  const tree: GameTreeData = JSON.parse(treeJson);
+  const currentNodeId = engine.current_node_id();
+
+  render(
+    <MoveTree
+      tree={tree}
+      currentNodeId={currentNodeId}
+      onNavigate={(nodeId) => {
+        engine.navigate_to(nodeId);
+        doRender();
+      }}
+    />,
+    moveTreeEl,
+  );
+}
+
 export type NavAction = "back" | "forward" | "start" | "end";
 
 function navigateEngine(engine: WasmEngine, action: NavAction): boolean {
@@ -128,6 +151,7 @@ export type BoardConfig = {
   cols: number;
   rows: number;
   gobanEl: HTMLElement;
+  moveTreeEl?: HTMLElement | null;
   storageKey?: string;
   baseMoves?: string;
   navButtons?: NavButtons;
@@ -161,7 +185,10 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     ? localStorage.getItem(config.storageKey)
     : null;
   if (saved) {
-    engine.replace_moves(saved);
+    // Try restoring a tree first, fall back to flat moves
+    if (!engine.replace_tree(saved)) {
+      engine.replace_moves(saved);
+    }
     engine.to_latest();
   } else if (baseMoves !== "[]") {
     engine.replace_moves(baseMoves);
@@ -170,7 +197,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   function save() {
     if (config.storageKey) {
-      localStorage.setItem(config.storageKey, engine.moves_json());
+      localStorage.setItem(config.storageKey, engine.tree_json());
     }
   }
 
@@ -186,6 +213,10 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     };
 
     renderFromEngine(engine, config.gobanEl, onVertexClick);
+
+    if (config.moveTreeEl) {
+      renderMoveTree(engine, config.moveTreeEl, doRender);
+    }
 
     if (config.navButtons) {
       updateNavButtons(engine, config.navButtons);
