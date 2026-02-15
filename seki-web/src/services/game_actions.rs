@@ -40,6 +40,7 @@ pub async fn play_move(
     row: i32,
 ) -> Result<Engine, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    require_both_players(&gwp)?;
     let stone = player_stone(&gwp, player_id)?;
 
     let engine = apply_engine_mutation(state, game_id, &gwp.game, |engine| {
@@ -83,6 +84,7 @@ pub async fn play_move(
 
 pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engine, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    require_both_players(&gwp)?;
     let stone = player_stone(&gwp, player_id)?;
 
     let engine = apply_engine_mutation(state, game_id, &gwp.game, |engine| {
@@ -126,6 +128,7 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
 
 pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<Engine, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    require_both_players(&gwp)?;
 
     if gwp.game.result.is_some() {
         return Err(AppError::BadRequest("The game is over".to_string()));
@@ -411,6 +414,15 @@ pub async fn load_game_and_check_player(
     }
 
     Ok(gwp)
+}
+
+fn require_both_players(gwp: &GameWithPlayers) -> Result<(), AppError> {
+    if gwp.is_open() {
+        return Err(AppError::BadRequest(
+            "Waiting for opponent to join".to_string(),
+        ));
+    }
+    Ok(())
 }
 
 fn player_stone(gwp: &GameWithPlayers, player_id: i64) -> Result<Stone, AppError> {

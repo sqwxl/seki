@@ -120,10 +120,7 @@ export function go(root: HTMLElement) {
     if (gameState.stage === "territory_review") {
       return true;
     }
-    return (
-      (gameState.stage === "unstarted" || isPlayStage(gameState.stage)) &&
-      currentTurn === playerStone
-    );
+    return isPlayStage(gameState.stage) && currentTurn === playerStone;
   }
 
   function handleVertexClick(col: number, row: number): boolean {
