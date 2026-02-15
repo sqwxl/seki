@@ -1,8 +1,5 @@
 {% extends "base.html" %}
-{% block head %}
-    <link rel="stylesheet" href="/static/css/go.css" />
-    <script src="/static/dist/bundle.js" type="module" defer></script>
-{% endblock %}
+{% block head %}<script src="/static/dist/bundle.js" type="module" defer></script>{% endblock %}
 {% macro game_link(gwp) %}
     <li>
         <a href="/games/{{ gwp.game.id }}">{{ gwp.description() }}</a>
