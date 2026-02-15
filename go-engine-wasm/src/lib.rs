@@ -1,20 +1,9 @@
-use go_engine::{Engine, Stone, Turn};
+use go_engine::{Replay, Stone};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct WasmEngine {
-    cols: u8,
-    rows: u8,
-    all_moves: Vec<Turn>,
-    view_index: usize, // 0 = empty board, len = latest
-    engine: Engine,     // cached at view_index
-}
-
-impl WasmEngine {
-    fn rebuild(&mut self) {
-        let moves = self.all_moves[..self.view_index].to_vec();
-        self.engine = Engine::with_moves(self.cols, self.rows, moves);
-    }
+    inner: Replay,
 }
 
 #[wasm_bindgen]
@@ -22,205 +11,143 @@ impl WasmEngine {
     #[wasm_bindgen(constructor)]
     pub fn new(cols: u8, rows: u8) -> Self {
         Self {
-            cols,
-            rows,
-            all_moves: Vec::new(),
-            view_index: 0,
-            engine: Engine::new(cols, rows),
+            inner: Replay::new(cols, rows),
         }
     }
 
-    /// Play the current turn's stone at (col, row). Returns true if the move was legal.
-    /// Truncates any future moves beyond view_index before playing.
+    // -- Game actions (delegate to Replay) --
+
     pub fn try_play(&mut self, col: u8, row: u8) -> bool {
-        self.all_moves.truncate(self.view_index);
-        let stone = self.engine.current_turn_stone();
-        if self.engine.try_play(stone, (col, row)).is_ok() {
-            self.all_moves.push(Turn::play(stone, (col, row)));
-            self.view_index = self.all_moves.len();
-            true
-        } else {
-            false
-        }
+        self.inner.try_play(col, row)
     }
 
-    /// Pass the current turn. Returns true on success.
-    /// Truncates any future moves beyond view_index before passing.
     pub fn pass(&mut self) -> bool {
-        self.all_moves.truncate(self.view_index);
-        let stone = self.engine.current_turn_stone();
-        if self.engine.try_pass(stone).is_ok() {
-            self.all_moves.push(Turn::pass(stone));
-            self.view_index = self.all_moves.len();
-            true
-        } else {
-            false
-        }
+        self.inner.pass()
     }
 
-    /// Undo the last move (removes it from history).
     pub fn undo(&mut self) -> bool {
-        if self.all_moves.is_empty() {
-            return false;
-        }
-        self.all_moves.pop();
-        self.view_index = self.all_moves.len();
-        self.rebuild();
-        true
+        self.inner.undo()
     }
 
-    // -- Navigation --
+    // -- Navigation (delegate to Replay) --
 
-    /// Step back one move. Returns false if already at start.
     pub fn back(&mut self) -> bool {
-        if self.view_index == 0 {
-            return false;
-        }
-        self.view_index -= 1;
-        self.rebuild();
-        true
+        self.inner.back()
     }
 
-    /// Step forward one move. Returns false if already at latest.
     pub fn forward(&mut self) -> bool {
-        if self.view_index >= self.all_moves.len() {
-            return false;
-        }
-        self.view_index += 1;
-        // Optimize: rebuild from scratch (could replay one move, but rebuild is simple and correct)
-        self.rebuild();
-        true
+        self.inner.forward()
     }
 
-    /// Jump to the start (empty board).
     pub fn to_start(&mut self) {
-        self.view_index = 0;
-        self.rebuild();
+        self.inner.to_start();
     }
 
-    /// Jump to the latest move.
     pub fn to_latest(&mut self) {
-        self.view_index = self.all_moves.len();
-        self.rebuild();
+        self.inner.to_latest();
     }
 
     pub fn view_index(&self) -> usize {
-        self.view_index
+        self.inner.view_index()
     }
 
     pub fn total_moves(&self) -> usize {
-        self.all_moves.len()
+        self.inner.total_moves()
     }
 
     pub fn is_at_latest(&self) -> bool {
-        self.view_index == self.all_moves.len()
+        self.inner.is_at_latest()
     }
 
     pub fn is_at_start(&self) -> bool {
-        self.view_index == 0
+        self.inner.is_at_start()
     }
 
-    /// Export all moves as a JSON string.
+    // -- JSON serialization (WASM boundary) --
+
     pub fn moves_json(&self) -> String {
-        serde_json::to_string(&self.all_moves).unwrap_or_else(|_| "[]".to_string())
+        serde_json::to_string(self.inner.moves()).unwrap_or_else(|_| "[]".to_string())
     }
 
-    // -- Live game support --
-
-    /// Replace the move history from a JSON array of turns.
-    /// Format: [{"kind":"play","stone":1,"pos":[col,row]}, {"kind":"pass","stone":-1,"pos":null}, ...]
-    /// If the current view_index is still valid, it stays; otherwise clamps to the new length.
     pub fn replace_moves(&mut self, json: &str) -> bool {
-        let parsed: Result<Vec<Turn>, _> = serde_json::from_str(json);
-        match parsed {
+        match serde_json::from_str(json) {
             Ok(moves) => {
-                let new_len = moves.len();
-                self.all_moves = moves;
-                if self.view_index > new_len {
-                    self.view_index = new_len;
-                }
-                self.rebuild();
+                self.inner.replace_moves(moves);
                 true
             }
             Err(_) => false,
         }
     }
 
-    // -- Delegates to cached engine --
+    // -- Engine accessors (WASM-friendly types) --
 
-    /// Flat board array (row-major, length = cols * rows). 1 = Black, -1 = White, 0 = empty.
     pub fn board(&self) -> js_sys::Int8Array {
-        js_sys::Int8Array::from(self.engine.board())
+        js_sys::Int8Array::from(self.inner.engine().board())
     }
 
     pub fn cols(&self) -> u8 {
-        self.engine.cols()
+        self.inner.engine().cols()
     }
 
     pub fn rows(&self) -> u8 {
-        self.engine.rows()
+        self.inner.engine().rows()
     }
 
-    /// 1 = Black's turn, -1 = White's turn.
     pub fn current_turn_stone(&self) -> i8 {
-        self.engine.current_turn_stone().to_int()
+        self.inner.engine().current_turn_stone().to_int()
     }
 
     pub fn captures_black(&self) -> u32 {
-        self.engine.stone_captures(Stone::Black)
+        self.inner.engine().stone_captures(Stone::Black)
     }
 
     pub fn captures_white(&self) -> u32 {
-        self.engine.stone_captures(Stone::White)
+        self.inner.engine().stone_captures(Stone::White)
     }
 
     pub fn is_legal(&self, col: u8, row: u8) -> bool {
-        let stone = self.engine.current_turn_stone();
-        self.engine.is_legal((col, row), stone)
+        let engine = self.inner.engine();
+        let stone = engine.current_turn_stone();
+        engine.is_legal((col, row), stone)
     }
 
     pub fn has_ko(&self) -> bool {
-        self.engine.ko().is_some()
+        self.inner.engine().ko().is_some()
     }
 
     pub fn ko_col(&self) -> i8 {
-        match self.engine.ko() {
+        match self.inner.engine().ko() {
             Some(ko) => ko.pos.0 as i8,
             None => -1,
         }
     }
 
     pub fn ko_row(&self) -> i8 {
-        match self.engine.ko() {
+        match self.inner.engine().ko() {
             Some(ko) => ko.pos.1 as i8,
             None => -1,
         }
     }
 
     pub fn move_count(&self) -> usize {
-        self.engine.moves().len()
+        self.inner.engine().moves().len()
     }
 
-    /// Whether the current view has a last played move (i.e. not at start and last move was a play).
     pub fn has_last_move(&self) -> bool {
-        self.view_index > 0 && self.all_moves[self.view_index - 1].is_play()
+        self.inner.last_play_pos().is_some()
     }
 
     pub fn last_move_col(&self) -> i8 {
-        if self.view_index > 0 {
-            if let Some((col, _)) = self.all_moves[self.view_index - 1].pos {
-                return col as i8;
-            }
-        }
-        -1
+        self.inner
+            .last_play_pos()
+            .map(|(col, _)| col as i8)
+            .unwrap_or(-1)
     }
 
     pub fn last_move_row(&self) -> i8 {
-        if self.view_index > 0 {
-            if let Some((_, row)) = self.all_moves[self.view_index - 1].pos {
-                return row as i8;
-            }
-        }
-        -1
+        self.inner
+            .last_play_pos()
+            .map(|(_, row)| row as i8)
+            .unwrap_or(-1)
     }
 }
