@@ -5,6 +5,7 @@ use sqlx::FromRow;
 
 use crate::db::DbPool;
 use crate::models::player::Player;
+use crate::utils;
 
 #[derive(Debug, Clone, FromRow)]
 #[allow(dead_code)]
@@ -294,6 +295,25 @@ impl GameWithPlayers {
 
     pub fn has_pending_undo_request(&self) -> bool {
         self.game.undo_requesting_player_id.is_some()
+    }
+
+    pub fn description(&self) -> String {
+        let b = self
+            .black
+            .as_ref()
+            .map(|p| p.display_name())
+            .unwrap_or("?");
+        let w = self
+            .white
+            .as_ref()
+            .map(|p| p.display_name())
+            .unwrap_or("?");
+        let status = if let Some(ref result) = self.game.result {
+            result.clone()
+        } else {
+            utils::capitalize(&self.game.stage)
+        };
+        format!("● {b} vs ○ {w} - {status}")
     }
 
     pub fn opponent_of(&self, player_id: i64) -> Option<&Player> {

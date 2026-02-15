@@ -85,6 +85,7 @@ export type StateMessage = {
   black: PlayerData | null;
   white: PlayerData | null;
   result: string | null;
+  description: string;
 };
 
 export type ChatMessage = {

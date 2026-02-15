@@ -87,9 +87,6 @@ export function go(root: HTMLElement) {
   let gameState = props.state;
   let currentTurn: number | null = null;
   let moves: TurnData[] = [];
-  let black = props.black;
-  let white = props.white;
-  let result: string | null = null;
 
   // Analysis mode: when true, vertex clicks go to local engine; when false, live play via WS
   let analysisMode = false;
@@ -260,18 +257,10 @@ export function go(root: HTMLElement) {
     board.updateNav();
   });
 
-  function updateTitle(): void {
-    if (!titleEl) {
-      return;
+  function updateTitle(description: string): void {
+    if (titleEl) {
+      titleEl.textContent = description;
     }
-    const b = black ? black.display_name : "?";
-    const w = white ? white.display_name : "?";
-    const status = result ?? capitalize(gameState.stage);
-    titleEl.textContent = `● ${b} vs ○ ${w} - ${status}`;
-  }
-
-  function capitalize(s: string): string {
-    return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
   function connectWS(): void {
@@ -291,9 +280,6 @@ export function go(root: HTMLElement) {
           gameState = data.state;
           currentTurn = data.current_turn_stone;
           moves = data.moves ?? [];
-          black = data.black;
-          white = data.white;
-          result = data.result;
 
           console.debug("WebSocket: state updated", {
             currentState: gameState,
@@ -308,7 +294,7 @@ export function go(root: HTMLElement) {
             board.updateNav();
           }
           updateGameActions(gameState.stage, currentTurn);
-          updateTitle();
+          updateTitle(data.description);
           break;
         case "chat":
           appendToChat(data.sender, data.text);
@@ -333,7 +319,6 @@ export function go(root: HTMLElement) {
               }
             }
             updateGameActions(data.state.stage, currentTurn);
-            updateTitle();
           }
           break;
         case "undo_request_sent":

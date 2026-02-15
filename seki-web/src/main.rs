@@ -17,6 +17,7 @@ mod routes;
 mod services;
 mod session;
 mod templates;
+mod utils;
 mod ws;
 
 #[derive(Clone)]

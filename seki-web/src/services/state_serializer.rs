@@ -34,7 +34,8 @@ pub fn serialize_state(gwp: &GameWithPlayers, engine: &Engine) -> serde_json::Va
         "moves": moves,
         "black": gwp.black.as_ref().map(PlayerData::from),
         "white": gwp.white.as_ref().map(PlayerData::from),
-        "result": gwp.game.result
+        "result": gwp.game.result,
+        "description": gwp.description()
     })
 }
 

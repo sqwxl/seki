@@ -1,18 +1,26 @@
 {% extends "base.html" %}
 {% import "macros/board_controls.html" as controls %}
-{% import "macros/game.html" as game_macros %}
 {% block head %}
     <link rel="stylesheet" href="/static/css/goban.css" />
     <script src="/static/dist/bundle.js" type="module" defer></script>
 {% endblock %}
 {% block content %}
     <div style="display: flex; flex-direction: column; align-items: center">
-        <h2 id="game-title">{{ game_macros::game_short_desc(gwp) }}</h2>
+        <h2 id="game-title">{{ gwp.description() }}</h2>
+        {% if !is_creator && !is_private && has_open_slot && !is_player %}
+            <form action="/games/{{ game_id }}/join" method="post">
+                <button type="submit">Join Game</button>
+            </form>
+        {% endif %}
         <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
             <div id="goban"
                  style="width: min(70vw, 70dvh);
                         aspect-ratio: {{ cols }}/{{ rows }}"></div>
-            <div style="display: flex; gap: 0.5em; align-items: center; justify-content: center; margin-top: 0.5em">
+            <div style="display: flex;
+                        gap: 0.5em;
+                        align-items: center;
+                        justify-content: center;
+                        margin-top: 0.5em">
                 {{ controls::nav_bar() }}
                 {% if is_player %}
                     <div id="game-actions" style="display: flex; gap: 0.25em">
@@ -22,14 +30,21 @@
                     </div>
                 {% endif %}
                 <button id="analyze-btn">Analyze</button>
-                <div id="analysis-controls" style="display: none; gap: 0.25em; align-items: center">
+                <div id="analysis-controls"
+                     style="display: none;
+                            gap: 0.25em;
+                            align-items: center">
                     <button id="undo-btn">Undo</button>
                     <button id="pass-btn">Pass</button>
                     <button id="reset-btn">Reset</button>
                     <button id="exit-analysis-btn">Exit</button>
                 </div>
             </div>
-            <div style="display: flex; gap: 1em; align-items: center; justify-content: center; margin-top: 0.5em">
+            <div style="display: flex;
+                        gap: 1em;
+                        align-items: center;
+                        justify-content: center;
+                        margin-top: 0.5em">
                 <div id="status"></div>
                 <div id="captures"></div>
             </div>
@@ -64,11 +79,6 @@
                         margin-top: 0.2em;
                     }
             </style>
-            {% if !is_creator && !is_private && has_open_slot && !is_player %}
-                <form action="/games/{{ game_id }}/join" method="post">
-                    <button type="submit">Join Game</button>
-                </form>
-            {% endif %}
             <div id="chat-box" class="chat-box" data-chat-log="{{ chat_log_json }}"></div>
             <form id="chat-form">
                 <input type="text"

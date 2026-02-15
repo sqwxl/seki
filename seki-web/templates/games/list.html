@@ -1,12 +1,11 @@
 {% extends "base.html" %}
-{% import "macros/game.html" as game_macros %}
 {% block head %}
     <link rel="stylesheet" href="/static/css/go.css" />
     <script src="/static/dist/bundle.js" type="module" defer></script>
 {% endblock %}
 {% macro game_link(gwp) %}
     <li>
-        <a href="/games/{{ gwp.game.id }}">{{ game_macros::game_short_desc(gwp) }}</a>
+        <a href="/games/{{ gwp.game.id }}">{{ gwp.description() }}</a>
     </li>
 {% endmacro %}
 {% block content %}
