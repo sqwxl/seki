@@ -1,0 +1,15 @@
+.controls {
+  display: flex;
+  gap: 0.5em;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.5em;
+}
+
+.controls-navbar {
+  display: flex;
+  gap: 0.25em;
+  justify-content: center;
+  align-items: center;
+  font-family: monospace;
+}

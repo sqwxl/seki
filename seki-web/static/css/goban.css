@@ -15,12 +15,15 @@
   border: var(--goban-board-border-width) solid var(--goban-board-border-color);
   color: var(--goban-board-foreground-color);
 }
-.goban * + * {
-  margin-top: 0;
+
+.goban-container {
+  width: min(70vw, 70vh);
 }
+
 .goban:not(.goban-coordinates) {
   padding: 0.25em;
 }
+
 .goban-image {
   background: url("/static/images/board.png")
     var(--goban-board-background-color);

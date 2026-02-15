@@ -10,11 +10,19 @@
         <h2>Analysis Board</h2>
         <div id="analysis">
             <div id="goban" style="width: min(70vw, 70dvh); aspect-ratio: 19/19"></div>
-            <div style="display: flex; gap: 0.5em; align-items: center; justify-content: center; margin-top: 0.5em">
+            <div style="display: flex;
+                        gap: 0.5em;
+                        align-items: center;
+                        justify-content: center;
+                        margin-top: 0.5em">
                 {{ controls::nav_bar() }}
                 <button id="pass-btn">Pass</button>
             </div>
-            <div style="display: flex; gap: 1em; align-items: center; justify-content: center; margin-top: 0.5em">
+            <div style="display: flex;
+                        gap: 1em;
+                        align-items: center;
+                        justify-content: center;
+                        margin-top: 0.5em">
                 <span id="analysis-turn"></span>
                 <span id="analysis-captures"></span>
             </div>
