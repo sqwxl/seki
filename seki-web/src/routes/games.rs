@@ -65,6 +65,7 @@ pub struct CreateGameForm {
     pub handicap: Option<i32>,
     pub is_private: Option<String>,
     pub is_handicap: Option<String>,
+    pub allow_undo: Option<String>,
     pub color: Option<String>,
     pub invite_email: Option<String>,
     #[allow(dead_code)]
@@ -85,6 +86,7 @@ pub async fn create_game(
         handicap: form.handicap.unwrap_or(2),
         is_private: form.is_private.as_deref() == Some("true"),
         is_handicap: form.is_handicap.as_deref() == Some("true"),
+        allow_undo: form.allow_undo.as_deref() == Some("true"),
         color: form.color.unwrap_or_else(|| "black".to_string()),
         invite_email: form.invite_email,
     };

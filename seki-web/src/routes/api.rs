@@ -105,6 +105,7 @@ struct CreateGameRequest {
     handicap: Option<i32>,
     is_private: Option<bool>,
     is_handicap: Option<bool>,
+    allow_undo: Option<bool>,
     color: Option<String>,
     invite_email: Option<String>,
 }
@@ -198,6 +199,7 @@ async fn create_game(
         handicap: body.handicap.unwrap_or(0),
         is_private: body.is_private.unwrap_or(false),
         is_handicap: body.is_handicap.unwrap_or(false),
+        allow_undo: body.allow_undo.unwrap_or(false),
         color: body.color.unwrap_or_else(|| "black".to_string()),
         invite_email: body.invite_email,
     };

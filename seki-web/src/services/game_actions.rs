@@ -230,6 +230,12 @@ pub async fn request_undo(
 ) -> Result<UndoRequested, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
+    if !gwp.game.allow_undo {
+        return Err(AppError::BadRequest(
+            "Takebacks are not allowed in this game".into(),
+        ));
+    }
+
     if state.registry.is_undo_requested(game_id).await {
         return Err(AppError::BadRequest(
             "An undo request is already pending".to_string(),

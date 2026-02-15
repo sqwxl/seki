@@ -12,6 +12,7 @@ pub struct CreateGameParams {
     pub handicap: i32,
     pub is_private: bool,
     pub is_handicap: bool,
+    pub allow_undo: bool,
     pub color: String,
     pub invite_email: Option<String>,
 }
@@ -59,6 +60,7 @@ pub async fn create_game(
         params.handicap,
         params.is_private,
         params.is_handicap,
+        params.allow_undo,
         &invite_token,
     )
     .await?;
