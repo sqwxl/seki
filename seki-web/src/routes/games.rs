@@ -124,11 +124,15 @@ pub async fn show_game(
         .iter()
         .map(|msg| {
             let sender = match msg.player_id {
-                Some(pid) => state_serializer::sender_label(
-                    &gwp,
-                    pid,
-                    None, // We'd need to load each player for username; keep simple
-                ),
+                Some(pid) => {
+                    let username = gwp
+                        .black
+                        .as_ref()
+                        .filter(|p| p.id == pid)
+                        .or(gwp.white.as_ref().filter(|p| p.id == pid))
+                        .map(|p| p.username.as_str());
+                    state_serializer::sender_label(&gwp, pid, username)
+                }
                 None => "\u{2691}".to_string(), // ⚑ for system messages
             };
             serde_json::json!({
@@ -139,13 +143,8 @@ pub async fn show_game(
             })
         })
         .collect();
-    let chat_log_json = serde_json::to_string(&chat_log).unwrap_or_else(|_| "[]".to_string());
-    // HTML-escape the JSON for embedding in a data attribute
-    let chat_log_json = chat_log_json
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;");
+    let chat_log_json =
+        serde_json::to_string(&chat_log).unwrap_or_else(|_| "[]".to_string());
 
     let is_player = gwp.has_player(current_player.id);
     let is_creator = gwp.game.creator_id == Some(current_player.id);
