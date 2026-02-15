@@ -1,4 +1,4 @@
-use go_engine::{Engine, Stage};
+use go_engine::{Engine, Stage, Stone};
 use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
@@ -25,6 +25,30 @@ pub fn serialize_state(
         .map(|t| serde_json::to_value(t).unwrap_or_default())
         .collect();
 
+    let description = if stage == Stage::Play {
+        match engine.current_turn_stone() {
+            Stone::Black => "Black to play",
+            Stone::White => "White to play",
+        }
+    } else {
+        ""
+    };
+    // Fall back to gwp.description() when not in play stage
+    let description = if description.is_empty() {
+        gwp.description()
+    } else {
+        let b = gwp.black.as_ref().map(|p| p.display_name()).unwrap_or("?");
+        let w = gwp.white.as_ref().map(|p| p.display_name()).unwrap_or("?");
+        format!(
+            "{} {} vs {} {} - {}",
+            crate::models::game::BLACK_SYMBOL,
+            b,
+            crate::models::game::WHITE_SYMBOL,
+            w,
+            description
+        )
+    };
+
     json!({
         "kind": "state",
         "stage": stage.to_string(),
@@ -35,7 +59,7 @@ pub fn serialize_state(
         "black": gwp.black.as_ref().map(PlayerData::from),
         "white": gwp.white.as_ref().map(PlayerData::from),
         "result": gwp.game.result,
-        "description": gwp.description(),
+        "description": description,
         "undo_rejected": gwp.game.undo_rejected
     })
 }
