@@ -1,7 +1,6 @@
 import { render } from "preact";
 import { Goban } from "./goban/index";
 import type {
-  GameStage,
   GameState,
   IncomingMessage,
   InitialGameProps,
@@ -101,20 +100,12 @@ export function go(root: HTMLElement) {
   const statusEl = document.getElementById("status");
   const titleEl = document.getElementById("game-title");
   const gobanEl = document.getElementById("goban")!;
-  const analyzeBtn = document.getElementById(
-    "analyze-btn",
-  ) as HTMLButtonElement | null;
-  const analysisControls = document.getElementById("analysis-controls");
-  const gameActions = document.getElementById("game-actions");
-  const exitAnalysisBtn = document.getElementById(
-    "exit-analysis-btn",
-  ) as HTMLButtonElement | null;
-  const gamePassBtn = document.getElementById(
-    "game-pass-btn",
-  ) as HTMLButtonElement | null;
-  const resignBtn = document.getElementById(
-    "resign-btn",
-  ) as HTMLButtonElement | null;
+  const passBtn = document.getElementById("pass-btn") as HTMLButtonElement | null;
+  const resignBtn = document.getElementById("resign-btn") as HTMLButtonElement | null;
+  const requestUndoBtn = document.getElementById("request-undo-btn") as HTMLButtonElement | null;
+  const resetBtn = document.getElementById("reset-btn") as HTMLButtonElement | null;
+  const analyzeBtn = document.getElementById("analyze-btn") as HTMLButtonElement | null;
+  const exitAnalysisBtn = document.getElementById("exit-analysis-btn") as HTMLButtonElement | null;
 
   function isLiveClickable(): boolean {
     if (analysisMode) {
@@ -147,42 +138,19 @@ export function go(root: HTMLElement) {
 
   function enterAnalysis() {
     analysisMode = true;
-    if (analysisControls) {
-      analysisControls.style.display = "flex";
-    }
-    if (gameActions) {
-      gameActions.style.display = "none";
-    }
-    if (analyzeBtn) {
-      analyzeBtn.style.display = "none";
-    }
+    updateActions();
     if (board) {
       board.render();
     }
-    updateGameActions(gameState.stage, currentTurn);
   }
 
   function exitAnalysis() {
     analysisMode = false;
-    if (analysisControls) {
-      analysisControls.style.display = "none";
-    }
-    if (gameActions) {
-      gameActions.style.display = "";
-    }
-    if (analyzeBtn) {
-      analyzeBtn.style.display = "";
-    }
-
     if (board) {
-      // When exiting analysis, if at latest, render from server state instead of engine
-      if (board.engine.is_at_latest()) {
-        renderGoban(gameState);
-      } else {
-        board.render();
-      }
+      board.engine.to_latest();
+      renderGoban(gameState);
     }
-    updateGameActions(gameState.stage, currentTurn);
+    updateActions();
   }
 
   // Render from server state (live board at latest position, not in analysis)
@@ -237,14 +205,12 @@ export function go(root: HTMLElement) {
     baseMoves: moves.length > 0 ? JSON.stringify(moves) : undefined,
     navButtons: findNavButtons(),
     buttons: {
-      undo: document.getElementById("undo-btn") as HTMLButtonElement | null,
-      pass: document.getElementById("pass-btn") as HTMLButtonElement | null,
-      reset: document.getElementById("reset-btn") as HTMLButtonElement | null,
+      reset: resetBtn,
     },
     onVertexClick: (col, row) => handleVertexClick(col, row),
     onRender: () => {
       // When the board renders from the engine, update undo controls visibility
-      updateGameActions(gameState.stage, currentTurn);
+      updateActions();
     },
     onEscape: () => {
       if (analysisMode) {
@@ -313,7 +279,7 @@ export function go(root: HTMLElement) {
             }
             board.updateNav();
           }
-          updateGameActions(gameState.stage, currentTurn);
+          updateActions();
           updateTitle(data.description);
           updateStatus();
           break;
@@ -353,7 +319,7 @@ export function go(root: HTMLElement) {
                 board.updateNav();
               }
             }
-            updateGameActions(data.state.stage, currentTurn);
+            updateActions();
             updateStatus();
           }
           break;
@@ -394,7 +360,16 @@ export function go(root: HTMLElement) {
   connectWS();
 
   // Game action handlers
-  gamePassBtn?.addEventListener("click", () => channel.pass());
+  passBtn?.addEventListener("click", () => {
+    if (analysisMode) {
+      if (board && board.engine.pass()) {
+        localStorage.setItem(analysisStorageKey, board.engine.moves_json());
+        board.render();
+      }
+    } else {
+      channel.pass();
+    }
+  });
   resignBtn?.addEventListener("click", () => channel.resign());
 
   // Analysis mode handlers
@@ -417,14 +392,9 @@ export function go(root: HTMLElement) {
   setupChat((text) => channel.say(text));
 
   // Undo button listeners
-  document.getElementById("request-undo-btn")?.addEventListener("click", () => {
+  requestUndoBtn?.addEventListener("click", () => {
     channel.requestUndo();
-    (
-      document.getElementById("request-undo-btn") as HTMLButtonElement
-    ).disabled = true;
-    document.getElementById("undo-notification")!.style.display = "block";
-    document.getElementById("undo-notification")!.textContent =
-      "Undo request sent. Waiting for opponent response...";
+    requestUndoBtn.disabled = true;
   });
 
   document
@@ -435,42 +405,52 @@ export function go(root: HTMLElement) {
     .getElementById("reject-undo-btn")
     ?.addEventListener("click", () => channel.rejectUndo());
 
-  function updateGameActions(stage: GameStage, turnStone: number | null): void {
-    if (!gameActions) {
+  function updateActions(): void {
+    if (analysisMode) {
+      if (passBtn) { passBtn.style.display = ""; }
+      if (resignBtn) { resignBtn.style.display = "none"; }
+      if (requestUndoBtn) { requestUndoBtn.style.display = "none"; }
+      if (resetBtn) { resetBtn.style.display = ""; }
+      if (analyzeBtn) { analyzeBtn.style.display = "none"; }
+      if (exitAnalysisBtn) { exitAnalysisBtn.style.display = ""; }
       return;
     }
 
-    if (analysisMode || stage !== "play") {
-      gameActions.style.display = "none";
-      return;
+    // Live mode
+    const isPlay = gameState.stage === "play";
+
+    if (passBtn) {
+      passBtn.style.display = playerStone !== 0 && isPlay ? "" : "none";
     }
+    if (resignBtn) {
+      resignBtn.style.display = isPlay ? "" : "none";
+    }
+    if (resetBtn) { resetBtn.style.display = "none"; }
+    if (analyzeBtn) { analyzeBtn.style.display = ""; }
+    if (exitAnalysisBtn) { exitAnalysisBtn.style.display = "none"; }
 
-    gameActions.style.display = "flex";
-
-    const requestBtn = document.getElementById(
-      "request-undo-btn",
-    ) as HTMLButtonElement | null;
-    if (requestBtn) {
+    if (requestUndoBtn) {
+      requestUndoBtn.style.display = isPlay ? "" : "none";
       const canUndo =
         moves.length > 0 &&
         playerStone !== 0 &&
-        turnStone !== playerStone &&
+        currentTurn !== playerStone &&
         !undoRejected;
 
-      requestBtn.disabled = !canUndo;
+      requestUndoBtn.disabled = !canUndo;
       if (undoRejected) {
-        requestBtn.title = "Undo was rejected for this move";
+        requestUndoBtn.title = "Undo was rejected for this move";
       } else if (moves.length === 0) {
-        requestBtn.title = "No moves to undo";
-      } else if (turnStone === playerStone) {
-        requestBtn.title = "Cannot undo on your turn";
+        requestUndoBtn.title = "No moves to undo";
+      } else if (currentTurn === playerStone) {
+        requestUndoBtn.title = "Cannot undo on your turn";
       } else {
-        requestBtn.title = "Request to undo your last move";
+        requestUndoBtn.title = "Request to undo your last move";
       }
     }
   }
 
-  updateGameActions(gameState.stage, currentTurn);
+  updateActions();
 }
 
 function showError(message: string): void {

@@ -2,6 +2,7 @@
 {% import "macros/board_controls.html" as controls %}
 {% block head %}
     <link rel="stylesheet" href="/static/css/goban.css" />
+    <link rel="stylesheet" href="/static/css/controls.css" />
     <script src="/static/dist/bundle.js" type="module" defer></script>
 {% endblock %}
 {% block content %}
@@ -14,30 +15,22 @@
         {% endif %}
         <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
             <div id="goban"
-                 style="width: min(70vw, 70dvh);
-                        aspect-ratio: {{ cols }}/{{ rows }}"></div>
-            <div style="display: flex;
-                        gap: 0.5em;
-                        align-items: center;
-                        justify-content: center;
-                        margin-top: 0.5em">
+                 class="goban-container"
+                 style="aspect-ratio: {{ cols }}/{{ rows }}"></div>
+            <div class="controls">
                 {{ controls::nav_bar() }}
-                {% if is_player %}
-                    <div id="game-actions" style="display: flex; gap: 0.25em">
-                        <button id="game-pass-btn">Pass</button>
-                        <button id="resign-btn">Resign</button>
-                        <button id="request-undo-btn">Request Undo</button>
-                    </div>
-                {% endif %}
-                <button id="analyze-btn">Analyze</button>
-                <div id="analysis-controls"
-                     style="display: none;
+                <div id="action-buttons"
+                     style="display: flex;
                             gap: 0.25em;
                             align-items: center">
-                    <button id="undo-btn">Undo</button>
-                    <button id="pass-btn">Pass</button>
-                    <button id="reset-btn">Reset</button>
-                    <button id="exit-analysis-btn">Exit</button>
+                    <button id="pass-btn"{% if !is_player %} style="display: none"{% endif %}>Pass</button>
+                    {% if is_player %}
+                        <button id="resign-btn">Resign</button>
+                        <button id="request-undo-btn">Undo</button>
+                    {% endif %}
+                    <button id="reset-btn" style="display: none">Reset</button>
+                    <button id="analyze-btn">Analyze</button>
+                    <button id="exit-analysis-btn" style="display: none">Back to game</button>
                 </div>
             </div>
             <div style="display: flex;
@@ -50,7 +43,6 @@
             </div>
             {% if is_player %}
                 <div id="undo-controls">
-                    <div id="undo-notification" style="display: none"></div>
                     <div id="undo-response-controls" style="display: none">
                         <p>Opponent has requested to undo their last move.</p>
                         <button id="accept-undo-btn">Accept</button>
