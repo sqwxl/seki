@@ -4,13 +4,32 @@ use sqlx::FromRow;
 
 use crate::db::DbPool;
 
+const ADJECTIVES: &[&str] = &[
+    "bold", "calm", "clever", "swift", "keen", "bright", "gentle", "nimble", "quiet", "fierce",
+    "wise", "brave", "noble", "steady", "agile", "deft", "glad", "proud", "lively", "merry",
+    "witty", "daring", "eager", "hardy", "jolly", "placid", "shy", "stout", "vivid", "warm",
+];
+
+const NOUNS: &[&str] = &[
+    "crane", "tiger", "dragon", "bear", "eagle", "fox", "hawk", "heron", "otter", "panda",
+    "raven", "robin", "stone", "wolf", "badger", "cedar", "dove", "elm", "finch", "grove", "hare",
+    "jade", "koi", "lark", "maple", "oak", "pine", "reed", "sage", "sparrow", "thorn", "wren",
+];
+
+fn generate_name() -> String {
+    let mut rng = rand::rng();
+    let adj = ADJECTIVES[rng.random_range(0..ADJECTIVES.len())];
+    let noun = NOUNS[rng.random_range(0..NOUNS.len())];
+    format!("{adj}-{noun}")
+}
+
 #[derive(Debug, Clone, FromRow)]
 #[allow(dead_code)] // Fields populated by SELECT * via sqlx
 pub struct Player {
     pub id: i64,
     pub session_token: Option<String>,
     pub email: Option<String>,
-    pub username: Option<String>,
+    pub username: String,
     pub password_hash: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -51,10 +70,23 @@ impl Player {
 
     pub async fn create(pool: &DbPool) -> Result<Player, sqlx::Error> {
         let token = generate_token();
-        sqlx::query_as::<_, Player>("INSERT INTO players (session_token) VALUES ($1) RETURNING *")
+        // Retry with a new name on unique constraint violation
+        loop {
+            let name = generate_name();
+            let result = sqlx::query_as::<_, Player>(
+                "INSERT INTO players (session_token, username) VALUES ($1, $2) RETURNING *",
+            )
             .bind(&token)
+            .bind(&name)
             .fetch_one(pool)
-            .await
+            .await;
+
+            match result {
+                Ok(player) => return Ok(player),
+                Err(sqlx::Error::Database(e)) if e.is_unique_violation() => continue,
+                Err(e) => return Err(e),
+            }
+        }
     }
 
     pub async fn find_or_create_by_email(
@@ -64,18 +96,22 @@ impl Player {
         if let Some(player) = Self::find_by_email(pool, email).await? {
             return Ok(player);
         }
-        sqlx::query_as::<_, Player>("INSERT INTO players (email) VALUES ($1) RETURNING *")
-            .bind(email)
-            .fetch_one(pool)
-            .await
+        let name = generate_name();
+        sqlx::query_as::<_, Player>(
+            "INSERT INTO players (email, username) VALUES ($1, $2) RETURNING *",
+        )
+        .bind(email)
+        .bind(&name)
+        .fetch_one(pool)
+        .await
     }
 
     pub fn display_name(&self) -> &str {
-        self.username.as_deref().unwrap_or("Anonymous")
+        &self.username
     }
 
     pub fn is_registered(&self) -> bool {
-        self.username.is_some()
+        self.password_hash.is_some()
     }
 
     pub async fn find_by_username(

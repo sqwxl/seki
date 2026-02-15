@@ -7,7 +7,7 @@
 {% endblock %}
 {% block content %}
     <div style="display: flex; flex-direction: column; align-items: center">
-        <h2>{{ game_macros::game_short_desc(gwp) }}</h2>
+        <h2 id="game-title">{{ game_macros::game_short_desc(gwp) }}</h2>
         <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
             <div id="goban"
                  style="width: min(70vw, 70dvh);

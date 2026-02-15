@@ -39,7 +39,8 @@ pub async fn register_form(current_player: CurrentPlayer) -> Result<Response, Ap
         return Ok(Redirect::to("/").into_response());
     }
     let tmpl = RegisterTemplate {
-        player_username: None,
+        player_username: current_player.username.clone(),
+        player_is_registered: false,
         player_data: serialize_player_data(&current_player),
         flash: None,
     };
@@ -62,9 +63,11 @@ pub async fn register(
 
     let username = form.username.trim().to_string();
     let player_data = serialize_player_data(&current_player);
+    let player_username = current_player.username.clone();
     let render_error = |msg: String| -> Result<Response, AppError> {
         let tmpl = RegisterTemplate {
-            player_username: None,
+            player_username: player_username.clone(),
+            player_is_registered: false,
             player_data: player_data.clone(),
             flash: Some(msg),
         };
@@ -115,7 +118,8 @@ pub async fn login_form(current_player: CurrentPlayer) -> Result<Response, AppEr
         return Ok(Redirect::to("/").into_response());
     }
     let tmpl = LoginTemplate {
-        player_username: None,
+        player_username: current_player.username.clone(),
+        player_is_registered: false,
         player_data: serialize_player_data(&current_player),
         flash: None,
     };
@@ -134,7 +138,8 @@ pub async fn login(
 ) -> Result<Response, AppError> {
     let render_error = |msg: String| -> Result<Response, AppError> {
         let tmpl = LoginTemplate {
-            player_username: None,
+            player_username: String::new(),
+            player_is_registered: false,
             player_data: "{}".to_string(),
             flash: Some(msg),
         };

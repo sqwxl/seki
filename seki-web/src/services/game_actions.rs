@@ -198,7 +198,7 @@ pub async fn send_chat(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let sender = state_serializer::sender_label(&gwp, player_id, player.username.as_deref());
+    let sender = state_serializer::sender_label(&gwp, player_id, Some(&player.username));
 
     Ok(ChatSent {
         message: msg,
@@ -367,16 +367,10 @@ pub async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engin
 
     let game_state = state_serializer::serialize_state(&gwp, engine);
 
-    let msg = json!({
-        "kind": "state",
-        "stage": game_state["stage"],
-        "state": game_state["state"],
-        "negotiations": game_state["negotiations"],
-        "current_turn_stone": game_state["current_turn_stone"],
-        "moves": game_state["moves"]
-    });
-
-    state.registry.broadcast(game_id, &msg.to_string()).await;
+    state
+        .registry
+        .broadcast(game_id, &game_state.to_string())
+        .await;
 }
 
 // -- Internal helpers --

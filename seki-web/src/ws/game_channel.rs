@@ -27,17 +27,7 @@ pub async fn send_initial_state(
         .await?;
     let game_state = state_serializer::serialize_state(&gwp, &engine);
 
-    let _ = tx.send(
-        json!({
-            "kind": "state",
-            "stage": game_state["stage"],
-            "state": game_state["state"],
-            "negotiations": game_state["negotiations"],
-            "current_turn_stone": game_state["current_turn_stone"],
-            "moves": game_state["moves"]
-        })
-        .to_string(),
-    );
+    let _ = tx.send(game_state.to_string());
 
     // If there's a pending undo request, send targeted messages
     if gwp.has_pending_undo_request() {

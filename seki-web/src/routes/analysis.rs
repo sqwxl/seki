@@ -14,6 +14,7 @@ fn serialize_player_data(player: &CurrentPlayer) -> String {
 pub async fn analysis_board(current_player: CurrentPlayer) -> Result<Response, AppError> {
     let tmpl = AnalysisTemplate {
         player_username: current_player.username.clone(),
+        player_is_registered: current_player.is_registered(),
         player_data: serialize_player_data(&current_player),
     };
     Ok(Html(

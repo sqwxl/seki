@@ -19,8 +19,8 @@
             <a href="/">Home</a>
             <a href="/games">Games</a>
             <a href="/analysis">Analysis Board</a>
-            {% if let Some(name) = player_username %}
-                <span>{{ name }}</span>
+            <span>{{ player_username }}</span>
+            {% if player_is_registered %}
                 <form action="/logout" method="post" style="display:inline">
                     <button type="submit">Log out</button>
                 </form>

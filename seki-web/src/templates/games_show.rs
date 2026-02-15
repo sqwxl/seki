@@ -16,7 +16,8 @@ pub struct InitialGameProps {
 #[derive(Template)]
 #[template(path = "games/show.html")]
 pub struct GamesShowTemplate {
-    pub player_username: Option<String>,
+    pub player_username: String,
+    pub player_is_registered: bool,
     pub player_data: String,
     pub gwp: GameWithPlayers,
     pub game_id: i64,

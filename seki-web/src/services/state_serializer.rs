@@ -2,6 +2,7 @@ use go_engine::{Engine, Stage};
 use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
+use crate::templates::PlayerData;
 
 /// Serialize the full game state for sending to WebSocket clients.
 pub fn serialize_state(gwp: &GameWithPlayers, engine: &Engine) -> serde_json::Value {
@@ -25,11 +26,15 @@ pub fn serialize_state(gwp: &GameWithPlayers, engine: &Engine) -> serde_json::Va
         .collect();
 
     json!({
+        "kind": "state",
         "stage": stage.to_string(),
         "state": serde_json::to_value(engine.game_state()).unwrap_or_default(),
         "negotiations": negotiations,
         "current_turn_stone": current_turn_stone,
-        "moves": moves
+        "moves": moves,
+        "black": gwp.black.as_ref().map(PlayerData::from),
+        "white": gwp.white.as_ref().map(PlayerData::from),
+        "result": gwp.game.result
     })
 }
 

@@ -22,7 +22,7 @@ use crate::AppState;
 #[derive(Serialize)]
 struct PlayerResponse {
     id: i64,
-    username: Option<String>,
+    username: String,
     is_registered: bool,
 }
 
@@ -426,7 +426,7 @@ async fn get_messages(
             } else {
                 None
             };
-            let username = player.and_then(|p| p.username.as_deref());
+            let username = player.map(|p| p.username.as_str());
             let sender = state_serializer::sender_label(&gwp, m.player_id, username);
             MessageResponse {
                 id: m.id,

@@ -82,6 +82,9 @@ export type StateMessage = {
   negotiations?: Record<string, unknown>;
   current_turn_stone: number | null;
   moves: TurnData[];
+  black: PlayerData | null;
+  white: PlayerData | null;
+  result: string | null;
 };
 
 export type ChatMessage = {
