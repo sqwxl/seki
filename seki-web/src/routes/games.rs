@@ -6,7 +6,7 @@ use axum::Form;
 use serde::Deserialize;
 
 use crate::error::AppError;
-use crate::models::game::Game;
+use crate::models::game::{Game, SYSTEM_SYMBOL};
 use crate::models::message::Message;
 use crate::services::engine_builder;
 use crate::services::game_actions;
@@ -133,7 +133,7 @@ pub async fn show_game(
                         .map(|p| p.username.as_str());
                     state_serializer::sender_label(&gwp, pid, username)
                 }
-                None => "\u{2691}".to_string(), // ⚑ for system messages
+                None => SYSTEM_SYMBOL.to_string(),
             };
             serde_json::json!({
                 "sender": sender,

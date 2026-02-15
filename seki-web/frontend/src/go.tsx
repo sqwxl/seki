@@ -14,8 +14,6 @@ import type { Board } from "./wasm-board";
 import { appendToChat, renderChatHistory, setupChat } from "./chat";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
-const SYSTEM_SENDER = "⚑";
-
 function readPlayerData(): PlayerData | undefined {
   const el = document.getElementById("player-data");
   if (!el || !el.textContent) {
@@ -291,13 +289,7 @@ export function go(root: HTMLElement) {
           break;
         case "undo_accepted":
         case "undo_rejected":
-          appendToChat({
-            sender: SYSTEM_SENDER,
-            text: data.message,
-            move_number: data.move_number,
-            sent_at: data.sent_at,
-          });
-          showUndoResult(data.message);
+          hideUndoResponseControls();
           if (data.undo_rejected !== undefined) {
             undoRejected = data.undo_rejected;
           }
@@ -319,22 +311,12 @@ export function go(root: HTMLElement) {
           }
           break;
         case "undo_request_sent":
-          appendToChat({
-            sender: SYSTEM_SENDER,
-            text: data.message,
-            move_number: data.move_number,
-            sent_at: data.sent_at,
-          });
-          showUndoWaitingState(data.message);
+          if (requestUndoBtn) {
+            requestUndoBtn.disabled = true;
+          }
           break;
         case "undo_response_needed":
-          appendToChat({
-            sender: SYSTEM_SENDER,
-            text: data.message,
-            move_number: data.move_number,
-            sent_at: data.sent_at,
-          });
-          showUndoResponseControls(data.requesting_player, data.message);
+          showUndoResponseControls();
           break;
         default:
           console.warn("WebSocket: unknown message kind", data);
@@ -458,44 +440,16 @@ function showError(message: string): void {
   document.getElementById("game-error")!.innerText = message;
 }
 
-function showUndoResult(message: string): void {
-  const notification = document.getElementById("undo-notification")!;
-  const responseControls = document.getElementById("undo-response-controls")!;
-
-  responseControls.style.display = "none";
-  notification.style.display = "block";
-  notification.textContent = message;
-
-  setTimeout(() => {
-    notification.style.display = "none";
-  }, 5000);
+function showUndoResponseControls(): void {
+  const popover = document.getElementById("undo-response-controls");
+  if (popover) {
+    popover.showPopover();
+  }
 }
 
-function showUndoWaitingState(message: string): void {
-  const requestBtn = document.getElementById(
-    "request-undo-btn",
-  ) as HTMLButtonElement;
-  const notification = document.getElementById("undo-notification")!;
-  const responseControls = document.getElementById("undo-response-controls")!;
-
-  responseControls.style.display = "none";
-  requestBtn.disabled = true;
-  notification.style.display = "block";
-  notification.textContent = message;
-}
-
-function showUndoResponseControls(
-  _requestingPlayer: string,
-  message: string,
-): void {
-  const requestBtn = document.getElementById(
-    "request-undo-btn",
-  ) as HTMLButtonElement;
-  const notification = document.getElementById("undo-notification")!;
-  const responseControls = document.getElementById("undo-response-controls")!;
-
-  requestBtn.disabled = true;
-  responseControls.style.display = "block";
-  notification.style.display = "block";
-  notification.textContent = message;
+function hideUndoResponseControls(): void {
+  const popover = document.getElementById("undo-response-controls");
+  if (popover) {
+    popover.hidePopover();
+  }
 }

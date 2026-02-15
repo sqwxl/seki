@@ -53,12 +53,10 @@
                 <div id="captures"></div>
             </div>
             {% if is_player %}
-                <div id="undo-controls">
-                    <div id="undo-response-controls" style="display: none">
-                        <p>Opponent has requested to undo their last move.</p>
-                        <button id="accept-undo-btn">Accept</button>
-                        <button id="reject-undo-btn">Reject</button>
-                    </div>
+                <div id="undo-response-controls" popover>
+                    <p>Opponent has requested to undo their last move.</p>
+                    <button id="accept-undo-btn" popovertarget="undo-response-controls">Accept</button>
+                    <button id="reject-undo-btn" popovertarget="undo-response-controls">Reject</button>
                 </div>
             {% endif %}
         </div>

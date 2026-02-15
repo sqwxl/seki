@@ -11,6 +11,7 @@ use crate::utils;
 
 pub const BLACK_SYMBOL: &str = "●";
 pub const WHITE_SYMBOL: &str = "○";
+pub const SYSTEM_SYMBOL: &str = "⚑";
 
 #[derive(Debug, Clone, FromRow)]
 #[allow(dead_code)]

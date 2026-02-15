@@ -104,41 +104,29 @@ export type ErrorMessage = {
 
 export type UndoAcceptedMessage = {
   kind: "undo_accepted";
-  message: string;
-  stage?: GameStage;
   state?: GameState;
   current_turn_stone?: number | null;
   moves?: TurnData[];
+  description?: string;
   undo_rejected?: boolean;
-  move_number?: number;
-  sent_at?: string;
 };
 
 export type UndoRejectedMessage = {
   kind: "undo_rejected";
-  message: string;
-  stage?: GameStage;
   state?: GameState;
   current_turn_stone?: number | null;
   moves?: TurnData[];
+  description?: string;
   undo_rejected?: boolean;
-  move_number?: number;
-  sent_at?: string;
 };
 
 export type UndoRequestSentMessage = {
   kind: "undo_request_sent";
-  message: string;
-  move_number?: number;
-  sent_at?: string;
 };
 
 export type UndoResponseNeededMessage = {
   kind: "undo_response_needed";
   requesting_player: string;
-  message: string;
-  move_number?: number;
-  sent_at?: string;
 };
 
 export type IncomingMessage =

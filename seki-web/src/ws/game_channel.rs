@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::models::game::Game;
+use crate::models::game::{Game, SYSTEM_SYMBOL};
 use crate::services::game_actions;
 use crate::services::state_serializer;
 use crate::ws::registry::WsSender;
@@ -30,21 +30,14 @@ pub async fn send_initial_state(
 
     let _ = tx.send(game_state.to_string());
 
-    // If there's a pending undo request, send targeted messages
+    // If there's a pending undo request, send targeted UI control messages
     if undo_requested {
         let current_turn = engine.current_turn_stone();
         let requesting_player = gwp.out_of_turn_player(current_turn);
 
         if requesting_player.is_some_and(|p| p.id == player_id) {
             let _ = tx.send(
-                json!({
-                    "kind": "undo_request_sent",
-                    "stage": game_state["stage"],
-                    "state": game_state["state"],
-                    "current_turn_stone": game_state["current_turn_stone"],
-                    "message": "Undo request sent. Waiting for opponent response..."
-                })
-                .to_string(),
+                json!({ "kind": "undo_request_sent" }).to_string(),
             );
         } else {
             let requesting_name = requesting_player
@@ -53,11 +46,7 @@ pub async fn send_initial_state(
             let _ = tx.send(
                 json!({
                     "kind": "undo_response_needed",
-                    "stage": game_state["stage"],
-                    "state": game_state["state"],
-                    "current_turn_stone": game_state["current_turn_stone"],
                     "requesting_player": requesting_name,
-                    "message": format!("{requesting_name} has requested to undo their last move")
                 })
                 .to_string(),
             );
@@ -173,30 +162,26 @@ async fn handle_request_undo(
 ) -> Result<(), crate::error::AppError> {
     let result = game_actions::request_undo(state, game_id, player_id).await?;
 
-    let requester_msg = "Undo request sent. Waiting for opponent response...";
-    let opponent_msg = format!(
-        "{} has requested to undo their last move",
+    let message = format!(
+        "{} requested to undo their last move",
         result.requesting_player_name
     );
 
-    // Persist system messages
-    let _ = game_actions::save_system_message(state, game_id, requester_msg).await;
-    let saved = game_actions::save_system_message(state, game_id, &opponent_msg).await.ok();
+    // Persist and broadcast one universal chat message
+    let saved = game_actions::save_system_message(state, game_id, &message)
+        .await
+        .ok();
     let move_number = saved.as_ref().and_then(|m| m.move_number);
     let sent_at = saved.as_ref().map(|m| m.created_at);
 
-    // Send "waiting" to requesting player
     state
         .registry
-        .send_to_player(
+        .broadcast(
             game_id,
-            player_id,
             &json!({
-                "kind": "undo_request_sent",
-                "stage": result.game_state["stage"],
-                "state": result.game_state["state"],
-                "current_turn_stone": result.game_state["current_turn_stone"],
-                "message": requester_msg,
+                "kind": "chat",
+                "sender": SYSTEM_SYMBOL,
+                "text": message,
                 "move_number": move_number,
                 "sent_at": sent_at
             })
@@ -204,7 +189,16 @@ async fn handle_request_undo(
         )
         .await;
 
-    // Send "response needed" to opponent
+    // Send targeted UI control messages (no chat data)
+    state
+        .registry
+        .send_to_player(
+            game_id,
+            player_id,
+            &json!({ "kind": "undo_request_sent" }).to_string(),
+        )
+        .await;
+
     if let Some(opponent) = &result.opponent {
         state
             .registry
@@ -213,13 +207,7 @@ async fn handle_request_undo(
                 opponent.id,
                 &json!({
                     "kind": "undo_response_needed",
-                    "stage": result.game_state["stage"],
-                    "state": result.game_state["state"],
-                    "current_turn_stone": result.game_state["current_turn_stone"],
                     "requesting_player": result.requesting_player_name,
-                    "message": opponent_msg,
-                    "move_number": move_number,
-                    "sent_at": sent_at
                 })
                 .to_string(),
             )
@@ -269,11 +257,29 @@ async fn handle_respond_to_undo(
         )
     };
 
-    // Persist system message
-    let saved = game_actions::save_system_message(state, game_id, &message).await.ok();
+    // Persist and broadcast one universal chat message
+    let saved = game_actions::save_system_message(state, game_id, &message)
+        .await
+        .ok();
     let move_number = saved.as_ref().and_then(|m| m.move_number);
     let sent_at = saved.as_ref().map(|m| m.created_at);
 
+    state
+        .registry
+        .broadcast(
+            game_id,
+            &json!({
+                "kind": "chat",
+                "sender": SYSTEM_SYMBOL,
+                "text": message,
+                "move_number": move_number,
+                "sent_at": sent_at
+            })
+            .to_string(),
+        )
+        .await;
+
+    // Send targeted UI/state update to both players (no chat data)
     for pid in [result.requesting_player_id, player_id] {
         state
             .registry
@@ -282,16 +288,11 @@ async fn handle_respond_to_undo(
                 pid,
                 &json!({
                     "kind": kind,
-                    "stage": result.game_state["stage"],
                     "state": result.game_state["state"],
                     "current_turn_stone": result.game_state["current_turn_stone"],
                     "moves": result.game_state["moves"],
                     "description": result.game_state["description"],
                     "undo_rejected": result.game_state["undo_rejected"],
-                    "responding_player": result.responding_player_name,
-                    "message": message,
-                    "move_number": move_number,
-                    "sent_at": sent_at
                 })
                 .to_string(),
             )
