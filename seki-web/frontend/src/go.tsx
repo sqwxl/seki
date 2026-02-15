@@ -171,6 +171,14 @@ export function go(root: HTMLElement) {
 
     const markerMap: (MarkerData | null)[] = Array(boardData.length).fill(null);
 
+    if (moves.length > 0) {
+      const lastMove = moves[moves.length - 1];
+      if (lastMove.kind === "play" && lastMove.pos) {
+        const [col, row] = lastMove.pos;
+        markerMap[row * cols + col] = { type: "circle" };
+      }
+    }
+
     if (ko != null) {
       markerMap[ko.pos[1] * cols + ko.pos[0]] = koMarker;
     }

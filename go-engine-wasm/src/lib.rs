@@ -200,4 +200,27 @@ impl WasmEngine {
     pub fn move_count(&self) -> usize {
         self.engine.moves().len()
     }
+
+    /// Whether the current view has a last played move (i.e. not at start and last move was a play).
+    pub fn has_last_move(&self) -> bool {
+        self.view_index > 0 && self.all_moves[self.view_index - 1].is_play()
+    }
+
+    pub fn last_move_col(&self) -> i8 {
+        if self.view_index > 0 {
+            if let Some((col, _)) = self.all_moves[self.view_index - 1].pos {
+                return col as i8;
+            }
+        }
+        -1
+    }
+
+    pub fn last_move_row(&self) -> i8 {
+        if self.view_index > 0 {
+            if let Some((_, row)) = self.all_moves[self.view_index - 1].pos {
+                return row as i8;
+            }
+        }
+        -1
+    }
 }

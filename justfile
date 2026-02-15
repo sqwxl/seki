@@ -1,13 +1,16 @@
 set shell := ["fish", "-c"]
 
 [parallel]
-dev: db web frontend
+dev: db wasm server frontend
 
 db:
     docker compose up db -d
 
-web:
-    cargo watch -x 'run -p seki-web'
+wasm:
+    wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm
 
 frontend:
     cd seki-web/frontend && pnpm run dev
+
+server:
+    cargo watch -x 'run -p seki-web'
