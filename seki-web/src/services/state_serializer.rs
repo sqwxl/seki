@@ -5,18 +5,18 @@ use crate::models::game::GameWithPlayers;
 use crate::templates::PlayerData;
 
 /// Serialize the full game state for sending to WebSocket clients.
-pub fn serialize_state(gwp: &GameWithPlayers, engine: &Engine) -> serde_json::Value {
+pub fn serialize_state(
+    gwp: &GameWithPlayers,
+    engine: &Engine,
+    undo_requested: bool,
+) -> serde_json::Value {
     let stage = game_stage(gwp);
-    let current_turn_stone = current_turn_stone(gwp, engine);
+    let current_turn_stone = current_turn_stone(engine);
 
     let mut negotiations = json!({});
 
-    if gwp.has_pending_undo_request() {
-        if let Some(ref urp) = gwp.undo_requesting_player {
-            negotiations["undo_request"] = json!({
-                "requesting_player": urp.display_name()
-            });
-        }
+    if undo_requested {
+        negotiations["undo_request"] = json!({});
     }
 
     let moves: Vec<_> = engine
@@ -35,7 +35,8 @@ pub fn serialize_state(gwp: &GameWithPlayers, engine: &Engine) -> serde_json::Va
         "black": gwp.black.as_ref().map(PlayerData::from),
         "white": gwp.white.as_ref().map(PlayerData::from),
         "result": gwp.game.result,
-        "description": gwp.description()
+        "description": gwp.description(),
+        "undo_rejected": gwp.game.undo_rejected
     })
 }
 
@@ -44,7 +45,7 @@ pub fn game_stage(gwp: &GameWithPlayers) -> Stage {
     gwp.game.stage.parse().unwrap_or(Stage::Unstarted)
 }
 
-fn current_turn_stone(_gwp: &GameWithPlayers, engine: &Engine) -> i32 {
+fn current_turn_stone(engine: &Engine) -> i32 {
     engine.current_turn_stone().to_int() as i32
 }
 

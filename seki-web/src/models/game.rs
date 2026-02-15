@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
+use go_engine::Stone;
+
 use crate::db::DbPool;
 use crate::models::player::Player;
 use crate::utils;
@@ -14,7 +16,7 @@ pub struct Game {
     pub creator_id: Option<i64>,
     pub black_id: Option<i64>,
     pub white_id: Option<i64>,
-    pub undo_requesting_player_id: Option<i64>,
+    pub undo_rejected: bool,
     pub invite_token: Option<String>,
     pub cols: i32,
     pub rows: i32,
@@ -76,12 +78,7 @@ impl Game {
         let mut player_ids: Vec<i64> = games
             .iter()
             .flat_map(|g| {
-                [
-                    g.creator_id,
-                    g.black_id,
-                    g.white_id,
-                    g.undo_requesting_player_id,
-                ]
+                [g.creator_id, g.black_id, g.white_id]
                 .into_iter()
                 .flatten()
             })
@@ -106,15 +103,11 @@ impl Game {
                 let creator = game.creator_id.and_then(|id| players_map.get(&id).cloned());
                 let black = game.black_id.and_then(|id| players_map.get(&id).cloned());
                 let white = game.white_id.and_then(|id| players_map.get(&id).cloned());
-                let undo_requesting_player = game
-                    .undo_requesting_player_id
-                    .and_then(|id| players_map.get(&id).cloned());
                 GameWithPlayers {
                     game,
                     creator,
                     black,
                     white,
-                    undo_requesting_player,
                 }
             })
             .collect())
@@ -152,17 +145,11 @@ impl Game {
         } else {
             None
         };
-        let undo_requesting_player = if let Some(uid) = game.undo_requesting_player_id {
-            Player::find_by_id(pool, uid).await.ok()
-        } else {
-            None
-        };
         Ok(GameWithPlayers {
             game,
             creator,
             black,
             white,
-            undo_requesting_player,
         })
     }
 
@@ -217,18 +204,16 @@ impl Game {
         Ok(())
     }
 
-    pub async fn set_undo_requesting_player(
+    pub async fn set_undo_rejected(
         pool: &DbPool,
         game_id: i64,
-        player_id: Option<i64>,
+        rejected: bool,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "UPDATE games SET undo_requesting_player_id = $1, updated_at = NOW() WHERE id = $2",
-        )
-        .bind(player_id)
-        .bind(game_id)
-        .execute(pool)
-        .await?;
+        sqlx::query("UPDATE games SET undo_rejected = $1, updated_at = NOW() WHERE id = $2")
+            .bind(rejected)
+            .bind(game_id)
+            .execute(pool)
+            .await?;
         Ok(())
     }
 
@@ -274,7 +259,6 @@ pub struct GameWithPlayers {
     pub creator: Option<Player>,
     pub black: Option<Player>,
     pub white: Option<Player>,
-    pub undo_requesting_player: Option<Player>,
 }
 
 impl GameWithPlayers {
@@ -293,27 +277,34 @@ impl GameWithPlayers {
         }
     }
 
-    pub fn has_pending_undo_request(&self) -> bool {
-        self.game.undo_requesting_player_id.is_some()
+    pub fn is_open(&self) -> bool {
+        self.black.is_none() || self.white.is_none()
     }
 
     pub fn description(&self) -> String {
-        let b = self
-            .black
-            .as_ref()
-            .map(|p| p.display_name())
-            .unwrap_or("?");
-        let w = self
-            .white
-            .as_ref()
-            .map(|p| p.display_name())
-            .unwrap_or("?");
+        let b = self.black.as_ref().map(|p| p.display_name()).unwrap_or("?");
+        let w = self.white.as_ref().map(|p| p.display_name()).unwrap_or("?");
         let status = if let Some(ref result) = self.game.result {
             result.clone()
+        } else if self.is_open() {
+            "Open".to_string()
         } else {
             utils::capitalize(&self.game.stage)
         };
         format!("● {b} vs ○ {w} - {status}")
+    }
+
+    /// The player whose turn it is.
+    pub fn turn_player(&self, current_turn: Stone) -> Option<&Player> {
+        match current_turn {
+            Stone::Black => self.black.as_ref(),
+            Stone::White => self.white.as_ref(),
+        }
+    }
+
+    /// The player who is *not* the current turn (i.e. they just played).
+    pub fn out_of_turn_player(&self, current_turn: Stone) -> Option<&Player> {
+        self.turn_player(current_turn.opp())
     }
 
     pub fn opponent_of(&self, player_id: i64) -> Option<&Player> {

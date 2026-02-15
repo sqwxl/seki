@@ -16,6 +16,8 @@ struct GameRoom {
     players: HashMap<i64, Vec<WsSender>>,
     /// In-memory engine, built on first access, then mutated
     engine: Option<Engine>,
+    /// Transient: whether an undo request is pending (lost on disconnect, which is fine)
+    undo_requested: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -142,5 +144,19 @@ impl GameRegistry {
     pub async fn get_engine(&self, game_id: i64) -> Option<Engine> {
         let rooms = self.rooms.read().await;
         rooms.get(&game_id).and_then(|room| room.engine.clone())
+    }
+
+    pub async fn is_undo_requested(&self, game_id: i64) -> bool {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .is_some_and(|room| room.undo_requested)
+    }
+
+    pub async fn set_undo_requested(&self, game_id: i64, requested: bool) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            room.undo_requested = requested;
+        }
     }
 }

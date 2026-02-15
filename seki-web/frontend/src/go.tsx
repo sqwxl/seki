@@ -87,6 +87,7 @@ export function go(root: HTMLElement) {
   let gameState = props.state;
   let currentTurn: number | null = null;
   let moves: TurnData[] = [];
+  let undoRejected = false;
 
   // Analysis mode: when true, vertex clicks go to local engine; when false, live play via WS
   let analysisMode = false;
@@ -280,6 +281,7 @@ export function go(root: HTMLElement) {
           gameState = data.state;
           currentTurn = data.current_turn_stone;
           moves = data.moves ?? [];
+          undoRejected = data.undo_rejected;
 
           console.debug("WebSocket: state updated", {
             currentState: gameState,
@@ -305,6 +307,9 @@ export function go(root: HTMLElement) {
         case "undo_accepted":
         case "undo_rejected":
           showUndoResult(data.message);
+          if (data.undo_rejected !== undefined) {
+            undoRejected = data.undo_rejected;
+          }
           if (data.state) {
             gameState = data.state;
             currentTurn = data.current_turn_stone ?? null;
@@ -402,11 +407,20 @@ export function go(root: HTMLElement) {
       "request-undo-btn",
     ) as HTMLButtonElement | null;
     if (requestBtn) {
-      if (turnStone === playerStone) {
-        requestBtn.disabled = true;
+      const canUndo =
+        moves.length > 0 &&
+        playerStone !== 0 &&
+        turnStone !== playerStone &&
+        !undoRejected;
+
+      requestBtn.disabled = !canUndo;
+      if (undoRejected) {
+        requestBtn.title = "Undo was rejected for this move";
+      } else if (moves.length === 0) {
+        requestBtn.title = "No moves to undo";
+      } else if (turnStone === playerStone) {
         requestBtn.title = "Cannot undo on your turn";
       } else {
-        requestBtn.disabled = false;
         requestBtn.title = "Request to undo your last move";
       }
     }

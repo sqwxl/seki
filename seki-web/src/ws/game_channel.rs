@@ -25,14 +25,17 @@ pub async fn send_initial_state(
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
         .await?;
-    let game_state = state_serializer::serialize_state(&gwp, &engine);
+    let undo_requested = state.registry.is_undo_requested(game_id).await;
+    let game_state = state_serializer::serialize_state(&gwp, &engine, undo_requested);
 
     let _ = tx.send(game_state.to_string());
 
     // If there's a pending undo request, send targeted messages
-    if gwp.has_pending_undo_request() {
-        let requesting_id = gwp.game.undo_requesting_player_id.unwrap();
-        if requesting_id == player_id {
+    if undo_requested {
+        let current_turn = engine.current_turn_stone();
+        let requesting_player = gwp.out_of_turn_player(current_turn);
+
+        if requesting_player.is_some_and(|p| p.id == player_id) {
             let _ = tx.send(
                 json!({
                     "kind": "undo_request_sent",
@@ -44,11 +47,9 @@ pub async fn send_initial_state(
                 .to_string(),
             );
         } else {
-            let requesting_name = gwp
-                .undo_requesting_player
-                .as_ref()
-                .map(|p| p.display_name())
-                .unwrap_or("Opponent");
+            let requesting_name = requesting_player
+                .map(|p| p.display_name().to_string())
+                .unwrap_or_else(|| "Opponent".to_string());
             let _ = tx.send(
                 json!({
                     "kind": "undo_response_needed",
@@ -262,6 +263,8 @@ async fn handle_respond_to_undo(
                     "state": result.game_state["state"],
                     "current_turn_stone": result.game_state["current_turn_stone"],
                     "moves": result.game_state["moves"],
+                    "description": result.game_state["description"],
+                    "undo_rejected": result.game_state["undo_rejected"],
                     "responding_player": result.responding_player_name,
                     "message": message
                 })
@@ -272,4 +275,3 @@ async fn handle_respond_to_undo(
 
     Ok(())
 }
-

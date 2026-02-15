@@ -1,5 +1,4 @@
 use go_engine::{Engine, Stage, Stone};
-use serde_json::json;
 
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
@@ -71,9 +70,10 @@ pub async fn play_move(
     // Update stage
     persist_stage(state, game_id, &engine).await?;
 
-    // Clear pending undo request
-    if gwp.has_pending_undo_request() {
-        Game::set_undo_requesting_player(&state.db, game_id, None)
+    // Clear pending undo request and rejection flag
+    state.registry.set_undo_requested(game_id, false).await;
+    if gwp.game.undo_rejected {
+        Game::set_undo_rejected(&state.db, game_id, false)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
@@ -113,9 +113,10 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
     // Update stage
     persist_stage(state, game_id, &engine).await?;
 
-    // Clear pending undo request
-    if gwp.has_pending_undo_request() {
-        Game::set_undo_requesting_player(&state.db, game_id, None)
+    // Clear pending undo request and rejection flag
+    state.registry.set_undo_requested(game_id, false).await;
+    if gwp.game.undo_rejected {
+        Game::set_undo_rejected(&state.db, game_id, false)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
@@ -213,9 +214,15 @@ pub async fn request_undo(
 ) -> Result<UndoRequested, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
-    if gwp.has_pending_undo_request() {
+    if state.registry.is_undo_requested(game_id).await {
         return Err(AppError::BadRequest(
             "An undo request is already pending".to_string(),
+        ));
+    }
+
+    if gwp.game.undo_rejected {
+        return Err(AppError::BadRequest(
+            "Undo was already rejected for the current move".to_string(),
         ));
     }
 
@@ -233,16 +240,14 @@ pub async fn request_undo(
         return Err(AppError::BadRequest("Can only undo play turns".to_string()));
     }
 
-    Game::set_undo_requesting_player(&state.db, game_id, Some(player_id))
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    state.registry.set_undo_requested(game_id, true).await;
 
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
-    let game_state = state_serializer::serialize_state(&gwp, &engine);
+    let game_state = state_serializer::serialize_state(&gwp, &engine, true);
 
     let player = Player::find_by_id(&state.db, player_id)
         .await
@@ -265,11 +270,21 @@ pub async fn respond_to_undo(
 ) -> Result<UndoResponse, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
-    if !gwp.has_pending_undo_request() {
+    if !state.registry.is_undo_requested(game_id).await {
         return Err(AppError::BadRequest("No pending undo request".to_string()));
     }
 
-    let requesting_player_id = gwp.game.undo_requesting_player_id.unwrap();
+    // The requesting player is the one who played last (out of turn now)
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let requesting_player_id = gwp
+        .out_of_turn_player(engine.current_turn_stone())
+        .map(|p| p.id)
+        .ok_or_else(|| AppError::Internal("Cannot determine requesting player".to_string()))?;
+
     if requesting_player_id == player_id {
         return Err(AppError::BadRequest(
             "Cannot respond to your own undo request".to_string(),
@@ -281,11 +296,11 @@ pub async fn respond_to_undo(
         .map_err(|e| AppError::Internal(e.to_string()))?;
     let responding_name = responding_player.display_name().to_string();
 
+    // Clear the in-memory request flag regardless of accept/reject
+    state.registry.set_undo_requested(game_id, false).await;
+
     if accept {
         TurnRow::delete_last(&state.db, game_id)
-            .await
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-        Game::set_undo_requesting_player(&state.db, game_id, None)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
 
@@ -303,7 +318,7 @@ pub async fn respond_to_undo(
         let gwp = Game::find_with_players(&state.db, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        let game_state = state_serializer::serialize_state(&gwp, &engine);
+        let game_state = state_serializer::serialize_state(&gwp, &engine, false);
 
         Ok(UndoResponse {
             accepted: true,
@@ -320,32 +335,14 @@ pub async fn respond_to_undo(
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
 
-        // Track rejection in cached state
-        if let Some(last_turn) = TurnRow::last_turn(&state.db, game_id)
-            .await
-            .map_err(|e| AppError::Internal(e.to_string()))?
-        {
-            let turn_count = TurnRow::count_by_game_id(&state.db, game_id)
-                .await
-                .map_err(|e| AppError::Internal(e.to_string()))?;
-            let _ = engine_builder::cache_engine_state(
-                &state.db,
-                game_id,
-                &engine,
-                turn_count,
-                Some(json!({"rejected_turn_id": last_turn.id})),
-            )
-            .await;
-        }
-
-        Game::set_undo_requesting_player(&state.db, game_id, None)
+        Game::set_undo_rejected(&state.db, game_id, true)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
 
         let gwp = Game::find_with_players(&state.db, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        let game_state = state_serializer::serialize_state(&gwp, &engine);
+        let game_state = state_serializer::serialize_state(&gwp, &engine, false);
 
         Ok(UndoResponse {
             accepted: false,
@@ -365,7 +362,8 @@ pub async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engin
         return;
     };
 
-    let game_state = state_serializer::serialize_state(&gwp, engine);
+    let undo_requested = state.registry.is_undo_requested(game_id).await;
+    let game_state = state_serializer::serialize_state(&gwp, engine, undo_requested);
 
     state
         .registry
@@ -431,4 +429,3 @@ async fn rollback_engine(state: &AppState, game_id: i64, game: &Game) {
         state.registry.replace_engine(game_id, rebuilt).await;
     }
 }
-

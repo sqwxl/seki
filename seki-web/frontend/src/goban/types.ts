@@ -86,6 +86,7 @@ export type StateMessage = {
   white: PlayerData | null;
   result: string | null;
   description: string;
+  undo_rejected: boolean;
 };
 
 export type ChatMessage = {
@@ -106,6 +107,7 @@ export type UndoAcceptedMessage = {
   state?: GameState;
   current_turn_stone?: number | null;
   moves?: TurnData[];
+  undo_rejected?: boolean;
 };
 
 export type UndoRejectedMessage = {
@@ -115,6 +117,7 @@ export type UndoRejectedMessage = {
   state?: GameState;
   current_turn_stone?: number | null;
   moves?: TurnData[];
+  undo_rejected?: boolean;
 };
 
 export type UndoRequestSentMessage = {
