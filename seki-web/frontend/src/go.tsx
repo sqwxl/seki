@@ -115,10 +115,12 @@ export function go(root: HTMLElement) {
     if (playerStone === 0) {
       return false;
     }
+    if (gameState.stage === "territory_review") {
+      return true;
+    }
     return (
-      gameState.stage === "unstarted" ||
-      gameState.stage === "play" ||
-      gameState.stage === "territory_review"
+      (gameState.stage === "unstarted" || gameState.stage === "play") &&
+      currentTurn === playerStone
     );
   }
 
@@ -407,8 +409,10 @@ export function go(root: HTMLElement) {
     // Live mode
     const isPlay = gameState.stage === "play";
 
+    const isMyTurn = currentTurn === playerStone;
     if (passBtn) {
       passBtn.style.display = playerStone !== 0 && isPlay ? "" : "none";
+      passBtn.disabled = !isMyTurn;
     }
     if (resignBtn) {
       resignBtn.style.display = isPlay ? "" : "none";
