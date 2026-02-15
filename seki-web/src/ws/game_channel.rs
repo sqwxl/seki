@@ -154,7 +154,9 @@ async fn handle_chat(
     let chat_msg = json!({
         "kind": "chat",
         "sender": chat.sender_label,
-        "text": chat.message.text
+        "text": chat.message.text,
+        "move_number": chat.message.move_number,
+        "sent_at": chat.message.created_at
     });
 
     state
@@ -171,6 +173,18 @@ async fn handle_request_undo(
 ) -> Result<(), crate::error::AppError> {
     let result = game_actions::request_undo(state, game_id, player_id).await?;
 
+    let requester_msg = "Undo request sent. Waiting for opponent response...";
+    let opponent_msg = format!(
+        "{} has requested to undo their last move",
+        result.requesting_player_name
+    );
+
+    // Persist system messages
+    let _ = game_actions::save_system_message(state, game_id, requester_msg).await;
+    let saved = game_actions::save_system_message(state, game_id, &opponent_msg).await.ok();
+    let move_number = saved.as_ref().and_then(|m| m.move_number);
+    let sent_at = saved.as_ref().map(|m| m.created_at);
+
     // Send "waiting" to requesting player
     state
         .registry
@@ -182,7 +196,9 @@ async fn handle_request_undo(
                 "stage": result.game_state["stage"],
                 "state": result.game_state["state"],
                 "current_turn_stone": result.game_state["current_turn_stone"],
-                "message": "Undo request sent. Waiting for opponent response..."
+                "message": requester_msg,
+                "move_number": move_number,
+                "sent_at": sent_at
             })
             .to_string(),
         )
@@ -201,7 +217,9 @@ async fn handle_request_undo(
                     "state": result.game_state["state"],
                     "current_turn_stone": result.game_state["current_turn_stone"],
                     "requesting_player": result.requesting_player_name,
-                    "message": format!("{} has requested to undo their last move", result.requesting_player_name)
+                    "message": opponent_msg,
+                    "move_number": move_number,
+                    "sent_at": sent_at
                 })
                 .to_string(),
             )
@@ -251,6 +269,11 @@ async fn handle_respond_to_undo(
         )
     };
 
+    // Persist system message
+    let saved = game_actions::save_system_message(state, game_id, &message).await.ok();
+    let move_number = saved.as_ref().and_then(|m| m.move_number);
+    let sent_at = saved.as_ref().map(|m| m.created_at);
+
     for pid in [result.requesting_player_id, player_id] {
         state
             .registry
@@ -266,7 +289,9 @@ async fn handle_respond_to_undo(
                     "description": result.game_state["description"],
                     "undo_rejected": result.game_state["undo_rejected"],
                     "responding_player": result.responding_player_name,
-                    "message": message
+                    "message": message,
+                    "move_number": move_number,
+                    "sent_at": sent_at
                 })
                 .to_string(),
             )

@@ -121,14 +121,18 @@ pub async fn show_game(
     let chat_log: Vec<serde_json::Value> = messages
         .iter()
         .map(|msg| {
-            let sender = state_serializer::sender_label(
-                &gwp,
-                msg.player_id,
-                None, // We'd need to load each player for username; keep simple
-            );
+            let sender = match msg.player_id {
+                Some(pid) => state_serializer::sender_label(
+                    &gwp,
+                    pid,
+                    None, // We'd need to load each player for username; keep simple
+                ),
+                None => "\u{2691}".to_string(), // ⚑ for system messages
+            };
             serde_json::json!({
                 "sender": sender,
                 "text": msg.text,
+                "move_number": msg.move_number,
                 "sent_at": msg.created_at
             })
         })

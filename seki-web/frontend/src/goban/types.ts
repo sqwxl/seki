@@ -93,6 +93,8 @@ export type ChatMessage = {
   kind: "chat";
   sender: string;
   text: string;
+  move_number?: number;
+  sent_at?: string;
 };
 
 export type ErrorMessage = {
@@ -108,6 +110,8 @@ export type UndoAcceptedMessage = {
   current_turn_stone?: number | null;
   moves?: TurnData[];
   undo_rejected?: boolean;
+  move_number?: number;
+  sent_at?: string;
 };
 
 export type UndoRejectedMessage = {
@@ -118,17 +122,23 @@ export type UndoRejectedMessage = {
   current_turn_stone?: number | null;
   moves?: TurnData[];
   undo_rejected?: boolean;
+  move_number?: number;
+  sent_at?: string;
 };
 
 export type UndoRequestSentMessage = {
   kind: "undo_request_sent";
   message: string;
+  move_number?: number;
+  sent_at?: string;
 };
 
 export type UndoResponseNeededMessage = {
   kind: "undo_response_needed";
   requesting_player: string;
   message: string;
+  move_number?: number;
+  sent_at?: string;
 };
 
 export type IncomingMessage =

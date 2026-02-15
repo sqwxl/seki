@@ -88,9 +88,10 @@ struct TurnResponse {
 #[derive(Serialize)]
 struct MessageResponse {
     id: i64,
-    player_id: i64,
+    player_id: Option<i64>,
     sender: String,
     text: String,
+    move_number: Option<i32>,
     created_at: DateTime<Utc>,
 }
 
@@ -419,20 +420,27 @@ async fn get_messages(
     let items: Vec<MessageResponse> = messages
         .into_iter()
         .map(|m| {
-            let player = if gwp.black.as_ref().is_some_and(|p| p.id == m.player_id) {
-                gwp.black.as_ref()
-            } else if gwp.white.as_ref().is_some_and(|p| p.id == m.player_id) {
-                gwp.white.as_ref()
-            } else {
-                None
+            let sender = match m.player_id {
+                Some(pid) => {
+                    let player =
+                        if gwp.black.as_ref().is_some_and(|p| p.id == pid) {
+                            gwp.black.as_ref()
+                        } else if gwp.white.as_ref().is_some_and(|p| p.id == pid) {
+                            gwp.white.as_ref()
+                        } else {
+                            None
+                        };
+                    let username = player.map(|p| p.username.as_str());
+                    state_serializer::sender_label(&gwp, pid, username)
+                }
+                None => "\u{2691}".to_string(),
             };
-            let username = player.map(|p| p.username.as_str());
-            let sender = state_serializer::sender_label(&gwp, m.player_id, username);
             MessageResponse {
                 id: m.id,
                 player_id: m.player_id,
                 sender,
                 text: m.text,
+                move_number: m.move_number,
                 created_at: m.created_at,
             }
         })
@@ -453,7 +461,9 @@ async fn send_message(
     let chat_msg = serde_json::json!({
         "kind": "chat",
         "sender": chat.sender_label,
-        "text": chat.message.text
+        "text": chat.message.text,
+        "move_number": chat.message.move_number,
+        "sent_at": chat.message.created_at
     });
     state.registry.broadcast(id, &chat_msg.to_string()).await;
 
@@ -462,6 +472,7 @@ async fn send_message(
         player_id: chat.message.player_id,
         sender: chat.sender_label,
         text: chat.message.text,
+        move_number: chat.message.move_number,
         created_at: chat.message.created_at,
     }))
 }

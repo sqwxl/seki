@@ -318,14 +318,24 @@ export function go(root: HTMLElement) {
           updateStatus();
           break;
         case "chat":
-          appendToChat(data.sender, data.text);
+          appendToChat({
+            sender: data.sender,
+            text: data.text,
+            move_number: data.move_number,
+            sent_at: data.sent_at,
+          });
           break;
         case "error":
           showError(data.message);
           break;
         case "undo_accepted":
         case "undo_rejected":
-          appendToChat(SYSTEM_SENDER, data.message);
+          appendToChat({
+            sender: SYSTEM_SENDER,
+            text: data.message,
+            move_number: data.move_number,
+            sent_at: data.sent_at,
+          });
           showUndoResult(data.message);
           if (data.undo_rejected !== undefined) {
             undoRejected = data.undo_rejected;
@@ -348,11 +358,21 @@ export function go(root: HTMLElement) {
           }
           break;
         case "undo_request_sent":
-          appendToChat(SYSTEM_SENDER, data.message);
+          appendToChat({
+            sender: SYSTEM_SENDER,
+            text: data.message,
+            move_number: data.move_number,
+            sent_at: data.sent_at,
+          });
           showUndoWaitingState(data.message);
           break;
         case "undo_response_needed":
-          appendToChat(SYSTEM_SENDER, data.message);
+          appendToChat({
+            sender: SYSTEM_SENDER,
+            text: data.message,
+            move_number: data.move_number,
+            sent_at: data.sent_at,
+          });
           showUndoResponseControls(data.requesting_player, data.message);
           break;
         default:

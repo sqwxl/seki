@@ -191,7 +191,9 @@ pub async fn send_chat(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let msg = Message::create(&state.db, game_id, player_id, text)
+    let move_number = current_move_number(state, &gwp.game).await;
+
+    let msg = Message::create(&state.db, game_id, Some(player_id), text, move_number)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
@@ -205,6 +207,20 @@ pub async fn send_chat(
         message: msg,
         sender_label: sender,
     })
+}
+
+pub async fn save_system_message(
+    state: &AppState,
+    game_id: i64,
+    text: &str,
+) -> Result<Message, AppError> {
+    let game = Game::find_by_id(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let move_number = current_move_number(state, &game).await;
+    Message::create_system(&state.db, game_id, text, move_number)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))
 }
 
 pub async fn request_undo(
@@ -428,4 +444,13 @@ async fn rollback_engine(state: &AppState, game_id: i64, game: &Game) {
     if let Ok(rebuilt) = engine_builder::build_engine(&state.db, game).await {
         state.registry.replace_engine(game_id, rebuilt).await;
     }
+}
+
+async fn current_move_number(state: &AppState, game: &Game) -> Option<i32> {
+    state
+        .registry
+        .get_or_init_engine(&state.db, game)
+        .await
+        .ok()
+        .map(|e| e.moves().len() as i32)
 }
