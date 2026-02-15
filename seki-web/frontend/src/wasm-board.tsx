@@ -132,7 +132,6 @@ export type BoardConfig = {
   };
   onRender?: (engine: WasmEngine) => void;
   onVertexClick?: (col: number, row: number) => boolean;
-  onEscape?: () => void;
 };
 
 export type Board = {
@@ -301,12 +300,6 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       case "End":
         e.preventDefault();
         doNavigate("end");
-        break;
-      case "Escape":
-        if (config.onEscape) {
-          e.preventDefault();
-          config.onEscape();
-        }
         break;
     }
   };

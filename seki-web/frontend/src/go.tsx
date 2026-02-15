@@ -212,11 +212,6 @@ export function go(root: HTMLElement) {
       // When the board renders from the engine, update undo controls visibility
       updateActions();
     },
-    onEscape: () => {
-      if (analysisMode) {
-        exitAnalysis();
-      }
-    },
   }).then((b) => {
     board = b;
     // Sync any moves that arrived via WS while WASM was loading
