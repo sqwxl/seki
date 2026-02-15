@@ -25,7 +25,12 @@
                             align-items: center">
                     <button id="pass-btn"{% if !is_player %} style="display: none"{% endif %}>Pass</button>
                     {% if is_player %}
-                        <button id="resign-btn">Resign</button>
+                        <button id="resign-btn" popovertarget="resign-confirm">Resign</button>
+                        <div id="resign-confirm" popover>
+                            <p>Resign this game?</p>
+                            <button id="confirm-resign-btn" popovertarget="resign-confirm">Yes, resign</button>
+                            <button popovertarget="resign-confirm">Cancel</button>
+                        </div>
                         <button id="request-undo-btn">Undo</button>
                     {% endif %}
                     <button id="reset-btn" style="display: none">Reset</button>

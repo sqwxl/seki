@@ -370,7 +370,8 @@ export function go(root: HTMLElement) {
       channel.pass();
     }
   });
-  resignBtn?.addEventListener("click", () => channel.resign());
+  const confirmResignBtn = document.getElementById("confirm-resign-btn") as HTMLButtonElement | null;
+  confirmResignBtn?.addEventListener("click", () => channel.resign());
 
   // Analysis mode handlers
   analyzeBtn?.addEventListener("click", () => enterAnalysis());
