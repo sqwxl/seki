@@ -9,7 +9,6 @@ use crate::error::AppError;
 use crate::models::game::{Game, SYSTEM_SYMBOL};
 use crate::models::message::Message;
 use crate::services::engine_builder;
-use crate::services::game_actions;
 use crate::services::game_creator::{self, CreateGameParams};
 use crate::services::state_serializer;
 use crate::session::CurrentPlayer;
@@ -194,16 +193,26 @@ pub async fn join_game(
 ) -> Result<Response, AppError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
 
-    if !gwp.has_player(current_player.id) {
-        if gwp.black.is_none() {
-            Game::set_black(&state.db, id, current_player.id).await?;
-        } else if gwp.white.is_none() {
-            Game::set_white(&state.db, id, current_player.id).await?;
-        }
-
-        let engine = engine_builder::build_engine(&state.db, &gwp.game).await?;
-        game_actions::broadcast_game_state(&state, id, &engine).await;
+    if gwp.has_player(current_player.id) {
+        return Ok(Redirect::to(&format!("/games/{id}")).into_response());
     }
+
+    if gwp.black.is_none() {
+        Game::set_black(&state.db, id, current_player.id).await?;
+    } else if gwp.white.is_none() {
+        Game::set_white(&state.db, id, current_player.id).await?;
+    } else {
+        return Err(AppError::BadRequest("Game is full".to_string()));
+    }
+
+    // Notify existing WS clients about the new player
+    let engine = engine_builder::build_engine(&state.db, &gwp.game).await?;
+    let gwp = Game::find_with_players(&state.db, id).await?;
+    let game_state = state_serializer::serialize_state(&gwp, &engine, false);
+    state
+        .registry
+        .broadcast(id, &game_state.to_string())
+        .await;
 
     Ok(Redirect::to(&format!("/games/{id}")).into_response())
 }

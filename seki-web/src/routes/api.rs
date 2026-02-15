@@ -289,8 +289,6 @@ async fn play_move(
     Json(body): Json<PlayRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let engine = game_actions::play_move(&state, id, current_player.id, body.col, body.row).await?;
-    game_actions::broadcast_game_state(&state, id, &engine).await;
-
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&gwp, &engine)))
 }
@@ -301,8 +299,6 @@ async fn pass(
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let engine = game_actions::pass(&state, id, current_player.id).await?;
-    game_actions::broadcast_game_state(&state, id, &engine).await;
-
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&gwp, &engine)))
 }
@@ -313,8 +309,6 @@ async fn resign(
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let engine = game_actions::resign(&state, id, current_player.id).await?;
-    game_actions::broadcast_game_state(&state, id, &engine).await;
-
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&gwp, &engine)))
 }
@@ -324,27 +318,7 @@ async fn request_undo(
     current_player: CurrentPlayer,
     Path(id): Path<i64>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    let result = game_actions::request_undo(&state, id, current_player.id).await?;
-
-    // Notify WS clients
-    if let Some(opponent) = &result.opponent {
-        state
-            .registry
-            .send_to_player(
-                id,
-                opponent.id,
-                &serde_json::json!({
-                    "kind": "undo_response_needed",
-                    "stage": result.game_state["stage"],
-                    "state": result.game_state["state"],
-                    "current_turn_stone": result.game_state["current_turn_stone"],
-                    "requesting_player": result.requesting_player_name,
-                    "message": format!("{} has requested to undo their last move", result.requesting_player_name)
-                })
-                .to_string(),
-            )
-            .await;
-    }
+    game_actions::request_undo(&state, id, current_player.id).await?;
 
     Ok(Json(serde_json::json!({
         "status": "undo_requested",
@@ -366,45 +340,8 @@ async fn respond_to_undo(
         .into());
     }
 
-    let accept = response == "accept";
-    let result = game_actions::respond_to_undo(&state, id, current_player.id, accept).await?;
-
-    // Notify WS clients
-    let kind = if result.accepted {
-        "undo_accepted"
-    } else {
-        "undo_rejected"
-    };
-    let message = if result.accepted {
-        format!(
-            "{} accepted the undo request. Move has been undone.",
-            result.responding_player_name
-        )
-    } else {
-        format!(
-            "{} rejected the undo request",
-            result.responding_player_name
-        )
-    };
-
-    for pid in [result.requesting_player_id, current_player.id] {
-        state
-            .registry
-            .send_to_player(
-                id,
-                pid,
-                &serde_json::json!({
-                    "kind": kind,
-                    "stage": result.game_state["stage"],
-                    "state": result.game_state["state"],
-                    "current_turn_stone": result.game_state["current_turn_stone"],
-                    "responding_player": result.responding_player_name,
-                    "message": message
-                })
-                .to_string(),
-            )
-            .await;
-    }
+    let result =
+        game_actions::respond_to_undo(&state, id, current_player.id, response == "accept").await?;
 
     Ok(Json(build_game_response(&result.gwp, &result.engine)))
 }
@@ -458,16 +395,6 @@ async fn send_message(
     Json(body): Json<ChatRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
     let chat = game_actions::send_chat(&state, id, current_player.id, &body.text).await?;
-
-    // Broadcast to WS clients
-    let chat_msg = serde_json::json!({
-        "kind": "chat",
-        "sender": chat.sender_label,
-        "text": chat.message.text,
-        "move_number": chat.message.move_number,
-        "sent_at": chat.message.created_at
-    });
-    state.registry.broadcast(id, &chat_msg.to_string()).await;
 
     Ok(Json(MessageResponse {
         id: chat.message.id,

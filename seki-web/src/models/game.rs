@@ -223,6 +223,16 @@ impl Game {
         Ok(())
     }
 
+    pub async fn set_started(pool: &DbPool, game_id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET started_at = NOW(), updated_at = NOW() WHERE id = $1 AND started_at IS NULL",
+        )
+        .bind(game_id)
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn set_stage(pool: &DbPool, game_id: i64, stage: &str) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE games SET stage = $1, updated_at = NOW() WHERE id = $2")
             .bind(stage)

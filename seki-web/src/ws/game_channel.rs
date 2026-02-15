@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::models::game::{Game, SYSTEM_SYMBOL};
+use crate::models::game::Game;
 use crate::services::game_actions;
 use crate::services::state_serializer;
 use crate::ws::registry::WsSender;
@@ -68,10 +68,10 @@ pub async fn handle_message(
 
     let result = match action {
         "play" => handle_play(state, game_id, player_id, data).await,
-        "pass" => handle_pass(state, game_id, player_id).await,
-        "resign" => handle_resign(state, game_id, player_id).await,
+        "pass" => game_actions::pass(state, game_id, player_id).await.map(|_| ()),
+        "resign" => game_actions::resign(state, game_id, player_id).await.map(|_| ()),
         "chat" => handle_chat(state, game_id, player_id, data).await,
-        "request_undo" => handle_request_undo(state, game_id, player_id).await,
+        "request_undo" => game_actions::request_undo(state, game_id, player_id).await,
         "respond_to_undo" => handle_respond_to_undo(state, game_id, player_id, data).await,
         _ => {
             let _ = tx.send(
@@ -105,28 +105,7 @@ async fn handle_play(
         .ok_or_else(|| crate::error::AppError::BadRequest("Missing row".to_string()))?
         as i32;
 
-    let engine = game_actions::play_move(state, game_id, player_id, col, row).await?;
-    game_actions::broadcast_game_state(state, game_id, &engine).await;
-    Ok(())
-}
-
-async fn handle_pass(
-    state: &AppState,
-    game_id: i64,
-    player_id: i64,
-) -> Result<(), crate::error::AppError> {
-    let engine = game_actions::pass(state, game_id, player_id).await?;
-    game_actions::broadcast_game_state(state, game_id, &engine).await;
-    Ok(())
-}
-
-async fn handle_resign(
-    state: &AppState,
-    game_id: i64,
-    player_id: i64,
-) -> Result<(), crate::error::AppError> {
-    let engine = game_actions::resign(state, game_id, player_id).await?;
-    game_actions::broadcast_game_state(state, game_id, &engine).await;
+    game_actions::play_move(state, game_id, player_id, col, row).await?;
     Ok(())
 }
 
@@ -137,83 +116,7 @@ async fn handle_chat(
     data: &serde_json::Value,
 ) -> Result<(), crate::error::AppError> {
     let text = data.get("message").and_then(|v| v.as_str()).unwrap_or("");
-
-    let chat = game_actions::send_chat(state, game_id, player_id, text).await?;
-
-    let chat_msg = json!({
-        "kind": "chat",
-        "sender": chat.sender_label,
-        "text": chat.message.text,
-        "move_number": chat.message.move_number,
-        "sent_at": chat.message.created_at
-    });
-
-    state
-        .registry
-        .broadcast(game_id, &chat_msg.to_string())
-        .await;
-    Ok(())
-}
-
-async fn handle_request_undo(
-    state: &AppState,
-    game_id: i64,
-    player_id: i64,
-) -> Result<(), crate::error::AppError> {
-    let result = game_actions::request_undo(state, game_id, player_id).await?;
-
-    let message = format!(
-        "{} requested to undo their last move",
-        result.requesting_player_name
-    );
-
-    // Persist and broadcast one universal chat message
-    let saved = game_actions::save_system_message(state, game_id, &message)
-        .await
-        .ok();
-    let move_number = saved.as_ref().and_then(|m| m.move_number);
-    let sent_at = saved.as_ref().map(|m| m.created_at);
-
-    state
-        .registry
-        .broadcast(
-            game_id,
-            &json!({
-                "kind": "chat",
-                "sender": SYSTEM_SYMBOL,
-                "text": message,
-                "move_number": move_number,
-                "sent_at": sent_at
-            })
-            .to_string(),
-        )
-        .await;
-
-    // Send targeted UI control messages (no chat data)
-    state
-        .registry
-        .send_to_player(
-            game_id,
-            player_id,
-            &json!({ "kind": "undo_request_sent" }).to_string(),
-        )
-        .await;
-
-    if let Some(opponent) = &result.opponent {
-        state
-            .registry
-            .send_to_player(
-                game_id,
-                opponent.id,
-                &json!({
-                    "kind": "undo_response_needed",
-                    "requesting_player": result.requesting_player_name,
-                })
-                .to_string(),
-            )
-            .await;
-    }
-
+    game_actions::send_chat(state, game_id, player_id, text).await?;
     Ok(())
 }
 
@@ -236,68 +139,6 @@ async fn handle_respond_to_undo(
         ));
     }
 
-    let accept = response == "accept";
-    let result = game_actions::respond_to_undo(state, game_id, player_id, accept).await?;
-
-    let kind = if result.accepted {
-        "undo_accepted"
-    } else {
-        "undo_rejected"
-    };
-
-    let message = if result.accepted {
-        format!(
-            "{} accepted the undo request. Move has been undone.",
-            result.responding_player_name
-        )
-    } else {
-        format!(
-            "{} rejected the undo request",
-            result.responding_player_name
-        )
-    };
-
-    // Persist and broadcast one universal chat message
-    let saved = game_actions::save_system_message(state, game_id, &message)
-        .await
-        .ok();
-    let move_number = saved.as_ref().and_then(|m| m.move_number);
-    let sent_at = saved.as_ref().map(|m| m.created_at);
-
-    state
-        .registry
-        .broadcast(
-            game_id,
-            &json!({
-                "kind": "chat",
-                "sender": SYSTEM_SYMBOL,
-                "text": message,
-                "move_number": move_number,
-                "sent_at": sent_at
-            })
-            .to_string(),
-        )
-        .await;
-
-    // Send targeted UI/state update to both players (no chat data)
-    for pid in [result.requesting_player_id, player_id] {
-        state
-            .registry
-            .send_to_player(
-                game_id,
-                pid,
-                &json!({
-                    "kind": kind,
-                    "state": result.game_state["state"],
-                    "current_turn_stone": result.game_state["current_turn_stone"],
-                    "moves": result.game_state["moves"],
-                    "description": result.game_state["description"],
-                    "undo_rejected": result.game_state["undo_rejected"],
-                })
-                .to_string(),
-            )
-            .await;
-    }
-
+    game_actions::respond_to_undo(state, game_id, player_id, response == "accept").await?;
     Ok(())
 }

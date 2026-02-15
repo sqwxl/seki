@@ -1,36 +1,30 @@
 use go_engine::{Engine, Stage, Stone};
+use serde_json::json;
 
 use crate::error::AppError;
-use crate::models::game::{Game, GameWithPlayers};
+use crate::models::game::{Game, GameWithPlayers, SYSTEM_SYMBOL};
 use crate::models::message::Message;
 use crate::models::player::Player;
 use crate::models::turn::TurnRow;
 use crate::services::{engine_builder, state_serializer};
 use crate::AppState;
 
-// -- Return types for undo operations --
-
-pub struct UndoRequested {
-    pub game_state: serde_json::Value,
-    pub requesting_player_name: String,
-    pub opponent: Option<Player>,
-}
-
-pub struct UndoResponse {
-    pub accepted: bool,
-    pub engine: Engine,
-    pub gwp: GameWithPlayers,
-    pub game_state: serde_json::Value,
-    pub responding_player_name: String,
-    pub requesting_player_id: i64,
-}
+// -- Return types --
 
 pub struct ChatSent {
     pub message: Message,
     pub sender_label: String,
 }
 
+pub struct UndoResult {
+    pub accepted: bool,
+    pub engine: Engine,
+    pub gwp: GameWithPlayers,
+}
+
 // -- Core game actions --
+// Each action performs business logic, persists state, and broadcasts to WS clients.
+// Callers (API routes, WS handlers) only need to build their own response format.
 
 pub async fn play_move(
     state: &AppState,
@@ -39,6 +33,10 @@ pub async fn play_move(
     col: i32,
     row: i32,
 ) -> Result<Engine, AppError> {
+    if col < 0 || row < 0 {
+        return Err(AppError::BadRequest("Invalid coordinates".to_string()));
+    }
+
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
     let stone = player_stone(&gwp, player_id)?;
@@ -68,6 +66,13 @@ pub async fn play_move(
         return Err(AppError::Internal(e.to_string()));
     }
 
+    // Mark game as started on first move
+    if gwp.game.started_at.is_none() {
+        Game::set_started(&state.db, game_id)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+    }
+
     // Update stage
     persist_stage(state, game_id, &engine).await?;
 
@@ -78,6 +83,8 @@ pub async fn play_move(
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
+
+    broadcast_game_state(state, game_id, &engine).await;
 
     Ok(engine)
 }
@@ -122,6 +129,8 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
+
+    broadcast_game_state(state, game_id, &engine).await;
 
     Ok(engine)
 }
@@ -171,6 +180,8 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
         }
     }
 
+    broadcast_game_state(state, game_id, &engine).await;
+
     Ok(engine)
 }
 
@@ -194,6 +205,12 @@ pub async fn send_chat(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
+    if !gwp.has_player(player_id) {
+        return Err(AppError::BadRequest(
+            "Only players can send messages".to_string(),
+        ));
+    }
+
     let move_number = current_move_number(state, &gwp.game).await;
 
     let msg = Message::create(&state.db, game_id, Some(player_id), text, move_number)
@@ -206,31 +223,32 @@ pub async fn send_chat(
 
     let sender = state_serializer::sender_label(&gwp, player_id, Some(&player.username));
 
+    state
+        .registry
+        .broadcast(
+            game_id,
+            &json!({
+                "kind": "chat",
+                "sender": sender,
+                "text": msg.text,
+                "move_number": msg.move_number,
+                "sent_at": msg.created_at
+            })
+            .to_string(),
+        )
+        .await;
+
     Ok(ChatSent {
         message: msg,
         sender_label: sender,
     })
 }
 
-pub async fn save_system_message(
-    state: &AppState,
-    game_id: i64,
-    text: &str,
-) -> Result<Message, AppError> {
-    let game = Game::find_by_id(&state.db, game_id)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    let move_number = current_move_number(state, &game).await;
-    Message::create_system(&state.db, game_id, text, move_number)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))
-}
-
 pub async fn request_undo(
     state: &AppState,
     game_id: i64,
     player_id: i64,
-) -> Result<UndoRequested, AppError> {
+) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if !gwp.game.allow_undo {
@@ -267,24 +285,47 @@ pub async fn request_undo(
 
     state.registry.set_undo_requested(game_id, true).await;
 
-    let engine = state
-        .registry
-        .get_or_init_engine(&state.db, &gwp.game)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    let game_state = state_serializer::serialize_state(&gwp, &engine, true);
-
     let player = Player::find_by_id(&state.db, player_id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
-
+    let requesting_name = player.display_name().to_string();
     let opponent = gwp.opponent_of(player_id).cloned();
 
-    Ok(UndoRequested {
-        game_state,
-        requesting_player_name: player.display_name().to_string(),
-        opponent,
-    })
+    // System chat
+    broadcast_system_chat(
+        state,
+        game_id,
+        &format!("{requesting_name} requested to undo their last move"),
+    )
+    .await;
+
+    // Notify requester: disable undo button
+    state
+        .registry
+        .send_to_player(
+            game_id,
+            player_id,
+            &json!({ "kind": "undo_request_sent" }).to_string(),
+        )
+        .await;
+
+    // Notify opponent: show accept/reject controls
+    if let Some(opponent) = &opponent {
+        state
+            .registry
+            .send_to_player(
+                game_id,
+                opponent.id,
+                &json!({
+                    "kind": "undo_response_needed",
+                    "requesting_player": requesting_name,
+                })
+                .to_string(),
+            )
+            .await;
+    }
+
+    Ok(())
 }
 
 pub async fn respond_to_undo(
@@ -292,7 +333,7 @@ pub async fn respond_to_undo(
     game_id: i64,
     player_id: i64,
     accept: bool,
-) -> Result<UndoResponse, AppError> {
+) -> Result<UndoResult, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if !state.registry.is_undo_requested(game_id).await {
@@ -324,7 +365,7 @@ pub async fn respond_to_undo(
     // Clear the in-memory request flag regardless of accept/reject
     state.registry.set_undo_requested(game_id, false).await;
 
-    if accept {
+    let result = if accept {
         TurnRow::delete_last(&state.db, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
@@ -337,22 +378,17 @@ pub async fn respond_to_undo(
             .map_err(|e| AppError::Internal(e.to_string()))?;
         state.registry.replace_engine(game_id, engine.clone()).await;
 
-        // Update stage after undo
         persist_stage(state, game_id, &engine).await?;
 
         let gwp = Game::find_with_players(&state.db, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        let game_state = state_serializer::serialize_state(&gwp, &engine, false);
 
-        Ok(UndoResponse {
+        UndoResult {
             accepted: true,
             engine,
             gwp,
-            game_state,
-            responding_player_name: responding_name,
-            requesting_player_id,
-        })
+        }
     } else {
         let engine = state
             .registry
@@ -367,22 +403,54 @@ pub async fn respond_to_undo(
         let gwp = Game::find_with_players(&state.db, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        let game_state = state_serializer::serialize_state(&gwp, &engine, false);
 
-        Ok(UndoResponse {
+        UndoResult {
             accepted: false,
             engine,
             gwp,
-            game_state,
-            responding_player_name: responding_name,
-            requesting_player_id,
-        })
+        }
+    };
+
+    // System chat
+    let message = if result.accepted {
+        format!("{responding_name} accepted the undo request. Move has been undone.")
+    } else {
+        format!("{responding_name} rejected the undo request")
+    };
+    broadcast_system_chat(state, game_id, &message).await;
+
+    // Notify both players with updated state
+    let kind = if result.accepted {
+        "undo_accepted"
+    } else {
+        "undo_rejected"
+    };
+    let game_state = state_serializer::serialize_state(&result.gwp, &result.engine, false);
+    for pid in [requesting_player_id, player_id] {
+        state
+            .registry
+            .send_to_player(
+                game_id,
+                pid,
+                &json!({
+                    "kind": kind,
+                    "state": game_state["state"],
+                    "current_turn_stone": game_state["current_turn_stone"],
+                    "moves": game_state["moves"],
+                    "description": game_state["description"],
+                    "undo_rejected": game_state["undo_rejected"],
+                })
+                .to_string(),
+            )
+            .await;
     }
+
+    Ok(result)
 }
 
-// -- Broadcast helper (used by both WS and API callers) --
+// -- Internal helpers --
 
-pub async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
+async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
     let Ok(gwp) = Game::find_with_players(&state.db, game_id).await else {
         return;
     };
@@ -396,9 +464,42 @@ pub async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engin
         .await;
 }
 
-// -- Internal helpers --
+async fn broadcast_system_chat(state: &AppState, game_id: i64, text: &str) {
+    let saved = save_system_message(state, game_id, text).await.ok();
+    let move_number = saved.as_ref().and_then(|m| m.move_number);
+    let sent_at = saved.as_ref().map(|m| m.created_at);
 
-pub async fn load_game_and_check_player(
+    state
+        .registry
+        .broadcast(
+            game_id,
+            &json!({
+                "kind": "chat",
+                "sender": SYSTEM_SYMBOL,
+                "text": text,
+                "move_number": move_number,
+                "sent_at": sent_at
+            })
+            .to_string(),
+        )
+        .await;
+}
+
+async fn save_system_message(
+    state: &AppState,
+    game_id: i64,
+    text: &str,
+) -> Result<Message, AppError> {
+    let game = Game::find_by_id(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let move_number = current_move_number(state, &game).await;
+    Message::create_system(&state.db, game_id, text, move_number)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))
+}
+
+async fn load_game_and_check_player(
     state: &AppState,
     game_id: i64,
     player_id: i64,
