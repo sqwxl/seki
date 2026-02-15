@@ -76,13 +76,24 @@ impl Engine {
 
     pub fn with_moves(cols: u8, rows: u8, moves: Vec<Turn>) -> Self {
         let goban = Goban::with_moves(cols, rows, &moves);
+        let result = Self::result_from_moves(&moves);
         Engine {
             cols,
             rows,
             moves,
             goban,
-            result: None,
+            result,
         }
+    }
+
+    fn result_from_moves(moves: &[Turn]) -> Option<String> {
+        moves.last().and_then(|t| {
+            if t.is_resign() {
+                Some(format!("{}+R", t.stone.opp()))
+            } else {
+                None
+            }
+        })
     }
 
     // -- Accessors --
@@ -197,13 +208,14 @@ impl Engine {
 
     pub fn from_game_state(cols: u8, rows: u8, moves: Vec<Turn>, state: GameState) -> Self {
         let goban = Goban::from_state(state.board, cols, rows, state.captures, state.ko);
+        let result = Self::result_from_moves(&moves);
 
         Engine {
             cols,
             rows,
             moves,
             goban,
-            result: None,
+            result,
         }
     }
 }

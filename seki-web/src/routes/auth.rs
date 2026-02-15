@@ -182,10 +182,21 @@ pub async fn login(
 }
 
 // POST /logout
-pub async fn logout(session: Session) -> Result<Response, AppError> {
+pub async fn logout(
+    session: Session,
+    headers: axum::http::HeaderMap,
+) -> Result<Response, AppError> {
     session
         .flush()
         .await
         .map_err(|e| AppError::Internal(format!("Session flush error: {e}")))?;
-    Ok(Redirect::to("/").into_response())
+
+    let redirect = headers
+        .get(axum::http::header::REFERER)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<axum::http::Uri>().ok())
+        .map(|uri| uri.path().to_owned())
+        .unwrap_or_else(|| "/".to_owned());
+
+    Ok(Redirect::to(&redirect).into_response())
 }

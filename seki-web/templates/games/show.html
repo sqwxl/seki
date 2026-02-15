@@ -1,38 +1,48 @@
 {% extends "base.html" %}
 {% import "macros/board_controls.html" as controls %}
+{% import "macros/game.html" as game_macros %}
 {% block head %}
     <link rel="stylesheet" href="/static/css/goban.css" />
     <script src="/static/dist/bundle.js" type="module" defer></script>
 {% endblock %}
 {% block content %}
-    <div style="display: flex;
-                flex-direction: column;
-                justify-content: center">
+    <div style="display: flex; flex-direction: column; align-items: center">
+        <h2>{{ game_macros::game_short_desc(gwp) }}</h2>
         <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
             <div id="goban"
                  style="width: min(70vw, 70dvh);
                         aspect-ratio: {{ cols }}/{{ rows }}"></div>
-            {{ controls::nav_bar("game") }}
-            <div id="game-analysis-controls"
-                 style="display: none; gap: 0.5em; align-items: center; margin-top: 0.5em">
-                <span style="font-weight: bold">Analysis</span>
-                {{ controls::analysis_actions("game") }}
-                <button id="game-exit-analysis-btn">Exit</button>
-            </div>
-            <div id="game-controls">
-                <button id="analyze-btn" style="margin-top: 0.5em">Analyze</button>
-            </div>
-            <div id="status"></div>
-            <div id="captures"></div>
-            <div id="undo-controls">
-                <button id="request-undo-btn" style="display: none">Request Undo</button>
-                <div id="undo-notification" style="display: none"></div>
-                <div id="undo-response-controls" style="display: none">
-                    <p>Opponent has requested to undo their last move.</p>
-                    <button id="accept-undo-btn">Accept</button>
-                    <button id="reject-undo-btn">Reject</button>
+            <div style="display: flex; gap: 0.5em; align-items: center; justify-content: center; margin-top: 0.5em">
+                {{ controls::nav_bar() }}
+                {% if is_player %}
+                    <div id="game-actions" style="display: flex; gap: 0.25em">
+                        <button id="game-pass-btn">Pass</button>
+                        <button id="resign-btn">Resign</button>
+                        <button id="request-undo-btn">Request Undo</button>
+                    </div>
+                {% endif %}
+                <button id="analyze-btn">Analyze</button>
+                <div id="analysis-controls" style="display: none; gap: 0.25em; align-items: center">
+                    <button id="undo-btn">Undo</button>
+                    <button id="pass-btn">Pass</button>
+                    <button id="reset-btn">Reset</button>
+                    <button id="exit-analysis-btn">Exit</button>
                 </div>
             </div>
+            <div style="display: flex; gap: 1em; align-items: center; justify-content: center; margin-top: 0.5em">
+                <div id="status"></div>
+                <div id="captures"></div>
+            </div>
+            {% if is_player %}
+                <div id="undo-controls">
+                    <div id="undo-notification" style="display: none"></div>
+                    <div id="undo-response-controls" style="display: none">
+                        <p>Opponent has requested to undo their last move.</p>
+                        <button id="accept-undo-btn">Accept</button>
+                        <button id="reject-undo-btn">Reject</button>
+                    </div>
+                </div>
+            {% endif %}
         </div>
         <div id="game-error"></div>
         <div id="chat" class="chat">

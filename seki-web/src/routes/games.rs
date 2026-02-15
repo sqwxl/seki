@@ -165,6 +165,7 @@ pub async fn show_game(
         is_private: gwp.game.is_private,
         has_open_slot,
         chat_log_json,
+        gwp,
     };
 
     Ok(Html(

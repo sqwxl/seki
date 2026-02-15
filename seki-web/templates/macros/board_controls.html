@@ -1,16 +1,18 @@
-{% macro nav_bar(prefix) %}
-<div id="{{prefix}}-nav"
-     style="display: flex; gap: 0.25em; align-items: center; margin-top: 0.5em">
-    <button id="{{prefix}}-start-btn" title="Go to start (Home)" disabled>&#x23EE;</button>
-    <button id="{{prefix}}-back-btn" title="Back (Left)" disabled>&#x25C0;</button>
-    <span id="{{prefix}}-move-counter" style="min-width: 6em; text-align: center">Move 0 / 0</span>
-    <button id="{{prefix}}-forward-btn" title="Forward (Right)" disabled>&#x25B6;</button>
-    <button id="{{prefix}}-end-btn" title="Go to latest (End)" disabled>&#x23ED;</button>
-</div>
+{% macro nav_bar() %}
+    <div id="board-nav"
+         style="display: flex;
+                gap: 0.25em;
+                justify-content: center;
+                align-items: center;
+                font-family: monospace">
+        <button id="start-btn" title="Go to start (Home)" disabled>⏮</button>
+        <button id="back-btn" title="Back (Left)" disabled>⏴</button>
+        <span id="move-counter" style="min-width: 7ch; text-align: center">0 / 0</span>
+        <button id="forward-btn" title="Forward (Right)" disabled>⏵</button>
+        <button id="end-btn" title="Go to latest (End)" disabled>⏭</button>
+    </div>
 {% endmacro %}
-
-{% macro analysis_actions(prefix) %}
-<button id="{{prefix}}-undo-btn">Undo</button>
-<button id="{{prefix}}-pass-btn">Pass</button>
-<button id="{{prefix}}-reset-btn">Reset</button>
+{% macro action_buttons() %}
+    <button id="pass-btn">Pass</button>
+    <button id="reset-btn">Reset</button>
 {% endmacro %}

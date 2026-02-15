@@ -7,7 +7,7 @@ const koMarker: MarkerData = { type: "triangle", label: "ko" };
 
 let wasmModule: typeof import("/static/wasm/go_engine_wasm.js") | undefined;
 
-export async function ensureWasm(): Promise<
+async function ensureWasm(): Promise<
   typeof import("/static/wasm/go_engine_wasm.js")
 > {
   if (wasmModule) {
@@ -27,30 +27,38 @@ export type NavButtons = {
   counter: HTMLElement | null;
 };
 
-export function findNavButtons(prefix: string): NavButtons {
+export function findNavButtons(): NavButtons {
   return {
-    start: document.getElementById(`${prefix}start-btn`) as HTMLButtonElement | null,
-    back: document.getElementById(`${prefix}back-btn`) as HTMLButtonElement | null,
-    forward: document.getElementById(`${prefix}forward-btn`) as HTMLButtonElement | null,
-    end: document.getElementById(`${prefix}end-btn`) as HTMLButtonElement | null,
-    counter: document.getElementById(`${prefix}move-counter`),
+    start: document.getElementById("start-btn") as HTMLButtonElement | null,
+    back: document.getElementById("back-btn") as HTMLButtonElement | null,
+    forward: document.getElementById("forward-btn") as HTMLButtonElement | null,
+    end: document.getElementById("end-btn") as HTMLButtonElement | null,
+    counter: document.getElementById("move-counter"),
   };
 }
 
-export function updateNavButtons(engine: WasmEngine, buttons: NavButtons): void {
+function updateNavButtons(engine: WasmEngine, buttons: NavButtons): void {
   const atStart = engine.is_at_start();
   const atLatest = engine.is_at_latest();
 
-  if (buttons.start) { buttons.start.disabled = atStart; }
-  if (buttons.back) { buttons.back.disabled = atStart; }
-  if (buttons.forward) { buttons.forward.disabled = atLatest; }
-  if (buttons.end) { buttons.end.disabled = atLatest; }
+  if (buttons.start) {
+    buttons.start.disabled = atStart;
+  }
+  if (buttons.back) {
+    buttons.back.disabled = atStart;
+  }
+  if (buttons.forward) {
+    buttons.forward.disabled = atLatest;
+  }
+  if (buttons.end) {
+    buttons.end.disabled = atLatest;
+  }
   if (buttons.counter) {
-    buttons.counter.textContent = `Move ${engine.view_index()} / ${engine.total_moves()}`;
+    buttons.counter.textContent = `${engine.view_index()} / ${engine.total_moves()}`;
   }
 }
 
-export function computeVertexSize(
+function computeVertexSize(
   gobanEl: HTMLElement,
   cols: number,
   rows: number,
@@ -60,7 +68,7 @@ export function computeVertexSize(
   return Math.max(avail / (Math.max(cols, rows) + extra), 12);
 }
 
-export function renderFromEngine(
+function renderFromEngine(
   engine: WasmEngine,
   gobanEl: HTMLElement,
   onVertexClick?: (evt: Event, position: Point) => void,
@@ -93,7 +101,7 @@ export function renderFromEngine(
 
 export type NavAction = "back" | "forward" | "start" | "end";
 
-export function navigateEngine(engine: WasmEngine, action: NavAction): boolean {
+function navigateEngine(engine: WasmEngine, action: NavAction): boolean {
   switch (action) {
     case "back":
       return engine.back();
@@ -108,11 +116,170 @@ export function navigateEngine(engine: WasmEngine, action: NavAction): boolean {
   }
 }
 
-export function setupKeyboardNav(
-  navigate: (action: NavAction) => void,
-  onEscape?: () => void,
-): () => void {
-  const handler = (e: KeyboardEvent) => {
+// --- Board factory ---
+
+export type BoardConfig = {
+  cols: number;
+  rows: number;
+  gobanEl: HTMLElement;
+  storageKey?: string;
+  baseMoves?: string;
+  navButtons?: NavButtons;
+  buttons?: {
+    undo?: HTMLButtonElement | null;
+    pass?: HTMLButtonElement | null;
+    reset?: HTMLButtonElement | null;
+  };
+  onRender?: (engine: WasmEngine) => void;
+  onVertexClick?: (col: number, row: number) => boolean;
+  onEscape?: () => void;
+};
+
+export type Board = {
+  engine: WasmEngine;
+  render: () => void;
+  navigate: (action: NavAction) => void;
+  updateBaseMoves: (movesJson: string, replaceEngine?: boolean) => void;
+  updateNav: () => void;
+  destroy: () => void;
+};
+
+export async function createBoard(config: BoardConfig): Promise<Board> {
+  const wasm = await ensureWasm();
+  const engine = new wasm.WasmEngine(config.cols, config.rows);
+
+  // Base moves the board can be reset to (e.g. game moves from WS)
+  let baseMoves = config.baseMoves ?? "[]";
+
+  // Initialize from localStorage or baseMoves
+  const saved = config.storageKey
+    ? localStorage.getItem(config.storageKey)
+    : null;
+  if (saved) {
+    engine.replace_moves(saved);
+    engine.to_latest();
+  } else if (baseMoves !== "[]") {
+    engine.replace_moves(baseMoves);
+    engine.to_latest();
+  }
+
+  function save() {
+    if (config.storageKey) {
+      localStorage.setItem(config.storageKey, engine.moves_json());
+    }
+  }
+
+  function doRender() {
+    const onVertexClick = (_: Event, [col, row]: Point) => {
+      if (config.onVertexClick && config.onVertexClick(col, row)) {
+        return;
+      }
+      if (engine.try_play(col, row)) {
+        save();
+        doRender();
+      }
+    };
+
+    renderFromEngine(engine, config.gobanEl, onVertexClick);
+
+    if (config.navButtons) {
+      updateNavButtons(engine, config.navButtons);
+    }
+
+    if (config.onRender) {
+      config.onRender(engine);
+    }
+  }
+
+  function doNavigate(action: NavAction) {
+    if (navigateEngine(engine, action)) {
+      doRender();
+    }
+  }
+
+  function doUpdateBaseMoves(movesJson: string, replaceEngine = true) {
+    baseMoves = movesJson;
+    if (replaceEngine) {
+      const wasAtLatest = engine.is_at_latest();
+      engine.replace_moves(movesJson);
+      if (wasAtLatest) {
+        engine.to_latest();
+      }
+    }
+  }
+
+  function doUpdateNav() {
+    if (config.navButtons) {
+      updateNavButtons(engine, config.navButtons);
+    }
+  }
+
+  // --- Wire up button listeners ---
+  const abortController = new AbortController();
+  const opts = { signal: abortController.signal };
+
+  if (config.navButtons) {
+    config.navButtons.start?.addEventListener(
+      "click",
+      () => doNavigate("start"),
+      opts,
+    );
+    config.navButtons.back?.addEventListener(
+      "click",
+      () => doNavigate("back"),
+      opts,
+    );
+    config.navButtons.forward?.addEventListener(
+      "click",
+      () => doNavigate("forward"),
+      opts,
+    );
+    config.navButtons.end?.addEventListener(
+      "click",
+      () => doNavigate("end"),
+      opts,
+    );
+  }
+
+  if (config.buttons) {
+    config.buttons.undo?.addEventListener(
+      "click",
+      () => {
+        if (engine.undo()) {
+          save();
+          doRender();
+        }
+      },
+      opts,
+    );
+
+    config.buttons.pass?.addEventListener(
+      "click",
+      () => {
+        if (engine.pass()) {
+          save();
+          doRender();
+        }
+      },
+      opts,
+    );
+
+    config.buttons.reset?.addEventListener(
+      "click",
+      () => {
+        if (config.storageKey) {
+          localStorage.removeItem(config.storageKey);
+        }
+        engine.replace_moves(baseMoves);
+        engine.to_latest();
+        doRender();
+      },
+      opts,
+    );
+  }
+
+  // Keyboard navigation
+  const keyHandler = (e: KeyboardEvent) => {
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
       return;
@@ -121,29 +288,43 @@ export function setupKeyboardNav(
     switch (e.key) {
       case "ArrowLeft":
         e.preventDefault();
-        navigate("back");
+        doNavigate("back");
         break;
       case "ArrowRight":
         e.preventDefault();
-        navigate("forward");
+        doNavigate("forward");
         break;
       case "Home":
         e.preventDefault();
-        navigate("start");
+        doNavigate("start");
         break;
       case "End":
         e.preventDefault();
-        navigate("end");
+        doNavigate("end");
         break;
       case "Escape":
-        if (onEscape) {
+        if (config.onEscape) {
           e.preventDefault();
-          onEscape();
+          config.onEscape();
         }
         break;
     }
   };
+  document.addEventListener("keydown", keyHandler, opts);
 
-  document.addEventListener("keydown", handler);
-  return () => document.removeEventListener("keydown", handler);
+  // Resize
+  const resizeHandler = () => doRender();
+  window.addEventListener("resize", resizeHandler, opts);
+
+  // Initial render
+  doRender();
+
+  return {
+    engine,
+    render: doRender,
+    navigate: doNavigate,
+    updateBaseMoves: doUpdateBaseMoves,
+    updateNav: doUpdateNav,
+    destroy: () => abortController.abort(),
+  };
 }

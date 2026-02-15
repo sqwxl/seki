@@ -2,6 +2,8 @@ use askama::Template;
 use go_engine::GameState;
 use serde::Serialize;
 
+use crate::models::game::GameWithPlayers;
+
 use super::PlayerData;
 
 #[derive(Serialize)]
@@ -16,6 +18,7 @@ pub struct InitialGameProps {
 pub struct GamesShowTemplate {
     pub player_username: Option<String>,
     pub player_data: String,
+    pub gwp: GameWithPlayers,
     pub game_id: i64,
     pub game_props: String,
     pub cols: i32,
