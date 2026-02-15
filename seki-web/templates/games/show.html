@@ -25,11 +25,16 @@
                             align-items: center">
                     <button id="pass-btn"{% if !is_player %} style="display: none"{% endif %}>Pass</button>
                     {% if is_player %}
+                        <div id="pass-confirm" popover>
+                            <p>Pass your turn?</p>
+                            <button id="confirm-pass-btn" popovertarget="pass-confirm">Yes</button>
+                            <button popovertarget="pass-confirm">No</button>
+                        </div>
                         <button id="resign-btn" popovertarget="resign-confirm">Resign</button>
                         <div id="resign-confirm" popover>
                             <p>Resign this game?</p>
-                            <button id="confirm-resign-btn" popovertarget="resign-confirm">Yes, resign</button>
-                            <button popovertarget="resign-confirm">Cancel</button>
+                            <button id="confirm-resign-btn" popovertarget="resign-confirm">Yes</button>
+                            <button popovertarget="resign-confirm">No</button>
                         </div>
                         <button id="request-undo-btn">Undo</button>
                     {% endif %}

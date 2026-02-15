@@ -367,9 +367,11 @@ export function go(root: HTMLElement) {
         board.render();
       }
     } else {
-      channel.pass();
+      document.getElementById("pass-confirm")?.showPopover();
     }
   });
+  const confirmPassBtn = document.getElementById("confirm-pass-btn") as HTMLButtonElement | null;
+  confirmPassBtn?.addEventListener("click", () => channel.pass());
   const confirmResignBtn = document.getElementById("confirm-resign-btn") as HTMLButtonElement | null;
   confirmResignBtn?.addEventListener("click", () => channel.resign());
 
