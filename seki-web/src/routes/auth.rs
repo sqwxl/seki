@@ -11,7 +11,7 @@ use tower_sessions::Session;
 
 use crate::error::AppError;
 use crate::models::player::Player;
-use crate::session::{CurrentPlayer, PLAYER_ID_KEY};
+use crate::session::{CurrentPlayer, ANON_PLAYER_TOKEN_COOKIE, PLAYER_ID_KEY};
 use crate::templates::auth::{LoginTemplate, RegisterTemplate};
 use crate::templates::PlayerData;
 use crate::AppState;
@@ -23,6 +23,15 @@ fn referer_path(headers: &axum::http::HeaderMap) -> String {
         .and_then(|s| s.parse::<axum::http::Uri>().ok())
         .map(|uri| uri.path().to_owned())
         .unwrap_or_default()
+}
+
+fn get_cookie(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
+    headers
+        .get(axum::http::header::COOKIE)?
+        .to_str()
+        .ok()?
+        .split(';')
+        .find_map(|c| c.trim().strip_prefix(name)?.strip_prefix('=').map(String::from))
 }
 
 fn serialize_player_data(player: &CurrentPlayer) -> String {
@@ -196,6 +205,9 @@ pub async fn login(
         return render_error("Invalid username or password.".to_string());
     }
 
+    // Save the current anonymous token in a cookie so we can restore it on logout
+    let anon_token = session.get::<String>(PLAYER_ID_KEY).await.ok().flatten();
+
     // Switch session to this player's token
     let token = player
         .session_token
@@ -211,7 +223,16 @@ pub async fn login(
     } else {
         &query.redirect
     };
-    Ok(Redirect::to(target).into_response())
+    let mut response = Redirect::to(target).into_response();
+    if let Some(token) = anon_token {
+        response.headers_mut().insert(
+            axum::http::header::SET_COOKIE,
+            format!("{ANON_PLAYER_TOKEN_COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax")
+                .parse()
+                .unwrap(),
+        );
+    }
+    Ok(response)
 }
 
 // POST /logout
@@ -219,12 +240,30 @@ pub async fn logout(
     session: Session,
     headers: axum::http::HeaderMap,
 ) -> Result<Response, AppError> {
+    let anon_token = get_cookie(&headers, ANON_PLAYER_TOKEN_COOKIE);
+
     session
         .flush()
         .await
         .map_err(|e| AppError::Internal(format!("Session flush error: {e}")))?;
 
+    // Restore the anonymous identity saved at login
+    if let Some(token) = &anon_token {
+        session
+            .insert(PLAYER_ID_KEY, token.clone())
+            .await
+            .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
+    }
+
     let redirect = referer_path(&headers);
     let target = if redirect.is_empty() { "/" } else { &redirect };
-    Ok(Redirect::to(target).into_response())
+    let mut response = Redirect::to(target).into_response();
+    // Clear the anon cookie regardless
+    response.headers_mut().insert(
+        axum::http::header::SET_COOKIE,
+        format!("{ANON_PLAYER_TOKEN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0")
+            .parse()
+            .unwrap(),
+    );
+    Ok(response)
 }

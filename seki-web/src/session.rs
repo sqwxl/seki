@@ -6,6 +6,7 @@ use crate::error::AppError;
 use crate::models::player::Player;
 
 pub const PLAYER_ID_KEY: &str = "player_id";
+pub const ANON_PLAYER_TOKEN_COOKIE: &str = "anon_player_token";
 
 pub struct CurrentPlayer {
     pub player: Player,
