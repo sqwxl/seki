@@ -503,6 +503,7 @@ export function go(root: HTMLElement) {
           move_number: data.move_number,
           sent_at: data.sent_at,
         });
+        updateChatPresence(onlinePlayers);
         break;
       case "error":
         showError(data.message);

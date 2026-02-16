@@ -119,7 +119,13 @@ function subscribe(kind: string, handler: Handler): () => void {
  */
 function joinGame(gameId: number, handler: Handler): () => void {
   gameHandlers.set(gameId, handler);
-  send({ action: "join_game", game_id: gameId });
+  // Only send immediately if the socket is already open.
+  // Otherwise, onopen will re-join all games from gameHandlers.
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: "join_game", game_id: gameId }));
+  } else {
+    ensureConnected();
+  }
 
   return () => {
     gameHandlers.delete(gameId);
