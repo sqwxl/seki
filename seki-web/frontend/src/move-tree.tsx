@@ -1,11 +1,11 @@
 import { h } from "preact";
-import { useRef, useEffect } from "preact/hooks";
+import { useEffect } from "preact/hooks";
 import type { GameTreeData } from "./goban/types";
 
 const NODE_RADIUS = 12;
-const COL_SPACING = 34;
+const COL_SPACING = 32;
 const ROW_SPACING = 34;
-const PADDING = 18;
+const PADDING = 20;
 
 type LayoutNode = {
   id: number;
@@ -57,7 +57,12 @@ type MoveTreeProps = {
   onNavigate: (nodeId: number) => void;
 };
 
-export function MoveTree({ tree, currentNodeId, scrollContainer, onNavigate }: MoveTreeProps) {
+export function MoveTree({
+  tree,
+  currentNodeId,
+  scrollContainer,
+  onNavigate,
+}: MoveTreeProps) {
   const layout = layoutTree(tree);
 
   if (layout.length === 0) {
@@ -93,8 +98,22 @@ export function MoveTree({ tree, currentNodeId, scrollContainer, onNavigate }: M
       x = cx(cur.col);
       y = cy(cur.row);
     }
-    scrollContainer.scrollLeft = Math.max(0, x - scrollContainer.clientWidth / 2);
-    scrollContainer.scrollTop = Math.max(0, y - scrollContainer.clientHeight / 2);
+    const pad = PADDING;
+    const sl = scrollContainer.scrollLeft;
+    const st = scrollContainer.scrollTop;
+    const w = scrollContainer.clientWidth;
+    const h = scrollContainer.clientHeight;
+
+    if (x - pad < sl) {
+      scrollContainer.scrollLeft = Math.max(0, x - pad);
+    } else if (x + pad > sl + w) {
+      scrollContainer.scrollLeft = x + pad - w;
+    }
+    if (y - pad < st) {
+      scrollContainer.scrollTop = Math.max(0, y - pad);
+    } else if (y + pad > st + h) {
+      scrollContainer.scrollTop = y + pad - h;
+    }
   }, [currentNodeId, tree]);
 
   // Build edges
@@ -155,10 +174,16 @@ export function MoveTree({ tree, currentNodeId, scrollContainer, onNavigate }: M
     const isPass = treeNode.turn.kind === "pass";
 
     const isRoot = stone === 0;
-    const fill = isRoot ? "#222" : isPass ? "#f5f5f5" : stone === 1 ? "#222" : "#fff";
-    const radius = isRoot ? 5 : NODE_RADIUS;
-    const strokeColor = isCurrent ? "#2196f3" : "#555";
-    const strokeWidth = isCurrent ? 2.5 : 1.2;
+    const fill = isRoot
+      ? "#222"
+      : isPass
+        ? "#f5f5f5"
+        : stone === 1
+          ? "#222"
+          : "#fff";
+    const radius = isCurrent ? NODE_RADIUS * 1.4 : NODE_RADIUS;
+    const strokeColor = "#555";
+    const strokeWidth = 1.2;
 
     nodes.push(
       <g
@@ -166,15 +191,36 @@ export function MoveTree({ tree, currentNodeId, scrollContainer, onNavigate }: M
         style={{ cursor: "pointer" }}
         onClick={() => onNavigate(node.id)}
       >
-        {isRoot && <circle cx={x} cy={y} r={NODE_RADIUS} fill="transparent" />}
-        <circle
-          cx={x}
-          cy={y}
-          r={radius}
-          fill={fill}
-          stroke={strokeColor}
-          stroke-width={strokeWidth}
-        />
+        {isRoot ? (
+          <>
+            <circle cx={x} cy={y} r={radius} fill="transparent" stroke={isCurrent ? "#555" : "none"} stroke-width={1} stroke-dasharray="3 3" />
+            <line
+              x1={x - radius}
+              y1={y}
+              x2={x + radius}
+              y2={y}
+              stroke="#888"
+              stroke-width={1.5}
+            />
+            <line
+              x1={x}
+              y1={y - radius}
+              x2={x}
+              y2={y + radius}
+              stroke={strokeColor}
+              stroke-width={2}
+            />
+          </>
+        ) : (
+          <circle
+            cx={x}
+            cy={y}
+            r={radius}
+            fill={fill}
+            stroke={strokeColor}
+            stroke-width={strokeWidth}
+          />
+        )}
         {!isRoot && isPass && (
           <text
             x={x}
@@ -184,7 +230,7 @@ export function MoveTree({ tree, currentNodeId, scrollContainer, onNavigate }: M
             font-size={10}
             fill="#888"
           >
-            –
+            ⋯
           </text>
         )}
         {!isRoot && !isPass && (
