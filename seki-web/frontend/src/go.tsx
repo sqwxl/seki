@@ -16,6 +16,12 @@ import type { Board } from "./wasm-board";
 import { appendToChat, renderChatHistory, setupChat } from "./chat";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
+const BLACK_SYMBOL = "●";
+const WHITE_SYMBOL = "○";
+const BLACK_CAPTURES_SYMBOL = "⚉";
+const WHITE_CAPTURES_SYMBOL = "⚇";
+const CHECKMARK = "✓";
+
 function readPlayerData(): PlayerData | undefined {
   const el = document.getElementById("player-data");
   if (!el || !el.textContent) {
@@ -104,14 +110,30 @@ export function go(root: HTMLElement) {
   // DOM elements
   const statusEl = document.getElementById("status");
   const titleEl = document.getElementById("game-title");
+  const playerTopEl = document.getElementById("player-top");
+  const playerBottomEl = document.getElementById("player-bottom");
   const gobanEl = document.getElementById("goban")!;
-  const passBtn = document.getElementById("pass-btn") as HTMLButtonElement | null;
-  const resignBtn = document.getElementById("resign-btn") as HTMLButtonElement | null;
-  const requestUndoBtn = document.getElementById("request-undo-btn") as HTMLButtonElement | null;
-  const resetBtn = document.getElementById("reset-btn") as HTMLButtonElement | null;
-  const analyzeBtn = document.getElementById("analyze-btn") as HTMLButtonElement | null;
-  const exitAnalysisBtn = document.getElementById("exit-analysis-btn") as HTMLButtonElement | null;
-  const acceptTerritoryBtn = document.getElementById("accept-territory-btn") as HTMLButtonElement | null;
+  const passBtn = document.getElementById(
+    "pass-btn",
+  ) as HTMLButtonElement | null;
+  const resignBtn = document.getElementById(
+    "resign-btn",
+  ) as HTMLButtonElement | null;
+  const requestUndoBtn = document.getElementById(
+    "request-undo-btn",
+  ) as HTMLButtonElement | null;
+  const resetBtn = document.getElementById(
+    "reset-btn",
+  ) as HTMLButtonElement | null;
+  const analyzeBtn = document.getElementById(
+    "analyze-btn",
+  ) as HTMLButtonElement | null;
+  const exitAnalysisBtn = document.getElementById(
+    "exit-analysis-btn",
+  ) as HTMLButtonElement | null;
+  const acceptTerritoryBtn = document.getElementById(
+    "accept-territory-btn",
+  ) as HTMLButtonElement | null;
 
   function isLiveClickable(): boolean {
     if (analysisMode) {
@@ -126,6 +148,7 @@ export function go(root: HTMLElement) {
     if (gameState.stage === "territory_review") {
       return true;
     }
+
     return isPlayStage(gameState.stage) && currentTurn === playerStone;
   }
 
@@ -138,6 +161,7 @@ export function go(root: HTMLElement) {
     } else {
       channel.play(col, row);
     }
+
     return true;
   }
 
@@ -158,7 +182,6 @@ export function go(root: HTMLElement) {
     updateActions();
   }
 
-  // Render from server state (live board at latest position, not in analysis)
   function renderGoban(state: GameState): void {
     if (state.board.length === 0) {
       return;
@@ -255,17 +278,45 @@ export function go(root: HTMLElement) {
     }
   }
 
+  function setLabel(el: HTMLElement, name: string, captures: string): void {
+    const nameEl = el.querySelector(".player-name");
+    const capsEl = el.querySelector(".player-captures");
+    if (nameEl) {
+      nameEl.textContent = name;
+    }
+    if (capsEl) {
+      capsEl.textContent = captures;
+    }
+  }
+
+  function updatePlayerLabels(
+    black: PlayerData | null,
+    white: PlayerData | null,
+  ): void {
+    if (!playerTopEl || !playerBottomEl) {
+      return;
+    }
+    const bName = `${BLACK_SYMBOL} ${black ? black.display_name : "…"}`;
+    const wName = `${WHITE_SYMBOL} ${white ? white.display_name : "…"}`;
+    const bCaps = `${gameState.captures.black} ${BLACK_CAPTURES_SYMBOL}`;
+    const wCaps = `${gameState.captures.white} ${WHITE_CAPTURES_SYMBOL}`;
+    if (playerStone === -1) {
+      setLabel(playerTopEl, bName, bCaps);
+      setLabel(playerBottomEl, wName, wCaps);
+    } else {
+      setLabel(playerTopEl, wName, wCaps);
+      setLabel(playerBottomEl, bName, bCaps);
+    }
+  }
+
   function updateStatus(): void {
     if (!statusEl) {
       return;
     }
-    if (gameState.stage === "done" && result) {
-      statusEl.textContent = result;
-    } else if (gameState.stage === "territory_review" && territory) {
-      const bCheck = territory.black_approved ? " \u2713" : "";
-      const wCheck = territory.white_approved ? " \u2713" : "";
-      statusEl.textContent =
-        `B: ${territory.score.black}${bCheck}  |  W: ${territory.score.white}${wCheck}`;
+    if (gameState.stage === "territory_review" && territory) {
+      const bCheck = territory.black_approved ? ` ${CHECKMARK}` : "";
+      const wCheck = territory.white_approved ? ` ${CHECKMARK}` : "";
+      statusEl.textContent = `B: ${territory.score.black}${bCheck}  |  W: ${territory.score.white}${wCheck}`;
     } else {
       statusEl.textContent = "";
     }
@@ -307,6 +358,7 @@ export function go(root: HTMLElement) {
           }
           updateActions();
           updateTitle(data.description);
+          updatePlayerLabels(data.black, data.white);
           updateStatus();
           break;
         case "chat":
@@ -380,17 +432,25 @@ export function go(root: HTMLElement) {
       document.getElementById("pass-confirm")?.showPopover();
     }
   });
-  const confirmPassBtn = document.getElementById("confirm-pass-btn") as HTMLButtonElement | null;
+  const confirmPassBtn = document.getElementById(
+    "confirm-pass-btn",
+  ) as HTMLButtonElement | null;
   confirmPassBtn?.addEventListener("click", () => channel.pass());
-  const confirmResignBtn = document.getElementById("confirm-resign-btn") as HTMLButtonElement | null;
+  const confirmResignBtn = document.getElementById(
+    "confirm-resign-btn",
+  ) as HTMLButtonElement | null;
   confirmResignBtn?.addEventListener("click", () => channel.resign());
 
   // Territory review handlers
   acceptTerritoryBtn?.addEventListener("click", () => {
     document.getElementById("accept-territory-confirm")?.showPopover();
   });
-  const confirmAcceptTerritoryBtn = document.getElementById("confirm-accept-territory-btn") as HTMLButtonElement | null;
-  confirmAcceptTerritoryBtn?.addEventListener("click", () => channel.approveTerritory());
+  const confirmAcceptTerritoryBtn = document.getElementById(
+    "confirm-accept-territory-btn",
+  ) as HTMLButtonElement | null;
+  confirmAcceptTerritoryBtn?.addEventListener("click", () =>
+    channel.approveTerritory(),
+  );
 
   // Analysis mode handlers
   analyzeBtn?.addEventListener("click", () => enterAnalysis());
@@ -406,6 +466,7 @@ export function go(root: HTMLElement) {
 
   // Render initial board from server state
   renderGoban(gameState);
+  updatePlayerLabels(props.black, props.white);
   updateStatus();
 
   renderChatHistory();
@@ -427,12 +488,24 @@ export function go(root: HTMLElement) {
 
   function updateActions(): void {
     if (analysisMode) {
-      if (passBtn) { passBtn.style.display = ""; }
-      if (resignBtn) { resignBtn.style.display = "none"; }
-      if (requestUndoBtn) { requestUndoBtn.style.display = "none"; }
-      if (resetBtn) { resetBtn.style.display = ""; }
-      if (analyzeBtn) { analyzeBtn.style.display = "none"; }
-      if (exitAnalysisBtn) { exitAnalysisBtn.style.display = ""; }
+      if (passBtn) {
+        passBtn.style.display = "";
+      }
+      if (resignBtn) {
+        resignBtn.style.display = "none";
+      }
+      if (requestUndoBtn) {
+        requestUndoBtn.style.display = "none";
+      }
+      if (resetBtn) {
+        resetBtn.style.display = "";
+      }
+      if (analyzeBtn) {
+        analyzeBtn.style.display = "none";
+      }
+      if (exitAnalysisBtn) {
+        exitAnalysisBtn.style.display = "";
+      }
       return;
     }
 
@@ -448,9 +521,15 @@ export function go(root: HTMLElement) {
     if (resignBtn) {
       resignBtn.style.display = isPlay ? "" : "none";
     }
-    if (resetBtn) { resetBtn.style.display = "none"; }
-    if (analyzeBtn) { analyzeBtn.style.display = isReview ? "none" : ""; }
-    if (exitAnalysisBtn) { exitAnalysisBtn.style.display = "none"; }
+    if (resetBtn) {
+      resetBtn.style.display = "none";
+    }
+    if (analyzeBtn) {
+      analyzeBtn.style.display = isReview ? "none" : "";
+    }
+    if (exitAnalysisBtn) {
+      exitAnalysisBtn.style.display = "none";
+    }
 
     if (requestUndoBtn) {
       requestUndoBtn.style.display = allowUndo && isPlay ? "" : "none";
@@ -473,7 +552,8 @@ export function go(root: HTMLElement) {
     }
 
     if (acceptTerritoryBtn) {
-      acceptTerritoryBtn.style.display = isReview && playerStone !== 0 ? "" : "none";
+      acceptTerritoryBtn.style.display =
+        isReview && playerStone !== 0 ? "" : "none";
       const alreadyApproved =
         (playerStone === 1 && territory?.black_approved) ||
         (playerStone === -1 && territory?.white_approved);

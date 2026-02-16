@@ -10,9 +10,17 @@
             </form>
         {% endif %}
         <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
+            <div id="player-top" class="player-label">
+                <span class="player-name"></span>
+                <span class="player-captures"></span>
+            </div>
             <div id="goban"
                  class="goban-container"
                  style="aspect-ratio: {{ cols }}/{{ rows }}"></div>
+            <div id="player-bottom" class="player-label">
+                <span class="player-name"></span>
+                <span class="player-captures"></span>
+            </div>
             <div class="controls">
                 {{ controls::nav_bar() }}
                 <div id="action-buttons"
@@ -47,14 +55,7 @@
                 </div>
             </div>
             <div id="move-tree" class="move-tree"></div>
-            <div style="display: flex;
-                        gap: 1em;
-                        align-items: center;
-                        justify-content: center;
-                        margin-top: 0.5em">
-                <div id="status"></div>
-                <div id="captures"></div>
-            </div>
+            <div id="status" style="text-align: center; margin-top: 0.5em"></div>
             {% if is_player %}
                 <div id="undo-response-controls" popover>
                     <p>Opponent has requested to undo their last move.</p>

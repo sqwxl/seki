@@ -151,12 +151,17 @@ pub async fn show_game(
     let is_creator = gwp.game.creator_id == Some(current_player.id);
     let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
 
+    let mut initial_state = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await?
+        .game_state();
+    // The engine derives stage from moves, but the DB is authoritative for done games.
+    if gwp.game.result.is_some() {
+        initial_state.stage = go_engine::Stage::Done;
+    }
     let game_props = serde_json::to_string(&InitialGameProps {
-        state: state
-            .registry
-            .get_or_init_engine(&state.db, &gwp.game)
-            .await?
-            .game_state(),
+        state: initial_state,
         black: gwp.black.as_ref().map(PlayerData::from),
         white: gwp.white.as_ref().map(PlayerData::from),
     })

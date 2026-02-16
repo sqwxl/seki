@@ -16,18 +16,22 @@
     </head>
     <body>
         <nav>
-            <a href="/">Home</a>
-            <a href="/games">Games</a>
-            <a href="/analysis">Analysis Board</a>
-            <span>{{ player_username }}</span>
-            {% if player_is_registered %}
-                <form action="/logout" method="post" style="display:inline">
-                    <button type="submit">Log out</button>
-                </form>
-            {% else %}
-                <a href="/login">Log in</a>
-                <a href="/register">Register</a>
-            {% endif %}
+            <div>
+                <a href="/">New</a>
+                <a href="/games">Games</a>
+                <a href="/analysis">Analysis Board</a>
+            </div>
+            <div>
+                <span>{{ player_username }}</span>
+                {% if player_is_registered %}
+                    <form action="/logout" method="post" style="display:inline">
+                        <button type="submit">Log out</button>
+                    </form>
+                {% else %}
+                    <a href="/login">Log in</a>
+                    <a href="/register">Register</a>
+                {% endif %}
+            </div>
         </nav>
         <div class="flash">
             {% block flash %}{% endblock %}

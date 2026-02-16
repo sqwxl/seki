@@ -46,9 +46,11 @@ pub fn serialize_state(
     undo_requested: bool,
     territory: Option<&TerritoryData>,
 ) -> serde_json::Value {
-    // When both players have joined but no moves yet, the engine reports Unstarted.
-    // Override to BlackToPlay so the frontend allows the first move.
-    let stage = if engine.stage() == go_engine::Stage::Unstarted && !gwp.is_open() {
+    // Resolve stage: the engine derives stage from moves, but the DB is authoritative
+    // for terminal states (done) and waiting states (unstarted with both players).
+    let stage = if gwp.game.result.is_some() {
+        go_engine::Stage::Done
+    } else if engine.stage() == go_engine::Stage::Unstarted && !gwp.is_open() {
         go_engine::Stage::BlackToPlay
     } else {
         engine.stage()

@@ -28,6 +28,32 @@ body {
   justify-content: center;
 }
 
+nav,
+nav > div {
+  display: flex;
+  width: 100%;
+  justify-content: space-around;
+  align-items: center;
+  font-size: 1.125em;
+
+  div {
+    justify-content: center;
+    gap: 1em;
+
+    & > * {
+      margin: 1em 0;
+    }
+  }
+
+  & > a {
+    text-decoration: none;
+  }
+}
+
+a:visited {
+  color: unset;
+}
+
 li::marker {
   content: "";
 }
