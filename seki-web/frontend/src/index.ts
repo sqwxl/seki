@@ -23,6 +23,7 @@ if (analysisRoot) {
     navButtons: findNavButtons(),
     buttons: {
       pass: document.getElementById("pass-btn") as HTMLButtonElement | null,
+      reset: document.getElementById("reset-btn") as HTMLButtonElement | null,
     },
     onRender: (engine) => {
       if (turnEl) {
