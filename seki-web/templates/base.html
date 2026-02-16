@@ -22,7 +22,11 @@
                 <a href="/analysis">Analysis Board</a>
             </div>
             <div>
+                {% if player_is_registered %}
+                <a href="/settings">{{ player_username }}</a>
+                {% else %}
                 <span>{{ player_username }}</span>
+                {% endif %}
                 {% if player_is_registered %}
                     <form action="/logout" method="post" style="display:inline">
                         <button type="submit">Log out</button>

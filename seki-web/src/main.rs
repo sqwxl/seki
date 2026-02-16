@@ -81,6 +81,9 @@ async fn main() {
         .route("/login", get(routes::auth::login_form))
         .route("/login", post(routes::auth::login))
         .route("/logout", post(routes::auth::logout))
+        // Settings
+        .route("/settings", get(routes::settings::settings_page))
+        .route("/settings/token", post(routes::settings::generate_token))
         // WebSocket
         .route("/games/{id}/ws", get(ws::handler::ws_upgrade))
         // API

@@ -31,6 +31,7 @@ pub struct Player {
     pub email: Option<String>,
     pub username: String,
     pub password_hash: Option<String>,
+    pub api_token: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -135,6 +136,27 @@ impl Player {
         )
         .bind(username)
         .bind(password_hash)
+        .bind(player_id)
+        .fetch_one(pool)
+        .await
+    }
+
+    pub async fn find_by_api_token(
+        pool: &DbPool,
+        token: &str,
+    ) -> Result<Option<Player>, sqlx::Error> {
+        sqlx::query_as::<_, Player>("SELECT * FROM players WHERE api_token = $1")
+            .bind(token)
+            .fetch_optional(pool)
+            .await
+    }
+
+    pub async fn generate_api_token(pool: &DbPool, player_id: i64) -> Result<Player, sqlx::Error> {
+        let token = generate_token();
+        sqlx::query_as::<_, Player>(
+            "UPDATE players SET api_token = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        )
+        .bind(&token)
         .bind(player_id)
         .fetch_one(pool)
         .await

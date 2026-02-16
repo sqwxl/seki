@@ -2,7 +2,7 @@ use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use tower_sessions::Session;
 
-use crate::error::AppError;
+use crate::error::{ApiError, AppError};
 use crate::models::player::Player;
 
 pub const PLAYER_ID_KEY: &str = "player_id";
@@ -60,5 +60,52 @@ impl FromRequestParts<crate::AppState> for CurrentPlayer {
         tracing::debug!("New player created: {}", player.id);
 
         Ok(CurrentPlayer { player })
+    }
+}
+
+pub struct ApiPlayer {
+    pub player: Player,
+}
+
+impl std::ops::Deref for ApiPlayer {
+    type Target = Player;
+    fn deref(&self) -> &Self::Target {
+        &self.player
+    }
+}
+
+impl FromRequestParts<crate::AppState> for ApiPlayer {
+    type Rejection = ApiError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &crate::AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let header = parts
+            .headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "))
+            .map(|t| t.to_string())
+            .ok_or_else(|| {
+                ApiError(AppError::Unauthorized(
+                    "Missing or invalid Authorization header".to_string(),
+                ))
+            })?;
+
+        let player = Player::find_by_api_token(&state.db, &header)
+            .await
+            .map_err(|e| ApiError(AppError::Internal(format!("Database error: {e}"))))?
+            .ok_or_else(|| {
+                ApiError(AppError::Unauthorized("Invalid API token".to_string()))
+            })?;
+
+        if !player.is_registered() {
+            return Err(ApiError(AppError::Unauthorized(
+                "API tokens require a registered account".to_string(),
+            )));
+        }
+
+        Ok(ApiPlayer { player })
     }
 }

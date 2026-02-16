@@ -1,12 +1,8 @@
-use argon2::password_hash::rand_core::OsRng;
-use argon2::password_hash::SaltString;
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::extract::{Path, State};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tower_sessions::Session;
 
 use crate::error::{ApiError, AppError};
 use crate::models::game::Game;
@@ -14,7 +10,7 @@ use crate::models::message::Message;
 use crate::models::player::Player;
 use crate::models::turn::TurnRow;
 use crate::services::{game_actions, game_creator, state_serializer};
-use crate::session::{CurrentPlayer, PLAYER_ID_KEY};
+use crate::session::ApiPlayer;
 use crate::AppState;
 
 // -- Response types --
@@ -133,19 +129,6 @@ struct ChatRequest {
     text: String,
 }
 
-#[derive(Deserialize)]
-struct RegisterRequest {
-    username: String,
-    password: String,
-    password_confirmation: String,
-}
-
-#[derive(Deserialize)]
-struct LoginRequest {
-    username: String,
-    password: String,
-}
-
 // -- Router --
 
 pub fn router() -> Router<AppState> {
@@ -163,14 +146,14 @@ pub fn router() -> Router<AppState> {
         .route("/games/{id}/territory/toggle", post(toggle_chain))
         .route("/games/{id}/territory/approve", post(approve_territory))
         // Messages
-        .route("/games/{id}/messages", get(get_messages).post(send_message))
+        .route(
+            "/games/{id}/messages",
+            get(get_messages).post(send_message),
+        )
         // Turns
         .route("/games/{id}/turns", get(get_turns))
         // Auth
         .route("/me", get(get_me))
-        .route("/register", post(register))
-        .route("/login", post(login))
-        .route("/logout", post(logout))
 }
 
 // -- Game handlers --
@@ -198,7 +181,7 @@ async fn list_games(State(state): State<AppState>) -> Result<Json<Vec<GameListIt
 
 async fn create_game(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Json(body): Json<CreateGameRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let params = game_creator::CreateGameParams {
@@ -213,7 +196,7 @@ async fn create_game(
         invite_email: body.invite_email,
     };
 
-    let game = game_creator::create_game(&state.db, &current_player, params).await?;
+    let game = game_creator::create_game(&state.db, &api_player, params).await?;
     let gwp = Game::find_with_players(&state.db, game.id).await?;
     let engine = state
         .registry
@@ -221,7 +204,9 @@ async fn create_game(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(Json(build_game_response(&state, game.id, &gwp, &engine).await))
+    Ok(Json(
+        build_game_response(&state, game.id, &gwp, &engine).await,
+    ))
 }
 
 async fn get_game(
@@ -240,12 +225,12 @@ async fn get_game(
 
 async fn delete_game(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let game = Game::find_by_id(&state.db, id).await?;
 
-    if game.creator_id != Some(current_player.id) {
+    if game.creator_id != Some(api_player.id) {
         return Err(
             AppError::BadRequest("Only the creator can delete this game".to_string()).into(),
         );
@@ -262,19 +247,19 @@ async fn delete_game(
 
 async fn join_game(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
 
-    if gwp.has_player(current_player.id) {
+    if gwp.has_player(api_player.id) {
         return Err(AppError::BadRequest("Already in this game".to_string()).into());
     }
 
     if gwp.game.black_id.is_none() {
-        Game::set_black(&state.db, id, current_player.id).await?;
+        Game::set_black(&state.db, id, api_player.id).await?;
     } else if gwp.game.white_id.is_none() {
-        Game::set_white(&state.db, id, current_player.id).await?;
+        Game::set_white(&state.db, id, api_player.id).await?;
     } else {
         return Err(AppError::BadRequest("Game is full".to_string()).into());
     }
@@ -293,41 +278,41 @@ async fn join_game(
 
 async fn play_move(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
     Json(body): Json<PlayRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let engine = game_actions::play_move(&state, id, current_player.id, body.col, body.row).await?;
+    let engine = game_actions::play_move(&state, id, api_player.id, body.col, body.row).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn pass(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let engine = game_actions::pass(&state, id, current_player.id).await?;
+    let engine = game_actions::pass(&state, id, api_player.id).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn resign(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let engine = game_actions::resign(&state, id, current_player.id).await?;
+    let engine = game_actions::resign(&state, id, api_player.id).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn request_undo(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    game_actions::request_undo(&state, id, current_player.id).await?;
+    game_actions::request_undo(&state, id, api_player.id).await?;
 
     Ok(Json(serde_json::json!({
         "status": "undo_requested",
@@ -337,7 +322,7 @@ async fn request_undo(
 
 async fn respond_to_undo(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
     Json(body): Json<UndoResponseRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
@@ -350,18 +335,20 @@ async fn respond_to_undo(
     }
 
     let result =
-        game_actions::respond_to_undo(&state, id, current_player.id, response == "accept").await?;
+        game_actions::respond_to_undo(&state, id, api_player.id, response == "accept").await?;
 
-    Ok(Json(build_game_response(&state, id, &result.gwp, &result.engine).await))
+    Ok(Json(
+        build_game_response(&state, id, &result.gwp, &result.engine).await,
+    ))
 }
 
 async fn toggle_chain(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
     Json(body): Json<ToggleChainRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    game_actions::toggle_chain(&state, id, current_player.id, body.col, body.row).await?;
+    game_actions::toggle_chain(&state, id, api_player.id, body.col, body.row).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state
         .registry
@@ -373,10 +360,10 @@ async fn toggle_chain(
 
 async fn approve_territory(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    game_actions::approve_territory(&state, id, current_player.id).await?;
+    game_actions::approve_territory(&state, id, api_player.id).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state
         .registry
@@ -392,7 +379,6 @@ async fn get_messages(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<Vec<MessageResponse>>, ApiError> {
-    // Verify game exists
     let gwp = Game::find_with_players(&state.db, id).await?;
     let messages = Message::find_by_game_id(&state.db, id).await?;
 
@@ -401,14 +387,13 @@ async fn get_messages(
         .map(|m| {
             let sender = match m.player_id {
                 Some(pid) => {
-                    let player =
-                        if gwp.black.as_ref().is_some_and(|p| p.id == pid) {
-                            gwp.black.as_ref()
-                        } else if gwp.white.as_ref().is_some_and(|p| p.id == pid) {
-                            gwp.white.as_ref()
-                        } else {
-                            None
-                        };
+                    let player = if gwp.black.as_ref().is_some_and(|p| p.id == pid) {
+                        gwp.black.as_ref()
+                    } else if gwp.white.as_ref().is_some_and(|p| p.id == pid) {
+                        gwp.white.as_ref()
+                    } else {
+                        None
+                    };
                     let username = player.map(|p| p.username.as_str());
                     state_serializer::sender_label(&gwp, pid, username)
                 }
@@ -430,11 +415,11 @@ async fn get_messages(
 
 async fn send_message(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    api_player: ApiPlayer,
     Path(id): Path<i64>,
     Json(body): Json<ChatRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    let chat = game_actions::send_chat(&state, id, current_player.id, &body.text).await?;
+    let chat = game_actions::send_chat(&state, id, api_player.id, &body.text).await?;
 
     Ok(Json(MessageResponse {
         id: chat.message.id,
@@ -452,7 +437,6 @@ async fn get_turns(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<Vec<TurnResponse>>, ApiError> {
-    // Verify game exists
     Game::find_by_id(&state.db, id).await?;
     let turns = TurnRow::find_by_game_id(&state.db, id).await?;
 
@@ -475,93 +459,8 @@ async fn get_turns(
 
 // -- Auth handlers --
 
-async fn get_me(current_player: CurrentPlayer) -> Json<PlayerResponse> {
-    Json(PlayerResponse::from_player(&current_player))
-}
-
-async fn register(
-    State(state): State<AppState>,
-    current_player: CurrentPlayer,
-    Json(body): Json<RegisterRequest>,
-) -> Result<Json<PlayerResponse>, ApiError> {
-    if current_player.is_registered() {
-        return Err(AppError::BadRequest("Already registered".to_string()).into());
-    }
-
-    let username = body.username.trim().to_string();
-    if username.is_empty() || username.len() > 30 {
-        return Err(AppError::BadRequest(
-            "Username must be between 1 and 30 characters".to_string(),
-        )
-        .into());
-    }
-    if body.password.len() < 8 {
-        return Err(
-            AppError::BadRequest("Password must be at least 8 characters".to_string()).into(),
-        );
-    }
-    if body.password != body.password_confirmation {
-        return Err(AppError::BadRequest("Passwords do not match".to_string()).into());
-    }
-
-    if Player::find_by_username(&state.db, &username)
-        .await?
-        .is_some()
-    {
-        return Err(AppError::BadRequest("Username is already taken".to_string()).into());
-    }
-
-    let salt = SaltString::generate(&mut OsRng);
-    let password_hash = Argon2::default()
-        .hash_password(body.password.as_bytes(), &salt)
-        .map_err(|e| AppError::Internal(format!("Password hash error: {e}")))?
-        .to_string();
-
-    let player =
-        Player::set_credentials(&state.db, current_player.id, &username, &password_hash).await?;
-
-    Ok(Json(PlayerResponse::from_player(&player)))
-}
-
-async fn login(
-    State(state): State<AppState>,
-    session: Session,
-    Json(body): Json<LoginRequest>,
-) -> Result<Json<PlayerResponse>, ApiError> {
-    let player = Player::find_by_username(&state.db, body.username.trim())
-        .await?
-        .ok_or_else(|| AppError::BadRequest("Invalid username or password".to_string()))?;
-
-    let stored_hash = player
-        .password_hash
-        .as_ref()
-        .ok_or_else(|| AppError::BadRequest("Invalid username or password".to_string()))?;
-
-    let parsed_hash = PasswordHash::new(stored_hash)
-        .map_err(|e| AppError::Internal(format!("Password hash parse error: {e}")))?;
-
-    Argon2::default()
-        .verify_password(body.password.as_bytes(), &parsed_hash)
-        .map_err(|_| AppError::BadRequest("Invalid username or password".to_string()))?;
-
-    let token = player
-        .session_token
-        .as_ref()
-        .ok_or_else(|| AppError::Internal("Registered player has no session token".to_string()))?;
-    session
-        .insert(PLAYER_ID_KEY, token.clone())
-        .await
-        .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
-
-    Ok(Json(PlayerResponse::from_player(&player)))
-}
-
-async fn logout(session: Session) -> Result<Json<serde_json::Value>, ApiError> {
-    session
-        .flush()
-        .await
-        .map_err(|e| AppError::Internal(format!("Session flush error: {e}")))?;
-    Ok(Json(serde_json::json!({"logged_out": true})))
+async fn get_me(api_player: ApiPlayer) -> Json<PlayerResponse> {
+    Json(PlayerResponse::from_player(&api_player))
 }
 
 // -- Helpers --
@@ -573,21 +472,24 @@ async fn build_game_response(
     engine: &go_engine::Engine,
 ) -> GameResponse {
     let territory = if engine.stage() == go_engine::Stage::TerritoryReview {
-        state.registry.get_territory_review(game_id).await.map(|tr| {
-            state_serializer::compute_territory_data(
-                engine,
-                &tr.dead_stones,
-                gwp.game.komi,
-                tr.black_approved,
-                tr.white_approved,
-            )
-        })
+        state
+            .registry
+            .get_territory_review(game_id)
+            .await
+            .map(|tr| {
+                state_serializer::compute_territory_data(
+                    engine,
+                    &tr.dead_stones,
+                    gwp.game.komi,
+                    tr.black_approved,
+                    tr.white_approved,
+                )
+            })
     } else {
         None
     };
 
-    let serialized =
-        state_serializer::serialize_state(gwp, engine, false, territory.as_ref());
+    let serialized = state_serializer::serialize_state(gwp, engine, false, territory.as_ref());
 
     let territory_json = serialized.get("territory").cloned();
 

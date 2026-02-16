@@ -7,6 +7,7 @@ use serde_json::json;
 pub enum AppError {
     NotFound(String),
     BadRequest(String),
+    Unauthorized(String),
     Internal(String),
     Database(sqlx::Error),
 }
@@ -16,6 +17,7 @@ impl std::fmt::Display for AppError {
         match self {
             AppError::NotFound(msg) => write!(f, "Not found: {msg}"),
             AppError::BadRequest(msg) => write!(f, "Bad request: {msg}"),
+            AppError::Unauthorized(msg) => write!(f, "Unauthorized: {msg}"),
             AppError::Internal(msg) => write!(f, "Internal error: {msg}"),
             AppError::Database(e) => write!(f, "Database error: {e}"),
         }
@@ -27,6 +29,7 @@ impl IntoResponse for AppError {
         let (status, message) = match &self {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             AppError::BadRequest(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg.clone()),
+            AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
             AppError::Database(e) => {
                 tracing::error!("Database error: {e}");
@@ -59,6 +62,7 @@ impl IntoResponse for ApiError {
         let (status, message) = match &self.0 {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             AppError::BadRequest(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg.clone()),
+            AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
             AppError::Database(e) => {
                 tracing::error!("Database error: {e}");

@@ -3,6 +3,7 @@ pub mod auth;
 pub mod games_list;
 pub mod games_new;
 pub mod games_show;
+pub mod settings;
 
 use serde::Serialize;
 
