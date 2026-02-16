@@ -99,7 +99,10 @@ impl Game {
 
     pub async fn list_public(pool: &DbPool) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
-            "SELECT * FROM games WHERE is_private = false AND (result IS NULL OR result != 'Aborted') ORDER BY updated_at DESC",
+            "SELECT * FROM games WHERE is_private = false \
+             AND result IS DISTINCT FROM 'Aborted' \
+             AND (result IS NULL OR updated_at >= now() - interval '5 minutes') \
+             ORDER BY updated_at DESC",
         )
         .fetch_all(pool)
         .await
@@ -123,7 +126,10 @@ impl Game {
         player_id: i64,
     ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
         let games = sqlx::query_as::<_, Game>(
-            "SELECT * FROM games WHERE (black_id = $1 OR white_id = $1) AND (result IS NULL OR result != 'Aborted') ORDER BY updated_at DESC",
+            "SELECT * FROM games WHERE (black_id = $1 OR white_id = $1) \
+             AND result IS DISTINCT FROM 'Aborted' \
+             AND (result IS NULL OR updated_at >= now() - interval '5 minutes') \
+             ORDER BY updated_at DESC",
         )
         .bind(player_id)
         .fetch_all(pool)
