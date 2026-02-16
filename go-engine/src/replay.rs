@@ -15,6 +15,9 @@ pub struct Replay {
     tree: GameTree,
     current: Option<NodeId>,
     engine: Engine,
+    /// Remembered navigation path (root-first sequence of NodeIds).
+    /// `forward()` follows this path when possible, falling back to children[0].
+    path: Vec<NodeId>,
 }
 
 impl Replay {
@@ -25,12 +28,14 @@ impl Replay {
             tree: GameTree::new(),
             current: None,
             engine: Engine::new(cols, rows),
+            path: Vec::new(),
         }
     }
 
     pub fn with_moves(cols: u8, rows: u8, moves: Vec<Turn>) -> Self {
         let tree = GameTree::from_moves(&moves);
-        let current = Self::leaf_of_main_line(&tree);
+        let path = Self::main_line_path(&tree);
+        let current = path.last().copied();
         let engine = Engine::with_moves(cols, rows, moves);
         Self {
             cols,
@@ -38,6 +43,7 @@ impl Replay {
             tree,
             current,
             engine,
+            path,
         }
     }
 
@@ -49,46 +55,39 @@ impl Replay {
         self.engine = Engine::with_moves(self.cols, self.rows, moves);
     }
 
-    /// Follow first children from root to reach the main-line leaf.
-    fn leaf_of_main_line(tree: &GameTree) -> Option<NodeId> {
+    /// Build the main-line path (following children[0] from root to leaf).
+    fn main_line_path(tree: &GameTree) -> Vec<NodeId> {
         let roots = tree.root_children();
         if roots.is_empty() {
-            return None;
+            return Vec::new();
         }
-        let mut node = roots[0];
+        let mut path = vec![roots[0]];
         loop {
-            let children = tree.children_of(Some(node));
+            let children = tree.children_of(Some(*path.last().unwrap()));
             if children.is_empty() {
-                return Some(node);
+                return path;
             }
-            node = children[0];
+            path.push(children[0]);
         }
     }
 
-    /// Follow first children from current to reach a leaf.
+    /// Follow the remembered path from current to a leaf.
+    /// Falls back to children[0] when path doesn't cover a node.
     fn leaf_from_current(&self) -> Option<NodeId> {
-        let mut node = match self.current {
-            Some(id) => {
-                let children = self.tree.children_of(Some(id));
-                if children.is_empty() {
-                    return self.current;
-                }
-                children[0]
-            }
-            None => {
-                let roots = self.tree.root_children();
-                if roots.is_empty() {
-                    return None;
-                }
-                roots[0]
-            }
-        };
+        let mut current = self.current;
+        let mut depth = self.view_index();
         loop {
-            let children = self.tree.children_of(Some(node));
+            let children = self.tree.children_of(current);
             if children.is_empty() {
-                return Some(node);
+                return current;
             }
-            node = children[0];
+            let next = if depth < self.path.len() && children.contains(&self.path[depth]) {
+                self.path[depth]
+            } else {
+                children[0]
+            };
+            current = Some(next);
+            depth += 1;
         }
     }
 
@@ -169,6 +168,7 @@ impl Replay {
             let turn = Turn::play(stone, (col, row));
             let new_id = self.tree.add_child(self.current, turn);
             self.current = Some(new_id);
+            self.path = self.tree.path_to(new_id);
             true
         } else {
             false
@@ -183,6 +183,7 @@ impl Replay {
             let turn = Turn::pass(stone);
             let new_id = self.tree.add_child(self.current, turn);
             self.current = Some(new_id);
+            self.path = self.tree.path_to(new_id);
             true
         } else {
             false
@@ -196,6 +197,10 @@ impl Replay {
                 let parent = self.tree.node(id).parent;
                 if self.tree.remove_leaf(id) {
                     self.current = parent;
+                    self.path = match parent {
+                        Some(pid) => self.tree.path_to(pid),
+                        None => Vec::new(),
+                    };
                     self.rebuild();
                     true
                 } else {
@@ -221,13 +226,22 @@ impl Replay {
         }
     }
 
-    /// Step forward one move (follow first child). Returns false if no children.
+    /// Step forward one move, following the remembered path when possible.
+    /// Falls back to children[0] if the path doesn't apply.
     pub fn forward(&mut self) -> bool {
         let children = self.tree.children_of(self.current);
         if children.is_empty() {
             return false;
         }
-        self.current = Some(children[0]);
+        let depth = self.view_index();
+        let next = if depth < self.path.len() && children.contains(&self.path[depth]) {
+            self.path[depth]
+        } else {
+            self.path.truncate(depth);
+            self.path.push(children[0]);
+            children[0]
+        };
+        self.current = Some(next);
         self.rebuild();
         true
     }
@@ -238,16 +252,20 @@ impl Replay {
         self.rebuild();
     }
 
-    /// Jump to the latest move (follow first children to leaf).
+    /// Jump to the latest move, following the remembered path.
     pub fn to_latest(&mut self) {
         self.current = self.leaf_from_current();
+        if let Some(id) = self.current {
+            self.path = self.tree.path_to(id);
+        }
         self.rebuild();
     }
 
-    /// Jump to a specific node.
+    /// Jump to a specific node, remembering the path.
     pub fn navigate_to(&mut self, node_id: NodeId) {
         if node_id < self.tree.len() {
             self.current = Some(node_id);
+            self.path = self.tree.path_to(node_id);
             self.rebuild();
         }
     }
@@ -256,14 +274,16 @@ impl Replay {
     /// Builds a fresh linear GameTree and sets current to latest.
     pub fn replace_moves(&mut self, moves: Vec<Turn>) {
         self.tree = GameTree::from_moves(&moves);
-        self.current = Self::leaf_of_main_line(&self.tree);
+        self.path = Self::main_line_path(&self.tree);
+        self.current = self.path.last().copied();
         self.rebuild();
     }
 
     /// Wholesale replace the tree (e.g. from localStorage restore).
     pub fn replace_tree(&mut self, tree: GameTree) {
-        self.current = Self::leaf_of_main_line(&tree);
         self.tree = tree;
+        self.path = Self::main_line_path(&self.tree);
+        self.current = self.path.last().copied();
         self.rebuild();
     }
 }
@@ -493,5 +513,47 @@ mod tests {
         r.try_play(1, 0);
         // Should reuse existing node, not create a new one
         assert_eq!(r.tree().len(), 2);
+    }
+
+    #[test]
+    fn forward_remembers_visited_branch() {
+        let mut r = Replay::new(9, 9);
+        r.try_play(0, 0); // node 0: Black (0,0)
+        r.try_play(1, 0); // node 1: White (1,0) — main line
+        r.back(); // at node 0
+        r.try_play(2, 0); // node 2: White (2,0) — variation
+
+        // We're on the variation. Back up to before the branch.
+        r.back(); // at node 0
+        // Forward should follow the variation (last visited), not main line
+        assert!(r.forward());
+        assert_eq!(r.last_play_pos(), Some((2, 0)));
+
+        // Navigate to main line explicitly
+        r.navigate_to(1);
+        assert_eq!(r.last_play_pos(), Some((1, 0)));
+        // Back up and forward should now follow main line
+        r.back();
+        assert!(r.forward());
+        assert_eq!(r.last_play_pos(), Some((1, 0)));
+    }
+
+    #[test]
+    fn to_latest_follows_remembered_path() {
+        let mut r = Replay::new(9, 9);
+        r.try_play(0, 0); // node 0
+        r.try_play(1, 0); // node 1 — main line continues
+        r.try_play(2, 0); // node 2
+        r.to_start();
+        r.forward(); // at node 0
+        r.back(); // at root
+        r.try_play(3, 3); // node 3 — new root variation
+        r.try_play(4, 4); // node 4
+
+        // We're at the end of the new variation. Go to start.
+        r.to_start();
+        // to_latest should follow the remembered path (the variation)
+        r.to_latest();
+        assert_eq!(r.last_play_pos(), Some((4, 4)));
     }
 }
