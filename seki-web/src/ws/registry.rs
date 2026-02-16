@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use go_engine::Engine;
+use go_engine::{Engine, Point};
 use tokio::sync::{mpsc, RwLock};
 
 use crate::db::DbPool;
@@ -9,6 +9,13 @@ use crate::models::game::Game;
 use crate::services::engine_builder;
 
 pub type WsSender = mpsc::UnboundedSender<String>;
+
+#[derive(Debug, Clone)]
+pub struct TerritoryReviewState {
+    pub dead_stones: HashSet<Point>,
+    pub black_approved: bool,
+    pub white_approved: bool,
+}
 
 #[derive(Debug, Default)]
 struct GameRoom {
@@ -18,6 +25,8 @@ struct GameRoom {
     engine: Option<Engine>,
     /// Transient: whether an undo request is pending (lost on disconnect, which is fine)
     undo_requested: bool,
+    /// Territory review state, present only during territory review phase
+    territory_review: Option<TerritoryReviewState>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,6 +166,61 @@ impl GameRegistry {
         let mut rooms = self.rooms.write().await;
         if let Some(room) = rooms.get_mut(&game_id) {
             room.undo_requested = requested;
+        }
+    }
+
+    // -- Territory review --
+
+    pub async fn init_territory_review(&self, game_id: i64, dead_stones: HashSet<Point>) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            room.territory_review = Some(TerritoryReviewState {
+                dead_stones,
+                black_approved: false,
+                white_approved: false,
+            });
+        }
+    }
+
+    pub async fn get_territory_review(&self, game_id: i64) -> Option<TerritoryReviewState> {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .and_then(|room| room.territory_review.clone())
+    }
+
+    /// Toggle the chain at `point`, reset approvals, return updated dead stones.
+    pub async fn toggle_dead_chain(
+        &self,
+        game_id: i64,
+        point: Point,
+        goban: &go_engine::Goban,
+    ) -> Option<HashSet<Point>> {
+        let mut rooms = self.rooms.write().await;
+        let room = rooms.get_mut(&game_id)?;
+        let tr = room.territory_review.as_mut()?;
+        go_engine::territory::toggle_dead_chain(goban, &mut tr.dead_stones, point);
+        tr.black_approved = false;
+        tr.white_approved = false;
+        Some(tr.dead_stones.clone())
+    }
+
+    pub async fn set_approved(&self, game_id: i64, stone: go_engine::Stone, approved: bool) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            if let Some(tr) = room.territory_review.as_mut() {
+                match stone {
+                    go_engine::Stone::Black => tr.black_approved = approved,
+                    go_engine::Stone::White => tr.white_approved = approved,
+                }
+            }
+        }
+    }
+
+    pub async fn clear_territory_review(&self, game_id: i64) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            room.territory_review = None;
         }
     }
 }

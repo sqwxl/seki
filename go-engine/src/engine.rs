@@ -154,6 +154,10 @@ impl Engine {
         self.result.as_deref()
     }
 
+    pub fn set_result(&mut self, result: String) {
+        self.result = Some(result);
+    }
+
     // -- Game actions --
 
     pub fn try_play(&mut self, stone: Stone, point: Point) -> Result<Stage, GoError> {

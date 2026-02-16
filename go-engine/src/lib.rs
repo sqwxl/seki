@@ -6,6 +6,7 @@ pub mod ko;
 pub mod replay;
 pub mod sgf;
 pub mod stone;
+pub mod territory;
 pub mod turn;
 
 pub type Point = (u8, u8);

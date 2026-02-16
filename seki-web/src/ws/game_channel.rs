@@ -1,3 +1,4 @@
+use go_engine::Stage;
 use serde_json::json;
 
 use crate::models::game::Game;
@@ -25,8 +26,36 @@ pub async fn send_initial_state(
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
         .await?;
+
+    // Restore territory review state on reconnect if needed
+    if engine.stage() == Stage::TerritoryReview
+        && state.registry.get_territory_review(game_id).await.is_none()
+    {
+        let dead_stones = go_engine::territory::detect_dead_stones(engine.goban());
+        state
+            .registry
+            .init_territory_review(game_id, dead_stones)
+            .await;
+    }
+
     let undo_requested = state.registry.is_undo_requested(game_id).await;
-    let game_state = state_serializer::serialize_state(&gwp, &engine, undo_requested);
+
+    let territory = if engine.stage() == Stage::TerritoryReview {
+        state.registry.get_territory_review(game_id).await.map(|tr| {
+            state_serializer::compute_territory_data(
+                &engine,
+                &tr.dead_stones,
+                gwp.game.komi,
+                tr.black_approved,
+                tr.white_approved,
+            )
+        })
+    } else {
+        None
+    };
+
+    let game_state =
+        state_serializer::serialize_state(&gwp, &engine, undo_requested, territory.as_ref());
 
     let _ = tx.send(game_state.to_string());
 
@@ -73,6 +102,8 @@ pub async fn handle_message(
         "chat" => handle_chat(state, game_id, player_id, data).await,
         "request_undo" => game_actions::request_undo(state, game_id, player_id).await,
         "respond_to_undo" => handle_respond_to_undo(state, game_id, player_id, data).await,
+        "toggle_chain" => handle_toggle_chain(state, game_id, player_id, data).await,
+        "approve_territory" => game_actions::approve_territory(state, game_id, player_id).await,
         _ => {
             let _ = tx.send(
                 json!({"kind": "error", "message": format!("Unknown action: {action}")})
@@ -118,6 +149,26 @@ async fn handle_chat(
     let text = data.get("message").and_then(|v| v.as_str()).unwrap_or("");
     game_actions::send_chat(state, game_id, player_id, text).await?;
     Ok(())
+}
+
+async fn handle_toggle_chain(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+    data: &serde_json::Value,
+) -> Result<(), crate::error::AppError> {
+    let col = data
+        .get("col")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| crate::error::AppError::BadRequest("Missing col".to_string()))?
+        as u8;
+    let row = data
+        .get("row")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| crate::error::AppError::BadRequest("Missing row".to_string()))?
+        as u8;
+
+    game_actions::toggle_chain(state, game_id, player_id, col, row).await
 }
 
 async fn handle_respond_to_undo(

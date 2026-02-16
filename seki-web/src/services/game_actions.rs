@@ -130,9 +130,146 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
+    // If both players passed, enter territory review
+    if engine.stage() == Stage::TerritoryReview {
+        let dead_stones = go_engine::territory::detect_dead_stones(engine.goban());
+        state
+            .registry
+            .init_territory_review(game_id, dead_stones)
+            .await;
+        broadcast_system_chat(state, game_id, "Territory review has begun").await;
+    }
+
     broadcast_game_state(state, game_id, &engine).await;
 
     Ok(engine)
+}
+
+pub async fn toggle_chain(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+    col: u8,
+    row: u8,
+) -> Result<(), AppError> {
+    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    require_both_players(&gwp)?;
+
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    if engine.stage() != Stage::TerritoryReview {
+        return Err(AppError::BadRequest(
+            "Not in territory review".to_string(),
+        ));
+    }
+
+    state
+        .registry
+        .toggle_dead_chain(game_id, (col, row), engine.goban())
+        .await
+        .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
+
+    broadcast_game_state(state, game_id, &engine).await;
+    Ok(())
+}
+
+pub async fn approve_territory(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+) -> Result<(), AppError> {
+    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    require_both_players(&gwp)?;
+    let stone = player_stone(&gwp, player_id)?;
+
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    if engine.stage() != Stage::TerritoryReview {
+        return Err(AppError::BadRequest(
+            "Not in territory review".to_string(),
+        ));
+    }
+
+    state.registry.set_approved(game_id, stone, true).await;
+
+    let tr = state
+        .registry
+        .get_territory_review(game_id)
+        .await
+        .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
+
+    if tr.black_approved && tr.white_approved {
+        settle_territory(state, game_id, &gwp, &engine, &tr.dead_stones).await?;
+    } else {
+        broadcast_game_state(state, game_id, &engine).await;
+    }
+
+    Ok(())
+}
+
+async fn settle_territory(
+    state: &AppState,
+    game_id: i64,
+    gwp: &GameWithPlayers,
+    engine: &Engine,
+    dead_stones: &std::collections::HashSet<go_engine::Point>,
+) -> Result<(), AppError> {
+    let ownership = go_engine::territory::estimate_territory(engine.goban(), dead_stones);
+    let (black_score, white_score) =
+        go_engine::territory::score(engine.goban(), &ownership, dead_stones, gwp.game.komi);
+    let result = go_engine::territory::format_result(black_score, white_score);
+
+    // Persist territory review to DB
+    let dead_json: Vec<serde_json::Value> = dead_stones
+        .iter()
+        .map(|&(c, r)| serde_json::json!([c, r]))
+        .collect();
+    let dead_json_str = serde_json::to_string(&dead_json)
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    sqlx::query(
+        "INSERT INTO territory_reviews (game_id, settled, dead_stones) VALUES ($1, TRUE, $2::jsonb)",
+    )
+    .bind(game_id)
+    .bind(&dead_json_str)
+    .execute(&state.db)
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    // End the game
+    Game::set_ended(&state.db, game_id, &result)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    // Update engine result in cache
+    state
+        .registry
+        .with_engine_mut(game_id, |engine| {
+            engine.set_result(result.clone());
+            Ok(())
+        })
+        .await;
+
+    let engine = state
+        .registry
+        .get_engine(game_id)
+        .await
+        .ok_or_else(|| AppError::Internal("Engine cache unavailable".to_string()))?;
+
+    state.registry.clear_territory_review(game_id).await;
+
+    broadcast_system_chat(state, game_id, &format!("Game over. {result}")).await;
+    broadcast_game_state(state, game_id, &engine).await;
+
+    Ok(())
 }
 
 pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<Engine, AppError> {
@@ -425,7 +562,7 @@ pub async fn respond_to_undo(
     } else {
         "undo_rejected"
     };
-    let game_state = state_serializer::serialize_state(&result.gwp, &result.engine, false);
+    let game_state = state_serializer::serialize_state(&result.gwp, &result.engine, false, None);
     for pid in [requesting_player_id, player_id] {
         state
             .registry
@@ -456,7 +593,23 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
     };
 
     let undo_requested = state.registry.is_undo_requested(game_id).await;
-    let game_state = state_serializer::serialize_state(&gwp, engine, undo_requested);
+
+    let territory = if engine.stage() == Stage::TerritoryReview {
+        state.registry.get_territory_review(game_id).await.map(|tr| {
+            state_serializer::compute_territory_data(
+                engine,
+                &tr.dead_stones,
+                gwp.game.komi,
+                tr.black_approved,
+                tr.white_approved,
+            )
+        })
+    } else {
+        None
+    };
+
+    let game_state =
+        state_serializer::serialize_state(&gwp, engine, undo_requested, territory.as_ref());
 
     state
         .registry

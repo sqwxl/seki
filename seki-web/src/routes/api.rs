@@ -530,7 +530,7 @@ fn build_game_response(
     gwp: &crate::models::game::GameWithPlayers,
     engine: &go_engine::Engine,
 ) -> GameResponse {
-    let serialized = state_serializer::serialize_state(gwp, engine, false);
+    let serialized = state_serializer::serialize_state(gwp, engine, false, None);
 
     GameResponse {
         id: gwp.game.id,
