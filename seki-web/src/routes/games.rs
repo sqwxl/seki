@@ -6,7 +6,9 @@ use axum::Form;
 use serde::Deserialize;
 
 use crate::error::AppError;
-use crate::models::game::{Game, SYSTEM_SYMBOL};
+use crate::models::game::{Game, TimeControlType, SYSTEM_SYMBOL};
+use crate::models::game_clock::GameClock;
+use crate::services::clock::{ClockState, TimeControl};
 use crate::models::message::Message;
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
@@ -69,6 +71,12 @@ pub struct CreateGameForm {
     pub invite_email: Option<String>,
     #[allow(dead_code)]
     pub creator_email: Option<String>,
+    pub time_control: Option<String>,
+    pub main_time_minutes: Option<i32>,
+    pub increment_secs: Option<i32>,
+    pub byoyomi_time_secs: Option<i32>,
+    pub byoyomi_periods: Option<i32>,
+    pub correspondence_days: Option<i32>,
 }
 
 // POST /games
@@ -78,6 +86,33 @@ pub async fn create_game(
     Form(form): Form<CreateGameForm>,
 ) -> Result<Response, AppError> {
     let cols = form.cols.unwrap_or(19);
+    let time_control = match form.time_control.as_deref() {
+        Some("fischer") => TimeControlType::Fischer,
+        Some("byoyomi") => TimeControlType::Byoyomi,
+        Some("correspondence") => TimeControlType::Correspondence,
+        _ => TimeControlType::None,
+    };
+    let (main_time_secs, increment_secs, byoyomi_time_secs, byoyomi_periods) = match time_control {
+        TimeControlType::Fischer => (
+            form.main_time_minutes.map(|m| m * 60),
+            form.increment_secs,
+            None,
+            None,
+        ),
+        TimeControlType::Byoyomi => (
+            form.main_time_minutes.map(|m| m * 60),
+            None,
+            form.byoyomi_time_secs,
+            form.byoyomi_periods,
+        ),
+        TimeControlType::Correspondence => (
+            form.correspondence_days.map(|d| d * 86400),
+            None,
+            None,
+            None,
+        ),
+        TimeControlType::None => (None, None, None, None),
+    };
     let params = CreateGameParams {
         cols,
         rows: cols, // TODO: support non-square boards?
@@ -88,6 +123,11 @@ pub async fn create_game(
         allow_undo: form.allow_undo.as_deref() == Some("true"),
         color: form.color.unwrap_or_else(|| "black".to_string()),
         invite_email: form.invite_email,
+        time_control,
+        main_time_secs,
+        increment_secs,
+        byoyomi_time_secs,
+        byoyomi_periods,
     };
 
     match game_creator::create_game(&state.db, &current_player, params).await {
@@ -219,7 +259,20 @@ pub async fn join_game(
     let game = Game::find_by_id(&state.db, id).await?;
     let engine = engine_builder::build_engine(&state.db, &game).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
-    let game_state = state_serializer::serialize_state(&gwp, &engine, false, None);
+
+    let tc = TimeControl::from_game(&gwp.game);
+    let clock_data = if !tc.is_none() {
+        GameClock::find_by_game_id(&state.db, id)
+            .await
+            .ok()
+            .flatten()
+            .map(|db_clock| (ClockState::from_db(&db_clock), tc))
+    } else {
+        None
+    };
+    let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
+
+    let game_state = state_serializer::serialize_state(&gwp, &engine, false, None, clock_ref);
     state
         .registry
         .broadcast(id, &game_state.to_string())

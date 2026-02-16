@@ -104,6 +104,14 @@ export type InitialGameProps = {
   white: PlayerData | null;
 };
 
+export type ClockData = {
+  type: "fischer" | "byoyomi" | "correspondence";
+  black: { remaining_ms: number; periods: number };
+  white: { remaining_ms: number; periods: number };
+  active_stone: number | null;
+  last_move_at: string | null;
+};
+
 export type StateMessage = {
   kind: "state";
   stage: GameStage;
@@ -118,6 +126,7 @@ export type StateMessage = {
   undo_rejected: boolean;
   allow_undo?: boolean;
   territory?: TerritoryData;
+  clock?: ClockData;
 };
 
 export type ChatMessage = {

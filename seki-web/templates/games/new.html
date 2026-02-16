@@ -43,6 +43,58 @@
             </div>
         </fieldset>
         <fieldset>
+            <legend>Time control</legend>
+            <div>
+                <label><input type="radio" name="time_control" value="none" checked> None</label>
+                <label><input type="radio" name="time_control" value="fischer"> Fischer</label>
+                <label><input type="radio" name="time_control" value="byoyomi"> Byo-yomi</label>
+                <label><input type="radio" name="time_control" value="correspondence"> Correspondence</label>
+            </div>
+            <div id="tc-fischer" style="display: none">
+                <div>
+                    <label for="main_time_minutes">Main time (minutes)</label>
+                    <input type="number" name="main_time_minutes" id="main_time_minutes" min="1" max="180" value="10" disabled>
+                </div>
+                <div>
+                    <label for="increment_secs">Increment (seconds)</label>
+                    <input type="number" name="increment_secs" id="increment_secs" min="0" max="60" value="5" disabled>
+                </div>
+            </div>
+            <div id="tc-byoyomi" style="display: none">
+                <div>
+                    <label for="byo_main_time_minutes">Main time (minutes)</label>
+                    <input type="number" name="main_time_minutes" id="byo_main_time_minutes" min="0" max="180" value="20" disabled>
+                </div>
+                <div>
+                    <label for="byoyomi_time_secs">Period time (seconds)</label>
+                    <input type="number" name="byoyomi_time_secs" id="byoyomi_time_secs" min="5" max="120" value="30" disabled>
+                </div>
+                <div>
+                    <label for="byoyomi_periods">Periods</label>
+                    <input type="number" name="byoyomi_periods" id="byoyomi_periods" min="1" max="10" value="3" disabled>
+                </div>
+            </div>
+            <div id="tc-correspondence" style="display: none">
+                <div>
+                    <label for="correspondence_days">Days per move</label>
+                    <input type="number" name="correspondence_days" id="correspondence_days" min="1" max="14" value="3" disabled>
+                </div>
+            </div>
+            <script>
+                function toggleTC(value) {
+                    ['tc-fischer', 'tc-byoyomi', 'tc-correspondence'].forEach(id => {
+                        const section = document.getElementById(id);
+                        const active = id === 'tc-' + value;
+                        section.style.display = active ? '' : 'none';
+                        section.querySelectorAll('input').forEach(input => { input.disabled = !active; });
+                    });
+                }
+                document.querySelectorAll('input[name="time_control"]').forEach(radio => {
+                    radio.addEventListener('change', () => toggleTC(radio.value));
+                });
+            </script>
+        </fieldset>
+        <fieldset>
             <legend>Your color</legend>
             <label for="color_black">⚫</label>
             <input type="radio" name="color" value="black" id="color_black" checked>

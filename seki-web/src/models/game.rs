@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 use go_engine::{Stage, Stone};
@@ -11,6 +12,22 @@ use crate::models::player::Player;
 pub const BLACK_SYMBOL: &str = "●";
 pub const WHITE_SYMBOL: &str = "○";
 pub const SYSTEM_SYMBOL: &str = "⚑";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
+#[sqlx(type_name = "time_control_type", rename_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+pub enum TimeControlType {
+    None,
+    Fischer,
+    Byoyomi,
+    Correspondence,
+}
+
+impl Default for TimeControlType {
+    fn default() -> Self {
+        Self::None
+    }
+}
 
 #[derive(Debug, Clone, FromRow)]
 #[allow(dead_code)]
@@ -33,6 +50,11 @@ pub struct Game {
     pub result: Option<String>,
     pub cached_engine_state: Option<String>,
     pub stage: String,
+    pub time_control: TimeControlType,
+    pub main_time_secs: Option<i32>,
+    pub increment_secs: Option<i32>,
+    pub byoyomi_time_secs: Option<i32>,
+    pub byoyomi_periods: Option<i32>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -171,10 +193,15 @@ impl Game {
         is_handicap: bool,
         allow_undo: bool,
         invite_token: &str,
+        time_control: TimeControlType,
+        main_time_secs: Option<i32>,
+        increment_secs: Option<i32>,
+        byoyomi_time_secs: Option<i32>,
+        byoyomi_periods: Option<i32>,
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
-            "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, is_private, is_handicap, allow_undo, invite_token)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, is_private, is_handicap, allow_undo, invite_token, time_control, main_time_secs, increment_secs, byoyomi_time_secs, byoyomi_periods)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
              RETURNING *",
         )
         .bind(creator_id)
@@ -188,6 +215,11 @@ impl Game {
         .bind(is_handicap)
         .bind(allow_undo)
         .bind(invite_token)
+        .bind(time_control)
+        .bind(main_time_secs)
+        .bind(increment_secs)
+        .bind(byoyomi_time_secs)
+        .bind(byoyomi_periods)
         .fetch_one(pool)
         .await
     }

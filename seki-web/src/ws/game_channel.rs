@@ -2,6 +2,8 @@ use go_engine::Stage;
 use serde_json::json;
 
 use crate::models::game::Game;
+use crate::models::game_clock::GameClock;
+use crate::services::clock::{ClockState, TimeControl};
 use crate::services::game_actions;
 use crate::services::state_serializer;
 use crate::ws::registry::WsSender;
@@ -54,8 +56,41 @@ pub async fn send_initial_state(
         None
     };
 
+    // Load clock data for timed games
+    let tc = TimeControl::from_game(&gwp.game);
+    let clock_data = if !tc.is_none() {
+        let clock = match state.registry.get_clock(game_id).await {
+            Some(c) => c,
+            None => {
+                // Load from DB on first connect
+                GameClock::find_by_game_id(&state.db, game_id)
+                    .await
+                    .ok()
+                    .flatten()
+                    .map(|db_clock| {
+                        let c = ClockState::from_db(&db_clock);
+                        // Cache it — fire and forget since we can't await inside map
+                        c
+                    })
+                    .unwrap_or_else(|| {
+                        // Shouldn't happen, but fallback to fresh
+                        ClockState::new(&tc).unwrap()
+                    })
+            }
+        };
+        // Ensure it's cached
+        state.registry.update_clock(game_id, clock.clone()).await;
+        Some((clock, tc))
+    } else {
+        None
+    };
+
+    let clock_ref = clock_data
+        .as_ref()
+        .map(|(clock, tc)| (clock, tc));
+
     let game_state =
-        state_serializer::serialize_state(&gwp, &engine, undo_requested, territory.as_ref());
+        state_serializer::serialize_state(&gwp, &engine, undo_requested, territory.as_ref(), clock_ref);
 
     let _ = tx.send(game_state.to_string());
 

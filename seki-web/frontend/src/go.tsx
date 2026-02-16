@@ -2,6 +2,7 @@ import { render } from "preact";
 import { Goban } from "./goban/index";
 import {
   isPlayStage,
+  type ClockData,
   type GameState,
   type IncomingMessage,
   type InitialGameProps,
@@ -100,6 +101,8 @@ export function go(root: HTMLElement) {
   let allowUndo = false;
   let result: string | null = null;
   let territory: TerritoryData | undefined;
+  let clockData: ClockData | undefined;
+  let clockInterval: ReturnType<typeof setInterval> | undefined;
 
   // Analysis mode: when true, vertex clicks go to local engine; when false, live play via WS
   let analysisMode = false;
@@ -322,6 +325,106 @@ export function go(root: HTMLElement) {
     }
   }
 
+  function formatClock(ms: number, isCorrespondence: boolean): string {
+    if (isCorrespondence) {
+      const totalSecs = Math.max(0, Math.floor(ms / 1000));
+      const days = Math.floor(totalSecs / 86400);
+      const hours = Math.floor((totalSecs % 86400) / 3600);
+      if (days > 0) {
+        return `${days}d ${hours}h`;
+      }
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      return `${hours}h ${mins}m`;
+    }
+    const totalSecs = Math.max(0, Math.floor(ms / 1000));
+    if (totalSecs < 10) {
+      const tenths = Math.max(0, Math.floor(ms / 100)) / 10;
+      return tenths.toFixed(1);
+    }
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  function updateClocks(): void {
+    if (!clockData) {
+      // Hide clock elements for untimed games
+      for (const el of document.querySelectorAll<HTMLElement>(".player-clock")) {
+        el.textContent = "";
+      }
+      return;
+    }
+
+    const isCorr = clockData.type === "correspondence";
+    const now = Date.now();
+    const lastMoveAt = clockData.last_move_at
+      ? new Date(clockData.last_move_at).getTime()
+      : now;
+    const elapsed = now - lastMoveAt;
+
+    let blackMs = clockData.black.remaining_ms;
+    let whiteMs = clockData.white.remaining_ms;
+
+    if (clockData.active_stone === 1) {
+      blackMs -= elapsed;
+    } else if (clockData.active_stone === -1) {
+      whiteMs -= elapsed;
+    }
+
+    const blackText = formatClock(blackMs, isCorr);
+    const whiteText = formatClock(whiteMs, isCorr);
+
+    const blackPeriods =
+      clockData.type === "byoyomi" && clockData.black.periods > 0
+        ? ` (${clockData.black.periods})`
+        : "";
+    const whitePeriods =
+      clockData.type === "byoyomi" && clockData.white.periods > 0
+        ? ` (${clockData.white.periods})`
+        : "";
+
+    if (playerTopEl && playerBottomEl) {
+      const topClockEl = playerTopEl.querySelector<HTMLElement>(".player-clock");
+      const bottomClockEl = playerBottomEl.querySelector<HTMLElement>(".player-clock");
+
+      if (playerStone === -1) {
+        // Black on top, white on bottom
+        if (topClockEl) {
+          topClockEl.textContent = blackText + blackPeriods;
+          topClockEl.classList.toggle("low-time", blackMs < 10000);
+        }
+        if (bottomClockEl) {
+          bottomClockEl.textContent = whiteText + whitePeriods;
+          bottomClockEl.classList.toggle("low-time", whiteMs < 10000);
+        }
+      } else {
+        // White on top, black on bottom
+        if (topClockEl) {
+          topClockEl.textContent = whiteText + whitePeriods;
+          topClockEl.classList.toggle("low-time", whiteMs < 10000);
+        }
+        if (bottomClockEl) {
+          bottomClockEl.textContent = blackText + blackPeriods;
+          bottomClockEl.classList.toggle("low-time", blackMs < 10000);
+        }
+      }
+    }
+  }
+
+  function syncClock(data: ClockData | undefined): void {
+    clockData = data;
+    if (clockInterval) {
+      clearInterval(clockInterval);
+      clockInterval = undefined;
+    }
+    if (clockData && clockData.active_stone) {
+      updateClocks();
+      clockInterval = setInterval(updateClocks, 100);
+    } else {
+      updateClocks();
+    }
+  }
+
   function connectWS(): void {
     const wsURL = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}${window.location.pathname}/ws`;
 
@@ -360,6 +463,7 @@ export function go(root: HTMLElement) {
           updateTitle(data.description);
           updatePlayerLabels(data.black, data.white);
           updateStatus();
+          syncClock(data.clock);
           break;
         case "chat":
           appendToChat({

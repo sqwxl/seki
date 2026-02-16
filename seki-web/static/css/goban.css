@@ -28,9 +28,27 @@
   min-height: 1.5em;
 }
 
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
 .player-captures {
   font-size: 0.85em;
   opacity: 0.7;
+}
+
+.player-clock {
+  font-family: monospace;
+  font-size: 1em;
+  width: 7ch;
+  text-align: right;
+}
+
+.player-clock.low-time {
+  color: #c00;
+  font-weight: bold;
 }
 
 .goban:not(.goban-coordinates) {

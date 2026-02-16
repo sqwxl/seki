@@ -1,11 +1,14 @@
+use chrono::Utc;
 use go_engine::{Engine, Stage, Stone};
 use serde_json::json;
 
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers, SYSTEM_SYMBOL};
+use crate::models::game_clock::GameClock;
 use crate::models::message::Message;
 use crate::models::player::Player;
 use crate::models::turn::TurnRow;
+use crate::services::clock::{ClockState, TimeControl};
 use crate::services::{engine_builder, state_serializer};
 use crate::AppState;
 
@@ -66,12 +69,16 @@ pub async fn play_move(
         return Err(AppError::Internal(e.to_string()));
     }
 
-    // Mark game as started on first move
-    if gwp.game.started_at.is_none() {
+    // Mark game as started on first move and start clock
+    let first_move = gwp.game.started_at.is_none();
+    if first_move {
         Game::set_started(&state.db, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
+
+    // Process clock
+    process_clock_after_move(state, game_id, &gwp.game, stone, first_move).await?;
 
     // Update stage
     persist_stage(state, game_id, &engine).await?;
@@ -119,6 +126,9 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
         return Err(AppError::Internal(e.to_string()));
     }
 
+    // Process clock
+    process_clock_after_move(state, game_id, &gwp.game, stone, false).await?;
+
     // Update stage
     persist_stage(state, game_id, &engine).await?;
 
@@ -132,6 +142,9 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
 
     // If both players passed, enter territory review
     if engine.stage() == Stage::TerritoryReview {
+        // Pause clock during territory review
+        pause_clock(state, game_id, &gwp.game).await?;
+
         let dead_stones = go_engine::territory::detect_dead_stones(engine.goban());
         state
             .registry
@@ -222,6 +235,9 @@ async fn settle_territory(
     engine: &Engine,
     dead_stones: &std::collections::HashSet<go_engine::Point>,
 ) -> Result<(), AppError> {
+    // Pause clock on game end
+    pause_clock(state, game_id, &gwp.game).await?;
+
     let ownership = go_engine::territory::estimate_territory(engine.goban(), dead_stones);
     let (black_score, white_score) =
         go_engine::territory::score(engine.goban(), &ownership, dead_stones, gwp.game.komi);
@@ -290,6 +306,9 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
 
     let stage = engine.stage();
     if stage == Stage::Done {
+        // Pause clock on game end
+        pause_clock(state, game_id, &gwp.game).await?;
+
         if let Some(result) = engine.result() {
             if let Err(e) = Game::set_ended(&state.db, game_id, result).await {
                 rollback_engine(state, game_id, &gwp.game).await;
@@ -562,7 +581,15 @@ pub async fn respond_to_undo(
     } else {
         "undo_rejected"
     };
-    let game_state = state_serializer::serialize_state(&result.gwp, &result.engine, false, None);
+    let tc = TimeControl::from_game(&result.gwp.game);
+    let clock_data = if !tc.is_none() {
+        state.registry.get_clock(game_id).await.map(|c| (c, tc))
+    } else {
+        None
+    };
+    let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
+
+    let game_state = state_serializer::serialize_state(&result.gwp, &result.engine, false, None, clock_ref);
     for pid in [requesting_player_id, player_id] {
         state
             .registry
@@ -608,8 +635,16 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
         None
     };
 
+    let tc = TimeControl::from_game(&gwp.game);
+    let clock_data = if !tc.is_none() {
+        state.registry.get_clock(game_id).await.map(|c| (c, tc))
+    } else {
+        None
+    };
+    let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
+
     let game_state =
-        state_serializer::serialize_state(&gwp, engine, undo_requested, territory.as_ref());
+        state_serializer::serialize_state(&gwp, engine, undo_requested, territory.as_ref(), clock_ref);
 
     state
         .registry
@@ -725,4 +760,168 @@ async fn current_move_number(state: &AppState, game: &Game) -> Option<i32> {
         .await
         .ok()
         .map(|e| e.moves().len() as i32)
+}
+
+// -- Clock helpers --
+
+/// Process clock after a play or pass move.
+async fn process_clock_after_move(
+    state: &AppState,
+    game_id: i64,
+    game: &Game,
+    stone: Stone,
+    first_move: bool,
+) -> Result<(), AppError> {
+    let tc = TimeControl::from_game(game);
+    if tc.is_none() {
+        return Ok(());
+    }
+
+    let mut clock = load_or_init_clock(state, game_id).await?;
+    let now = Utc::now();
+
+    if first_move {
+        clock.start(now);
+    } else {
+        clock.process_move(stone, &tc, now);
+    }
+
+    persist_clock(state, game_id, &clock).await?;
+
+    // Schedule timeout for the opponent
+    schedule_timeout(state, game_id, &clock, now).await;
+
+    Ok(())
+}
+
+/// Pause the clock (territory review, game end).
+async fn pause_clock(state: &AppState, game_id: i64, game: &Game) -> Result<(), AppError> {
+    let tc = TimeControl::from_game(game);
+    if tc.is_none() {
+        return Ok(());
+    }
+
+    if let Some(mut clock) = state.registry.get_clock(game_id).await {
+        clock.pause(Utc::now());
+        persist_clock(state, game_id, &clock).await?;
+        state.registry.cancel_timeout(game_id).await;
+    }
+
+    Ok(())
+}
+
+/// Load clock from registry cache, falling back to DB.
+async fn load_or_init_clock(state: &AppState, game_id: i64) -> Result<ClockState, AppError> {
+    if let Some(clock) = state.registry.get_clock(game_id).await {
+        return Ok(clock);
+    }
+
+    let db_clock = GameClock::find_by_game_id(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::Internal("Clock not found for timed game".to_string()))?;
+
+    let clock = ClockState::from_db(&db_clock);
+    state.registry.update_clock(game_id, clock.clone()).await;
+    Ok(clock)
+}
+
+/// Persist clock state to both registry and DB.
+async fn persist_clock(
+    state: &AppState,
+    game_id: i64,
+    clock: &ClockState,
+) -> Result<(), AppError> {
+    state.registry.update_clock(game_id, clock.clone()).await;
+
+    GameClock::update(
+        &state.db,
+        game_id,
+        clock.black_remaining_ms,
+        clock.white_remaining_ms,
+        clock.black_periods,
+        clock.white_periods,
+        clock.active_stone_int(),
+        clock.last_move_at,
+    )
+    .await
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(())
+}
+
+/// Schedule a background task that fires when the active player's clock expires.
+async fn schedule_timeout(state: &AppState, game_id: i64, clock: &ClockState, now: chrono::DateTime<chrono::Utc>) {
+    if let Some(ms) = clock.ms_until_flag(now) {
+        let delay = std::time::Duration::from_millis((ms + 100).max(100) as u64); // +100ms buffer
+        let app_state = state.clone();
+        state
+            .registry
+            .schedule_timeout(game_id, delay, app_state)
+            .await;
+    }
+}
+
+/// Called by the background timeout task when a player's clock expires.
+pub async fn handle_timeout(state: &AppState, game_id: i64) {
+    let now = Utc::now();
+
+    let Ok(gwp) = Game::find_with_players(&state.db, game_id).await else {
+        return;
+    };
+
+    // Game must still be active
+    if gwp.game.result.is_some() {
+        return;
+    }
+
+    let tc = TimeControl::from_game(&gwp.game);
+    if tc.is_none() {
+        return;
+    }
+
+    let Some(clock) = state.registry.get_clock(game_id).await else {
+        return;
+    };
+
+    let Some(active) = clock.active_stone else {
+        return;
+    };
+
+    if !clock.is_flagged(active, now) {
+        // Not actually flagged yet — reschedule
+        schedule_timeout(state, game_id, &clock, now).await;
+        return;
+    }
+
+    // The active player has flagged — their opponent wins on time
+    let winner = active.opp();
+    let result = match winner {
+        Stone::Black => "B+T",
+        Stone::White => "W+T",
+    };
+
+    // End the game
+    let _ = Game::set_ended(&state.db, game_id, result).await;
+
+    // Update engine
+    let _ = state
+        .registry
+        .with_engine_mut(game_id, |engine| {
+            engine.set_result(result.to_string());
+            Ok(())
+        })
+        .await;
+
+    // Pause clock
+    if let Some(mut c) = state.registry.get_clock(game_id).await {
+        c.pause(now);
+        let _ = persist_clock(state, game_id, &c).await;
+    }
+
+    broadcast_system_chat(state, game_id, &format!("Game over. {result}")).await;
+
+    if let Some(engine) = state.registry.get_engine(game_id).await {
+        broadcast_game_state(state, game_id, &engine).await;
+    }
 }

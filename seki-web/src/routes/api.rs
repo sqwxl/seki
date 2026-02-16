@@ -105,6 +105,11 @@ struct CreateGameRequest {
     allow_undo: Option<bool>,
     color: Option<String>,
     invite_email: Option<String>,
+    time_control: Option<crate::models::game::TimeControlType>,
+    main_time_secs: Option<i32>,
+    increment_secs: Option<i32>,
+    byoyomi_time_secs: Option<i32>,
+    byoyomi_periods: Option<i32>,
 }
 
 #[derive(Deserialize)]
@@ -194,6 +199,11 @@ async fn create_game(
         allow_undo: body.allow_undo.unwrap_or(false),
         color: body.color.unwrap_or_else(|| "black".to_string()),
         invite_email: body.invite_email,
+        time_control: body.time_control.unwrap_or_default(),
+        main_time_secs: body.main_time_secs,
+        increment_secs: body.increment_secs,
+        byoyomi_time_secs: body.byoyomi_time_secs,
+        byoyomi_periods: body.byoyomi_periods,
     };
 
     let game = game_creator::create_game(&state.db, &api_player, params).await?;
@@ -489,7 +499,15 @@ async fn build_game_response(
         None
     };
 
-    let serialized = state_serializer::serialize_state(gwp, engine, false, territory.as_ref());
+    let tc = crate::services::clock::TimeControl::from_game(&gwp.game);
+    let clock_data = if !tc.is_none() {
+        state.registry.get_clock(game_id).await.map(|c| (c, tc))
+    } else {
+        None
+    };
+    let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
+
+    let serialized = state_serializer::serialize_state(gwp, engine, false, territory.as_ref(), clock_ref);
 
     let territory_json = serialized.get("territory").cloned();
 

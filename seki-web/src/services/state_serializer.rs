@@ -4,6 +4,7 @@ use go_engine::{Engine, Point};
 use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
+use crate::services::clock::{ClockState, TimeControl};
 use crate::templates::PlayerData;
 
 pub struct TerritoryData {
@@ -45,6 +46,7 @@ pub fn serialize_state(
     engine: &Engine,
     undo_requested: bool,
     territory: Option<&TerritoryData>,
+    clock: Option<(&ClockState, &TimeControl)>,
 ) -> serde_json::Value {
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
     // for terminal states (done) and waiting states (unstarted with both players).
@@ -99,6 +101,10 @@ pub fn serialize_state(
             "black_approved": t.black_approved,
             "white_approved": t.white_approved,
         });
+    }
+
+    if let Some((clock_state, time_control)) = clock {
+        val["clock"] = clock_state.to_json(time_control);
     }
 
     val

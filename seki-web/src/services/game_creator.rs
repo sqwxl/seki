@@ -2,8 +2,10 @@ use rand::RngExt;
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::models::game::Game;
+use crate::models::game::{Game, TimeControlType};
+use crate::models::game_clock::GameClock;
 use crate::models::player::Player;
+use crate::services::clock::{ClockState, TimeControl};
 
 pub struct CreateGameParams {
     pub cols: i32,
@@ -15,6 +17,11 @@ pub struct CreateGameParams {
     pub allow_undo: bool,
     pub color: String,
     pub invite_email: Option<String>,
+    pub time_control: TimeControlType,
+    pub main_time_secs: Option<i32>,
+    pub increment_secs: Option<i32>,
+    pub byoyomi_time_secs: Option<i32>,
+    pub byoyomi_periods: Option<i32>,
 }
 
 pub async fn create_game(
@@ -62,8 +69,28 @@ pub async fn create_game(
         params.is_handicap,
         params.allow_undo,
         &invite_token,
+        params.time_control,
+        params.main_time_secs,
+        params.increment_secs,
+        params.byoyomi_time_secs,
+        params.byoyomi_periods,
     )
     .await?;
+
+    // Create clock row for timed games
+    let tc = TimeControl::from_game(&game);
+    if let Some(clock) = ClockState::new(&tc) {
+        GameClock::create(
+            pool,
+            game.id,
+            clock.black_remaining_ms,
+            clock.white_remaining_ms,
+            clock.black_periods,
+            clock.white_periods,
+        )
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    }
 
     Ok(game)
 }
