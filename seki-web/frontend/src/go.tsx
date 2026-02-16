@@ -287,15 +287,19 @@ export function go(root: HTMLElement) {
     }
   }
 
-  function setLabel(el: HTMLElement, name: string, captures: string): void {
+  function setLabel(el: HTMLElement, name: string, points: string): void {
     const nameEl = el.querySelector(".player-name");
-    const capsEl = el.querySelector(".player-captures");
+    const pointsEl = el.querySelector(".player-captures");
     if (nameEl) {
       nameEl.textContent = name;
     }
-    if (capsEl) {
-      capsEl.textContent = captures;
+    if (pointsEl) {
+      pointsEl.textContent = points;
     }
+  }
+
+  function formatPoints(n: number): string {
+    return n % 1 === 0 ? String(n) : n.toFixed(1);
   }
 
   function updatePlayerLabels(
@@ -307,14 +311,25 @@ export function go(root: HTMLElement) {
     }
     const bName = `${BLACK_SYMBOL} ${black ? black.display_name : "…"}`;
     const wName = `${WHITE_SYMBOL} ${white ? white.display_name : "…"}`;
-    const bCaps = `${gameState.captures.black} ${BLACK_CAPTURES_SYMBOL}`;
-    const wCaps = `${gameState.captures.white} ${WHITE_CAPTURES_SYMBOL}`;
-    if (playerStone === -1) {
-      setLabel(playerTopEl, bName, bCaps);
-      setLabel(playerBottomEl, wName, wCaps);
+
+    let bPoints: number;
+    let wPoints: number;
+    if (territory) {
+      bPoints = territory.score.black;
+      wPoints = territory.score.white;
     } else {
-      setLabel(playerTopEl, wName, wCaps);
-      setLabel(playerBottomEl, bName, bCaps);
+      bPoints = gameState.captures.black;
+      wPoints = gameState.captures.white + props.komi;
+    }
+
+    const bStr = `${formatPoints(bPoints)} ${BLACK_CAPTURES_SYMBOL}`;
+    const wStr = `${formatPoints(wPoints)} ${WHITE_CAPTURES_SYMBOL}`;
+    if (playerStone === -1) {
+      setLabel(playerTopEl, bName, bStr);
+      setLabel(playerBottomEl, wName, wStr);
+    } else {
+      setLabel(playerTopEl, wName, wStr);
+      setLabel(playerBottomEl, bName, bStr);
     }
   }
 

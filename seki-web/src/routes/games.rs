@@ -204,6 +204,7 @@ pub async fn show_game(
         state: initial_state,
         black: gwp.black.as_ref().map(PlayerData::from),
         white: gwp.white.as_ref().map(PlayerData::from),
+        komi: gwp.game.komi,
     })
     .unwrap();
 

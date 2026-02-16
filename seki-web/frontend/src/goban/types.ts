@@ -102,6 +102,7 @@ export type InitialGameProps = {
   state: GameState;
   black: PlayerData | null;
   white: PlayerData | null;
+  komi: number;
 };
 
 export type ClockData = {

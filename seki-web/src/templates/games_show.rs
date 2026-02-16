@@ -11,6 +11,7 @@ pub struct InitialGameProps {
     pub state: GameState,
     pub black: Option<PlayerData>,
     pub white: Option<PlayerData>,
+    pub komi: f64,
 }
 
 #[derive(Template)]
