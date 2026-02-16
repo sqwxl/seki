@@ -41,15 +41,12 @@ pub async fn new_game(current_player: CurrentPlayer) -> Result<Response, AppErro
 
 // GET /games
 pub async fn list_games(
-    State(state): State<AppState>,
     current_player: CurrentPlayer,
 ) -> Result<Response, AppError> {
     let tmpl = GamesListTemplate {
         player_username: current_player.username.clone(),
         player_is_registered: current_player.is_registered(),
         player_data: serialize_player_data(&current_player),
-        player_games: Game::list_for_player(&state.db, current_player.id).await?,
-        public_games: Game::list_public_with_players(&state.db, Some(current_player.id)).await?,
     };
 
     Ok(Html(
