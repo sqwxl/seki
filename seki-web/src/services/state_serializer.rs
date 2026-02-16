@@ -71,7 +71,8 @@ pub fn serialize_state(
         .map(|t| serde_json::to_value(t).unwrap_or_default())
         .collect();
 
-    let description = gwp.description_with_stage(&stage);
+    let move_count = engine.moves().len();
+    let description = gwp.description_with_stage(&stage, Some(move_count));
 
     let mut game_state = serde_json::to_value(engine.game_state()).unwrap_or_default();
     // Keep the nested state.stage in sync with the resolved top-level stage
