@@ -71,6 +71,7 @@ struct GameResponse {
     state: serde_json::Value,
     current_turn_stone: i32,
     negotiations: serde_json::Value,
+    territory: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -122,6 +123,12 @@ struct UndoResponseRequest {
 }
 
 #[derive(Deserialize)]
+struct ToggleChainRequest {
+    col: u8,
+    row: u8,
+}
+
+#[derive(Deserialize)]
 struct ChatRequest {
     text: String,
 }
@@ -153,6 +160,8 @@ pub fn router() -> Router<AppState> {
         .route("/games/{id}/resign", post(resign))
         .route("/games/{id}/undo", post(request_undo))
         .route("/games/{id}/undo/respond", post(respond_to_undo))
+        .route("/games/{id}/territory/toggle", post(toggle_chain))
+        .route("/games/{id}/territory/approve", post(approve_territory))
         // Messages
         .route("/games/{id}/messages", get(get_messages).post(send_message))
         // Turns
@@ -212,7 +221,7 @@ async fn create_game(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(Json(build_game_response(&gwp, &engine)))
+    Ok(Json(build_game_response(&state, game.id, &gwp, &engine).await))
 }
 
 async fn get_game(
@@ -226,7 +235,7 @@ async fn get_game(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(Json(build_game_response(&gwp, &engine)))
+    Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn delete_game(
@@ -277,7 +286,7 @@ async fn join_game(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(Json(build_game_response(&gwp, &engine)))
+    Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 // -- Game action handlers --
@@ -290,7 +299,7 @@ async fn play_move(
 ) -> Result<Json<GameResponse>, ApiError> {
     let engine = game_actions::play_move(&state, id, current_player.id, body.col, body.row).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
-    Ok(Json(build_game_response(&gwp, &engine)))
+    Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn pass(
@@ -300,7 +309,7 @@ async fn pass(
 ) -> Result<Json<GameResponse>, ApiError> {
     let engine = game_actions::pass(&state, id, current_player.id).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
-    Ok(Json(build_game_response(&gwp, &engine)))
+    Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn resign(
@@ -310,7 +319,7 @@ async fn resign(
 ) -> Result<Json<GameResponse>, ApiError> {
     let engine = game_actions::resign(&state, id, current_player.id).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
-    Ok(Json(build_game_response(&gwp, &engine)))
+    Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn request_undo(
@@ -343,7 +352,38 @@ async fn respond_to_undo(
     let result =
         game_actions::respond_to_undo(&state, id, current_player.id, response == "accept").await?;
 
-    Ok(Json(build_game_response(&result.gwp, &result.engine)))
+    Ok(Json(build_game_response(&state, id, &result.gwp, &result.engine).await))
+}
+
+async fn toggle_chain(
+    State(state): State<AppState>,
+    current_player: CurrentPlayer,
+    Path(id): Path<i64>,
+    Json(body): Json<ToggleChainRequest>,
+) -> Result<Json<GameResponse>, ApiError> {
+    game_actions::toggle_chain(&state, id, current_player.id, body.col, body.row).await?;
+    let gwp = Game::find_with_players(&state.db, id).await?;
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
+}
+
+async fn approve_territory(
+    State(state): State<AppState>,
+    current_player: CurrentPlayer,
+    Path(id): Path<i64>,
+) -> Result<Json<GameResponse>, ApiError> {
+    game_actions::approve_territory(&state, id, current_player.id).await?;
+    let gwp = Game::find_with_players(&state.db, id).await?;
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 // -- Message handlers --
@@ -526,11 +566,30 @@ async fn logout(session: Session) -> Result<Json<serde_json::Value>, ApiError> {
 
 // -- Helpers --
 
-fn build_game_response(
+async fn build_game_response(
+    state: &AppState,
+    game_id: i64,
     gwp: &crate::models::game::GameWithPlayers,
     engine: &go_engine::Engine,
 ) -> GameResponse {
-    let serialized = state_serializer::serialize_state(gwp, engine, false, None);
+    let territory = if engine.stage() == go_engine::Stage::TerritoryReview {
+        state.registry.get_territory_review(game_id).await.map(|tr| {
+            state_serializer::compute_territory_data(
+                engine,
+                &tr.dead_stones,
+                gwp.game.komi,
+                tr.black_approved,
+                tr.white_approved,
+            )
+        })
+    } else {
+        None
+    };
+
+    let serialized =
+        state_serializer::serialize_state(gwp, engine, false, territory.as_ref());
+
+    let territory_json = serialized.get("territory").cloned();
 
     GameResponse {
         id: gwp.game.id,
@@ -554,5 +613,6 @@ fn build_game_response(
         state: serialized["state"].clone(),
         current_turn_stone: serialized["current_turn_stone"].as_i64().unwrap_or(1) as i32,
         negotiations: serialized["negotiations"].clone(),
+        territory: territory_json,
     }
 }
