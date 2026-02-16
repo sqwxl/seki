@@ -39,9 +39,9 @@ Thin wasm-bindgen shell over `go-engine`. Only handles WASM-boundary concerns (j
 ### seki-web
 Axum 0.8 web app. Modules follow a clean separation: `models/` (sqlx queries), `services/` (engine building, game creation, state serialization), `routes/` (HTTP handlers), `ws/` (WebSocket game channels), `templates/` (Askama template structs).
 
-**Request flow:** Axum router → route handler → service layer → model (sqlx) → DB. Templates render server-side HTML. The game board UI is a Preact app (`seki-web/frontend/`) bundled with esbuild, loaded on the game show page, communicating via WebSocket at `/games/{id}/ws`.
+**Request flow:** Axum router → route handler → service layer → model (sqlx) → DB. Templates render server-side HTML. The game board UI is a Preact app (`seki-web/frontend/`) bundled with esbuild, loaded on the game show page.
 
-**Real-time:** `GameRegistry` manages per-game WebSocket channels. On connect, server sends full game state; subsequent moves are broadcast to all connected players.
+**Real-time:** A single WebSocket endpoint (`/ws`) handles all real-time communication. Clients subscribe to game rooms via `join_game`/`leave_game` messages, and receive lobby events (game list updates) via a broadcast channel. `GameRegistry` manages per-game rooms; on join, server sends full game state, and subsequent moves are broadcast to all connected players.
 
 **Auth (web):** tower-sessions with PostgreSQL store. `CurrentPlayer` extractor auto-creates anonymous players (random session token) if no session exists. Registration adds email/username/password (Argon2).
 

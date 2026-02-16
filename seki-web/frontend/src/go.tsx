@@ -15,6 +15,7 @@ import {
 import { createBoard, findNavButtons } from "./wasm-board";
 import type { Board } from "./wasm-board";
 import { appendToChat, renderChatHistory, setupChat } from "./chat";
+import { joinGame, send } from "./live";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
 const BLACK_SYMBOL = "●";
@@ -50,7 +51,7 @@ function derivePlayerStone(
 
 export function go(root: HTMLElement) {
   const props: InitialGameProps = JSON.parse(root.dataset.props!);
-  const gameId = root.dataset.gameId!;
+  const gameId = Number(root.dataset.gameId!);
   const playerData = readPlayerData();
   const playerStone = derivePlayerStone(playerData, props.black, props.white);
   const analysisStorageKey = `seki:game:${gameId}:analysis`;
@@ -58,42 +59,40 @@ export function go(root: HTMLElement) {
   console.debug("InitialGameProps", props);
   console.debug("PlayerData", playerData, "playerStone", playerStone);
 
-  let ws: WebSocket;
+  function gameSend(data: Record<string, unknown>): void {
+    send({ game_id: gameId, ...data });
+  }
 
   const channel = {
     play(col: number, row: number): void {
-      ws.send(JSON.stringify({ action: "play", col, row }));
+      gameSend({ action: "play", col, row });
     },
     pass(): void {
-      ws.send(JSON.stringify({ action: "pass" }));
+      gameSend({ action: "pass" });
     },
     resign(): void {
-      ws.send(JSON.stringify({ action: "resign" }));
+      gameSend({ action: "resign" });
     },
     toggleChain(col: number, row: number): void {
-      ws.send(JSON.stringify({ action: "toggle_chain", col, row }));
+      gameSend({ action: "toggle_chain", col, row });
     },
     say(message: string): void {
-      ws.send(JSON.stringify({ action: "chat", message }));
+      gameSend({ action: "chat", message });
     },
     requestUndo(): void {
-      ws.send(JSON.stringify({ action: "request_undo" }));
+      gameSend({ action: "request_undo" });
     },
     acceptUndo(): void {
-      ws.send(
-        JSON.stringify({ action: "respond_to_undo", response: "accept" }),
-      );
+      gameSend({ action: "respond_to_undo", response: "accept" });
     },
     rejectUndo(): void {
-      ws.send(
-        JSON.stringify({ action: "respond_to_undo", response: "reject" }),
-      );
+      gameSend({ action: "respond_to_undo", response: "reject" });
     },
     approveTerritory(): void {
-      ws.send(JSON.stringify({ action: "approve_territory" }));
+      gameSend({ action: "approve_territory" });
     },
     abort(): void {
-      ws.send(JSON.stringify({ action: "abort" }));
+      gameSend({ action: "abort" });
     },
   };
 
@@ -446,105 +445,82 @@ export function go(root: HTMLElement) {
     }
   }
 
-  function connectWS(): void {
-    const wsURL = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}${window.location.pathname}/ws`;
+  function handleGameMessage(raw: Record<string, unknown>): void {
+    const data = raw as unknown as IncomingMessage;
+    console.debug("Game message:", data);
 
-    ws = new WebSocket(wsURL);
+    switch (data.kind) {
+      case "state":
+        gameState = data.state;
+        currentTurn = data.current_turn_stone;
+        moves = data.moves ?? [];
+        undoRejected = data.undo_rejected;
+        allowUndo = data.allow_undo ?? false;
+        result = data.result;
+        territory = data.territory;
 
-    ws.onopen = () => console.debug("WebSocket: connected");
-
-    ws.onmessage = (event: MessageEvent) => {
-      console.debug("WebSocket: incoming", event);
-
-      const data: IncomingMessage = JSON.parse(event.data);
-
-      switch (data.kind) {
-        case "state":
-          gameState = data.state;
-          currentTurn = data.current_turn_stone;
-          moves = data.moves ?? [];
+        if (board) {
+          board.updateBaseMoves(JSON.stringify(moves), !analysisMode);
+          if (!analysisMode && board.engine.is_at_latest()) {
+            renderGoban(gameState);
+          }
+          board.updateNav();
+        }
+        updateActions();
+        updateTitle(data.description);
+        updatePlayerLabels(data.black, data.white);
+        updateStatus();
+        syncClock(data.clock);
+        break;
+      case "chat":
+        appendToChat({
+          sender: data.sender,
+          text: data.text,
+          move_number: data.move_number,
+          sent_at: data.sent_at,
+        });
+        break;
+      case "error":
+        showError(data.message);
+        break;
+      case "undo_accepted":
+      case "undo_rejected":
+        hideUndoResponseControls();
+        if (data.undo_rejected !== undefined) {
           undoRejected = data.undo_rejected;
-          allowUndo = data.allow_undo ?? false;
-          result = data.result;
-          territory = data.territory;
-
-          console.debug("WebSocket: state updated", {
-            currentState: gameState,
-            currentTurn,
-          });
-
-          if (board) {
-            board.updateBaseMoves(JSON.stringify(moves), !analysisMode);
-            if (!analysisMode && board.engine.is_at_latest()) {
-              renderGoban(gameState);
+        }
+        if (data.state) {
+          gameState = data.state;
+          currentTurn = data.current_turn_stone ?? null;
+          if (data.moves) {
+            moves = data.moves;
+            if (board) {
+              board.updateBaseMoves(JSON.stringify(moves), !analysisMode);
+              if (!analysisMode && board.engine.is_at_latest()) {
+                renderGoban(data.state);
+              }
+              board.updateNav();
             }
-            board.updateNav();
           }
           updateActions();
-          updateTitle(data.description);
-          updatePlayerLabels(data.black, data.white);
           updateStatus();
-          syncClock(data.clock);
-          break;
-        case "chat":
-          appendToChat({
-            sender: data.sender,
-            text: data.text,
-            move_number: data.move_number,
-            sent_at: data.sent_at,
-          });
-          break;
-        case "error":
-          showError(data.message);
-          break;
-        case "undo_accepted":
-        case "undo_rejected":
-          hideUndoResponseControls();
-          if (data.undo_rejected !== undefined) {
-            undoRejected = data.undo_rejected;
-          }
-          if (data.state) {
-            gameState = data.state;
-            currentTurn = data.current_turn_stone ?? null;
-            if (data.moves) {
-              moves = data.moves;
-              if (board) {
-                board.updateBaseMoves(JSON.stringify(moves), !analysisMode);
-                if (!analysisMode && board.engine.is_at_latest()) {
-                  renderGoban(data.state);
-                }
-                board.updateNav();
-              }
-            }
-            updateActions();
-            updateStatus();
-          }
-          break;
-        case "undo_request_sent":
-          if (requestUndoBtn) {
-            requestUndoBtn.disabled = true;
-          }
-          break;
-        case "undo_response_needed":
-          showUndoResponseControls();
-          break;
-        default:
-          console.warn("WebSocket: unknown message kind", data);
-          break;
-      }
-    };
-
-    ws.onclose = () => {
-      console.info("WebSocket: connection closed, reconnecting in 2s...");
-      setTimeout(connectWS, 2000);
-    };
-
-    ws.onerror = (err) => {
-      console.error("WebSocket: error", err);
-    };
+        }
+        break;
+      case "undo_request_sent":
+        if (requestUndoBtn) {
+          requestUndoBtn.disabled = true;
+        }
+        break;
+      case "undo_response_needed":
+        showUndoResponseControls();
+        break;
+      default:
+        console.warn("Unknown game message kind:", data);
+        break;
+    }
   }
 
-  connectWS();
+  joinGame(gameId, handleGameMessage);
 
   // Game action handlers
   passBtn?.addEventListener("click", () => {

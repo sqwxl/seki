@@ -89,8 +89,7 @@ async fn main() {
         .route("/settings", get(routes::settings::settings_page))
         .route("/settings/token", post(routes::settings::generate_token))
         // WebSocket
-        .route("/games/{id}/ws", get(ws::handler::ws_upgrade))
-        .route("/live", get(ws::live::ws_upgrade))
+        .route("/ws", get(ws::live::ws_upgrade))
         // API
         .nest("/api", routes::api::router())
         // Health check

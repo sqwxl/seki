@@ -3,21 +3,58 @@
  *
  * Manages a single WebSocket to /live with auto-reconnect.
  * Components subscribe to specific event kinds via `subscribe()`.
+ * Game pages use `joinGame()` to subscribe to a game room.
  */
 
 type Handler = (data: Record<string, unknown>) => void;
 
+// Global "kind" handlers (lobby events like init, game_updated, game_removed)
 const handlers = new Map<string, Set<Handler>>();
+
+// Per-game handlers keyed by game_id
+const gameHandlers = new Map<number, Handler>();
+
 let ws: WebSocket | undefined;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+let pendingSends: string[] = [];
+
+function ensureConnected() {
+  if (!ws && !reconnectTimer) {
+    connect();
+  }
+}
 
 function connect() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  const url = `${proto}//${location.host}/live`;
+  const url = `${proto}//${location.host}/ws`;
   ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    // Re-join any game rooms after reconnect
+    for (const gameId of gameHandlers.keys()) {
+      ws!.send(JSON.stringify({ action: "join_game", game_id: gameId }));
+    }
+    // Flush pending sends
+    for (const msg of pendingSends) {
+      ws!.send(msg);
+    }
+    pendingSends = [];
+  };
 
   ws.onmessage = (event: MessageEvent) => {
     const data = JSON.parse(event.data);
+    const gameId = data.game_id as number | undefined;
+
+    // Route game-specific messages to the game handler
+    if (gameId != null) {
+      const handler = gameHandlers.get(gameId);
+      if (handler) {
+        handler(data);
+      }
+      return;
+    }
+
+    // Route by kind (lobby events)
     const kind = data.kind as string;
     const kindHandlers = handlers.get(kind);
     if (kindHandlers) {
@@ -29,7 +66,10 @@ function connect() {
 
   ws.onclose = () => {
     ws = undefined;
-    reconnectTimer = setTimeout(connect, 2000);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = undefined;
+      connect();
+    }, 2000);
   };
 
   ws.onerror = () => {
@@ -38,7 +78,21 @@ function connect() {
 }
 
 /**
- * Subscribe to a specific event kind. Returns an unsubscribe function.
+ * Send a JSON message to the server.
+ * If the socket isn't ready yet, the message is queued.
+ */
+function send(data: Record<string, unknown>): void {
+  const msg = JSON.stringify(data);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(msg);
+  } else {
+    pendingSends.push(msg);
+    ensureConnected();
+  }
+}
+
+/**
+ * Subscribe to a specific event kind (lobby-level). Returns an unsubscribe function.
  * Lazily connects the WebSocket on first subscription.
  */
 function subscribe(kind: string, handler: Handler): () => void {
@@ -49,10 +103,7 @@ function subscribe(kind: string, handler: Handler): () => void {
   }
   kindHandlers.add(handler);
 
-  // Connect lazily
-  if (!ws && !reconnectTimer) {
-    connect();
-  }
+  ensureConnected();
 
   return () => {
     kindHandlers!.delete(handler);
@@ -62,4 +113,18 @@ function subscribe(kind: string, handler: Handler): () => void {
   };
 }
 
-export { subscribe };
+/**
+ * Join a game room. All messages for this game will be routed to `handler`.
+ * Returns an unsubscribe function that sends `leave_game` and removes the handler.
+ */
+function joinGame(gameId: number, handler: Handler): () => void {
+  gameHandlers.set(gameId, handler);
+  send({ action: "join_game", game_id: gameId });
+
+  return () => {
+    gameHandlers.delete(gameId);
+    send({ action: "leave_game", game_id: gameId });
+  };
+}
+
+export { subscribe, send, joinGame };

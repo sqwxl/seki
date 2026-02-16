@@ -35,9 +35,9 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 
 ### Real-time
 
-- [x] WebSocket game channels (live state broadcast)
+- [x] Unified WebSocket (`/ws`) for game channels and lobby events
 - [x] In-game chat with move-linked messages
-- [ ] Live games list (currently static)
+- [x] Live games list
 - [ ] Filter games list (unranked, rank range, time, size)
 - [ ] Auto-match system
 - [ ] Game playback (replay game as it happened: actions, clock and chat in real time)

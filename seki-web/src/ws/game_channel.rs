@@ -9,6 +9,14 @@ use crate::services::state_serializer;
 use crate::ws::registry::WsSender;
 use crate::AppState;
 
+/// Send a JSON value to the client with `game_id` injected.
+fn send_to_client(tx: &WsSender, game_id: i64, mut msg: serde_json::Value) {
+    if let Some(obj) = msg.as_object_mut() {
+        obj.insert("game_id".to_string(), json!(game_id));
+    }
+    let _ = tx.send(msg.to_string());
+}
+
 /// Send the initial game state to a newly connected player.
 pub async fn send_initial_state(
     state: &AppState,
@@ -20,7 +28,7 @@ pub async fn send_initial_state(
 
     // Authorization: private games only allow players
     if gwp.game.is_private && !gwp.has_player(player_id) {
-        let _ = tx.send(json!({"kind": "error", "message": "Not authorized"}).to_string());
+        send_to_client(tx, game_id, json!({"kind": "error", "message": "Not authorized"}));
         return Ok(());
     }
 
@@ -92,7 +100,7 @@ pub async fn send_initial_state(
     let game_state =
         state_serializer::serialize_state(&gwp, &engine, undo_requested, territory.as_ref(), clock_ref);
 
-    let _ = tx.send(game_state.to_string());
+    send_to_client(tx, game_id, game_state);
 
     // If there's a pending undo request, send targeted UI control messages
     if undo_requested {
@@ -100,20 +108,15 @@ pub async fn send_initial_state(
         let requesting_player = gwp.out_of_turn_player(current_turn);
 
         if requesting_player.is_some_and(|p| p.id == player_id) {
-            let _ = tx.send(
-                json!({ "kind": "undo_request_sent" }).to_string(),
-            );
+            send_to_client(tx, game_id, json!({ "kind": "undo_request_sent" }));
         } else {
             let requesting_name = requesting_player
                 .map(|p| p.display_name().to_string())
                 .unwrap_or_else(|| "Opponent".to_string());
-            let _ = tx.send(
-                json!({
-                    "kind": "undo_response_needed",
-                    "requesting_player": requesting_name,
-                })
-                .to_string(),
-            );
+            send_to_client(tx, game_id, json!({
+                "kind": "undo_response_needed",
+                "requesting_player": requesting_name,
+            }));
         }
     }
 
@@ -141,17 +144,14 @@ pub async fn handle_message(
         "toggle_chain" => handle_toggle_chain(state, game_id, player_id, data).await,
         "approve_territory" => game_actions::approve_territory(state, game_id, player_id).await,
         _ => {
-            let _ = tx.send(
-                json!({"kind": "error", "message": format!("Unknown action: {action}")})
-                    .to_string(),
-            );
+            send_to_client(tx, game_id, json!({"kind": "error", "message": format!("Unknown action: {action}")}));
             return;
         }
     };
 
     if let Err(e) = result {
         tracing::error!("Error handling {action}: {e}");
-        let _ = tx.send(json!({"kind": "error", "message": e.to_string()}).to_string());
+        send_to_client(tx, game_id, json!({"kind": "error", "message": e.to_string()}));
     }
 }
 
