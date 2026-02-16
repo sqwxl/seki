@@ -1,4 +1,4 @@
-# Seki
+# Seki [^1]
 
 A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 
@@ -95,3 +95,5 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 
 - [ ] Email support (via SES)
 - [ ] Domain registration and deployment
+
+[^1]: "Seki" is a Japanese go term meaning _mutual life_. It is a situation where two groups of stones share liberties which neither player can fill without dying.
