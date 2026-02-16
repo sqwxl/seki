@@ -8,6 +8,7 @@ import {
   type MarkerData,
   type PlayerData,
   type Point,
+  type TerritoryData,
   type TurnData,
 } from "./goban/types";
 import { createBoard, findNavButtons } from "./wasm-board";
@@ -81,6 +82,9 @@ export function go(root: HTMLElement) {
         JSON.stringify({ action: "respond_to_undo", response: "reject" }),
       );
     },
+    approveTerritory(): void {
+      ws.send(JSON.stringify({ action: "approve_territory" }));
+    },
   };
 
   let gameState = props.state;
@@ -89,6 +93,7 @@ export function go(root: HTMLElement) {
   let undoRejected = false;
   let allowUndo = false;
   let result: string | null = null;
+  let territory: TerritoryData | undefined;
 
   // Analysis mode: when true, vertex clicks go to local engine; when false, live play via WS
   let analysisMode = false;
@@ -106,6 +111,7 @@ export function go(root: HTMLElement) {
   const resetBtn = document.getElementById("reset-btn") as HTMLButtonElement | null;
   const analyzeBtn = document.getElementById("analyze-btn") as HTMLButtonElement | null;
   const exitAnalysisBtn = document.getElementById("exit-analysis-btn") as HTMLButtonElement | null;
+  const acceptTerritoryBtn = document.getElementById("accept-territory-btn") as HTMLButtonElement | null;
 
   function isLiveClickable(): boolean {
     if (analysisMode) {
@@ -159,6 +165,7 @@ export function go(root: HTMLElement) {
     }
 
     const { board: boardData, cols, rows, ko } = state;
+    const isTerritoryReview = state.stage === "territory_review" && territory;
 
     const onVertexClick = isLiveClickable()
       ? (_: Event, position: Point) => {
@@ -172,16 +179,26 @@ export function go(root: HTMLElement) {
 
     const markerMap: (MarkerData | null)[] = Array(boardData.length).fill(null);
 
-    if (moves.length > 0) {
-      const lastMove = moves[moves.length - 1];
-      if (lastMove.kind === "play" && lastMove.pos) {
-        const [col, row] = lastMove.pos;
-        markerMap[row * cols + col] = { type: "circle" };
+    if (!isTerritoryReview) {
+      if (moves.length > 0) {
+        const lastMove = moves[moves.length - 1];
+        if (lastMove.kind === "play" && lastMove.pos) {
+          const [col, row] = lastMove.pos;
+          markerMap[row * cols + col] = { type: "circle" };
+        }
+      }
+
+      if (ko != null) {
+        markerMap[ko.pos[1] * cols + ko.pos[0]] = koMarker;
       }
     }
 
-    if (ko != null) {
-      markerMap[ko.pos[1] * cols + ko.pos[0]] = koMarker;
+    let paintMap: (number | null)[] | undefined;
+    let dimmedVertices: Point[] | undefined;
+
+    if (isTerritoryReview && territory) {
+      paintMap = territory.ownership.map((v) => (v === 0 ? null : v));
+      dimmedVertices = territory.dead_stones.map(([c, r]) => [c, r] as Point);
     }
 
     const avail = gobanEl.clientWidth;
@@ -195,6 +212,8 @@ export function go(root: HTMLElement) {
         vertexSize={vertexSize}
         signMap={boardData}
         markerMap={markerMap}
+        paintMap={paintMap}
+        dimmedVertices={dimmedVertices}
         fuzzyStonePlacement
         animateStonePlacement
         onVertexClick={onVertexClick}
@@ -242,6 +261,11 @@ export function go(root: HTMLElement) {
     }
     if (gameState.stage === "done" && result) {
       statusEl.textContent = result;
+    } else if (gameState.stage === "territory_review" && territory) {
+      const bCheck = territory.black_approved ? " \u2713" : "";
+      const wCheck = territory.white_approved ? " \u2713" : "";
+      statusEl.textContent =
+        `B: ${territory.score.black}${bCheck}  |  W: ${territory.score.white}${wCheck}`;
     } else {
       statusEl.textContent = "";
     }
@@ -267,6 +291,7 @@ export function go(root: HTMLElement) {
           undoRejected = data.undo_rejected;
           allowUndo = data.allow_undo ?? false;
           result = data.result;
+          territory = data.territory;
 
           console.debug("WebSocket: state updated", {
             currentState: gameState,
@@ -360,6 +385,13 @@ export function go(root: HTMLElement) {
   const confirmResignBtn = document.getElementById("confirm-resign-btn") as HTMLButtonElement | null;
   confirmResignBtn?.addEventListener("click", () => channel.resign());
 
+  // Territory review handlers
+  acceptTerritoryBtn?.addEventListener("click", () => {
+    document.getElementById("accept-territory-confirm")?.showPopover();
+  });
+  const confirmAcceptTerritoryBtn = document.getElementById("confirm-accept-territory-btn") as HTMLButtonElement | null;
+  confirmAcceptTerritoryBtn?.addEventListener("click", () => channel.approveTerritory());
+
   // Analysis mode handlers
   analyzeBtn?.addEventListener("click", () => enterAnalysis());
   exitAnalysisBtn?.addEventListener("click", () => exitAnalysis());
@@ -406,6 +438,7 @@ export function go(root: HTMLElement) {
 
     // Live mode
     const isPlay = isPlayStage(gameState.stage);
+    const isReview = gameState.stage === "territory_review";
 
     const isMyTurn = currentTurn === playerStone;
     if (passBtn) {
@@ -416,7 +449,7 @@ export function go(root: HTMLElement) {
       resignBtn.style.display = isPlay ? "" : "none";
     }
     if (resetBtn) { resetBtn.style.display = "none"; }
-    if (analyzeBtn) { analyzeBtn.style.display = ""; }
+    if (analyzeBtn) { analyzeBtn.style.display = isReview ? "none" : ""; }
     if (exitAnalysisBtn) { exitAnalysisBtn.style.display = "none"; }
 
     if (requestUndoBtn) {
@@ -437,6 +470,14 @@ export function go(root: HTMLElement) {
       } else {
         requestUndoBtn.title = "Request to undo your last move";
       }
+    }
+
+    if (acceptTerritoryBtn) {
+      acceptTerritoryBtn.style.display = isReview && playerStone !== 0 ? "" : "none";
+      const alreadyApproved =
+        (playerStone === 1 && territory?.black_approved) ||
+        (playerStone === -1 && territory?.white_approved);
+      acceptTerritoryBtn.disabled = !!alreadyApproved;
     }
   }
 

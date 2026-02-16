@@ -89,6 +89,14 @@ export type PlayerData = {
   is_registered: boolean;
 };
 
+export type TerritoryData = {
+  ownership: number[];
+  dead_stones: [number, number][];
+  score: { black: number; white: number };
+  black_approved: boolean;
+  white_approved: boolean;
+};
+
 // Baked into the #game element dataset as JSON on initial render
 export type InitialGameProps = {
   state: GameState;
@@ -109,6 +117,7 @@ export type StateMessage = {
   description: string;
   undo_rejected: boolean;
   allow_undo?: boolean;
+  territory?: TerritoryData;
 };
 
 export type ChatMessage = {
