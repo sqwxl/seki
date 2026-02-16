@@ -257,6 +257,9 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       if (wasAtLatest) {
         engine.to_latest();
       }
+      if (config.moveTreeEl) {
+        renderMoveTree(engine, config.moveTreeEl, doRender);
+      }
     }
   }
 
