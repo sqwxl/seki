@@ -131,7 +131,6 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
     }
     send_task.abort();
 
-    tracing::debug!("Live WS closed: player={player_id}");
 }
 
 async fn build_init_message(state: &AppState, player_id: i64) -> String {

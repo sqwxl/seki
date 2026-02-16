@@ -57,7 +57,6 @@ impl FromRequestParts<crate::AppState> for CurrentPlayer {
             .insert(PLAYER_ID_KEY, token)
             .await
             .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
-        tracing::debug!("New player created: {}", player.id);
 
         Ok(CurrentPlayer { player })
     }

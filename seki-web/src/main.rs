@@ -1,6 +1,4 @@
 use axum::extract::Request;
-use axum::middleware::{self, Next};
-use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Router;
 use tokio::sync::broadcast;
@@ -106,11 +104,8 @@ async fn main() {
         .layer(session_layer)
         .with_state(state);
 
-    // Debug-only middleware
     #[cfg(debug_assertions)]
-    let app = app
-        .layer(middleware::from_fn(log_request))
-        .layer(tower_livereload::LiveReloadLayer::new());
+    let app = app.layer(tower_livereload::LiveReloadLayer::new());
 
     // Start server
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
@@ -131,33 +126,4 @@ async fn main() {
     )
     .await
     .expect("Server error");
-}
-
-#[cfg(debug_assertions)]
-async fn log_request(req: Request, next: Next) -> Response {
-    let method = req.method().clone();
-    let uri = req.uri().clone();
-
-    let (parts, body) = req.into_parts();
-    let bytes = axum::body::to_bytes(body, 1024 * 1024)
-        .await
-        .unwrap_or_default();
-
-    if bytes.is_empty() {
-        tracing::debug!("{method} {uri}");
-    } else if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-        tracing::debug!(
-            "{method} {uri}\n{}",
-            serde_json::to_string_pretty(&json).unwrap()
-        );
-    } else if let Ok(text) = std::str::from_utf8(&bytes) {
-        tracing::debug!("{method} {uri}\n{text}");
-    } else {
-        tracing::debug!("{method} {uri} ({} bytes)", bytes.len());
-    }
-
-    let req = Request::from_parts(parts, axum::body::Body::from(bytes));
-    let resp = next.run(req).await;
-    tracing::debug!("{method} {uri} -> {}", resp.status());
-    resp
 }
