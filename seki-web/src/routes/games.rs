@@ -177,6 +177,7 @@ pub async fn show_game(
                 None => SYSTEM_SYMBOL.to_string(),
             };
             serde_json::json!({
+                "player_id": msg.player_id,
                 "sender": sender,
                 "text": msg.text,
                 "move_number": msg.move_number,
@@ -282,7 +283,8 @@ pub async fn join_game(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let game_state = state_serializer::serialize_state(&gwp, &engine, false, None, clock_ref);
+    let online_players = state.registry.get_online_player_ids(id).await;
+    let game_state = state_serializer::serialize_state(&gwp, &engine, false, None, clock_ref, &online_players);
     state
         .registry
         .broadcast(id, &game_state.to_string())

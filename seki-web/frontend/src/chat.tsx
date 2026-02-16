@@ -1,4 +1,5 @@
 export type ChatEntry = {
+  player_id?: number;
   sender: string;
   text: string;
   move_number?: number;
@@ -31,9 +32,24 @@ export function appendToChat(entry: ChatEntry): void {
   }
   const p = document.createElement("p");
   const prefix = formatPrefix(entry);
-  p.textContent = `${prefix}${entry.sender}: ${entry.text}`;
+  if (entry.player_id != null) {
+    const dot = document.createElement("span");
+    dot.className = "presence-dot";
+    dot.dataset.playerId = String(entry.player_id);
+    p.appendChild(dot);
+    p.appendChild(document.createTextNode(` ${prefix}${entry.sender}: ${entry.text}`));
+  } else {
+    p.textContent = `${prefix}${entry.sender}: ${entry.text}`;
+  }
   box.appendChild(p);
   box.scrollTop = box.scrollHeight;
+}
+
+export function updateChatPresence(onlinePlayers: Set<number>): void {
+  for (const dot of document.querySelectorAll<HTMLElement>(".chat-box .presence-dot[data-player-id]")) {
+    const id = Number(dot.dataset.playerId);
+    dot.classList.toggle("online", onlinePlayers.has(id));
+  }
 }
 
 export function renderChatHistory(): void {

@@ -97,8 +97,9 @@ pub async fn send_initial_state(
         .as_ref()
         .map(|(clock, tc)| (clock, tc));
 
+    let online_players = state.registry.get_online_player_ids(game_id).await;
     let game_state =
-        state_serializer::serialize_state(&gwp, &engine, undo_requested, territory.as_ref(), clock_ref);
+        state_serializer::serialize_state(&gwp, &engine, undo_requested, territory.as_ref(), clock_ref, &online_players);
 
     send_to_client(tx, game_id, game_state);
 

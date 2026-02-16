@@ -14,7 +14,7 @@ import {
 } from "./goban/types";
 import { createBoard, findNavButtons } from "./wasm-board";
 import type { Board } from "./wasm-board";
-import { appendToChat, renderChatHistory, setupChat } from "./chat";
+import { appendToChat, renderChatHistory, setupChat, updateChatPresence } from "./chat";
 import { joinGame, send } from "./live";
 import { formatGameDescription } from "./format";
 
@@ -108,6 +108,7 @@ export function go(root: HTMLElement) {
   let territory: TerritoryData | undefined;
   let clockData: ClockData | undefined;
   let clockInterval: ReturnType<typeof setInterval> | undefined;
+  let onlinePlayers = new Set<number>();
 
   // Analysis mode: when true, vertex clicks go to local engine; when false, live play via WS
   let analysisMode = false;
@@ -296,14 +297,18 @@ export function go(root: HTMLElement) {
     }
   }
 
-  function setLabel(el: HTMLElement, name: string, points: string): void {
+  function setLabel(el: HTMLElement, name: string, points: string, isOnline: boolean): void {
     const nameEl = el.querySelector(".player-name");
     const pointsEl = el.querySelector(".player-captures");
+    const dotEl = el.querySelector(".presence-dot");
     if (nameEl) {
       nameEl.textContent = name;
     }
     if (pointsEl) {
       pointsEl.textContent = points;
+    }
+    if (dotEl) {
+      dotEl.classList.toggle("online", isOnline);
     }
   }
 
@@ -320,6 +325,8 @@ export function go(root: HTMLElement) {
     }
     const bName = `${BLACK_SYMBOL} ${black ? black.display_name : "…"}`;
     const wName = `${WHITE_SYMBOL} ${white ? white.display_name : "…"}`;
+    const bOnline = black ? onlinePlayers.has(black.id) : false;
+    const wOnline = white ? onlinePlayers.has(white.id) : false;
 
     let bPoints: number;
     let wPoints: number;
@@ -334,11 +341,11 @@ export function go(root: HTMLElement) {
     const bStr = `${formatPoints(bPoints)} ${BLACK_CAPTURES_SYMBOL}`;
     const wStr = `${formatPoints(wPoints)} ${WHITE_CAPTURES_SYMBOL}`;
     if (playerStone === -1) {
-      setLabel(playerTopEl, bName, bStr);
-      setLabel(playerBottomEl, wName, wStr);
+      setLabel(playerTopEl, bName, bStr, bOnline);
+      setLabel(playerBottomEl, wName, wStr, wOnline);
     } else {
-      setLabel(playerTopEl, wName, wStr);
-      setLabel(playerBottomEl, bName, bStr);
+      setLabel(playerTopEl, wName, wStr, wOnline);
+      setLabel(playerBottomEl, bName, bStr, bOnline);
     }
   }
 
@@ -470,6 +477,9 @@ export function go(root: HTMLElement) {
         territory = data.territory;
         black = data.black ?? undefined;
         white = data.white ?? undefined;
+        if (data.online_players) {
+          onlinePlayers = new Set(data.online_players);
+        }
 
         if (board) {
           board.updateBaseMoves(JSON.stringify(moves), !analysisMode);
@@ -483,9 +493,11 @@ export function go(root: HTMLElement) {
         updatePlayerLabels(data.black, data.white);
         updateStatus();
         syncClock(data.clock);
+        updateChatPresence(onlinePlayers);
         break;
       case "chat":
         appendToChat({
+          player_id: data.player_id,
           sender: data.sender,
           text: data.text,
           move_number: data.move_number,
@@ -525,6 +537,15 @@ export function go(root: HTMLElement) {
         break;
       case "undo_response_needed":
         showUndoResponseControls();
+        break;
+      case "presence":
+        if (data.online) {
+          onlinePlayers.add(data.player_id);
+        } else {
+          onlinePlayers.delete(data.player_id);
+        }
+        updatePlayerLabels(black ?? null, white ?? null);
+        updateChatPresence(onlinePlayers);
         break;
       default:
         console.warn("Unknown game message kind:", data);

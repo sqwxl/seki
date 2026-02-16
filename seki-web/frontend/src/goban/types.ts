@@ -139,10 +139,18 @@ export type StateMessage = {
   allow_undo?: boolean;
   territory?: TerritoryData;
   clock?: ClockData;
+  online_players?: number[];
+};
+
+export type PresenceMessage = {
+  kind: "presence";
+  player_id: number;
+  online: boolean;
 };
 
 export type ChatMessage = {
   kind: "chat";
+  player_id?: number;
   sender: string;
   text: string;
   move_number?: number;
@@ -183,6 +191,7 @@ export type IncomingMessage =
   | StateMessage
   | ChatMessage
   | ErrorMessage
+  | PresenceMessage
   | UndoAcceptedMessage
   | UndoRejectedMessage
   | UndoRequestSentMessage

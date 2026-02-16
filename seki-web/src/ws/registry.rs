@@ -55,19 +55,32 @@ impl GameRegistry {
     }
 
     /// Remove a player's sender from a game room.
-    pub async fn leave(&self, game_id: i64, player_id: i64, sender: &WsSender) {
+    /// Returns `true` if the player was fully removed (no remaining senders).
+    pub async fn leave(&self, game_id: i64, player_id: i64, sender: &WsSender) -> bool {
         let mut rooms = self.rooms.write().await;
+        let mut player_removed = false;
         if let Some(room) = rooms.get_mut(&game_id) {
             if let Some(senders) = room.players.get_mut(&player_id) {
                 senders.retain(|s| !s.same_channel(sender));
                 if senders.is_empty() {
                     room.players.remove(&player_id);
+                    player_removed = true;
                 }
             }
             if room.players.is_empty() {
                 rooms.remove(&game_id);
             }
         }
+        player_removed
+    }
+
+    /// Get the IDs of players currently connected to a game room.
+    pub async fn get_online_player_ids(&self, game_id: i64) -> Vec<i64> {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .map(|room| room.players.keys().copied().collect())
+            .unwrap_or_default()
     }
 
     /// Broadcast a message to all players in a game room.

@@ -47,6 +47,7 @@ pub fn serialize_state(
     undo_requested: bool,
     territory: Option<&TerritoryData>,
     clock: Option<(&ClockState, &TimeControl)>,
+    online_players: &[i64],
 ) -> serde_json::Value {
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
     // for terminal states (done) and waiting states (unstarted with both players).
@@ -103,6 +104,8 @@ pub fn serialize_state(
     if let Some((clock_state, time_control)) = clock {
         val["clock"] = clock_state.to_json(time_control);
     }
+
+    val["online_players"] = json!(online_players);
 
     val
 }

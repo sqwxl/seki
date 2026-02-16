@@ -521,7 +521,7 @@ async fn build_game_response(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let serialized = state_serializer::serialize_state(gwp, engine, false, territory.as_ref(), clock_ref);
+    let serialized = state_serializer::serialize_state(gwp, engine, false, territory.as_ref(), clock_ref, &[]);
 
     let territory_json = serialized.get("territory").cloned();
 

@@ -425,6 +425,7 @@ pub async fn send_chat(
             game_id,
             &json!({
                 "kind": "chat",
+                "player_id": player_id,
                 "sender": sender,
                 "text": msg.text,
                 "move_number": msg.move_number,
@@ -629,7 +630,8 @@ pub async fn respond_to_undo(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let game_state = state_serializer::serialize_state(&result.gwp, &result.engine, false, None, clock_ref);
+    let online_players = state.registry.get_online_player_ids(game_id).await;
+    let game_state = state_serializer::serialize_state(&result.gwp, &result.engine, false, None, clock_ref, &online_players);
     for pid in [requesting_player_id, player_id] {
         state
             .registry
@@ -683,8 +685,9 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
+    let online_players = state.registry.get_online_player_ids(game_id).await;
     let game_state =
-        state_serializer::serialize_state(&gwp, engine, undo_requested, territory.as_ref(), clock_ref);
+        state_serializer::serialize_state(&gwp, engine, undo_requested, territory.as_ref(), clock_ref, &online_players);
 
     state
         .registry

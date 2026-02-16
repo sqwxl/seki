@@ -50,10 +50,32 @@ nav > div {
   }
 }
 
+a,
 a:visited {
-  color: unset;
+  color: inherit;
 }
 
-li::marker {
-  content: "";
+.presence-dot {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background-color: #888;
+  vertical-align: middle;
+}
+
+.presence-dot.online {
+  background-color: #4caf50;
+}
+
+.games-list {
+  ul {
+    padding: 0;
+  }
+
+  li {
+  }
+  li::marker {
+    content: "";
+  }
 }

@@ -88,6 +88,9 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
                                     state.registry.join(game_id, player_id, tx.clone()).await;
                                     subscribed_games.insert(game_id);
 
+                                    // Notify others that this player came online
+                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":player_id,"online":true}).to_string()).await;
+
                                     if let Err(e) = game_channel::send_initial_state(
                                         &state, game_id, player_id, &tx,
                                     )
@@ -102,8 +105,11 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
                         }
                         "leave_game" => {
                             if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64()) {
-                                state.registry.leave(game_id, player_id, &tx).await;
+                                let removed = state.registry.leave(game_id, player_id, &tx).await;
                                 subscribed_games.remove(&game_id);
+                                if removed {
+                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":player_id,"online":false}).to_string()).await;
+                                }
                             }
                         }
                         _ => {
@@ -126,8 +132,11 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
     }
 
     // Cleanup: leave all subscribed games
-    for game_id in subscribed_games {
-        state.registry.leave(game_id, player_id, &tx).await;
+    for game_id in &subscribed_games {
+        let removed = state.registry.leave(*game_id, player_id, &tx).await;
+        if removed {
+            state.registry.broadcast(*game_id, &json!({"kind":"presence","player_id":player_id,"online":false}).to_string()).await;
+        }
     }
     send_task.abort();
 
