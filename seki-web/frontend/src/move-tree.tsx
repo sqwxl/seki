@@ -166,6 +166,7 @@ export function MoveTree({ tree, currentNodeId, scrollContainer, onNavigate }: M
         style={{ cursor: "pointer" }}
         onClick={() => onNavigate(node.id)}
       >
+        {isRoot && <circle cx={x} cy={y} r={NODE_RADIUS} fill="transparent" />}
         <circle
           cx={x}
           cy={y}
