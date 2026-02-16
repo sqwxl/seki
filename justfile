@@ -7,7 +7,7 @@ db:
     docker compose up db -d
 
 wasm:
-    wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm
+    cargo watch -w go-engine -w go-engine-wasm -s 'wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm'
 
 frontend:
     cd seki-web/frontend && pnpm run dev
