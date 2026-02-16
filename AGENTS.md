@@ -7,16 +7,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Rust (workspace root)
 cargo build                          # build all crates
-cargo test --all                     # run all tests (103 tests, mostly in go-engine)
+cargo test --all                     # run all tests (166 tests, mostly in go-engine)
 cargo test -p go-engine              # engine tests only
 cargo test -p go-engine -- ko        # run tests matching "ko"
 cargo check --all                    # type-check without building
 
+# WASM (from repo root)
+wasm-pack build go-engine-wasm --target web --out-dir seki-web/static/wasm
+
 # Frontend (seki-web/frontend/)
-npm install                          # install deps
-npm run build                        # esbuild: src/go.tsx → ../static/dist/bundle.js
-npm run dev                          # watch mode
-npm run typecheck                    # tsc --noEmit
+pnpm install                         # install deps
+pnpm run build                       # esbuild: src/go.tsx → ../static/dist/bundle.js
+pnpm run build:wasm                  # build WASM engine
+pnpm run dev                         # watch mode
+pnpm run typecheck                   # tsc --noEmit
 
 # Docker
 docker-compose up                    # postgres + web service on :3000
@@ -24,10 +28,13 @@ docker-compose up                    # postgres + web service on :3000
 
 ## Architecture
 
-Cargo workspace with two crates:
+Cargo workspace with three crates:
 
 ### go-engine
-Pure game logic library. No IO, no async. Clone-on-write board state — `Goban::play()`/`pass()` return a new `Goban` rather than mutating. Key types: `Engine`, `Goban`, `Stone` (Black=1, White=-1), `Turn`, `Stage`. Also includes an SGF parser/serializer (`go_engine::sgf`).
+Pure game logic library. No IO, no async. Clone-on-write board state — `Goban::play()`/`pass()` return a new `Goban` rather than mutating. Key types: `Engine`, `Goban`, `Stone` (Black=1, White=-1), `Turn`, `Stage`. Also includes an SGF parser/serializer (`go_engine::sgf`), game tree, replay navigation, and territory scoring.
+
+### go-engine-wasm
+Thin wasm-bindgen shell over `go-engine`. Only handles WASM-boundary concerns (js_sys types, JSON serialization, primitive conversions). All real logic belongs in `go-engine` so it's testable without WASM and reusable server-side.
 
 ### seki-web
 Axum 0.8 web app. Modules follow a clean separation: `models/` (sqlx queries), `services/` (engine building, game creation, state serialization), `routes/` (HTTP handlers), `ws/` (WebSocket game channels), `templates/` (Askama template structs).
@@ -36,11 +43,15 @@ Axum 0.8 web app. Modules follow a clean separation: `models/` (sqlx queries), `
 
 **Real-time:** `GameRegistry` manages per-game WebSocket channels. On connect, server sends full game state; subsequent moves are broadcast to all connected players.
 
-**Auth:** tower-sessions with PostgreSQL store. `CurrentPlayer` extractor auto-creates anonymous players (random session token) if no session exists. Registration adds email/username/password (Argon2).
+**Auth (web):** tower-sessions with PostgreSQL store. `CurrentPlayer` extractor auto-creates anonymous players (random session token) if no session exists. Registration adds email/username/password (Argon2).
+
+**Auth (API):** Bearer token authentication. `ApiPlayer` extractor reads `Authorization: Bearer <token>` header, looks up by `api_token` column, requires a registered account, returns 401 JSON on failure. Tokens are managed from the `/settings` web page.
+
+**API routes** (`/api/*`): JSON endpoints for programmatic access. Authenticated endpoints use `ApiPlayer`; public endpoints (list games, get game, get messages, get turns) are unauthenticated. Session-based auth concepts (login, register, logout) are not part of the API — those are web-only routes.
 
 ## Database
 
-PostgreSQL via sqlx 0.8. **Single migration file:** `seki-web/migrations/001_initial.sql` — edit this directly, never create new migration files. Uses `IF NOT EXISTS` for idempotency. Migrations run at app startup.
+PostgreSQL via sqlx 0.8. Migrations live in `seki-web/migrations/` as numbered files (001, 002, …). **Never modify existing migration files** — always create new numbered migrations. Migrations run at app startup.
 
 Tables: `players`, `games`, `turns`, `messages`, `territory_reviews`.
 
@@ -53,7 +64,7 @@ Tables: `players`, `games`, `turns`, `messages`, `territory_reviews`.
 
 ## Key Dependency Versions
 
-axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-sessions-sqlx-store 0.15, sqlx 0.8 (postgres), askama 0.15, Rust edition 2021, Node 24, Preact 10, esbuild 0.24.
+axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-sessions-sqlx-store 0.15, sqlx 0.8 (postgres), askama 0.15, Rust edition 2021, Node 24, pnpm, Preact 10, esbuild 0.24, wasm-bindgen 0.2, js-sys 0.3.
 
 ## Conventions
 

@@ -1,0 +1,85 @@
+# Seki
+
+A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
+
+## Features
+
+### Gameplay
+- [x] Create games (board size, komi, handicap, color choice, private/public)
+- [x] Join open games
+- [x] Play moves, pass, resign
+- [x] Undo/takeback requests (with opponent approval)
+- [x] Territory review (mark dead stones, approve scoring)
+- [x] Ko rule enforcement
+- [x] Invite players by email
+- [ ] Abort game (after players join, before first move)
+- [ ] Game clocks (countdown, byo-yomi, correspondence)
+- [ ] Detect player disconnect, pause clock, offer to abort
+- [ ] Rematch option after game (challenge opponent to new game with same settings)
+
+### Board & Navigation
+- [x] Move history navigation (arrow keys, home/end)
+- [x] Move tree visualization with branches
+- [x] In-game analysis mode (local exploration without affecting live game)
+- [x] Standalone analysis board (`/analysis`)
+- [x] Last move and ko point markers
+- [x] Player labels with capture counts
+- [ ] Board annotations in analysis
+- [ ] Import/export SGF
+- [ ] Zen mode (board only)
+- [ ] Appearance customization (stones, board)
+- [ ] Dark mode
+- [ ] Sounds
+
+### Real-time
+- [x] WebSocket game channels (live state broadcast)
+- [x] In-game chat with move-linked messages
+- [ ] Live games list (currently static)
+- [ ] Filter games list (unranked, rank range, time, size)
+- [ ] Auto-match system
+- [ ] Game playback (replay game as it happened: actions, clock and chat in real time)
+
+### Auth & Accounts
+- [x] Anonymous play (auto-created sessions)
+- [x] Registration (username/password)
+- [x] Login/logout with session persistence
+- [x] Settings page with API token management
+- [ ] User profile (avatar, flag, bio, game history, rank history)
+- [ ] User profile customization
+- [ ] Display names
+- [ ] User online status
+- [ ] Friends list
+- [ ] Ranking system (ELO, kyu/dan)
+  - [ ] Ranked/unranked game option
+
+### API
+- [x] REST API with Bearer token authentication
+- [x] Game CRUD, moves, pass, resign, undo, territory, chat, turns
+- [x] Public endpoints (list/get games, messages, turns) without auth
+- [ ] Rate limiting
+- [ ] Bots
+
+### Social
+- [ ] Channels (users can create and join)
+  - [ ] Public and private (invite only)
+  - [ ] Mod users (crown symbol)
+  - [ ] Lobby chat
+  - [ ] 1-on-1 chat
+- [ ] Flagging/reporting system (cheaters, spammers, over-zealous reporters, etc)
+  - [ ] 3 strike policy
+- [ ] Voice chat
+
+### Learning & Review
+- [ ] Problems/puzzles
+- [ ] Tutorials
+- [ ] Post-game reviews (live analysis)
+- [ ] Live demonstrations/lessons with voice
+- [ ] Game reviews/lessons save and replay
+
+### Game Variants
+- [ ] Irregular boards (non-square, edgeless/torus)
+- [ ] Game variations (>2 players, gomoku)
+
+### Infrastructure
+- [ ] Email support (via SES)
+- [ ] Domain registration and deployment
