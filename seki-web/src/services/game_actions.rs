@@ -9,7 +9,7 @@ use crate::models::message::Message;
 use crate::models::player::Player;
 use crate::models::turn::TurnRow;
 use crate::services::clock::{ClockState, TimeControl};
-use crate::services::{engine_builder, state_serializer};
+use crate::services::{engine_builder, live, state_serializer};
 use crate::AppState;
 
 // -- Return types --
@@ -361,6 +361,8 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
+    live::notify_game_removed(state, game_id);
+
     // Update engine cache
     let _ = state
         .registry
@@ -688,6 +690,9 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
         .registry
         .broadcast(game_id, &game_state.to_string())
         .await;
+
+    // Notify live subscribers (games list, etc.)
+    live::notify_game_changed(state, game_id, Some(engine.moves().len())).await;
 }
 
 async fn broadcast_system_chat(state: &AppState, game_id: i64, text: &str) {

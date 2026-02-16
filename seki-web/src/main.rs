@@ -3,6 +3,7 @@ use axum::middleware::{self, Next};
 use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Router;
+use tokio::sync::broadcast;
 use tower::Layer as _;
 use tower_http::normalize_path::NormalizePathLayer;
 use tower_http::services::ServeDir;
@@ -24,6 +25,7 @@ mod ws;
 pub struct AppState {
     pub db: db::DbPool,
     pub registry: ws::registry::GameRegistry,
+    pub live_tx: broadcast::Sender<String>,
 }
 
 #[tokio::main]
@@ -60,9 +62,11 @@ async fn main() {
         .with_expiry(Expiry::OnInactivity(Duration::days(30)));
 
     // App state
+    let (live_tx, _) = broadcast::channel::<String>(256);
     let state = AppState {
         db: pool,
         registry: ws::registry::GameRegistry::new(),
+        live_tx,
     };
 
     // Build router
@@ -86,6 +90,7 @@ async fn main() {
         .route("/settings/token", post(routes::settings::generate_token))
         // WebSocket
         .route("/games/{id}/ws", get(ws::handler::ws_upgrade))
+        .route("/live", get(ws::live::ws_upgrade))
         // API
         .nest("/api", routes::api::router())
         // Health check

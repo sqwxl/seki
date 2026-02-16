@@ -6,12 +6,14 @@
     </li>
 {% endmacro %}
 {% block content %}
-    <h1>Your games</h1>
-    <ul>
-        {% for gwp in player_games %}{{ game_link(gwp) }}{% endfor %}
-    </ul>
-    <h1>Public games</h1>
-    <ul>
-        {% for gwp in public_games %}{{ game_link(gwp) }}{% endfor %}
-    </ul>
+    <div id="games-list">
+        <h1>Your games</h1>
+        <ul>
+            {% for gwp in player_games %}{{ game_link(gwp) }}{% endfor %}
+        </ul>
+        <h1>Public games</h1>
+        <ul>
+            {% for gwp in public_games %}{{ game_link(gwp) }}{% endfor %}
+        </ul>
+    </div>
 {% endblock %}

@@ -1,5 +1,11 @@
 import { go } from "./go";
+import { initGamesList } from "./games-list";
 import { createBoard, findNavButtons } from "./wasm-board";
+
+const gamesListRoot = document.getElementById("games-list");
+if (gamesListRoot) {
+  initGamesList(gamesListRoot);
+}
 
 const gameRoot = document.getElementById("game");
 

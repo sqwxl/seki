@@ -131,7 +131,10 @@ pub async fn create_game(
     };
 
     match game_creator::create_game(&state.db, &current_player, params).await {
-        Ok(game) => Ok(Redirect::to(&format!("/games/{}", game.id)).into_response()),
+        Ok(game) => {
+            crate::services::live::notify_game_changed(&state, game.id, None).await;
+            Ok(Redirect::to(&format!("/games/{}", game.id)).into_response())
+        }
         Err(e) => {
             let tmpl = GamesNewTemplate {
                 player_username: current_player.username.clone(),
@@ -278,6 +281,8 @@ pub async fn join_game(
         .registry
         .broadcast(id, &game_state.to_string())
         .await;
+
+    crate::services::live::notify_game_changed(&state, id, None).await;
 
     Ok(Redirect::to(&format!("/games/{id}")).into_response())
 }

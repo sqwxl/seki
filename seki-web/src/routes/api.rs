@@ -208,6 +208,7 @@ async fn create_game(
     };
 
     let game = game_creator::create_game(&state.db, &api_player, params).await?;
+    crate::services::live::notify_game_changed(&state, game.id, None).await;
     let gwp = Game::find_with_players(&state.db, game.id).await?;
     let engine = state
         .registry
@@ -253,6 +254,7 @@ async fn delete_game(
     }
 
     Game::delete(&state.db, id).await?;
+    crate::services::live::notify_game_removed(&state, id);
     Ok(Json(serde_json::json!({"deleted": true})))
 }
 
@@ -281,6 +283,8 @@ async fn join_game(
         .get_or_init_engine(&state.db, &gwp.game)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    crate::services::live::notify_game_changed(&state, id, None).await;
 
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
