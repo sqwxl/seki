@@ -341,6 +341,44 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
     Ok(engine)
 }
 
+pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(), AppError> {
+    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+
+    if gwp.game.result.is_some() {
+        return Err(AppError::BadRequest("The game is over".to_string()));
+    }
+
+    if gwp.game.started_at.is_some() {
+        return Err(AppError::BadRequest(
+            "Cannot abort after the first move".to_string(),
+        ));
+    }
+
+    // Pause clock if timed
+    pause_clock(state, game_id, &gwp.game).await?;
+
+    Game::set_ended(&state.db, game_id, "Aborted")
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    // Update engine cache
+    let _ = state
+        .registry
+        .with_engine_mut(game_id, |engine| {
+            engine.set_result("Aborted".to_string());
+            Ok(())
+        })
+        .await;
+
+    broadcast_system_chat(state, game_id, "Game aborted").await;
+
+    if let Some(engine) = state.registry.get_engine(game_id).await {
+        broadcast_game_state(state, game_id, &engine).await;
+    }
+
+    Ok(())
+}
+
 pub async fn send_chat(
     state: &AppState,
     game_id: i64,

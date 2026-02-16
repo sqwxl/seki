@@ -13,7 +13,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [x] Territory review (mark dead stones, approve scoring)
 - [x] Ko rule enforcement
 - [x] Invite players by email
-- [ ] Abort game (after players join, before first move)
+- [x] Abort game (before first move)
 - [x] Game clocks (Fischer, byo-yomi, correspondence)
 - [ ] Detect player disconnect, pause clock, offer to abort
 - [ ] Rematch option after game (challenge opponent to new game with same settings)

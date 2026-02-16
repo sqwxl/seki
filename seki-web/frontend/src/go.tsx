@@ -92,6 +92,9 @@ export function go(root: HTMLElement) {
     approveTerritory(): void {
       ws.send(JSON.stringify({ action: "approve_territory" }));
     },
+    abort(): void {
+      ws.send(JSON.stringify({ action: "abort" }));
+    },
   };
 
   let gameState = props.state;
@@ -136,6 +139,9 @@ export function go(root: HTMLElement) {
   ) as HTMLButtonElement | null;
   const acceptTerritoryBtn = document.getElementById(
     "accept-territory-btn",
+  ) as HTMLButtonElement | null;
+  const abortBtn = document.getElementById(
+    "abort-btn",
   ) as HTMLButtonElement | null;
 
   function isLiveClickable(): boolean {
@@ -544,6 +550,10 @@ export function go(root: HTMLElement) {
     "confirm-resign-btn",
   ) as HTMLButtonElement | null;
   confirmResignBtn?.addEventListener("click", () => channel.resign());
+  const confirmAbortBtn = document.getElementById(
+    "confirm-abort-btn",
+  ) as HTMLButtonElement | null;
+  confirmAbortBtn?.addEventListener("click", () => channel.abort());
 
   // Territory review handlers
   acceptTerritoryBtn?.addEventListener("click", () => {
@@ -600,6 +610,9 @@ export function go(root: HTMLElement) {
       }
       if (requestUndoBtn) {
         requestUndoBtn.style.display = "none";
+      }
+      if (abortBtn) {
+        abortBtn.style.display = "none";
       }
       if (resetBtn) {
         resetBtn.style.display = "";
@@ -662,6 +675,12 @@ export function go(root: HTMLElement) {
         (playerStone === 1 && territory?.black_approved) ||
         (playerStone === -1 && territory?.white_approved);
       acceptTerritoryBtn.disabled = !!alreadyApproved;
+    }
+
+    if (abortBtn) {
+      const canAbort =
+        playerStone !== 0 && moves.length === 0 && !result;
+      abortBtn.style.display = canAbort ? "" : "none";
     }
   }
 

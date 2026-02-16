@@ -146,6 +146,7 @@ pub fn router() -> Router<AppState> {
         .route("/games/{id}/play", post(play_move))
         .route("/games/{id}/pass", post(pass))
         .route("/games/{id}/resign", post(resign))
+        .route("/games/{id}/abort", post(abort))
         .route("/games/{id}/undo", post(request_undo))
         .route("/games/{id}/undo/respond", post(respond_to_undo))
         .route("/games/{id}/territory/toggle", post(toggle_chain))
@@ -315,6 +316,15 @@ async fn resign(
     let engine = game_actions::resign(&state, id, api_player.id).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
+}
+
+async fn abort(
+    State(state): State<AppState>,
+    api_player: ApiPlayer,
+    Path(id): Path<i64>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    game_actions::abort(&state, id, api_player.id).await?;
+    Ok(Json(serde_json::json!({ "status": "aborted" })))
 }
 
 async fn request_undo(

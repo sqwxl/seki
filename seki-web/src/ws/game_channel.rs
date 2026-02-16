@@ -134,6 +134,7 @@ pub async fn handle_message(
         "play" => handle_play(state, game_id, player_id, data).await,
         "pass" => game_actions::pass(state, game_id, player_id).await.map(|_| ()),
         "resign" => game_actions::resign(state, game_id, player_id).await.map(|_| ()),
+        "abort" => game_actions::abort(state, game_id, player_id).await,
         "chat" => handle_chat(state, game_id, player_id, data).await,
         "request_undo" => game_actions::request_undo(state, game_id, player_id).await,
         "respond_to_undo" => handle_respond_to_undo(state, game_id, player_id, data).await,
