@@ -200,12 +200,6 @@ export function MoveTree({ tree, currentNodeId, onNavigate }: MoveTreeProps) {
     <div
       class="move-tree"
       ref={containerRef}
-      style={{
-        overflowX: "auto",
-        overflowY: "auto",
-        maxHeight: "120px",
-        minHeight: "40px",
-      }}
     >
       <svg width={svgWidth} height={svgHeight}>
         {edges}

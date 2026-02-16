@@ -6,6 +6,11 @@
   margin-top: 0.5em;
 }
 
+.move-tree-container {
+  max-height: 120px;
+  overflow: auto;
+}
+
 .controls-navbar {
   display: flex;
   gap: 0.25em;
