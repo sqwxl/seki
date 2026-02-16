@@ -5,6 +5,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 ## Features
 
 ### Gameplay
+
 - [x] Create games (board size, komi, handicap, color choice, private/public)
 - [x] Join open games
 - [x] Play moves, pass, resign
@@ -18,6 +19,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Rematch option after game (challenge opponent to new game with same settings)
 
 ### Board & Navigation
+
 - [x] Move history navigation (arrow keys, home/end)
 - [x] Move tree visualization with branches
 - [x] In-game analysis mode (local exploration without affecting live game)
@@ -32,6 +34,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Sounds
 
 ### Real-time
+
 - [x] WebSocket game channels (live state broadcast)
 - [x] In-game chat with move-linked messages
 - [ ] Live games list (currently static)
@@ -40,6 +43,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Game playback (replay game as it happened: actions, clock and chat in real time)
 
 ### Auth & Accounts
+
 - [x] Anonymous play (auto-created sessions)
 - [x] Registration (username/password)
 - [x] Login/logout with session persistence
@@ -53,13 +57,18 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
   - [ ] Ranked/unranked game option
 
 ### API
+
 - [x] REST API with Bearer token authentication
 - [x] Game CRUD, moves, pass, resign, undo, territory, chat, turns
 - [x] Public endpoints (list/get games, messages, turns) without auth
+- [ ] Versioning
+- [ ] Docs (OpenAPI)
+  - [ ] Generated clients
 - [ ] Rate limiting
 - [ ] Bots
 
 ### Social
+
 - [ ] Channels (users can create and join)
   - [ ] Public and private (invite only)
   - [ ] Mod users (crown symbol)
@@ -70,6 +79,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Voice chat
 
 ### Learning & Review
+
 - [ ] Problems/puzzles
 - [ ] Tutorials
 - [ ] Post-game reviews (live analysis)
@@ -77,9 +87,11 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Game reviews/lessons save and replay
 
 ### Game Variants
+
 - [ ] Irregular boards (non-square, edgeless/torus)
 - [ ] Game variations (>2 players, gomoku)
 
 ### Infrastructure
+
 - [ ] Email support (via SES)
 - [ ] Domain registration and deployment
