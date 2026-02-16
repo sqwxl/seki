@@ -16,6 +16,7 @@ import { createBoard, findNavButtons } from "./wasm-board";
 import type { Board } from "./wasm-board";
 import { appendToChat, renderChatHistory, setupChat } from "./chat";
 import { joinGame, send } from "./live";
+import { formatGameDescription } from "./format";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
 const BLACK_SYMBOL = "●";
@@ -97,6 +98,8 @@ export function go(root: HTMLElement) {
   };
 
   let gameState = props.state;
+  let black: PlayerData | undefined = props.black ?? undefined;
+  let white: PlayerData | undefined = props.white ?? undefined;
   let currentTurn: number | null = null;
   let moves: TurnData[] = [];
   let undoRejected = false;
@@ -280,9 +283,16 @@ export function go(root: HTMLElement) {
     board.updateNav();
   });
 
-  function updateTitle(description: string): void {
+  function updateTitle(): void {
     if (titleEl) {
-      titleEl.textContent = description;
+      titleEl.textContent = formatGameDescription({
+        black,
+        white,
+        settings: props.settings,
+        stage: gameState.stage,
+        result,
+        move_count: moves.length > 0 ? moves.length : undefined,
+      });
     }
   }
 
@@ -458,6 +468,8 @@ export function go(root: HTMLElement) {
         allowUndo = data.allow_undo ?? false;
         result = data.result;
         territory = data.territory;
+        black = data.black ?? undefined;
+        white = data.white ?? undefined;
 
         if (board) {
           board.updateBaseMoves(JSON.stringify(moves), !analysisMode);
@@ -467,7 +479,7 @@ export function go(root: HTMLElement) {
           board.updateNav();
         }
         updateActions();
-        updateTitle(data.description);
+        updateTitle();
         updatePlayerLabels(data.black, data.white);
         updateStatus();
         syncClock(data.clock);

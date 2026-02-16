@@ -71,9 +71,6 @@ pub fn serialize_state(
         .map(|t| serde_json::to_value(t).unwrap_or_default())
         .collect();
 
-    let move_count = engine.moves().len();
-    let description = gwp.description_with_stage(&stage, Some(move_count));
-
     let mut game_state = serde_json::to_value(engine.game_state()).unwrap_or_default();
     // Keep the nested state.stage in sync with the resolved top-level stage
     game_state["stage"] = json!(stage.to_string());
@@ -88,7 +85,6 @@ pub fn serialize_state(
         "black": gwp.black.as_ref().map(PlayerData::from),
         "white": gwp.white.as_ref().map(PlayerData::from),
         "result": gwp.game.result,
-        "description": description,
         "undo_rejected": gwp.game.undo_rejected,
         "allow_undo": gwp.game.allow_undo
     });

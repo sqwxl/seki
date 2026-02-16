@@ -208,7 +208,7 @@ async fn create_game(
     };
 
     let game = game_creator::create_game(&state.db, &api_player, params).await?;
-    crate::services::live::notify_game_changed(&state, game.id, None).await;
+    crate::services::live::notify_game_created(&state, game.id).await;
     let gwp = Game::find_with_players(&state.db, game.id).await?;
     let engine = state
         .registry
@@ -284,7 +284,7 @@ async fn join_game(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    crate::services::live::notify_game_changed(&state, id, None).await;
+    crate::services::live::notify_game_created(&state, id).await;
 
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }

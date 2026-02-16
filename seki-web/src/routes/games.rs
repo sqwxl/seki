@@ -129,7 +129,7 @@ pub async fn create_game(
 
     match game_creator::create_game(&state.db, &current_player, params).await {
         Ok(game) => {
-            crate::services::live::notify_game_changed(&state, game.id, None).await;
+            crate::services::live::notify_game_created(&state, game.id).await;
             Ok(Redirect::to(&format!("/games/{}", game.id)).into_response())
         }
         Err(e) => {
@@ -205,6 +205,16 @@ pub async fn show_game(
         black: gwp.black.as_ref().map(PlayerData::from),
         white: gwp.white.as_ref().map(PlayerData::from),
         komi: gwp.game.komi,
+        settings: crate::services::live::GameSettings {
+            cols: gwp.game.cols,
+            rows: gwp.game.rows,
+            time_control: gwp.game.time_control,
+            main_time_secs: gwp.game.main_time_secs,
+            increment_secs: gwp.game.increment_secs,
+            byoyomi_time_secs: gwp.game.byoyomi_time_secs,
+            byoyomi_periods: gwp.game.byoyomi_periods,
+            is_private: gwp.game.is_private,
+        },
     })
     .unwrap();
 
@@ -221,7 +231,6 @@ pub async fn show_game(
         is_private: gwp.game.is_private,
         has_open_slot,
         chat_log_json,
-        gwp,
     };
 
     Ok(Html(
@@ -279,7 +288,7 @@ pub async fn join_game(
         .broadcast(id, &game_state.to_string())
         .await;
 
-    crate::services::live::notify_game_changed(&state, id, None).await;
+    crate::services::live::notify_game_created(&state, id).await;
 
     Ok(Redirect::to(&format!("/games/{id}")).into_response())
 }

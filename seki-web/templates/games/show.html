@@ -3,7 +3,7 @@
 {% block head %}<script src="/static/dist/bundle.js" type="module" defer></script>{% endblock %}
 {% block content %}
     <div style="display: flex; flex-direction: column; align-items: center">
-        <h2 id="game-title">{{ gwp.description() }}</h2>
+        <h2 id="game-title"></h2>
         {% if !is_creator && !is_private && has_open_slot && !is_player %}
             <form action="/games/{{ game_id }}/join" method="post">
                 <button type="submit">Join Game</button>

@@ -692,7 +692,7 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
         .await;
 
     // Notify live subscribers (games list, etc.)
-    live::notify_game_changed(state, game_id, Some(engine.moves().len())).await;
+    live::notify_game_updated(state, game_id, Some(engine.moves().len())).await;
 }
 
 async fn broadcast_system_chat(state: &AppState, game_id: i64, text: &str) {

@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-use go_engine::{Stage, Stone};
+use go_engine::Stone;
 
 use crate::db::DbPool;
 use crate::models::player::Player;
@@ -27,12 +27,6 @@ impl Default for TimeControlType {
     fn default() -> Self {
         Self::None
     }
-}
-
-fn format_time(secs: i32) -> String {
-    let m = secs / 60;
-    let s = secs % 60;
-    format!("{m}:{s:02}")
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -66,37 +60,6 @@ pub struct Game {
 }
 
 impl Game {
-    /// Human-readable time control label, e.g. "10:00+5s", "20:00 (3×30s)", "3d".
-    /// Returns None for untimed games.
-    pub fn time_control_label(&self) -> Option<String> {
-        match self.time_control {
-            TimeControlType::None => None,
-            TimeControlType::Fischer => {
-                let main = format_time(self.main_time_secs.unwrap_or(600));
-                let inc = self.increment_secs.unwrap_or(5);
-                Some(format!("{main}+{inc}s"))
-            }
-            TimeControlType::Byoyomi => {
-                let main = format_time(self.main_time_secs.unwrap_or(1200));
-                let periods = self.byoyomi_periods.unwrap_or(3);
-                let period_time = self.byoyomi_time_secs.unwrap_or(30);
-                Some(format!("{main} ({periods}×{period_time}s)"))
-            }
-            TimeControlType::Correspondence => {
-                let days = self.main_time_secs.unwrap_or(259200) / 86400;
-                Some(format!("{days}d"))
-            }
-        }
-    }
-
-    pub fn size_label(&self) -> String {
-        if self.cols == self.rows {
-            format!("{}×{}", self.cols, self.cols)
-        } else {
-            format!("{}×{}", self.cols, self.rows)
-        }
-    }
-
     pub async fn list_public(pool: &DbPool) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games WHERE is_private = false \
@@ -370,37 +333,6 @@ impl GameWithPlayers {
 
     pub fn is_open(&self) -> bool {
         self.black.is_none() || self.white.is_none()
-    }
-
-    pub fn description(&self) -> String {
-        let stage = self.game.stage.parse().unwrap_or(Stage::Unstarted);
-        self.description_with_stage(&stage, None)
-    }
-
-    pub fn description_with_stage(&self, stage: &Stage, move_count: Option<usize>) -> String {
-        let b = self.black.as_ref().map(|p| p.display_name()).unwrap_or("?");
-        let w = self.white.as_ref().map(|p| p.display_name()).unwrap_or("?");
-        let size = self.game.size_label();
-        let tc = self.game.time_control_label();
-
-        let mut parts = vec![
-            format!("{BLACK_SYMBOL} {b} vs {WHITE_SYMBOL} {w}"),
-            size,
-        ];
-        if let Some(tc) = tc {
-            parts.push(tc);
-        }
-
-        // Trailing status for started/finished/aborted games
-        if let Some(ref result) = self.game.result {
-            parts.push(result.clone());
-        } else if stage.is_play() || *stage == Stage::TerritoryReview {
-            if let Some(n) = move_count {
-                parts.push(format!("Move {n}"));
-            }
-        }
-
-        parts.join(" - ")
     }
 
     /// The player whose turn it is.

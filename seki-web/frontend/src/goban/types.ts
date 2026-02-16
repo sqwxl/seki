@@ -97,12 +97,24 @@ export type TerritoryData = {
   white_approved: boolean;
 };
 
+export type GameSettings = {
+  cols: number;
+  rows: number;
+  time_control: "none" | "fischer" | "byoyomi" | "correspondence";
+  main_time_secs: number | undefined;
+  increment_secs: number | undefined;
+  byoyomi_time_secs: number | undefined;
+  byoyomi_periods: number | undefined;
+  is_private: boolean;
+};
+
 // Baked into the #game element dataset as JSON on initial render
 export type InitialGameProps = {
   state: GameState;
   black: PlayerData | null;
   white: PlayerData | null;
   komi: number;
+  settings: GameSettings;
 };
 
 export type ClockData = {
@@ -123,7 +135,6 @@ export type StateMessage = {
   black: PlayerData | null;
   white: PlayerData | null;
   result: string | null;
-  description: string;
   undo_rejected: boolean;
   allow_undo?: boolean;
   territory?: TerritoryData;
@@ -148,7 +159,6 @@ export type UndoAcceptedMessage = {
   state?: GameState;
   current_turn_stone?: number | null;
   moves?: TurnData[];
-  description?: string;
   undo_rejected?: boolean;
 };
 
@@ -157,7 +167,6 @@ export type UndoRejectedMessage = {
   state?: GameState;
   current_turn_stone?: number | null;
   moves?: TurnData[];
-  description?: string;
   undo_rejected?: boolean;
 };
 

@@ -1,15 +1,25 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "./live";
+import { formatGameDescription, type PlayerData, type GameSettings } from "./format";
 
 type LiveGameItem = {
   id: number;
-  description: string;
   stage: string;
   result: string | undefined;
-  black_id: number | undefined;
-  white_id: number | undefined;
-  is_private: boolean;
+  black: PlayerData | undefined;
+  white: PlayerData | undefined;
+  settings: GameSettings;
+  move_count: number | undefined;
+};
+
+type GameUpdate = {
+  id: number;
+  stage: string;
+  result: string | undefined;
+  black: PlayerData | undefined;
+  white: PlayerData | undefined;
+  move_count: number | undefined;
 };
 
 type InitMessage = {
@@ -19,9 +29,14 @@ type InitMessage = {
   public_games: LiveGameItem[];
 };
 
+type GameCreatedMessage = {
+  kind: "game_created";
+  game: LiveGameItem;
+};
+
 type GameUpdatedMessage = {
   kind: "game_updated";
-  game: LiveGameItem;
+  game: GameUpdate;
 };
 
 type GameRemovedMessage = {
@@ -50,11 +65,24 @@ function GamesList() {
         setGames(map);
       }),
 
-      subscribe("game_updated", (data) => {
-        const msg = data as unknown as GameUpdatedMessage;
+      subscribe("game_created", (data) => {
+        const msg = data as unknown as GameCreatedMessage;
         setGames((prev) => {
           const next = new Map(prev);
           next.set(msg.game.id, msg.game);
+          return next;
+        });
+      }),
+
+      subscribe("game_updated", (data) => {
+        const msg = data as unknown as GameUpdatedMessage;
+        setGames((prev) => {
+          const existing = prev.get(msg.game.id);
+          if (!existing) {
+            return prev;
+          }
+          const next = new Map(prev);
+          next.set(msg.game.id, { ...existing, ...msg.game });
           return next;
         });
       }),
@@ -80,13 +108,13 @@ function GamesList() {
 
   const isMyGame = (g: LiveGameItem) =>
     playerId !== undefined &&
-    (g.black_id === playerId || g.white_id === playerId);
+    (g.black?.id === playerId || g.white?.id === playerId);
 
   const isVisible = (g: LiveGameItem) => g.result !== "Aborted";
 
   const playerGames = allGames.filter((g) => isMyGame(g) && isVisible(g));
   const publicGames = allGames.filter(
-    (g) => !isMyGame(g) && !g.is_private && isVisible(g),
+    (g) => !isMyGame(g) && !g.settings.is_private && isVisible(g),
   );
 
   return (
@@ -98,19 +126,19 @@ function GamesList() {
         <ul>
           {playerGames.map((g) => (
             <li key={g.id}>
-              <a href={`/games/${g.id}`}>{g.description}</a>
+              <a href={`/games/${g.id}`}>{formatGameDescription(g)}</a>
             </li>
           ))}
         </ul>
       )}
-      <h1>Public games</h1>
+      <h1>Open games</h1>
       {publicGames.length === 0 ? (
-        <p>No public games.</p>
+        <p>No open games.</p>
       ) : (
         <ul>
           {publicGames.map((g) => (
             <li key={g.id}>
-              <a href={`/games/${g.id}`}>{g.description}</a>
+              <a href={`/games/${g.id}`}>{formatGameDescription(g)}</a>
             </li>
           ))}
         </ul>
