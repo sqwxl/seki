@@ -205,10 +205,16 @@ pub async fn join_game(
         return Err(AppError::BadRequest("Game is full".to_string()));
     }
 
+    // Transition stage from unstarted to black_to_play now that both players are present
+    if gwp.game.stage == "unstarted" {
+        Game::set_stage(&state.db, id, "black_to_play").await?;
+    }
+
     // Notify existing WS clients about the new player
-    let engine = engine_builder::build_engine(&state.db, &gwp.game).await?;
+    let game = Game::find_by_id(&state.db, id).await?;
+    let engine = engine_builder::build_engine(&state.db, &game).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
-    let game_state = state_serializer::serialize_state(&gwp, &engine, false);
+    let game_state = state_serializer::serialize_state(&gwp, &engine, false, None);
     state
         .registry
         .broadcast(id, &game_state.to_string())
@@ -258,6 +264,11 @@ pub async fn invitation(
         Game::set_black(&state.db, id, guest.id).await?;
     } else if gwp.white.is_none() {
         Game::set_white(&state.db, id, guest.id).await?;
+    }
+
+    // Transition stage from unstarted to black_to_play now that both players are present
+    if gwp.game.stage == "unstarted" {
+        Game::set_stage(&state.db, id, "black_to_play").await?;
     }
 
     Ok(Redirect::to(&format!("/games/{id}")).into_response())
