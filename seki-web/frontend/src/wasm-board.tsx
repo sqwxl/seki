@@ -113,14 +113,30 @@ function renderMoveTree(
 ): void {
   const treeJson = engine.tree_json();
   const tree: GameTreeData = JSON.parse(treeJson);
-  const currentNodeId = engine.current_node_id();
+  let currentNodeId = engine.current_node_id();
+
+  // Inject synthetic root node for the empty board
+  const rootId = tree.nodes.length;
+  tree.nodes.push({ turn: { kind: "pass", stone: 0, pos: null }, parent: null, children: [...tree.root_children] });
+  for (const childId of tree.root_children) {
+    tree.nodes[childId].parent = rootId;
+  }
+  tree.root_children = [rootId];
+  if (currentNodeId === -1) {
+    currentNodeId = rootId;
+  }
 
   render(
     <MoveTree
       tree={tree}
       currentNodeId={currentNodeId}
+      scrollContainer={moveTreeEl}
       onNavigate={(nodeId) => {
-        engine.navigate_to(nodeId);
+        if (nodeId === rootId) {
+          engine.to_start();
+        } else {
+          engine.navigate_to(nodeId);
+        }
         doRender();
       }}
     />,

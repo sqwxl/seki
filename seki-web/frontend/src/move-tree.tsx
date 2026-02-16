@@ -2,10 +2,10 @@ import { h } from "preact";
 import { useRef, useEffect } from "preact/hooks";
 import type { GameTreeData } from "./goban/types";
 
-const NODE_RADIUS = 9;
-const COL_SPACING = 26;
-const ROW_SPACING = 26;
-const PADDING = 14;
+const NODE_RADIUS = 12;
+const COL_SPACING = 34;
+const ROW_SPACING = 34;
+const PADDING = 18;
 
 type LayoutNode = {
   id: number;
@@ -53,44 +53,48 @@ function layoutTree(tree: GameTreeData): LayoutNode[] {
 type MoveTreeProps = {
   tree: GameTreeData;
   currentNodeId: number;
+  scrollContainer: HTMLElement;
   onNavigate: (nodeId: number) => void;
 };
 
-export function MoveTree({ tree, currentNodeId, onNavigate }: MoveTreeProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
+export function MoveTree({ tree, currentNodeId, scrollContainer, onNavigate }: MoveTreeProps) {
   const layout = layoutTree(tree);
 
   if (layout.length === 0) {
-    return <div class="move-tree" />;
+    return null;
   }
 
   const maxCol = layout.reduce((m, n) => Math.max(m, n.col), 0);
   const maxRow = layout.reduce((m, n) => Math.max(m, n.row), 0);
 
-  const svgWidth = (maxCol + 1) * COL_SPACING + PADDING * 2;
+  const rootX = PADDING;
+  const svgWidth = (maxCol + 1) * COL_SPACING + PADDING * 2 + COL_SPACING;
   const svgHeight = (maxRow + 1) * ROW_SPACING + PADDING * 2;
 
   function cx(col: number): number {
-    return PADDING + col * COL_SPACING;
+    return PADDING + (col + 1) * COL_SPACING;
   }
   function cy(row: number): number {
     return PADDING + row * ROW_SPACING;
   }
 
-  // Auto-scroll to current node
+  // Auto-scroll to keep current node visible
   useEffect(() => {
-    if (!containerRef.current) {
-      return;
+    let x: number;
+    let y: number;
+    if (currentNodeId === -1) {
+      x = rootX;
+      y = cy(0);
+    } else {
+      const cur = layout.find((n) => n.id === currentNodeId);
+      if (!cur) {
+        return;
+      }
+      x = cx(cur.col);
+      y = cy(cur.row);
     }
-    const currentLayout = layout.find((n) => n.id === currentNodeId);
-    if (!currentLayout) {
-      return;
-    }
-    const x = cx(currentLayout.col);
-    const container = containerRef.current;
-    const scrollTarget = x - container.clientWidth / 2;
-    container.scrollLeft = Math.max(0, scrollTarget);
+    scrollContainer.scrollLeft = Math.max(0, x - scrollContainer.clientWidth / 2);
+    scrollContainer.scrollTop = Math.max(0, y - scrollContainer.clientHeight / 2);
   }, [currentNodeId, tree]);
 
   // Build edges
@@ -150,7 +154,9 @@ export function MoveTree({ tree, currentNodeId, onNavigate }: MoveTreeProps) {
     const stone = treeNode.turn.stone;
     const isPass = treeNode.turn.kind === "pass";
 
-    const fill = isPass ? "#f5f5f5" : stone === 1 ? "#222" : "#fff";
+    const isRoot = stone === 0;
+    const fill = isRoot ? "#222" : isPass ? "#f5f5f5" : stone === 1 ? "#222" : "#fff";
+    const radius = isRoot ? 5 : NODE_RADIUS;
     const strokeColor = isCurrent ? "#2196f3" : "#555";
     const strokeWidth = isCurrent ? 2.5 : 1.2;
 
@@ -163,33 +169,33 @@ export function MoveTree({ tree, currentNodeId, onNavigate }: MoveTreeProps) {
         <circle
           cx={x}
           cy={y}
-          r={NODE_RADIUS}
+          r={radius}
           fill={fill}
           stroke={strokeColor}
           stroke-width={strokeWidth}
         />
-        {isPass && (
+        {!isRoot && isPass && (
           <text
             x={x}
             y={y}
             text-anchor="middle"
             dominant-baseline="central"
-            font-size={8}
+            font-size={10}
             fill="#888"
           >
             –
           </text>
         )}
-        {!isPass && (
+        {!isRoot && !isPass && (
           <text
             x={x}
             y={y}
             text-anchor="middle"
             dominant-baseline="central"
-            font-size={8}
+            font-size={10}
             fill={stone === 1 ? "#fff" : "#222"}
           >
-            {node.col + 1}
+            {node.col}
           </text>
         )}
       </g>,
@@ -197,14 +203,9 @@ export function MoveTree({ tree, currentNodeId, onNavigate }: MoveTreeProps) {
   }
 
   return (
-    <div
-      class="move-tree"
-      ref={containerRef}
-    >
-      <svg width={svgWidth} height={svgHeight}>
-        {edges}
-        {nodes}
-      </svg>
-    </div>
+    <svg width={svgWidth} height={svgHeight}>
+      {edges}
+      {nodes}
+    </svg>
   );
 }

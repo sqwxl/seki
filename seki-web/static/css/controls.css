@@ -6,8 +6,10 @@
   margin-top: 0.5em;
 }
 
-.move-tree-container {
-  max-height: 120px;
+.move-tree {
+  width: 0;
+  min-width: 100%;
+  max-height: 150px;
   overflow: auto;
 }
 
