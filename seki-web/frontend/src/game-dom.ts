@@ -1,0 +1,33 @@
+export type GameDomElements = {
+  status: HTMLElement | null;
+  title: HTMLElement | null;
+  playerTop: HTMLElement | null;
+  playerBottom: HTMLElement | null;
+  goban: HTMLElement;
+  passBtn: HTMLButtonElement | null;
+  resignBtn: HTMLButtonElement | null;
+  requestUndoBtn: HTMLButtonElement | null;
+  resetBtn: HTMLButtonElement | null;
+  analyzeBtn: HTMLButtonElement | null;
+  exitAnalysisBtn: HTMLButtonElement | null;
+  acceptTerritoryBtn: HTMLButtonElement | null;
+  abortBtn: HTMLButtonElement | null;
+};
+
+export function queryGameDom(): GameDomElements {
+  return {
+    status: document.getElementById("status"),
+    title: document.getElementById("game-title"),
+    playerTop: document.getElementById("player-top"),
+    playerBottom: document.getElementById("player-bottom"),
+    goban: document.getElementById("goban")!,
+    passBtn: document.getElementById("pass-btn") as HTMLButtonElement | null,
+    resignBtn: document.getElementById("resign-btn") as HTMLButtonElement | null,
+    requestUndoBtn: document.getElementById("request-undo-btn") as HTMLButtonElement | null,
+    resetBtn: document.getElementById("reset-btn") as HTMLButtonElement | null,
+    analyzeBtn: document.getElementById("analyze-btn") as HTMLButtonElement | null,
+    exitAnalysisBtn: document.getElementById("exit-analysis-btn") as HTMLButtonElement | null,
+    acceptTerritoryBtn: document.getElementById("accept-territory-btn") as HTMLButtonElement | null,
+    abortBtn: document.getElementById("abort-btn") as HTMLButtonElement | null,
+  };
+}
