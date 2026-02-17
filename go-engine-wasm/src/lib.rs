@@ -145,14 +145,14 @@ impl WasmEngine {
 
     pub fn ko_col(&self) -> i8 {
         match self.inner.engine().ko() {
-            Some(ko) => ko.pos.0 as i8,
+            Some(ko) => ko.pos.0,
             None => -1,
         }
     }
 
     pub fn ko_row(&self) -> i8 {
         match self.inner.engine().ko() {
-            Some(ko) => ko.pos.1 as i8,
+            Some(ko) => ko.pos.1,
             None => -1,
         }
     }
