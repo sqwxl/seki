@@ -55,7 +55,7 @@ Axum 0.8 web app. Modules follow a clean separation: `models/` (sqlx queries), `
 
 PostgreSQL via sqlx 0.8. Migrations live in `seki-web/migrations/` as numbered files (001, 002, …). **Never modify existing migration files** — always create new numbered migrations. Migrations run at app startup.
 
-Tables: `players`, `games`, `turns`, `messages`, `territory_reviews`.
+Tables: `players`, `games`, `turns`, `messages`, `territory_reviews`. Clock state is stored directly on the `games` table (`clock_black_ms`, `clock_white_ms`, `clock_black_periods`, `clock_white_periods`, `clock_active_stone`, `clock_last_move_at`, `clock_expires_at`).
 
 ## Environment Variables
 
@@ -73,5 +73,5 @@ axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-s
 - Conventional commit messages, single-line unless verbose explanation warranted
 - Minimum handicap = 2 stones
 - `Engine::is_legal(point, stone)` takes `Stone` directly, not `Option<Stone>`
-- Serialization: `{"board": [[i8]], "captures": {"1": n, "-1": n}, "ko": {"point": [i8,i8], "stone": i8}, "stage": "string"}`
+- GameState serialization: `{"board": [i8], "cols": u8, "rows": u8, "captures": {"black": n, "white": n}, "ko": {"pos": [i8,i8], "illegal": i8}}`
 - TypeScript: prefer `type` over `interface`, never use `as unknown as`
