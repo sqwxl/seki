@@ -20,6 +20,12 @@
   width: min(70vw, 70vh);
 }
 
+@media (prefers-color-scheme: dark) {
+  .goban-container {
+    filter: brightness(0.8);
+  }
+}
+
 .player-label {
   display: flex;
   align-items: center;

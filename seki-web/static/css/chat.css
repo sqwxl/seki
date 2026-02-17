@@ -2,8 +2,8 @@
   width: 100%;
 }
 .chat-box {
-  background-color: #eee;
-  border: 1px solid black;
+  background-color: var(--bg-muted);
+  border: 1px solid var(--border);
   height: 150px;
   overflow-y: auto;
   padding: 0.5em;

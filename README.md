@@ -32,7 +32,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Import/export SGF
 - [ ] Zen mode (board only)
 - [ ] Appearance customization (stones, board)
-- [ ] Dark mode
+- [x] Dark mode (basic, follows system preference)
 - [ ] Sounds
 
 ### Real-time
