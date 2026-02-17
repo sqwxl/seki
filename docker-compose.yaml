@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: seki
       POSTGRES_PASSWORD: seki
       POSTGRES_DB: seki
-    ports: [5432:5432]
+    ports: ['${PGPORT:-5432}:5432']
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: [CMD-SHELL, pg_isready -U seki -d seki]
@@ -15,7 +15,7 @@ services:
       retries: 5
   web:
     build: .
-    ports: [3000:3000]
+    ports: ['${PORT:-3000}:${PORT:-3000}']
     environment:
       DATABASE_URL: postgres://seki:seki@db:5432/seki
       STATIC_DIR: /app/static
