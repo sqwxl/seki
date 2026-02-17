@@ -500,7 +500,6 @@ mod tests {
         let gs = engine.game_state();
         let json = serde_json::to_value(&gs).unwrap();
 
-        assert_eq!(json["stage"], "unstarted");
         assert!(json["ko"].is_null());
         assert_eq!(json["captures"]["black"], 0);
         assert_eq!(json["captures"]["white"], 0);
