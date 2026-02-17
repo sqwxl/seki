@@ -28,6 +28,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [x] Player labels with capture counts
 - [x] Online presence indicators (player labels and chat)
 - [ ] Board annotations in analysis
+- [ ] Board coordinates
 - [ ] Import/export SGF
 - [ ] Zen mode (board only)
 - [ ] Appearance customization (stones, board)
