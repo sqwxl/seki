@@ -4,7 +4,7 @@
 {% endblock %}
 {% block content %}
     <h1>Start a new go game</h1>
-    <form action="/games" method="post">
+    <form id="new-game" action="/games" method="post">
         <fieldset>
             <legend>Game settings</legend>
             <div>
@@ -80,19 +80,6 @@
                     <input type="number" name="correspondence_days" id="correspondence_days" min="1" max="14" value="3" disabled>
                 </div>
             </div>
-            <script>
-                function toggleTC(value) {
-                    ['tc-fischer', 'tc-byoyomi', 'tc-correspondence'].forEach(id => {
-                        const section = document.getElementById(id);
-                        const active = id === 'tc-' + value;
-                        section.style.display = active ? '' : 'none';
-                        section.querySelectorAll('input').forEach(input => { input.disabled = !active; });
-                    });
-                }
-                document.querySelectorAll('input[name="time_control"]').forEach(radio => {
-                    radio.addEventListener('change', () => toggleTC(radio.value));
-                });
-            </script>
         </fieldset>
         <fieldset>
             <legend>Your color</legend>
@@ -128,4 +115,5 @@
         </fieldset>
         <button type="submit">Create Game</button>
     </form>
+    <script src="/static/new-game.js"></script>
 {% endblock %}
