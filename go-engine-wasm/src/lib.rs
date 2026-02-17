@@ -93,9 +93,8 @@ impl WasmEngine {
     }
 
     pub fn tree_json(&self) -> String {
-        serde_json::to_string(self.inner.tree()).unwrap_or_else(|_| {
-            r#"{"nodes":[],"root_children":[]}"#.to_string()
-        })
+        serde_json::to_string(self.inner.tree())
+            .unwrap_or_else(|_| r#"{"nodes":[],"root_children":[]}"#.to_string())
     }
 
     pub fn replace_tree(&mut self, json: &str) -> bool {

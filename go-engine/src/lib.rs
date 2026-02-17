@@ -19,4 +19,3 @@ pub use ko::Ko;
 pub use replay::Replay;
 pub use stone::Stone;
 pub use turn::{Move, Turn};
-

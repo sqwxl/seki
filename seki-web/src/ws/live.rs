@@ -7,12 +7,12 @@ use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use tokio::sync::mpsc;
 
+use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::services::live::LiveGameItem;
 use crate::session::CurrentPlayer;
 use crate::ws::game_channel;
-use crate::AppState;
 
 /// WebSocket upgrade handler: GET /live
 pub async fn ws_upgrade(
@@ -114,13 +114,13 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
                         }
                         _ => {
                             // Game action: route to game_channel
-                            if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64()) {
-                                if subscribed_games.contains(&game_id) {
-                                    game_channel::handle_message(
-                                        &state, game_id, player_id, &data, &tx,
-                                    )
-                                    .await;
-                                }
+                            if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64())
+                                && subscribed_games.contains(&game_id)
+                            {
+                                game_channel::handle_message(
+                                    &state, game_id, player_id, &data, &tx,
+                                )
+                                .await;
                             }
                         }
                     }
@@ -135,11 +135,16 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
     for game_id in &subscribed_games {
         let removed = state.registry.leave(*game_id, player_id, &tx).await;
         if removed {
-            state.registry.broadcast(*game_id, &json!({"kind":"presence","player_id":player_id,"online":false}).to_string()).await;
+            state
+                .registry
+                .broadcast(
+                    *game_id,
+                    &json!({"kind":"presence","player_id":player_id,"online":false}).to_string(),
+                )
+                .await;
         }
     }
     send_task.abort();
-
 }
 
 async fn build_init_message(state: &AppState, player_id: i64) -> String {

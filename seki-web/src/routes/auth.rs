@@ -1,20 +1,20 @@
-use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
+use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use askama::Template;
+use axum::Form;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
-use axum::Form;
 use serde::Deserialize;
 use tower_sessions::Session;
 
+use crate::AppState;
 use crate::error::AppError;
 use crate::models::player::Player;
-use crate::session::{CurrentPlayer, ANON_PLAYER_TOKEN_COOKIE, PLAYER_ID_KEY};
-use crate::templates::auth::{LoginTemplate, RegisterTemplate};
+use crate::session::{ANON_PLAYER_TOKEN_COOKIE, CurrentPlayer, PLAYER_ID_KEY};
 use crate::templates::PlayerData;
-use crate::AppState;
+use crate::templates::auth::{LoginTemplate, RegisterTemplate};
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
     headers
@@ -31,7 +31,12 @@ fn get_cookie(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
         .to_str()
         .ok()?
         .split(';')
-        .find_map(|c| c.trim().strip_prefix(name)?.strip_prefix('=').map(String::from))
+        .find_map(|c| {
+            c.trim()
+                .strip_prefix(name)?
+                .strip_prefix('=')
+                .map(String::from)
+        })
 }
 
 fn serialize_player_data(player: &CurrentPlayer) -> String {

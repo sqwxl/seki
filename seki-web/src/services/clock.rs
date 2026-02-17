@@ -84,9 +84,7 @@ impl ClockState {
                 active_stone: None,
                 last_move_at: None,
             }),
-            TimeControl::Correspondence {
-                days_per_move_secs,
-            } => Some(ClockState {
+            TimeControl::Correspondence { days_per_move_secs } => Some(ClockState {
                 black_remaining_ms: *days_per_move_secs as i64 * 1000,
                 white_remaining_ms: *days_per_move_secs as i64 * 1000,
                 black_periods: 0,
@@ -104,9 +102,7 @@ impl ClockState {
             white_remaining_ms: clock.white_remaining_ms,
             black_periods: clock.black_periods_remaining,
             white_periods: clock.white_periods_remaining,
-            active_stone: clock
-                .active_stone
-                .and_then(|s| Stone::from_int(s as i8)),
+            active_stone: clock.active_stone.and_then(|s| Stone::from_int(s as i8)),
             last_move_at: clock.last_move_at,
         }
     }
@@ -166,9 +162,7 @@ impl ClockState {
                     *remaining = period_ms;
                 }
             }
-            TimeControl::Correspondence {
-                days_per_move_secs,
-            } => {
+            TimeControl::Correspondence { days_per_move_secs } => {
                 *remaining = *days_per_move_secs as i64 * 1000;
             }
             TimeControl::None => {}

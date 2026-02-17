@@ -17,7 +17,10 @@ pub struct GameClock {
 }
 
 impl GameClock {
-    pub async fn find_by_game_id(pool: &DbPool, game_id: i64) -> Result<Option<GameClock>, sqlx::Error> {
+    pub async fn find_by_game_id(
+        pool: &DbPool,
+        game_id: i64,
+    ) -> Result<Option<GameClock>, sqlx::Error> {
         sqlx::query_as::<_, GameClock>("SELECT * FROM game_clocks WHERE game_id = $1")
             .bind(game_id)
             .fetch_optional(pool)

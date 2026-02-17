@@ -1,9 +1,9 @@
 import { render } from "preact";
 import { Goban } from "./goban/index";
 import {
+  GameStage,
   isPlayStage,
   type ClockData,
-  type GameState,
   type IncomingMessage,
   type InitialGameProps,
   type MarkerData,
@@ -14,7 +14,12 @@ import {
 } from "./goban/types";
 import { createBoard, findNavButtons } from "./wasm-board";
 import type { Board } from "./wasm-board";
-import { appendToChat, renderChatHistory, setupChat, updateChatPresence } from "./chat";
+import {
+  appendToChat,
+  renderChatHistory,
+  setupChat,
+  updateChatPresence,
+} from "./chat";
 import { joinGame, send } from "./live";
 import { formatGameDescription } from "./format";
 
@@ -51,13 +56,17 @@ function derivePlayerStone(
 }
 
 export function go(root: HTMLElement) {
-  const props: InitialGameProps = JSON.parse(root.dataset.props!);
+  const initialProps: InitialGameProps = JSON.parse(root.dataset.props!);
   const gameId = Number(root.dataset.gameId!);
   const playerData = readPlayerData();
-  const playerStone = derivePlayerStone(playerData, props.black, props.white);
+  const playerStone = derivePlayerStone(
+    playerData,
+    initialProps.black,
+    initialProps.white,
+  );
   const analysisStorageKey = `seki:game:${gameId}:analysis`;
 
-  console.debug("InitialGameProps", props);
+  console.debug("InitialGameProps", initialProps);
   console.debug("PlayerData", playerData, "playerStone", playerStone);
 
   function gameSend(data: Record<string, unknown>): void {
@@ -97,9 +106,10 @@ export function go(root: HTMLElement) {
     },
   };
 
-  let gameState = props.state;
-  let black: PlayerData | undefined = props.black ?? undefined;
-  let white: PlayerData | undefined = props.white ?? undefined;
+  let gameState = initialProps.state;
+  let gameStage = initialProps.stage;
+  let black: PlayerData | undefined = initialProps.black ?? undefined;
+  let white: PlayerData | undefined = initialProps.white ?? undefined;
   let currentTurn: number | null = null;
   let moves: TurnData[] = [];
   let undoRejected = false;
@@ -157,18 +167,18 @@ export function go(root: HTMLElement) {
     if (playerStone === 0) {
       return false;
     }
-    if (gameState.stage === "territory_review") {
+    if (gameStage === GameStage.TerritoryReview) {
       return true;
     }
 
-    return isPlayStage(gameState.stage) && currentTurn === playerStone;
+    return isPlayStage(gameStage) && currentTurn === playerStone;
   }
 
   function handleVertexClick(col: number, row: number): boolean {
     if (!isLiveClickable()) {
       return false;
     }
-    if (gameState.stage === "territory_review") {
+    if (initialProps.stage === GameStage.TerritoryReview) {
       channel.toggleChain(col, row);
     } else {
       channel.play(col, row);
@@ -189,22 +199,24 @@ export function go(root: HTMLElement) {
     analysisMode = false;
     if (board) {
       board.engine.to_latest();
-      renderGoban(gameState);
+      renderGoban();
     }
     updateActions();
   }
 
-  function renderGoban(state: GameState): void {
-    if (state.board.length === 0) {
+  function renderGoban(): void {
+    if (gameState.board.length === 0) {
       return;
     }
 
-    const { board: boardData, cols, rows, ko } = state;
-    const isTerritoryReview = state.stage === "territory_review" && territory;
+    const { board: boardData, cols, rows, ko } = gameState;
+
+    const isTerritoryReview =
+      gameStage === GameStage.TerritoryReview && territory != null;
 
     const onVertexClick = isLiveClickable()
       ? (_: Event, position: Point) => {
-          if (state.stage === "territory_review") {
+          if (isTerritoryReview) {
             channel.toggleChain(position[0], position[1]);
           } else {
             channel.play(position[0], position[1]);
@@ -231,9 +243,9 @@ export function go(root: HTMLElement) {
     let paintMap: (number | null)[] | undefined;
     let dimmedVertices: Point[] | undefined;
 
-    if (isTerritoryReview && territory) {
-      paintMap = territory.ownership.map((v) => (v === 0 ? null : v));
-      dimmedVertices = territory.dead_stones.map(([c, r]) => [c, r] as Point);
+    if (isTerritoryReview) {
+      paintMap = territory!.ownership.map((v) => (v === 0 ? null : v));
+      dimmedVertices = territory!.dead_stones.map(([c, r]) => [c, r] as Point);
     }
 
     const avail = gobanEl.clientWidth;
@@ -280,7 +292,7 @@ export function go(root: HTMLElement) {
     if (moves.length > 0) {
       board.updateBaseMoves(JSON.stringify(moves));
     }
-    renderGoban(gameState);
+    renderGoban();
     board.updateNav();
   });
 
@@ -289,15 +301,20 @@ export function go(root: HTMLElement) {
       titleEl.textContent = formatGameDescription({
         black,
         white,
-        settings: props.settings,
-        stage: gameState.stage,
+        settings: initialProps.settings,
+        stage: gameStage,
         result,
         move_count: moves.length > 0 ? moves.length : undefined,
       });
     }
   }
 
-  function setLabel(el: HTMLElement, name: string, points: string, isOnline: boolean): void {
+  function setLabel(
+    el: HTMLElement,
+    name: string,
+    points: string,
+    isOnline: boolean,
+  ): void {
     const nameEl = el.querySelector(".player-name");
     const pointsEl = el.querySelector(".player-captures");
     const dotEl = el.querySelector(".presence-dot");
@@ -335,7 +352,7 @@ export function go(root: HTMLElement) {
       wPoints = territory.score.white;
     } else {
       bPoints = gameState.captures.black;
-      wPoints = gameState.captures.white + props.komi;
+      wPoints = gameState.captures.white + initialProps.komi;
     }
 
     const bStr = `${formatPoints(bPoints)} ${BLACK_CAPTURES_SYMBOL}`;
@@ -353,7 +370,7 @@ export function go(root: HTMLElement) {
     if (!statusEl) {
       return;
     }
-    if (gameState.stage === "territory_review" && territory) {
+    if (gameStage === "territory_review" && territory) {
       const bCheck = territory.black_approved ? ` ${CHECKMARK}` : "";
       const wCheck = territory.white_approved ? ` ${CHECKMARK}` : "";
       statusEl.textContent = `B: ${territory.score.black}${bCheck}  |  W: ${territory.score.white}${wCheck}`;
@@ -386,7 +403,9 @@ export function go(root: HTMLElement) {
   function updateClocks(): void {
     if (!clockData) {
       // Hide clock elements for untimed games
-      for (const el of document.querySelectorAll<HTMLElement>(".player-clock")) {
+      for (const el of document.querySelectorAll<HTMLElement>(
+        ".player-clock",
+      )) {
         el.textContent = "";
       }
       return;
@@ -421,8 +440,10 @@ export function go(root: HTMLElement) {
         : "";
 
     if (playerTopEl && playerBottomEl) {
-      const topClockEl = playerTopEl.querySelector<HTMLElement>(".player-clock");
-      const bottomClockEl = playerBottomEl.querySelector<HTMLElement>(".player-clock");
+      const topClockEl =
+        playerTopEl.querySelector<HTMLElement>(".player-clock");
+      const bottomClockEl =
+        playerBottomEl.querySelector<HTMLElement>(".player-clock");
 
       if (playerStone === -1) {
         // Black on top, white on bottom
@@ -469,6 +490,7 @@ export function go(root: HTMLElement) {
     switch (data.kind) {
       case "state":
         gameState = data.state;
+        gameStage = data.stage;
         currentTurn = data.current_turn_stone;
         moves = data.moves ?? [];
         undoRejected = data.undo_rejected;
@@ -484,7 +506,7 @@ export function go(root: HTMLElement) {
         if (board) {
           board.updateBaseMoves(JSON.stringify(moves), !analysisMode);
           if (!analysisMode && board.engine.is_at_latest()) {
-            renderGoban(gameState);
+            renderGoban();
           }
           board.updateNav();
         }
@@ -522,7 +544,7 @@ export function go(root: HTMLElement) {
             if (board) {
               board.updateBaseMoves(JSON.stringify(moves), !analysisMode);
               if (!analysisMode && board.engine.is_at_latest()) {
-                renderGoban(data.state);
+                renderGoban();
               }
               board.updateNav();
             }
@@ -598,14 +620,14 @@ export function go(root: HTMLElement) {
   // Resize: when at latest and not in analysis, re-render from server state
   window.addEventListener("resize", () => {
     if (!analysisMode && board && board.engine.is_at_latest()) {
-      renderGoban(gameState);
+      renderGoban();
     }
     // Board's own resize handler covers the WASM engine render case
   });
 
   // Render initial board from server state
-  renderGoban(gameState);
-  updatePlayerLabels(props.black, props.white);
+  renderGoban();
+  updatePlayerLabels(initialProps.black, initialProps.white);
   updateStatus();
 
   renderChatHistory();
@@ -652,8 +674,8 @@ export function go(root: HTMLElement) {
     }
 
     // Live mode
-    const isPlay = isPlayStage(gameState.stage);
-    const isReview = gameState.stage === "territory_review";
+    const isPlay = isPlayStage(gameStage);
+    const isReview = gameStage === GameStage.TerritoryReview;
 
     const isMyTurn = currentTurn === playerStone;
     if (passBtn) {
@@ -703,8 +725,7 @@ export function go(root: HTMLElement) {
     }
 
     if (abortBtn) {
-      const canAbort =
-        playerStone !== 0 && moves.length === 0 && !result;
+      const canAbort = playerStone !== 0 && moves.length === 0 && !result;
       abortBtn.style.display = canAbort ? "" : "none";
     }
   }

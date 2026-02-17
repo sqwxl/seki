@@ -86,8 +86,7 @@ mod tests {
 
     #[test]
     fn round_trip_game_info() {
-        let input =
-            "(;FF[4]GM[1]SZ[19]PB[Lee Sedol]PW[AlphaGo]BR[9p]WR[9p]RE[W+R]EV[Google DeepMind Challenge]DT[2016-03-09]KM[7.5]RU[Chinese]TM[7200])";
+        let input = "(;FF[4]GM[1]SZ[19]PB[Lee Sedol]PW[AlphaGo]BR[9p]WR[9p]RE[W+R]EV[Google DeepMind Challenge]DT[2016-03-09]KM[7.5]RU[Chinese]TM[7200])";
         let collection = parse(input).unwrap();
         let output = serialize(&collection);
         let reparsed = parse(&output).unwrap();

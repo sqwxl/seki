@@ -30,7 +30,10 @@ impl fmt::Display for SgfError {
                 property,
                 value,
                 reason,
-            } => write!(f, "invalid value '{value}' for property {property}: {reason}"),
+            } => write!(
+                f,
+                "invalid value '{value}' for property {property}: {reason}"
+            ),
             SgfError::InvalidCoordinate(s) => write!(f, "invalid coordinate: {s}"),
             SgfError::EmptyCollection => write!(f, "SGF contains no game trees"),
         }

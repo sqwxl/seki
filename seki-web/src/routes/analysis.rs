@@ -3,8 +3,8 @@ use axum::response::{Html, IntoResponse, Response};
 
 use crate::error::AppError;
 use crate::session::CurrentPlayer;
-use crate::templates::analysis::AnalysisTemplate;
 use crate::templates::PlayerData;
+use crate::templates::analysis::AnalysisTemplate;
 
 fn serialize_player_data(player: &CurrentPlayer) -> String {
     serde_json::to_string(&PlayerData::from(&player.player)).unwrap_or_else(|_| "{}".to_string())

@@ -2,6 +2,7 @@ use chrono::Utc;
 use go_engine::{Engine, Stage, Stone};
 use serde_json::json;
 
+use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers, SYSTEM_SYMBOL};
 use crate::models::game_clock::GameClock;
@@ -10,7 +11,6 @@ use crate::models::player::Player;
 use crate::models::turn::TurnRow;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
-use crate::AppState;
 
 // -- Return types --
 
@@ -175,9 +175,7 @@ pub async fn toggle_chain(
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     if engine.stage() != Stage::TerritoryReview {
-        return Err(AppError::BadRequest(
-            "Not in territory review".to_string(),
-        ));
+        return Err(AppError::BadRequest("Not in territory review".to_string()));
     }
 
     state
@@ -206,9 +204,7 @@ pub async fn approve_territory(
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     if engine.stage() != Stage::TerritoryReview {
-        return Err(AppError::BadRequest(
-            "Not in territory review".to_string(),
-        ));
+        return Err(AppError::BadRequest("Not in territory review".to_string()));
     }
 
     state.registry.set_approved(game_id, stone, true).await;
@@ -248,8 +244,8 @@ async fn settle_territory(
         .iter()
         .map(|&(c, r)| serde_json::json!([c, r]))
         .collect();
-    let dead_json_str = serde_json::to_string(&dead_json)
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let dead_json_str =
+        serde_json::to_string(&dead_json).map_err(|e| AppError::Internal(e.to_string()))?;
 
     sqlx::query(
         "INSERT INTO territory_reviews (game_id, settled, dead_stones) VALUES ($1, TRUE, $2::jsonb)",
@@ -309,11 +305,11 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
         // Pause clock on game end
         pause_clock(state, game_id, &gwp.game).await?;
 
-        if let Some(result) = engine.result() {
-            if let Err(e) = Game::set_ended(&state.db, game_id, result).await {
-                rollback_engine(state, game_id, &gwp.game).await;
-                return Err(AppError::Internal(e.to_string()));
-            }
+        if let Some(result) = engine.result()
+            && let Err(e) = Game::set_ended(&state.db, game_id, result).await
+        {
+            rollback_engine(state, game_id, &gwp.game).await;
+            return Err(AppError::Internal(e.to_string()));
         }
 
         let turn_count = TurnRow::count_by_game_id(&state.db, game_id)
@@ -441,11 +437,7 @@ pub async fn send_chat(
     })
 }
 
-pub async fn request_undo(
-    state: &AppState,
-    game_id: i64,
-    player_id: i64,
-) -> Result<(), AppError> {
+pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if !gwp.game.allow_undo {
@@ -631,7 +623,14 @@ pub async fn respond_to_undo(
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
     let online_players = state.registry.get_online_player_ids(game_id).await;
-    let game_state = state_serializer::serialize_state(&result.gwp, &result.engine, false, None, clock_ref, &online_players);
+    let game_state = state_serializer::serialize_state(
+        &result.gwp,
+        &result.engine,
+        false,
+        None,
+        clock_ref,
+        &online_players,
+    );
     for pid in [requesting_player_id, player_id] {
         state
             .registry
@@ -664,15 +663,19 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
     let undo_requested = state.registry.is_undo_requested(game_id).await;
 
     let territory = if engine.stage() == Stage::TerritoryReview {
-        state.registry.get_territory_review(game_id).await.map(|tr| {
-            state_serializer::compute_territory_data(
-                engine,
-                &tr.dead_stones,
-                gwp.game.komi,
-                tr.black_approved,
-                tr.white_approved,
-            )
-        })
+        state
+            .registry
+            .get_territory_review(game_id)
+            .await
+            .map(|tr| {
+                state_serializer::compute_territory_data(
+                    engine,
+                    &tr.dead_stones,
+                    gwp.game.komi,
+                    tr.black_approved,
+                    tr.white_approved,
+                )
+            })
     } else {
         None
     };
@@ -686,8 +689,14 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
     let online_players = state.registry.get_online_player_ids(game_id).await;
-    let game_state =
-        state_serializer::serialize_state(&gwp, engine, undo_requested, territory.as_ref(), clock_ref, &online_players);
+    let game_state = state_serializer::serialize_state(
+        &gwp,
+        engine,
+        undo_requested,
+        territory.as_ref(),
+        clock_ref,
+        &online_players,
+    );
 
     state
         .registry
@@ -873,11 +882,7 @@ async fn load_or_init_clock(state: &AppState, game_id: i64) -> Result<ClockState
 }
 
 /// Persist clock state to both registry and DB.
-async fn persist_clock(
-    state: &AppState,
-    game_id: i64,
-    clock: &ClockState,
-) -> Result<(), AppError> {
+async fn persist_clock(state: &AppState, game_id: i64, clock: &ClockState) -> Result<(), AppError> {
     state.registry.update_clock(game_id, clock.clone()).await;
 
     GameClock::update(
@@ -897,7 +902,12 @@ async fn persist_clock(
 }
 
 /// Schedule a background task that fires when the active player's clock expires.
-async fn schedule_timeout(state: &AppState, game_id: i64, clock: &ClockState, now: chrono::DateTime<chrono::Utc>) {
+async fn schedule_timeout(
+    state: &AppState,
+    game_id: i64,
+    clock: &ClockState,
+    now: chrono::DateTime<chrono::Utc>,
+) {
     if let Some(ms) = clock.ms_until_flag(now) {
         let delay = std::time::Duration::from_millis((ms + 100).max(100) as u64); // +100ms buffer
         let app_state = state.clone();

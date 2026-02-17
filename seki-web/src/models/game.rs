@@ -16,17 +16,13 @@ pub const SYSTEM_SYMBOL: &str = "⚑";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
 #[sqlx(type_name = "time_control_type", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum TimeControlType {
+    #[default]
     None,
     Fischer,
     Byoyomi,
     Correspondence,
-}
-
-impl Default for TimeControlType {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -109,11 +105,7 @@ impl Game {
         // Collect all unique player IDs
         let mut player_ids: Vec<i64> = games
             .iter()
-            .flat_map(|g| {
-                [g.creator_id, g.black_id, g.white_id]
-                .into_iter()
-                .flatten()
-            })
+            .flat_map(|g| [g.creator_id, g.black_id, g.white_id].into_iter().flatten())
             .collect();
         player_ids.sort_unstable();
         player_ids.dedup();

@@ -1,13 +1,13 @@
 use go_engine::Stage;
 use serde_json::json;
 
+use crate::AppState;
 use crate::models::game::Game;
 use crate::models::game_clock::GameClock;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::game_actions;
 use crate::services::state_serializer;
 use crate::ws::registry::WsSender;
-use crate::AppState;
 
 /// Send a JSON value to the client with `game_id` injected.
 fn send_to_client(tx: &WsSender, game_id: i64, mut msg: serde_json::Value) {
@@ -28,7 +28,11 @@ pub async fn send_initial_state(
 
     // Authorization: private games only allow players
     if gwp.game.is_private && !gwp.has_player(player_id) {
-        send_to_client(tx, game_id, json!({"kind": "error", "message": "Not authorized"}));
+        send_to_client(
+            tx,
+            game_id,
+            json!({"kind": "error", "message": "Not authorized"}),
+        );
         return Ok(());
     }
 
@@ -51,15 +55,19 @@ pub async fn send_initial_state(
     let undo_requested = state.registry.is_undo_requested(game_id).await;
 
     let territory = if engine.stage() == Stage::TerritoryReview {
-        state.registry.get_territory_review(game_id).await.map(|tr| {
-            state_serializer::compute_territory_data(
-                &engine,
-                &tr.dead_stones,
-                gwp.game.komi,
-                tr.black_approved,
-                tr.white_approved,
-            )
-        })
+        state
+            .registry
+            .get_territory_review(game_id)
+            .await
+            .map(|tr| {
+                state_serializer::compute_territory_data(
+                    &engine,
+                    &tr.dead_stones,
+                    gwp.game.komi,
+                    tr.black_approved,
+                    tr.white_approved,
+                )
+            })
     } else {
         None
     };
@@ -76,9 +84,8 @@ pub async fn send_initial_state(
                     .ok()
                     .flatten()
                     .map(|db_clock| {
-                        let c = ClockState::from_db(&db_clock);
                         // Cache it — fire and forget since we can't await inside map
-                        c
+                        ClockState::from_db(&db_clock)
                     })
                     .unwrap_or_else(|| {
                         // Shouldn't happen, but fallback to fresh
@@ -93,13 +100,17 @@ pub async fn send_initial_state(
         None
     };
 
-    let clock_ref = clock_data
-        .as_ref()
-        .map(|(clock, tc)| (clock, tc));
+    let clock_ref = clock_data.as_ref().map(|(clock, tc)| (clock, tc));
 
     let online_players = state.registry.get_online_player_ids(game_id).await;
-    let game_state =
-        state_serializer::serialize_state(&gwp, &engine, undo_requested, territory.as_ref(), clock_ref, &online_players);
+    let game_state = state_serializer::serialize_state(
+        &gwp,
+        &engine,
+        undo_requested,
+        territory.as_ref(),
+        clock_ref,
+        &online_players,
+    );
 
     send_to_client(tx, game_id, game_state);
 
@@ -114,10 +125,14 @@ pub async fn send_initial_state(
             let requesting_name = requesting_player
                 .map(|p| p.display_name().to_string())
                 .unwrap_or_else(|| "Opponent".to_string());
-            send_to_client(tx, game_id, json!({
-                "kind": "undo_response_needed",
-                "requesting_player": requesting_name,
-            }));
+            send_to_client(
+                tx,
+                game_id,
+                json!({
+                    "kind": "undo_response_needed",
+                    "requesting_player": requesting_name,
+                }),
+            );
         }
     }
 
@@ -136,8 +151,12 @@ pub async fn handle_message(
 
     let result = match action {
         "play" => handle_play(state, game_id, player_id, data).await,
-        "pass" => game_actions::pass(state, game_id, player_id).await.map(|_| ()),
-        "resign" => game_actions::resign(state, game_id, player_id).await.map(|_| ()),
+        "pass" => game_actions::pass(state, game_id, player_id)
+            .await
+            .map(|_| ()),
+        "resign" => game_actions::resign(state, game_id, player_id)
+            .await
+            .map(|_| ()),
         "abort" => game_actions::abort(state, game_id, player_id).await,
         "chat" => handle_chat(state, game_id, player_id, data).await,
         "request_undo" => game_actions::request_undo(state, game_id, player_id).await,
@@ -145,14 +164,22 @@ pub async fn handle_message(
         "toggle_chain" => handle_toggle_chain(state, game_id, player_id, data).await,
         "approve_territory" => game_actions::approve_territory(state, game_id, player_id).await,
         _ => {
-            send_to_client(tx, game_id, json!({"kind": "error", "message": format!("Unknown action: {action}")}));
+            send_to_client(
+                tx,
+                game_id,
+                json!({"kind": "error", "message": format!("Unknown action: {action}")}),
+            );
             return;
         }
     };
 
     if let Err(e) = result {
         tracing::error!("Error handling {action}: {e}");
-        send_to_client(tx, game_id, json!({"kind": "error", "message": e.to_string()}));
+        send_to_client(
+            tx,
+            game_id,
+            json!({"kind": "error", "message": e.to_string()}),
+        );
     }
 }
 

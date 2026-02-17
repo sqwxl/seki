@@ -4,6 +4,7 @@ use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::AppState;
 use crate::error::{ApiError, AppError};
 use crate::models::game::Game;
 use crate::models::message::Message;
@@ -11,7 +12,6 @@ use crate::models::player::Player;
 use crate::models::turn::TurnRow;
 use crate::services::{game_actions, game_creator, state_serializer};
 use crate::session::ApiPlayer;
-use crate::AppState;
 
 // -- Response types --
 
@@ -152,10 +152,7 @@ pub fn router() -> Router<AppState> {
         .route("/games/{id}/territory/toggle", post(toggle_chain))
         .route("/games/{id}/territory/approve", post(approve_territory))
         // Messages
-        .route(
-            "/games/{id}/messages",
-            get(get_messages).post(send_message),
-        )
+        .route("/games/{id}/messages", get(get_messages).post(send_message))
         // Turns
         .route("/games/{id}/turns", get(get_turns))
         // Auth
@@ -521,7 +518,8 @@ async fn build_game_response(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let serialized = state_serializer::serialize_state(gwp, engine, false, territory.as_ref(), clock_ref, &[]);
+    let serialized =
+        state_serializer::serialize_state(gwp, engine, false, territory.as_ref(), clock_ref, &[]);
 
     let territory_json = serialized.get("territory").cloned();
 

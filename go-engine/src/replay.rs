@@ -1,7 +1,7 @@
+use crate::Point;
 use crate::engine::Engine;
 use crate::game_tree::{GameTree, NodeId};
 use crate::turn::Turn;
-use crate::Point;
 
 /// Engine wrapper with a game tree and a navigation cursor.
 ///
@@ -152,9 +152,7 @@ impl Replay {
 
     /// The position of the last played stone at the current view, if any.
     pub fn last_play_pos(&self) -> Option<Point> {
-        self.last_move()
-            .filter(|t| t.is_play())
-            .and_then(|t| t.pos)
+        self.last_move().filter(|t| t.is_play()).and_then(|t| t.pos)
     }
 
     // -- Game actions --

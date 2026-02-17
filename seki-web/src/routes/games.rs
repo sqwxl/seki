@@ -1,24 +1,24 @@
 use askama::Template;
+use axum::Form;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
-use axum::Form;
 use serde::Deserialize;
 
+use crate::AppState;
 use crate::error::AppError;
-use crate::models::game::{Game, TimeControlType, SYSTEM_SYMBOL};
+use crate::models::game::{Game, SYSTEM_SYMBOL, TimeControlType};
 use crate::models::game_clock::GameClock;
-use crate::services::clock::{ClockState, TimeControl};
 use crate::models::message::Message;
+use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
 use crate::services::state_serializer;
 use crate::session::CurrentPlayer;
+use crate::templates::PlayerData;
 use crate::templates::games_list::GamesListTemplate;
 use crate::templates::games_new::GamesNewTemplate;
 use crate::templates::games_show::{GamesShowTemplate, InitialGameProps};
-use crate::templates::PlayerData;
-use crate::AppState;
 
 fn serialize_player_data(player: &CurrentPlayer) -> String {
     serde_json::to_string(&PlayerData::from(&player.player)).unwrap_or_else(|_| "{}".to_string())
@@ -40,9 +40,7 @@ pub async fn new_game(current_player: CurrentPlayer) -> Result<Response, AppErro
 }
 
 // GET /games
-pub async fn list_games(
-    current_player: CurrentPlayer,
-) -> Result<Response, AppError> {
+pub async fn list_games(current_player: CurrentPlayer) -> Result<Response, AppError> {
     let tmpl = GamesListTemplate {
         player_username: current_player.username.clone(),
         player_is_registered: current_player.is_registered(),
@@ -185,27 +183,30 @@ pub async fn show_game(
             })
         })
         .collect();
-    let chat_log_json =
-        serde_json::to_string(&chat_log).unwrap_or_else(|_| "[]".to_string());
+    let chat_log_json = serde_json::to_string(&chat_log).unwrap_or_else(|_| "[]".to_string());
 
     let is_player = gwp.has_player(current_player.id);
     let is_creator = gwp.game.creator_id == Some(current_player.id);
     let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
 
-    let mut initial_state = state
+    let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
-        .await?
-        .game_state();
+        .await?;
+
     // The engine derives stage from moves, but the DB is authoritative for done games.
-    if gwp.game.result.is_some() {
-        initial_state.stage = go_engine::Stage::Done;
-    }
+    let stage = if gwp.game.result.is_none() {
+        engine.stage()
+    } else {
+        go_engine::Stage::Done
+    };
+
     let game_props = serde_json::to_string(&InitialGameProps {
-        state: initial_state,
+        state: engine.game_state(),
         black: gwp.black.as_ref().map(PlayerData::from),
         white: gwp.white.as_ref().map(PlayerData::from),
         komi: gwp.game.komi,
+        stage,
         settings: crate::services::live::GameSettings {
             cols: gwp.game.cols,
             rows: gwp.game.rows,
@@ -284,11 +285,9 @@ pub async fn join_game(
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
     let online_players = state.registry.get_online_player_ids(id).await;
-    let game_state = state_serializer::serialize_state(&gwp, &engine, false, None, clock_ref, &online_players);
-    state
-        .registry
-        .broadcast(id, &game_state.to_string())
-        .await;
+    let game_state =
+        state_serializer::serialize_state(&gwp, &engine, false, None, clock_ref, &online_players);
+    state.registry.broadcast(id, &game_state.to_string()).await;
 
     crate::services::live::notify_game_created(&state, id).await;
 

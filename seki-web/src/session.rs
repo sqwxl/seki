@@ -95,9 +95,7 @@ impl FromRequestParts<crate::AppState> for ApiPlayer {
         let player = Player::find_by_api_token(&state.db, &header)
             .await
             .map_err(|e| ApiError(AppError::Internal(format!("Database error: {e}"))))?
-            .ok_or_else(|| {
-                ApiError(AppError::Unauthorized("Invalid API token".to_string()))
-            })?;
+            .ok_or_else(|| ApiError(AppError::Unauthorized("Invalid API token".to_string())))?;
 
         if !player.is_registered() {
             return Err(ApiError(AppError::Unauthorized(

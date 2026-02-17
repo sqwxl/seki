@@ -12,22 +12,19 @@ pub async fn build_engine(pool: &DbPool, game: &Game) -> Result<Engine, sqlx::Er
     let turn_count = db_turns.len() as i64;
 
     // Check cache
-    if turn_count > 0 {
-        if let Some(ref cached) = game.cached_engine_state {
-            if let Ok(value) = serde_json::from_str::<serde_json::Value>(cached) {
-                if value.get("turn_count").and_then(|v| v.as_i64()) == Some(turn_count) {
-                    if let Ok(gs) = serde_json::from_value::<GameState>(value) {
-                        let turns = convert_turns(&db_turns);
-                        return Ok(Engine::from_game_state(
-                            game.cols as u8,
-                            game.rows as u8,
-                            turns,
-                            gs,
-                        ));
-                    }
-                }
-            }
-        }
+    if turn_count > 0
+        && let Some(ref cached) = game.cached_engine_state
+        && let Ok(value) = serde_json::from_str::<serde_json::Value>(cached)
+        && value.get("turn_count").and_then(|v| v.as_i64()) == Some(turn_count)
+        && let Ok(gs) = serde_json::from_value::<GameState>(value)
+    {
+        let turns = convert_turns(&db_turns);
+        return Ok(Engine::from_game_state(
+            game.cols as u8,
+            game.rows as u8,
+            turns,
+            gs,
+        ));
     }
 
     // Build from scratch

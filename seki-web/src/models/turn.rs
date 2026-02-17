@@ -19,10 +19,7 @@ pub struct TurnRow {
 }
 
 impl TurnRow {
-    pub async fn find_by_game_id(
-        pool: &DbPool,
-        game_id: i64,
-    ) -> Result<Vec<TurnRow>, sqlx::Error> {
+    pub async fn find_by_game_id(pool: &DbPool, game_id: i64) -> Result<Vec<TurnRow>, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
             "SELECT * FROM turns WHERE game_id = $1 ORDER BY turn_number ASC",
         )
@@ -32,11 +29,10 @@ impl TurnRow {
     }
 
     pub async fn count_by_game_id(pool: &DbPool, game_id: i64) -> Result<i64, sqlx::Error> {
-        let row: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM turns WHERE game_id = $1")
-                .bind(game_id)
-                .fetch_one(pool)
-                .await?;
+        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM turns WHERE game_id = $1")
+            .bind(game_id)
+            .fetch_one(pool)
+            .await?;
         Ok(row.0)
     }
 
@@ -79,10 +75,7 @@ impl TurnRow {
         Ok(())
     }
 
-    pub async fn last_turn(
-        pool: &DbPool,
-        game_id: i64,
-    ) -> Result<Option<TurnRow>, sqlx::Error> {
+    pub async fn last_turn(pool: &DbPool, game_id: i64) -> Result<Option<TurnRow>, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
             "SELECT * FROM turns WHERE game_id = $1 ORDER BY turn_number DESC LIMIT 1",
         )

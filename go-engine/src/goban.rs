@@ -4,7 +4,7 @@ use crate::error::GoError;
 use crate::ko::Ko;
 use crate::stone::Stone;
 use crate::turn::{Move, Turn};
-use crate::Point;
+use crate::{GameState, Point};
 
 /// Captures indexed by stone color.
 #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -93,19 +93,13 @@ impl Goban {
     }
 
     /// Restore a goban from serialized state.
-    pub fn from_state(
-        board: Vec<i8>,
-        cols: u8,
-        rows: u8,
-        captures: Captures,
-        ko: Option<Ko>,
-    ) -> Self {
+    pub fn from_state(state: GameState) -> Self {
         Goban {
-            board,
-            cols,
-            rows,
-            captures,
-            ko,
+            board: state.board,
+            cols: state.cols,
+            rows: state.rows,
+            captures: state.captures,
+            ko: state.ko,
         }
     }
 

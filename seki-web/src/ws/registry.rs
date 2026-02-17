@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use go_engine::{Engine, Point};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio::task::AbortHandle;
 
 use crate::db::DbPool;
@@ -180,9 +180,7 @@ impl GameRegistry {
 
     pub async fn is_undo_requested(&self, game_id: i64) -> bool {
         let rooms = self.rooms.read().await;
-        rooms
-            .get(&game_id)
-            .is_some_and(|room| room.undo_requested)
+        rooms.get(&game_id).is_some_and(|room| room.undo_requested)
     }
 
     pub async fn set_undo_requested(&self, game_id: i64, requested: bool) {

@@ -34,15 +34,16 @@ export enum Stone {
 }
 
 // Keep in sync with go-engine Stage enum (go-engine/src/engine.rs)
-export type GameStage =
-  | "unstarted"
-  | "black_to_play"
-  | "white_to_play"
-  | "territory_review"
-  | "done";
+export enum GameStage {
+  Unstarted = "unstarted",
+  BlackToPlay = "black_to_play",
+  WhiteToPlay = "white_to_play",
+  TerritoryReview = "territory_review",
+  Done = "done",
+}
 
 export function isPlayStage(stage: GameStage): boolean {
-  return stage === "black_to_play" || stage === "white_to_play";
+  return stage === GameStage.BlackToPlay || stage === GameStage.WhiteToPlay;
 }
 
 export type Captures = {
@@ -62,7 +63,6 @@ export type GameState = {
   rows: number;
   captures: Captures;
   ko?: { pos: [number, number]; stone: number } | null;
-  stage: GameStage;
 };
 
 export type TurnData = {
@@ -114,6 +114,7 @@ export type InitialGameProps = {
   black: PlayerData | null;
   white: PlayerData | null;
   komi: number;
+  stage: GameStage;
   settings: GameSettings;
 };
 

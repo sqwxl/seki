@@ -2,12 +2,12 @@ use askama::Template;
 use axum::extract::State;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 
+use crate::AppState;
 use crate::error::AppError;
 use crate::models::player::Player;
 use crate::session::CurrentPlayer;
-use crate::templates::settings::SettingsTemplate;
 use crate::templates::PlayerData;
-use crate::AppState;
+use crate::templates::settings::SettingsTemplate;
 
 fn serialize_player_data(player: &CurrentPlayer) -> String {
     serde_json::to_string(&PlayerData::from(&player.player)).unwrap_or_else(|_| "{}".to_string())

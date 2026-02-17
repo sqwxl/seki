@@ -11,9 +11,9 @@ const ADJECTIVES: &[&str] = &[
 ];
 
 const NOUNS: &[&str] = &[
-    "crane", "tiger", "dragon", "bear", "eagle", "fox", "hawk", "heron", "otter", "panda",
-    "raven", "robin", "stone", "wolf", "badger", "cedar", "dove", "elm", "finch", "grove", "hare",
-    "jade", "koi", "lark", "maple", "oak", "pine", "reed", "sage", "sparrow", "thorn", "wren",
+    "crane", "tiger", "dragon", "bear", "eagle", "fox", "hawk", "heron", "otter", "panda", "raven",
+    "robin", "stone", "wolf", "badger", "cedar", "dove", "elm", "finch", "grove", "hare", "jade",
+    "koi", "lark", "maple", "oak", "pine", "reed", "sage", "sparrow", "thorn", "wren",
 ];
 
 fn generate_name() -> String {

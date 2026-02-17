@@ -1,9 +1,9 @@
 use serde::Serialize;
 use serde_json::json;
 
+use crate::AppState;
 use crate::models::game::{Game, GameWithPlayers, TimeControlType};
 use crate::templates::PlayerData;
-use crate::AppState;
 
 #[derive(Serialize)]
 pub struct GameSettings {

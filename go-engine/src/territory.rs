@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::goban::Goban;
 use crate::stone::Stone;
-use crate::Point;
+use crate::{GameState, Point};
 
 /// Estimate territory ownership for each point on the board.
 ///
@@ -283,7 +283,13 @@ pub fn detect_dead_stones(goban: &Goban) -> HashSet<Point> {
         }
     }
 
-    let simplified_goban = Goban::from_state(simplified_board, cols, rows, Default::default(), None);
+    let simplified_goban = Goban::from_state(GameState {
+        board: simplified_board,
+        cols,
+        rows,
+        captures: Default::default(),
+        ko: None,
+    });
 
     // Estimate territory on the simplified board (no dead stones to remove)
     let ownership = estimate_territory(&simplified_goban, &HashSet::new());
@@ -366,9 +372,10 @@ pub fn score(
 
     let black_score =
         black_territory as f64 + goban.captures().get(Stone::Black) as f64 + dead_white as f64;
-    let white_score =
-        white_territory as f64 + goban.captures().get(Stone::White) as f64 + dead_black as f64
-            + komi;
+    let white_score = white_territory as f64
+        + goban.captures().get(Stone::White) as f64
+        + dead_black as f64
+        + komi;
 
     (black_score, white_score)
 }
@@ -420,12 +427,7 @@ mod tests {
     #[test]
     fn corner_territory_black() {
         // Black controls top-left corner
-        let goban = goban_from_layout(&[
-            "++B+",
-            "++B+",
-            "BBB+",
-            "++++",
-        ]);
+        let goban = goban_from_layout(&["++B+", "++B+", "BBB+", "++++"]);
         let ownership = estimate_territory(&goban, &HashSet::new());
         // (0,0), (1,0), (0,1), (1,1) should be Black territory
         assert_eq!(ownership[0], 1); // (0,0)
@@ -440,11 +442,7 @@ mod tests {
     fn split_board_both_territories() {
         // Black owns left, White owns right
         // Board: 5 cols x 3 rows
-        let goban = goban_from_layout(&[
-            "+B+W+",
-            "+B+W+",
-            "+B+W+",
-        ]);
+        let goban = goban_from_layout(&["+B+W+", "+B+W+", "+B+W+"]);
         let ownership = estimate_territory(&goban, &HashSet::new());
         let cols = 5;
         // (0,0) is left of Black wall → Black territory
@@ -462,11 +460,7 @@ mod tests {
     #[test]
     fn dame_between_territories() {
         // Middle column touches both colors → neutral
-        let goban = goban_from_layout(&[
-            "B+W",
-            "B+W",
-            "B+W",
-        ]);
+        let goban = goban_from_layout(&["B+W", "B+W", "B+W"]);
         let ownership = estimate_territory(&goban, &HashSet::new());
         let cols = 3;
         // Middle column is dame
@@ -478,11 +472,7 @@ mod tests {
     #[test]
     fn dead_stone_positions_get_opponent_ownership() {
         // White stone inside Black territory, marked as dead
-        let goban = goban_from_layout(&[
-            "BBB",
-            "BWB",
-            "BBB",
-        ]);
+        let goban = goban_from_layout(&["BBB", "BWB", "BBB"]);
         let mut dead = HashSet::new();
         dead.insert((1u8, 1u8));
 
@@ -495,11 +485,7 @@ mod tests {
     fn live_stone_has_no_territory_ownership() {
         // A live White stone at (1,1) is not empty on the virtual board,
         // so it has no territory ownership (stays 0).
-        let goban = goban_from_layout(&[
-            "BBB",
-            "BWB",
-            "BBB",
-        ]);
+        let goban = goban_from_layout(&["BBB", "BWB", "BBB"]);
         let ownership = estimate_territory(&goban, &HashSet::new());
         assert_eq!(ownership[1 * 3 + 1], 0);
     }
@@ -509,11 +495,7 @@ mod tests {
     #[test]
     fn two_eyed_group_is_alive() {
         // Black has two separate internal eyes → unconditionally alive
-        let goban = goban_from_layout(&[
-            "BBBBB",
-            "B+B+B",
-            "BBBBB",
-        ]);
+        let goban = goban_from_layout(&["BBBBB", "B+B+B", "BBBBB"]);
         let alive = find_unconditionally_alive(&goban, Stone::Black);
         // All Black stones should be alive
         for y in 0..3u8 {
@@ -528,13 +510,12 @@ mod tests {
     #[test]
     fn one_eyed_group_not_alive() {
         // Black has only one eye → NOT unconditionally alive
-        let goban = goban_from_layout(&[
-            "BBB",
-            "B+B",
-            "BBB",
-        ]);
+        let goban = goban_from_layout(&["BBB", "B+B", "BBB"]);
         let alive = find_unconditionally_alive(&goban, Stone::Black);
-        assert!(alive.is_empty(), "one-eyed group should not be unconditionally alive");
+        assert!(
+            alive.is_empty(),
+            "one-eyed group should not be unconditionally alive"
+        );
     }
 
     #[test]
@@ -547,12 +528,7 @@ mod tests {
     #[test]
     fn corner_two_eyed_group_alive() {
         // Black has two eyes in the corner
-        let goban = goban_from_layout(&[
-            "+B+B",
-            "BBBB",
-            "++++",
-            "++++",
-        ]);
+        let goban = goban_from_layout(&["+B+B", "BBBB", "++++", "++++"]);
         let alive = find_unconditionally_alive(&goban, Stone::Black);
         // All Black stones in the top two rows should be alive
         assert!(alive.contains(&(1, 0)));
@@ -566,11 +542,7 @@ mod tests {
     #[test]
     fn white_alive_group() {
         // Same test but for White
-        let goban = goban_from_layout(&[
-            "WWWWW",
-            "W+W+W",
-            "WWWWW",
-        ]);
+        let goban = goban_from_layout(&["WWWWW", "W+W+W", "WWWWW"]);
         let alive = find_unconditionally_alive(&goban, Stone::White);
         for y in 0..3u8 {
             for x in 0..5u8 {
@@ -587,20 +559,20 @@ mod tests {
     fn stone_inside_benson_alive_group_is_dead() {
         // Black has two eyes enclosing a White stone
         // White stone at (3,1) has a liberty at (2,2), but Black is Benson-alive
-        let goban = goban_from_layout(&[
-            "BBBBB",
-            "B+BWB",
-            "BB+BB",
-            "B+BBB",
-            "BBBBB",
-        ]);
+        let goban = goban_from_layout(&["BBBBB", "B+BWB", "BB+BB", "B+BBB", "BBBBB"]);
         let dead = detect_dead_stones(&goban);
-        assert!(dead.contains(&(3u8, 1u8)), "enclosed white stone should be dead");
+        assert!(
+            dead.contains(&(3u8, 1u8)),
+            "enclosed white stone should be dead"
+        );
         // Black stones should NOT be dead
         for y in 0..5u8 {
             for x in 0..5u8 {
                 if goban.stone_at((x, y)) == Some(Stone::Black) {
-                    assert!(!dead.contains(&(x, y)), "black at ({x},{y}) should not be dead");
+                    assert!(
+                        !dead.contains(&(x, y)),
+                        "black at ({x},{y}) should not be dead"
+                    );
                 }
             }
         }
@@ -609,30 +581,30 @@ mod tests {
     #[test]
     fn chain_inside_benson_alive_group_is_dead() {
         // Black has two eyes enclosing a White chain
-        let goban = goban_from_layout(&[
-            "BBBBBB",
-            "B+BWWB",
-            "BBBWWB",
-            "B+BBBB",
-            "BBBBBB",
-        ]);
+        let goban = goban_from_layout(&["BBBBBB", "B+BWWB", "BBBWWB", "B+BBBB", "BBBBBB"]);
         let dead = detect_dead_stones(&goban);
-        assert!(dead.contains(&(3u8, 1u8)), "enclosed white at (3,1) should be dead");
-        assert!(dead.contains(&(4u8, 1u8)), "enclosed white at (4,1) should be dead");
-        assert!(dead.contains(&(3u8, 2u8)), "enclosed white at (3,2) should be dead");
-        assert!(dead.contains(&(4u8, 2u8)), "enclosed white at (4,2) should be dead");
+        assert!(
+            dead.contains(&(3u8, 1u8)),
+            "enclosed white at (3,1) should be dead"
+        );
+        assert!(
+            dead.contains(&(4u8, 1u8)),
+            "enclosed white at (4,1) should be dead"
+        );
+        assert!(
+            dead.contains(&(3u8, 2u8)),
+            "enclosed white at (3,2) should be dead"
+        );
+        assert!(
+            dead.contains(&(4u8, 2u8)),
+            "enclosed white at (4,2) should be dead"
+        );
     }
 
     #[test]
     fn two_eyed_group_not_detected_as_dead() {
         // Black group with two eyes — Benson-alive, never detected as dead
-        let goban = goban_from_layout(&[
-            "WBBBW",
-            "WB+BW",
-            "WBBBW",
-            "WB+BW",
-            "WBBBW",
-        ]);
+        let goban = goban_from_layout(&["WBBBW", "WB+BW", "WBBBW", "WB+BW", "WBBBW"]);
         let dead = detect_dead_stones(&goban);
         for y in 0..5u8 {
             for x in 0..5u8 {
@@ -646,26 +618,19 @@ mod tests {
     #[test]
     fn non_alive_group_in_neutral_area_not_dead() {
         // Neither side has Benson-alive groups → no dead stones detected
-        let goban = goban_from_layout(&[
-            "BBB++",
-            "B+B++",
-            "BBB++",
-            "++WWW",
-            "++W+W",
-        ]);
+        let goban = goban_from_layout(&["BBB++", "B+B++", "BBB++", "++WWW", "++W+W"]);
         let dead = detect_dead_stones(&goban);
-        assert!(dead.is_empty(), "no dead stones when no group is Benson-alive");
+        assert!(
+            dead.is_empty(),
+            "no dead stones when no group is Benson-alive"
+        );
     }
 
     // -- Toggle dead chain --
 
     #[test]
     fn toggle_marks_chain_dead() {
-        let goban = goban_from_layout(&[
-            "BBB",
-            "BWB",
-            "BBB",
-        ]);
+        let goban = goban_from_layout(&["BBB", "BWB", "BBB"]);
         let mut dead = HashSet::new();
         toggle_dead_chain(&goban, &mut dead, (1, 1));
         assert!(dead.contains(&(1u8, 1u8)));
@@ -673,11 +638,7 @@ mod tests {
 
     #[test]
     fn toggle_marks_chain_alive_again() {
-        let goban = goban_from_layout(&[
-            "BBB",
-            "BWB",
-            "BBB",
-        ]);
+        let goban = goban_from_layout(&["BBB", "BWB", "BBB"]);
         let mut dead = HashSet::new();
         toggle_dead_chain(&goban, &mut dead, (1, 1));
         assert!(dead.contains(&(1u8, 1u8)));
@@ -695,13 +656,7 @@ mod tests {
 
     #[test]
     fn toggle_toggles_entire_chain() {
-        let goban = goban_from_layout(&[
-            "+++++",
-            "+BWW+",
-            "+BWW+",
-            "+++++",
-            "+++++",
-        ]);
+        let goban = goban_from_layout(&["+++++", "+BWW+", "+BWW+", "+++++", "+++++"]);
         let mut dead = HashSet::new();
         // Click on one white stone in a 2x2 chain
         toggle_dead_chain(&goban, &mut dead, (2, 1));
@@ -716,11 +671,7 @@ mod tests {
     #[test]
     fn scoring_simple() {
         // 3x3 board: Black owns all territory, White has a dead stone
-        let goban = goban_from_layout(&[
-            "BBB",
-            "BWB",
-            "BBB",
-        ]);
+        let goban = goban_from_layout(&["BBB", "BWB", "BBB"]);
         let mut dead = HashSet::new();
         dead.insert((1u8, 1u8));
         let ownership = estimate_territory(&goban, &dead);
@@ -733,11 +684,7 @@ mod tests {
 
     #[test]
     fn scoring_with_komi() {
-        let goban = goban_from_layout(&[
-            "BBB",
-            "BWB",
-            "BBB",
-        ]);
+        let goban = goban_from_layout(&["BBB", "BWB", "BBB"]);
         let mut dead = HashSet::new();
         dead.insert((1u8, 1u8));
         let ownership = estimate_territory(&goban, &dead);
@@ -750,19 +697,15 @@ mod tests {
     #[test]
     fn scoring_with_captures() {
         // Simulate a board where Black has captured 3 stones
-        let goban = Goban::from_state(
-            vec![
-                1, 1, 1, 0, -1,
-                1, 0, 1, 0, -1,
-                1, 1, 1, 0, -1,
-                0, 0, 0, 0, -1,
-                -1, -1, -1, -1, -1,
+        let goban = Goban::from_state(GameState {
+            board: vec![
+                1, 1, 1, 0, -1, 1, 0, 1, 0, -1, 1, 1, 1, 0, -1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1,
             ],
-            5,
-            5,
-            crate::goban::Captures { black: 3, white: 0 },
-            None,
-        );
+            cols: 5,
+            rows: 5,
+            captures: crate::goban::Captures { black: 3, white: 0 },
+            ko: None,
+        });
         let dead = HashSet::new();
         let ownership = estimate_territory(&goban, &dead);
         let (black, white) = score(&goban, &ownership, &dead, 6.5);
@@ -827,13 +770,28 @@ mod tests {
         // White territory: bottom-left enclosed region (19 points)
         let white_points: Vec<(usize, usize)> = vec![
             // row 5: cols 0-4
-            (0, 5), (1, 5), (2, 5), (3, 5), (4, 5),
+            (0, 5),
+            (1, 5),
+            (2, 5),
+            (3, 5),
+            (4, 5),
             // row 6: cols 0-4
-            (0, 6), (1, 6), (2, 6), (3, 6), (4, 6),
+            (0, 6),
+            (1, 6),
+            (2, 6),
+            (3, 6),
+            (4, 6),
             // row 7: cols 0-2 and col 4
-            (0, 7), (1, 7), (2, 7), (4, 7),
+            (0, 7),
+            (1, 7),
+            (2, 7),
+            (4, 7),
             // row 8: cols 0-4
-            (0, 8), (1, 8), (2, 8), (3, 8), (4, 8),
+            (0, 8),
+            (1, 8),
+            (2, 8),
+            (3, 8),
+            (4, 8),
         ];
         for (col, row) in &white_points {
             assert_eq!(
@@ -886,7 +844,11 @@ mod tests {
         assert_eq!(ownership[1 * cols + 8], 1, "(8,1) Black territory");
 
         // Dead W at (2,0) is in the top-left region which borders both colors → neutral.
-        assert_eq!(ownership[0 * cols + 2], 0, "dead W at (2,0) in neutral region");
+        assert_eq!(
+            ownership[0 * cols + 2],
+            0,
+            "dead W at (2,0) in neutral region"
+        );
 
         // (7,3) borders B(6,3) and W(8,3) → neutral
         assert_eq!(ownership[3 * cols + 7], 0, "(7,3) neutral");
@@ -894,8 +856,16 @@ mod tests {
         // White territory: bottom-left enclosed region
         assert_eq!(ownership[8 * cols + 0], -1, "(0,8) White territory");
         // Dead B at (1,6) and (1,7): their positions are surrounded by White → White territory
-        assert_eq!(ownership[6 * cols + 1], -1, "dead B at (1,6) → White territory");
-        assert_eq!(ownership[7 * cols + 1], -1, "dead B at (1,7) → White territory");
+        assert_eq!(
+            ownership[6 * cols + 1],
+            -1,
+            "dead B at (1,6) → White territory"
+        );
+        assert_eq!(
+            ownership[7 * cols + 1],
+            -1,
+            "dead B at (1,7) → White territory"
+        );
     }
 
     // -- Seki / conservative detection --
@@ -906,31 +876,24 @@ mod tests {
         // internal empty points border White stones, so Black is NOT Benson-alive.
         // White similarly has no two eyes. Neither group is alive.
         // Conservative algorithm should detect NO dead stones.
-        let goban = goban_from_layout(&[
-            "BBBBB",
-            "B+BWB",
-            "BWWWB",
-            "BWB+B",
-            "BBBBB",
-        ]);
+        let goban = goban_from_layout(&["BBBBB", "B+BWB", "BWWWB", "BWB+B", "BBBBB"]);
         let dead = detect_dead_stones(&goban);
-        assert!(dead.is_empty(), "seki-like position: no dead stones detected");
+        assert!(
+            dead.is_empty(),
+            "seki-like position: no dead stones detected"
+        );
     }
 
     #[test]
     fn one_eyed_groups_not_dead_without_benson_alive_opponent() {
         // Both sides have one-eyed groups. Neither is Benson-alive.
         // No dead stones should be detected (conservative approach).
-        let goban = goban_from_layout(&[
-            "BBB++",
-            "B+B++",
-            "BBB++",
-            "++WWW",
-            "++W+W",
-            "++WWW",
-        ]);
+        let goban = goban_from_layout(&["BBB++", "B+B++", "BBB++", "++WWW", "++W+W", "++WWW"]);
         let dead = detect_dead_stones(&goban);
-        assert!(dead.is_empty(), "one-eyed groups without Benson-alive opponent: no dead stones");
+        assert!(
+            dead.is_empty(),
+            "one-eyed groups without Benson-alive opponent: no dead stones"
+        );
     }
 
     // -- Dead stones of both colors --
@@ -983,13 +946,7 @@ mod tests {
     fn benson_alive_with_adjacent_opponent_stones() {
         // Black group with two eyes, White stones on the outside.
         // Black should still be Benson-alive.
-        let goban = goban_from_layout(&[
-            "WBBBW",
-            "WB+BW",
-            "WBBBW",
-            "WB+BW",
-            "WBBBW",
-        ]);
+        let goban = goban_from_layout(&["WBBBW", "WB+BW", "WBBBW", "WB+BW", "WBBBW"]);
         let alive_b = find_unconditionally_alive(&goban, Stone::Black);
         // All Black stones should be alive (two eyes at (2,1) and (2,3))
         for y in 0..5u8 {
@@ -1002,7 +959,10 @@ mod tests {
 
         // White is NOT Benson-alive (no enclosed regions — all empty regions border B)
         let alive_w = find_unconditionally_alive(&goban, Stone::White);
-        assert!(alive_w.is_empty(), "White has no enclosed regions, not alive");
+        assert!(
+            alive_w.is_empty(),
+            "White has no enclosed regions, not alive"
+        );
     }
 
     // -- Larger board --

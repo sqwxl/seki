@@ -2,12 +2,12 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::Point;
 use crate::error::GoError;
 use crate::goban::{Captures, Goban};
 use crate::ko::Ko;
 use crate::stone::Stone;
 use crate::turn::Turn;
-use crate::Point;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -59,7 +59,6 @@ pub struct GameState {
     pub rows: u8,
     pub captures: Captures,
     pub ko: Option<Ko>,
-    pub stage: Stage,
 }
 
 #[derive(Debug, Clone)]
@@ -218,12 +217,11 @@ impl Engine {
             rows: self.rows,
             captures: self.goban.captures().clone(),
             ko: self.goban.ko().clone(),
-            stage: self.stage(),
         }
     }
 
     pub fn from_game_state(cols: u8, rows: u8, moves: Vec<Turn>, state: GameState) -> Self {
-        let goban = Goban::from_state(state.board, cols, rows, state.captures, state.ko);
+        let goban = Goban::from_state(state);
         let result = Self::result_from_moves(&moves);
 
         Engine {
@@ -487,7 +485,6 @@ mod tests {
         let engine = Engine::new(4, 4);
         let gs = engine.game_state();
 
-        assert_eq!(gs.stage, Stage::Unstarted);
         assert!(gs.ko.is_none());
         assert_eq!(gs.captures.black, 0);
         assert_eq!(gs.captures.white, 0);
@@ -523,7 +520,6 @@ mod tests {
         // flat index: row * cols + col
         assert_eq!(gs.board[4], Stone::Black.to_int());
         assert_eq!(gs.board[0], 0);
-        assert!(gs.stage.is_play());
     }
 
     #[test]

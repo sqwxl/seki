@@ -1,6 +1,6 @@
+use axum::Router;
 use axum::extract::Request;
 use axum::routing::{get, post};
-use axum::Router;
 use tokio::sync::broadcast;
 use tower::Layer as _;
 use tower_http::normalize_path::NormalizePathLayer;
