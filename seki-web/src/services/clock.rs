@@ -314,7 +314,7 @@ impl ClockState {
                 "remaining_ms": self.remaining_ms(Stone::White, active_stone, now),
                 "periods": self.white_periods
             },
-            "active_stone": active_stone.map(|s| s.to_int() as i32)
+            "active_stone": self.last_move_at.and(active_stone).map(|s| s.to_int() as i32)
         })
     }
 }
