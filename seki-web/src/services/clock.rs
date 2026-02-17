@@ -303,14 +303,15 @@ impl ClockState {
             TimeControl::Byoyomi { .. } => "byoyomi",
             TimeControl::Correspondence { .. } => "correspondence",
         };
+        let now = Utc::now();
         json!({
             "type": tc_type,
             "black": {
-                "remaining_ms": self.black_remaining_ms,
+                "remaining_ms": self.remaining_ms(Stone::Black, active_stone, now),
                 "periods": self.black_periods
             },
             "white": {
-                "remaining_ms": self.white_remaining_ms,
+                "remaining_ms": self.remaining_ms(Stone::White, active_stone, now),
                 "periods": self.white_periods
             },
             "active_stone": active_stone.map(|s| s.to_int() as i32)
