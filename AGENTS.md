@@ -41,6 +41,8 @@ Axum 0.8 web app. Modules follow a clean separation: `models/` (sqlx queries), `
 
 **Request flow:** Axum router → route handler → service layer → model (sqlx) → DB. Templates render server-side HTML. The game board UI is a Preact app (`seki-web/frontend/`) bundled with esbuild, loaded on the game show page.
 
+**Frontend modules** (`seki-web/frontend/src/`): The game page JS is split into focused modules. `go.tsx` is a thin orchestrator that wires everything together. State lives in a `GameCtx` object (`game-context.ts`) passed to pure-ish functions in each module: `game-channel.ts` (WS action wrappers), `game-dom.ts` (DOM element queries), `game-render.tsx` (Preact board rendering), `game-ui.ts` (player labels, title, status), `game-clock.ts` (clock formatting/sync), `game-controls.ts` (button visibility), `game-messages.ts` (WS message handler), `game-util.ts` (player data helpers).
+
 **Real-time:** A single WebSocket endpoint (`/ws`) handles all real-time communication. Clients subscribe to game rooms via `join_game`/`leave_game` messages, and receive lobby events (game list updates) via a broadcast channel. `GameRegistry` manages per-game rooms; on join, server sends full game state, and subsequent moves are broadcast to all connected players.
 
 **Auth (web):** tower-sessions with PostgreSQL store. `CurrentPlayer` extractor auto-creates anonymous players (random session token) if no session exists. Registration adds email/username/password (Argon2).
@@ -64,7 +66,7 @@ Tables: `players`, `games`, `turns`, `messages`, `territory_reviews`.
 
 ## Key Dependency Versions
 
-axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-sessions-sqlx-store 0.15, sqlx 0.8 (postgres), askama 0.15, Rust edition 2021, Node 24, pnpm, Preact 10, esbuild 0.24, wasm-bindgen 0.2, js-sys 0.3.
+axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-sessions-sqlx-store 0.15, sqlx 0.8 (postgres), askama 0.15, Rust edition 2024, Node 24, pnpm, Preact 10, esbuild 0.24, wasm-bindgen 0.2, js-sys 0.3.
 
 ## Conventions
 
