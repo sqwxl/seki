@@ -51,6 +51,13 @@ pub struct Game {
     pub increment_secs: Option<i32>,
     pub byoyomi_time_secs: Option<i32>,
     pub byoyomi_periods: Option<i32>,
+    pub clock_black_ms: Option<i64>,
+    pub clock_white_ms: Option<i64>,
+    pub clock_black_periods: Option<i32>,
+    pub clock_white_periods: Option<i32>,
+    pub clock_active_stone: Option<i32>,
+    pub clock_last_move_at: Option<DateTime<Utc>>,
+    pub clock_expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -196,10 +203,17 @@ impl Game {
         increment_secs: Option<i32>,
         byoyomi_time_secs: Option<i32>,
         byoyomi_periods: Option<i32>,
+        clock_black_ms: Option<i64>,
+        clock_white_ms: Option<i64>,
+        clock_black_periods: Option<i32>,
+        clock_white_periods: Option<i32>,
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
-            "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, is_private, is_handicap, allow_undo, invite_token, time_control, main_time_secs, increment_secs, byoyomi_time_secs, byoyomi_periods)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, \
+             is_private, is_handicap, allow_undo, invite_token, time_control, main_time_secs, \
+             increment_secs, byoyomi_time_secs, byoyomi_periods, \
+             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
              RETURNING *",
         )
         .bind(creator_id)
@@ -218,6 +232,10 @@ impl Game {
         .bind(increment_secs)
         .bind(byoyomi_time_secs)
         .bind(byoyomi_periods)
+        .bind(clock_black_ms)
+        .bind(clock_white_ms)
+        .bind(clock_black_periods)
+        .bind(clock_white_periods)
         .fetch_one(pool)
         .await
     }
@@ -294,6 +312,49 @@ impl Game {
             .execute(pool)
             .await?;
         Ok(())
+    }
+
+    pub async fn update_clock(
+        pool: &DbPool,
+        game_id: i64,
+        black_ms: i64,
+        white_ms: i64,
+        black_periods: i32,
+        white_periods: i32,
+        active_stone: Option<i32>,
+        last_move_at: Option<DateTime<Utc>>,
+        expires_at: Option<DateTime<Utc>>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET \
+             clock_black_ms = $2, clock_white_ms = $3, \
+             clock_black_periods = $4, clock_white_periods = $5, \
+             clock_active_stone = $6, clock_last_move_at = $7, \
+             clock_expires_at = $8, updated_at = NOW() \
+             WHERE id = $1",
+        )
+        .bind(game_id)
+        .bind(black_ms)
+        .bind(white_ms)
+        .bind(black_periods)
+        .bind(white_periods)
+        .bind(active_stone)
+        .bind(last_move_at)
+        .bind(expires_at)
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn find_expired_clocks(pool: &DbPool) -> Result<Vec<Game>, sqlx::Error> {
+        sqlx::query_as::<_, Game>(
+            "SELECT * FROM games \
+             WHERE result IS NULL \
+             AND clock_expires_at IS NOT NULL \
+             AND clock_expires_at < NOW()",
+        )
+        .fetch_all(pool)
+        .await
     }
 }
 

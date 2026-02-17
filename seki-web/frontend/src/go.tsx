@@ -28,7 +28,7 @@ export function go(root: HTMLElement) {
   const ctx = createGameContext(gameId, playerStone, initialProps);
   const channel = createGameChannel(gameId);
   const dom = queryGameDom();
-  const clockState: ClockState = { data: undefined, interval: undefined };
+  const clockState: ClockState = { data: undefined, syncedAt: 0, interval: undefined, timeoutFlagSent: false };
 
   // --- WASM board (async) ---
   createBoard({

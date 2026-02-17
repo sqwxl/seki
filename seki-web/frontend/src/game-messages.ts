@@ -55,7 +55,7 @@ export function handleGameMessage(
       updateTitle(ctx, dom.title);
       updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
       updateStatus(ctx, dom.status);
-      syncClock(clockState, data.clock, ctx, dom);
+      syncClock(clockState, data.clock, ctx, dom, () => channel.timeoutFlag());
       updateChatPresence(ctx.onlinePlayers);
       break;
     }

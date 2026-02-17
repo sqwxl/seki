@@ -3,7 +3,6 @@ use rand::RngExt;
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
-use crate::models::game_clock::GameClock;
 use crate::models::player::Player;
 use crate::services::clock::{ClockState, TimeControl};
 
@@ -56,6 +55,16 @@ pub async fn create_game(
 
     let invite_token = generate_invite_token();
 
+    // Compute initial clock values for timed games
+    let tc = TimeControl::from_tc_type(
+        params.time_control,
+        params.main_time_secs,
+        params.increment_secs,
+        params.byoyomi_time_secs,
+        params.byoyomi_periods,
+    );
+    let initial_clock = ClockState::new(&tc);
+
     let game = Game::create(
         pool,
         creator.id,
@@ -74,23 +83,12 @@ pub async fn create_game(
         params.increment_secs,
         params.byoyomi_time_secs,
         params.byoyomi_periods,
+        initial_clock.as_ref().map(|c| c.black_remaining_ms),
+        initial_clock.as_ref().map(|c| c.white_remaining_ms),
+        initial_clock.as_ref().map(|c| c.black_periods),
+        initial_clock.as_ref().map(|c| c.white_periods),
     )
     .await?;
-
-    // Create clock row for timed games
-    let tc = TimeControl::from_game(&game);
-    if let Some(clock) = ClockState::new(&tc) {
-        GameClock::create(
-            pool,
-            game.id,
-            clock.black_remaining_ms,
-            clock.white_remaining_ms,
-            clock.black_periods,
-            clock.white_periods,
-        )
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    }
 
     Ok(game)
 }

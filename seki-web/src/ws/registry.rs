@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use go_engine::{Engine, Point};
 use tokio::sync::{RwLock, mpsc};
-use tokio::task::AbortHandle;
 
 use crate::db::DbPool;
 use crate::models::game::Game;
@@ -31,8 +30,6 @@ struct GameRoom {
     territory_review: Option<TerritoryReviewState>,
     /// In-memory clock state for timed games
     clock: Option<ClockState>,
-    /// Handle for the pending timeout task (cancellable)
-    timeout_handle: Option<AbortHandle>,
 }
 
 #[derive(Debug, Clone)]
@@ -203,34 +200,6 @@ impl GameRegistry {
         room.clock = Some(clock);
     }
 
-    pub async fn schedule_timeout(
-        &self,
-        game_id: i64,
-        delay: std::time::Duration,
-        app_state: crate::AppState,
-    ) {
-        let mut rooms = self.rooms.write().await;
-        let room = rooms.entry(game_id).or_default();
-
-        // Cancel any existing timeout
-        if let Some(handle) = room.timeout_handle.take() {
-            handle.abort();
-        }
-
-        let handle = tokio::spawn(timeout_task(delay, app_state, game_id));
-
-        room.timeout_handle = Some(handle.abort_handle());
-    }
-
-    pub async fn cancel_timeout(&self, game_id: i64) {
-        let mut rooms = self.rooms.write().await;
-        if let Some(room) = rooms.get_mut(&game_id) {
-            if let Some(handle) = room.timeout_handle.take() {
-                handle.abort();
-            }
-        }
-    }
-
     // -- Territory review --
 
     pub async fn init_territory_review(&self, game_id: i64, dead_stones: HashSet<Point>) {
@@ -298,13 +267,3 @@ fn inject_game_id(game_id: i64, message: &str) -> String {
     message.to_string()
 }
 
-fn timeout_task(
-    delay: std::time::Duration,
-    app_state: crate::AppState,
-    game_id: i64,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
-    Box::pin(async move {
-        tokio::time::sleep(delay).await;
-        crate::services::game_actions::handle_timeout(&app_state, game_id).await;
-    })
-}

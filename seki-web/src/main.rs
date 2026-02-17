@@ -67,6 +67,12 @@ async fn main() {
         live_tx,
     };
 
+    // Spawn periodic clock sweep (safety net for expired clocks)
+    let sweep_state = state.clone();
+    tokio::spawn(async move {
+        services::clock_sweep::run(sweep_state).await;
+    });
+
     // Build router
     let app = Router::new()
         // Game routes

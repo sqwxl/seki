@@ -5,11 +5,10 @@ use serde_json::json;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers, SYSTEM_SYMBOL};
-use crate::models::game_clock::GameClock;
 use crate::models::message::Message;
 use crate::models::player::Player;
 use crate::models::turn::TurnRow;
-use crate::services::clock::{ClockState, TimeControl};
+use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
 
 // -- Return types --
@@ -832,19 +831,19 @@ async fn process_clock_after_move(
         return Ok(());
     }
 
-    let mut clock = load_or_init_clock(state, game_id).await?;
+    let mut clock = load_or_init_clock(state, game_id, game).await?;
     let now = Utc::now();
+    let active = clock::active_stone_from_stage(&game.stage);
 
     if first_move {
         clock.start(now);
     } else {
-        clock.process_move(stone, &tc, now);
+        clock.process_move(stone, active, &tc, now);
     }
 
-    persist_clock(state, game_id, &clock).await?;
-
-    // Schedule timeout for the opponent
-    schedule_timeout(state, game_id, &clock, now).await;
+    // After the move, the new active stone is the opponent
+    let new_active = Some(stone.opp());
+    persist_clock(state, game_id, &clock, &tc, new_active).await?;
 
     Ok(())
 }
@@ -857,43 +856,55 @@ async fn pause_clock(state: &AppState, game_id: i64, game: &Game) -> Result<(), 
     }
 
     if let Some(mut clock) = state.registry.get_clock(game_id).await {
-        clock.pause(Utc::now());
-        persist_clock(state, game_id, &clock).await?;
-        state.registry.cancel_timeout(game_id).await;
+        let active = clock::active_stone_from_stage(&game.stage);
+        clock.pause(active, Utc::now());
+        persist_clock(state, game_id, &clock, &tc, None).await?;
     }
 
     Ok(())
 }
 
-/// Load clock from registry cache, falling back to DB.
-async fn load_or_init_clock(state: &AppState, game_id: i64) -> Result<ClockState, AppError> {
+/// Load clock from registry cache, falling back to the game row.
+async fn load_or_init_clock(
+    state: &AppState,
+    game_id: i64,
+    game: &Game,
+) -> Result<ClockState, AppError> {
     if let Some(clock) = state.registry.get_clock(game_id).await {
         return Ok(clock);
     }
 
-    let db_clock = GameClock::find_by_game_id(&state.db, game_id)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?
+    let clock = ClockState::from_game(game)
         .ok_or_else(|| AppError::Internal("Clock not found for timed game".to_string()))?;
 
-    let clock = ClockState::from_db(&db_clock);
     state.registry.update_clock(game_id, clock.clone()).await;
     Ok(clock)
 }
 
-/// Persist clock state to both registry and DB.
-async fn persist_clock(state: &AppState, game_id: i64, clock: &ClockState) -> Result<(), AppError> {
+/// Persist clock state to both registry and DB (games table).
+/// `active_stone` is the player whose clock should be ticking (None if paused).
+async fn persist_clock(
+    state: &AppState,
+    game_id: i64,
+    clock: &ClockState,
+    tc: &TimeControl,
+    active_stone: Option<Stone>,
+) -> Result<(), AppError> {
     state.registry.update_clock(game_id, clock.clone()).await;
 
-    GameClock::update(
+    let now = Utc::now();
+    let expires_at = clock.expiration(active_stone, tc, now);
+
+    Game::update_clock(
         &state.db,
         game_id,
         clock.black_remaining_ms,
         clock.white_remaining_ms,
         clock.black_periods,
         clock.white_periods,
-        clock.active_stone_int(),
+        active_stone.map(|s| s.to_int() as i32),
         clock.last_move_at,
+        expires_at,
     )
     .await
     .map_err(|e| AppError::Internal(e.to_string()))?;
@@ -901,66 +912,60 @@ async fn persist_clock(state: &AppState, game_id: i64, clock: &ClockState) -> Re
     Ok(())
 }
 
-/// Schedule a background task that fires when the active player's clock expires.
-async fn schedule_timeout(
+/// Handle a client-initiated timeout flag. Validates the clock truly expired before ending the game.
+pub async fn handle_timeout_flag(
     state: &AppState,
     game_id: i64,
-    clock: &ClockState,
-    now: chrono::DateTime<chrono::Utc>,
-) {
-    if let Some(ms) = clock.ms_until_flag(now) {
-        let delay = std::time::Duration::from_millis((ms + 100).max(100) as u64); // +100ms buffer
-        let app_state = state.clone();
-        state
-            .registry
-            .schedule_timeout(game_id, delay, app_state)
-            .await;
-    }
-}
-
-/// Called by the background timeout task when a player's clock expires.
-pub async fn handle_timeout(state: &AppState, game_id: i64) {
+    _player_id: i64,
+) -> Result<(), AppError> {
     let now = Utc::now();
 
-    let Ok(gwp) = Game::find_with_players(&state.db, game_id).await else {
-        return;
-    };
+    let gwp = Game::find_with_players(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    // Game must still be active
     if gwp.game.result.is_some() {
-        return;
+        return Ok(());
     }
 
     let tc = TimeControl::from_game(&gwp.game);
     if tc.is_none() {
-        return;
+        return Ok(());
     }
 
-    let Some(clock) = state.registry.get_clock(game_id).await else {
-        return;
+    let clock = load_or_init_clock(state, game_id, &gwp.game).await?;
+
+    let Some(active) = clock::active_stone_from_stage(&gwp.game.stage) else {
+        return Ok(());
     };
 
-    let Some(active) = clock.active_stone else {
-        return;
-    };
-
-    if !clock.is_flagged(active, now) {
-        // Not actually flagged yet — reschedule
-        schedule_timeout(state, game_id, &clock, now).await;
-        return;
+    if !clock.is_flagged(active, Some(active), &tc, now) {
+        return Ok(());
     }
 
-    // The active player has flagged — their opponent wins on time
-    let winner = active.opp();
+    end_game_on_time(state, game_id, &gwp.game, active, clock, &tc, now).await
+}
+
+/// End a game due to time expiration. Used by both client flag and server sweep.
+pub async fn end_game_on_time(
+    state: &AppState,
+    game_id: i64,
+    _game: &Game,
+    flagged_stone: Stone,
+    mut clock: ClockState,
+    tc: &TimeControl,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Result<(), AppError> {
+    let winner = flagged_stone.opp();
     let result = match winner {
         Stone::Black => "B+T",
         Stone::White => "W+T",
     };
 
-    // End the game
-    let _ = Game::set_ended(&state.db, game_id, result).await;
+    Game::set_ended(&state.db, game_id, result)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    // Update engine
     let _ = state
         .registry
         .with_engine_mut(game_id, |engine| {
@@ -969,15 +974,16 @@ pub async fn handle_timeout(state: &AppState, game_id: i64) {
         })
         .await;
 
-    // Pause clock
-    if let Some(mut c) = state.registry.get_clock(game_id).await {
-        c.pause(now);
-        let _ = persist_clock(state, game_id, &c).await;
-    }
+    clock.pause(Some(flagged_stone), now);
+    persist_clock(state, game_id, &clock, tc, None).await?;
 
     broadcast_system_chat(state, game_id, &format!("Game over. {result}")).await;
 
     if let Some(engine) = state.registry.get_engine(game_id).await {
         broadcast_game_state(state, game_id, &engine).await;
     }
+
+    live::notify_game_removed(state, game_id);
+
+    Ok(())
 }

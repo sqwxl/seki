@@ -4,7 +4,7 @@ use go_engine::{Engine, Point};
 use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
-use crate::services::clock::{ClockState, TimeControl};
+use crate::services::clock::{self, ClockState, TimeControl};
 use crate::templates::PlayerData;
 
 pub struct TerritoryData {
@@ -100,7 +100,8 @@ pub fn serialize_state(
     }
 
     if let Some((clock_state, time_control)) = clock {
-        val["clock"] = clock_state.to_json(time_control);
+        let active_stone = clock::active_stone_from_stage(&stage.to_string());
+        val["clock"] = clock_state.to_json(time_control, active_stone);
     }
 
     val["online_players"] = json!(online_players);

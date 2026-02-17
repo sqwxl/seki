@@ -8,7 +8,6 @@ use serde::Deserialize;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, SYSTEM_SYMBOL, TimeControlType};
-use crate::models::game_clock::GameClock;
 use crate::models::message::Message;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
@@ -274,11 +273,7 @@ pub async fn join_game(
 
     let tc = TimeControl::from_game(&gwp.game);
     let clock_data = if !tc.is_none() {
-        GameClock::find_by_game_id(&state.db, id)
-            .await
-            .ok()
-            .flatten()
-            .map(|db_clock| (ClockState::from_db(&db_clock), tc))
+        ClockState::from_game(&gwp.game).map(|c| (c, tc))
     } else {
         None
     };

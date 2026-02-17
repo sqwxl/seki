@@ -1,9 +1,8 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use go_engine::Stone;
 use serde_json::json;
 
 use crate::models::game::Game;
-use crate::models::game_clock::GameClock;
 
 /// Rich time control variant with parameters, constructed from Game fields.
 #[derive(Debug, Clone)]
@@ -43,19 +42,55 @@ impl TimeControl {
         }
     }
 
+    /// Build from raw time control type and optional parameters (for use before game row exists).
+    pub fn from_tc_type(
+        tc_type: crate::models::game::TimeControlType,
+        main_time_secs: Option<i32>,
+        increment_secs: Option<i32>,
+        byoyomi_time_secs: Option<i32>,
+        byoyomi_periods: Option<i32>,
+    ) -> Self {
+        use crate::models::game::TimeControlType;
+        match tc_type {
+            TimeControlType::None => TimeControl::None,
+            TimeControlType::Fischer => TimeControl::Fischer {
+                main_time_secs: main_time_secs.unwrap_or(600),
+                increment_secs: increment_secs.unwrap_or(5),
+            },
+            TimeControlType::Byoyomi => TimeControl::Byoyomi {
+                main_time_secs: main_time_secs.unwrap_or(1200),
+                period_time_secs: byoyomi_time_secs.unwrap_or(30),
+                periods: byoyomi_periods.unwrap_or(3),
+            },
+            TimeControlType::Correspondence => TimeControl::Correspondence {
+                days_per_move_secs: main_time_secs.unwrap_or(259200),
+            },
+        }
+    }
+
     pub fn is_none(&self) -> bool {
         matches!(self, TimeControl::None)
     }
 }
 
-/// In-memory clock state for a game.
+/// Derive the active clock stone from the game stage string.
+/// Returns `Some(stone)` if a player's clock should be ticking, `None` if paused.
+pub fn active_stone_from_stage(stage: &str) -> Option<Stone> {
+    match stage {
+        "black_to_play" => Some(Stone::Black),
+        "white_to_play" => Some(Stone::White),
+        _ => None,
+    }
+}
+
+/// In-memory clock state for a game. Tracks time values only — the active
+/// player is derived from the game stage, not stored here.
 #[derive(Debug, Clone)]
 pub struct ClockState {
     pub black_remaining_ms: i64,
     pub white_remaining_ms: i64,
     pub black_periods: i32,
     pub white_periods: i32,
-    pub active_stone: Option<Stone>,
     pub last_move_at: Option<DateTime<Utc>>,
 }
 
@@ -69,7 +104,6 @@ impl ClockState {
                 white_remaining_ms: *main_time_secs as i64 * 1000,
                 black_periods: 0,
                 white_periods: 0,
-                active_stone: None,
                 last_move_at: None,
             }),
             TimeControl::Byoyomi {
@@ -81,7 +115,6 @@ impl ClockState {
                 white_remaining_ms: *main_time_secs as i64 * 1000,
                 black_periods: *periods,
                 white_periods: *periods,
-                active_stone: None,
                 last_move_at: None,
             }),
             TimeControl::Correspondence { days_per_move_secs } => Some(ClockState {
@@ -89,41 +122,45 @@ impl ClockState {
                 white_remaining_ms: *days_per_move_secs as i64 * 1000,
                 black_periods: 0,
                 white_periods: 0,
-                active_stone: None,
                 last_move_at: None,
             }),
         }
     }
 
-    /// Restore clock state from a DB row.
-    pub fn from_db(clock: &GameClock) -> Self {
-        ClockState {
-            black_remaining_ms: clock.black_remaining_ms,
-            white_remaining_ms: clock.white_remaining_ms,
-            black_periods: clock.black_periods_remaining,
-            white_periods: clock.white_periods_remaining,
-            active_stone: clock.active_stone.and_then(|s| Stone::from_int(s as i8)),
-            last_move_at: clock.last_move_at,
-        }
+    /// Restore clock state from the game row.
+    pub fn from_game(game: &Game) -> Option<Self> {
+        let black_ms = game.clock_black_ms?;
+        let white_ms = game.clock_white_ms?;
+        Some(ClockState {
+            black_remaining_ms: black_ms,
+            white_remaining_ms: white_ms,
+            black_periods: game.clock_black_periods.unwrap_or(0),
+            white_periods: game.clock_white_periods.unwrap_or(0),
+            last_move_at: game.clock_last_move_at,
+        })
     }
 
-    /// Start the clock on the first move. Black plays first, so white's clock starts ticking.
+    /// Record that the clock has started ticking (first move).
     pub fn start(&mut self, now: DateTime<Utc>) {
-        self.active_stone = Some(Stone::White);
         self.last_move_at = Some(now);
     }
 
     /// Process a move: deduct time from the moving player, apply increment/period logic,
-    /// then switch the active clock to the opponent.
-    pub fn process_move(&mut self, stone: Stone, tc: &TimeControl, now: DateTime<Utc>) {
+    /// then record the move timestamp.
+    pub fn process_move(
+        &mut self,
+        stone: Stone,
+        active_stone: Option<Stone>,
+        tc: &TimeControl,
+        now: DateTime<Utc>,
+    ) {
         if let Some(last) = self.last_move_at {
-            if self.active_stone == Some(stone) {
+            if active_stone == Some(stone) {
                 let elapsed_ms = (now - last).num_milliseconds().max(0);
                 self.deduct(stone, elapsed_ms, tc);
             }
         }
 
-        self.active_stone = Some(stone.opp());
         self.last_move_at = Some(now);
     }
 
@@ -169,13 +206,18 @@ impl ClockState {
         }
     }
 
-    /// Real-time remaining ms for a player (deducts elapsed since last_move_at for active player).
-    pub fn remaining_ms(&self, stone: Stone, now: DateTime<Utc>) -> i64 {
+    /// Real-time remaining ms for a player (deducts elapsed since last_move_at if active).
+    pub fn remaining_ms(
+        &self,
+        stone: Stone,
+        active_stone: Option<Stone>,
+        now: DateTime<Utc>,
+    ) -> i64 {
         let base = match stone {
             Stone::Black => self.black_remaining_ms,
             Stone::White => self.white_remaining_ms,
         };
-        if self.active_stone == Some(stone) {
+        if active_stone == Some(stone) {
             if let Some(last) = self.last_move_at {
                 let elapsed = (now - last).num_milliseconds().max(0);
                 return base - elapsed;
@@ -184,35 +226,63 @@ impl ClockState {
         base
     }
 
-    /// True if the given player's time has expired.
-    pub fn is_flagged(&self, stone: Stone, now: DateTime<Utc>) -> bool {
-        let remaining = self.remaining_ms(stone, now);
+    /// Total remaining ms for a player including byoyomi periods.
+    fn total_remaining_ms(
+        &self,
+        stone: Stone,
+        active_stone: Option<Stone>,
+        tc: &TimeControl,
+        now: DateTime<Utc>,
+    ) -> i64 {
+        let remaining = self.remaining_ms(stone, active_stone, now);
         let periods = match stone {
             Stone::Black => self.black_periods,
             Stone::White => self.white_periods,
         };
-        remaining <= 0 && periods <= 0
-    }
-
-    /// How many ms until the active player's clock expires (for scheduling timeout task).
-    pub fn ms_until_flag(&self, now: DateTime<Utc>) -> Option<i64> {
-        let stone = self.active_stone?;
-        let remaining = self.remaining_ms(stone, now);
-        if remaining <= 0 {
-            let periods = match stone {
-                Stone::Black => self.black_periods,
-                Stone::White => self.white_periods,
-            };
-            if periods <= 0 {
-                return Some(0);
+        match tc {
+            TimeControl::Byoyomi {
+                period_time_secs, ..
+            } => {
+                let period_ms = *period_time_secs as i64 * 1000;
+                if remaining <= 0 {
+                    periods as i64 * period_ms + remaining
+                } else {
+                    remaining + periods as i64 * period_ms
+                }
             }
+            _ => remaining,
         }
-        Some(remaining.max(0))
     }
 
-    /// Stop the active clock (for territory review, game end).
-    pub fn pause(&mut self, now: DateTime<Utc>) {
-        if let Some(stone) = self.active_stone {
+    /// True if the given player's time has expired (accounting for byoyomi periods).
+    pub fn is_flagged(
+        &self,
+        stone: Stone,
+        active_stone: Option<Stone>,
+        tc: &TimeControl,
+        now: DateTime<Utc>,
+    ) -> bool {
+        self.total_remaining_ms(stone, active_stone, tc, now) <= 0
+    }
+
+    /// Compute the absolute time at which the active player's clock expires.
+    pub fn expiration(
+        &self,
+        active_stone: Option<Stone>,
+        tc: &TimeControl,
+        now: DateTime<Utc>,
+    ) -> Option<DateTime<Utc>> {
+        let stone = active_stone?;
+        let total_ms = self.total_remaining_ms(stone, active_stone, tc, now);
+        if total_ms <= 0 {
+            return Some(now);
+        }
+        Some(now + TimeDelta::milliseconds(total_ms))
+    }
+
+    /// Deduct elapsed time for the active player and clear last_move_at (pauses the clock).
+    pub fn pause(&mut self, active_stone: Option<Stone>, now: DateTime<Utc>) {
+        if let Some(stone) = active_stone {
             if let Some(last) = self.last_move_at {
                 let elapsed = (now - last).num_milliseconds().max(0);
                 match stone {
@@ -221,12 +291,12 @@ impl ClockState {
                 }
             }
         }
-        self.active_stone = None;
         self.last_move_at = None;
     }
 
-    /// Serialize for WS broadcast. The client computes real-time remaining from last_move_at.
-    pub fn to_json(&self, tc: &TimeControl) -> serde_json::Value {
+    /// Serialize for WS broadcast. `active_stone` is derived from game stage
+    /// and included so the client doesn't need to duplicate the derivation.
+    pub fn to_json(&self, tc: &TimeControl, active_stone: Option<Stone>) -> serde_json::Value {
         let tc_type = match tc {
             TimeControl::None => "none",
             TimeControl::Fischer { .. } => "fischer",
@@ -243,13 +313,7 @@ impl ClockState {
                 "remaining_ms": self.white_remaining_ms,
                 "periods": self.white_periods
             },
-            "active_stone": self.active_stone.map(|s| s.to_int() as i32),
-            "last_move_at": self.last_move_at
+            "active_stone": active_stone.map(|s| s.to_int() as i32)
         })
-    }
-
-    /// Convert active_stone to DB-compatible i32.
-    pub fn active_stone_int(&self) -> Option<i32> {
-        self.active_stone.map(|s| s.to_int() as i32)
     }
 }

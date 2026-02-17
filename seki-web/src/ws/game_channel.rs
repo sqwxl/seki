@@ -3,7 +3,6 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::models::game::Game;
-use crate::models::game_clock::GameClock;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::game_actions;
 use crate::services::state_serializer;
@@ -72,25 +71,17 @@ pub async fn send_initial_state(
         None
     };
 
-    // Load clock data for timed games
+    // Load clock data for timed games (from game row)
     let tc = TimeControl::from_game(&gwp.game);
     let clock_data = if !tc.is_none() {
         let clock = match state.registry.get_clock(game_id).await {
             Some(c) => c,
             None => {
-                // Load from DB on first connect
-                GameClock::find_by_game_id(&state.db, game_id)
-                    .await
-                    .ok()
-                    .flatten()
-                    .map(|db_clock| {
-                        // Cache it — fire and forget since we can't await inside map
-                        ClockState::from_db(&db_clock)
-                    })
-                    .unwrap_or_else(|| {
-                        // Shouldn't happen, but fallback to fresh
-                        ClockState::new(&tc).unwrap()
-                    })
+                // Load from game row on first connect
+                ClockState::from_game(&gwp.game).unwrap_or_else(|| {
+                    // Shouldn't happen, but fallback to fresh
+                    ClockState::new(&tc).unwrap()
+                })
             }
         };
         // Ensure it's cached
@@ -163,6 +154,7 @@ pub async fn handle_message(
         "respond_to_undo" => handle_respond_to_undo(state, game_id, player_id, data).await,
         "toggle_chain" => handle_toggle_chain(state, game_id, player_id, data).await,
         "approve_territory" => game_actions::approve_territory(state, game_id, player_id).await,
+        "timeout_flag" => game_actions::handle_timeout_flag(state, game_id, player_id).await,
         _ => {
             send_to_client(
                 tx,

@@ -121,7 +121,6 @@ export type ClockData = {
   black: { remaining_ms: number; periods: number };
   white: { remaining_ms: number; periods: number };
   active_stone: number | null;
-  last_move_at: string | null;
 };
 
 export type StateMessage = {

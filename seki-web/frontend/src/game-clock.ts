@@ -1,10 +1,12 @@
-import type { ClockData } from "./goban/types";
+import type { ClockData, GameSettings } from "./goban/types";
 import type { GameCtx } from "./game-context";
 import type { GameDomElements } from "./game-dom";
 
 export type ClockState = {
   data: ClockData | undefined;
+  syncedAt: number; // performance.now() when data was received
   interval: ReturnType<typeof setInterval> | undefined;
+  timeoutFlagSent: boolean;
 };
 
 export function formatClock(ms: number, isCorrespondence: boolean): string {
@@ -28,10 +30,30 @@ export function formatClock(ms: number, isCorrespondence: boolean): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+function totalRemainingMs(
+  cd: ClockData,
+  stone: 1 | -1,
+  elapsed: number,
+  settings: GameSettings,
+): number {
+  const side = stone === 1 ? cd.black : cd.white;
+  let remaining = side.remaining_ms;
+  if (cd.active_stone === stone) {
+    remaining -= elapsed;
+  }
+  if (cd.type === "byoyomi" && side.periods > 0 && remaining <= 0) {
+    const periodMs = (settings.byoyomi_time_secs ?? 30) * 1000;
+    return side.periods * periodMs + remaining;
+  }
+  return remaining;
+}
+
 export function updateClocks(
   clockState: ClockState,
   ctx: GameCtx,
   dom: GameDomElements,
+  onFlag: (() => void) | undefined,
+  settings: GameSettings | undefined,
 ): void {
   if (!clockState.data) {
     for (const el of document.querySelectorAll<HTMLElement>(".player-clock")) {
@@ -42,11 +64,7 @@ export function updateClocks(
 
   const cd = clockState.data;
   const isCorr = cd.type === "correspondence";
-  const now = Date.now();
-  const lastMoveAt = cd.last_move_at
-    ? new Date(cd.last_move_at).getTime()
-    : now;
-  const elapsed = now - lastMoveAt;
+  const elapsed = performance.now() - clockState.syncedAt;
 
   let blackMs = cd.black.remaining_ms;
   let whiteMs = cd.white.remaining_ms;
@@ -55,6 +73,16 @@ export function updateClocks(
     blackMs -= elapsed;
   } else if (cd.active_stone === -1) {
     whiteMs -= elapsed;
+  }
+
+  // Check for timeout on the active player
+  if (onFlag && cd.active_stone && !clockState.timeoutFlagSent && settings) {
+    const activeStone = cd.active_stone as 1 | -1;
+    const total = totalRemainingMs(cd, activeStone, elapsed, settings);
+    if (total <= 0) {
+      clockState.timeoutFlagSent = true;
+      onFlag();
+    }
   }
 
   const blackText = formatClock(blackMs, isCorr);
@@ -101,19 +129,23 @@ export function syncClock(
   clockData: ClockData | undefined,
   ctx: GameCtx,
   dom: GameDomElements,
+  onFlag: (() => void) | undefined,
 ): void {
   clockState.data = clockData;
+  clockState.syncedAt = performance.now();
+  clockState.timeoutFlagSent = false;
   if (clockState.interval) {
     clearInterval(clockState.interval);
     clockState.interval = undefined;
   }
+  const settings = ctx.initialProps.settings;
   if (clockState.data && clockState.data.active_stone) {
-    updateClocks(clockState, ctx, dom);
+    updateClocks(clockState, ctx, dom, onFlag, settings);
     clockState.interval = setInterval(
-      () => updateClocks(clockState, ctx, dom),
+      () => updateClocks(clockState, ctx, dom, onFlag, settings),
       100,
     );
   } else {
-    updateClocks(clockState, ctx, dom);
+    updateClocks(clockState, ctx, dom, onFlag, settings);
   }
 }
