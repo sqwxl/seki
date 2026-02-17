@@ -26,6 +26,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [x] Standalone analysis board (`/analysis`)
 - [x] Last move and ko point markers
 - [x] Player labels with capture counts
+- [x] Online presence indicators (player labels and chat)
 - [ ] Board annotations in analysis
 - [ ] Import/export SGF
 - [ ] Zen mode (board only)
