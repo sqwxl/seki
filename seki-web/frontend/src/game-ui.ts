@@ -1,11 +1,6 @@
 import { GameStage } from "./goban/types";
 import type { GameCtx } from "./game-context";
-import { formatGameDescription } from "./format";
-
-const BLACK_SYMBOL = "●";
-const WHITE_SYMBOL = "○";
-const BLACK_CAPTURES_SYMBOL = "⚉";
-const WHITE_CAPTURES_SYMBOL = "⚇";
+import { formatGameDescription, blackSymbol, whiteSymbol } from "./format";
 const CHECKMARK = "✓";
 
 export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
@@ -55,8 +50,8 @@ export function updatePlayerLabels(
   }
 
   const { black, white } = ctx;
-  const bName = `${BLACK_SYMBOL} ${black ? black.display_name : "…"}`;
-  const wName = `${WHITE_SYMBOL} ${white ? white.display_name : "…"}`;
+  const bName = `${blackSymbol()} ${black ? black.display_name : "…"}`;
+  const wName = `${whiteSymbol()} ${white ? white.display_name : "…"}`;
   const bOnline = black ? ctx.onlinePlayers.has(black.id) : false;
   const wOnline = white ? ctx.onlinePlayers.has(white.id) : false;
 
@@ -70,8 +65,8 @@ export function updatePlayerLabels(
     wPoints = ctx.gameState.captures.white + ctx.initialProps.komi;
   }
 
-  const bStr = `${formatPoints(bPoints)} ${BLACK_CAPTURES_SYMBOL}`;
-  const wStr = `${formatPoints(wPoints)} ${WHITE_CAPTURES_SYMBOL}`;
+  const bStr = `${formatPoints(bPoints)} ${blackSymbol()}`;
+  const wStr = `${formatPoints(wPoints)} ${whiteSymbol()}`;
 
   if (ctx.playerStone === -1) {
     setLabel(topEl, bName, bStr, bOnline);

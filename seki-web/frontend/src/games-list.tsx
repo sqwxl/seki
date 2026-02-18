@@ -44,7 +44,19 @@ type GameRemovedMessage = {
   game_id: number;
 };
 
+function useDarkMode(): boolean {
+  const query = window.matchMedia("(prefers-color-scheme: dark)");
+  const [dark, setDark] = useState(query.matches);
+  useEffect(() => {
+    const handler = (e: MediaQueryListEvent) => setDark(e.matches);
+    query.addEventListener("change", handler);
+    return () => query.removeEventListener("change", handler);
+  }, []);
+  return dark;
+}
+
 function GamesList() {
+  useDarkMode(); // trigger re-render on theme change to swap stone symbols
   const [games, setGames] = useState<Map<number, LiveGameItem>>(new Map());
   const playerIdRef = useRef<number | undefined>(undefined);
   const [playerId, setPlayerId] = useState<number | undefined>(undefined);

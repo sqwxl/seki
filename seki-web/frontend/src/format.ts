@@ -2,8 +2,15 @@ import type { GameSettings, PlayerData } from "./goban/types";
 
 export type { GameSettings, PlayerData };
 
-const BLACK_SYMBOL = "●";
-const WHITE_SYMBOL = "○";
+const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+export function blackSymbol(): string {
+  return darkQuery.matches ? "○" : "●";
+}
+
+export function whiteSymbol(): string {
+  return darkQuery.matches ? "●" : "○";
+}
 
 function formatTime(secs: number): string {
   const m = Math.floor(secs / 60);
@@ -58,7 +65,7 @@ export function formatGameDescription(g: DescriptionInput): string {
   const w = g.white?.display_name ?? "?";
 
   const parts: string[] = [
-    `${BLACK_SYMBOL} ${b} vs ${WHITE_SYMBOL} ${w}`,
+    `${blackSymbol()} ${b} vs ${whiteSymbol()} ${w}`,
     formatSize(g.settings.cols, g.settings.rows),
   ];
 
