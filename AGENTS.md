@@ -41,21 +41,21 @@ Axum 0.8 web app. Modules follow a clean separation: `models/` (sqlx queries), `
 
 **Request flow:** Axum router → route handler → service layer → model (sqlx) → DB. Templates render server-side HTML. The game board UI is a Preact app (`seki-web/frontend/`) bundled with esbuild, loaded on the game show page.
 
-**Frontend modules** (`seki-web/frontend/src/`): The game page JS is split into focused modules. `go.tsx` is a thin orchestrator that wires everything together. State lives in a `GameCtx` object (`game-context.ts`) passed to pure-ish functions in each module: `game-channel.ts` (WS action wrappers), `game-dom.ts` (DOM element queries), `game-render.tsx` (Preact board rendering), `game-ui.ts` (player labels, title, status), `game-clock.ts` (clock formatting/sync), `game-controls.ts` (button visibility), `game-messages.ts` (WS message handler), `game-util.ts` (player data helpers).
+**Frontend modules** (`seki-web/frontend/src/`): The game page JS is split into focused modules. `go.tsx` is a thin orchestrator that wires everything together. State lives in a `GameCtx` object (`game-context.ts`) passed to pure-ish functions in each module: `game-channel.ts` (WS action wrappers), `game-dom.ts` (DOM element queries), `game-render.tsx` (Preact board rendering), `game-ui.ts` (player labels, title, status), `game-clock.ts` (clock formatting/sync), `game-controls.ts` (button visibility), `game-messages.ts` (WS message handler), `game-util.ts` (user data helpers).
 
 **Real-time:** A single WebSocket endpoint (`/ws`) handles all real-time communication. Clients subscribe to game rooms via `join_game`/`leave_game` messages, and receive lobby events (game list updates) via a broadcast channel. `GameRegistry` manages per-game rooms; on join, server sends full game state, and subsequent moves are broadcast to all connected players.
 
-**Auth (web):** tower-sessions with PostgreSQL store. `CurrentPlayer` extractor auto-creates anonymous players (random session token) if no session exists. Registration adds email/username/password (Argon2).
+**Auth (web):** tower-sessions with PostgreSQL store. `CurrentUser` extractor auto-creates anonymous users (random session token) if no session exists. Registration adds email/username/password (Argon2).
 
-**Auth (API):** Bearer token authentication. `ApiPlayer` extractor reads `Authorization: Bearer <token>` header, looks up by `api_token` column, requires a registered account, returns 401 JSON on failure. Tokens are managed from the `/settings` web page.
+**Auth (API):** Bearer token authentication. `ApiUser` extractor reads `Authorization: Bearer <token>` header, looks up by `api_token` column, requires a registered account, returns 401 JSON on failure. Tokens are managed from the `/settings` web page.
 
-**API routes** (`/api/*`): JSON endpoints for programmatic access. Authenticated endpoints use `ApiPlayer`; public endpoints (list games, get game, get messages, get turns) are unauthenticated. Session-based auth concepts (login, register, logout) are not part of the API — those are web-only routes.
+**API routes** (`/api/*`): JSON endpoints for programmatic access. Authenticated endpoints use `ApiUser`; public endpoints (list games, get game, get messages, get turns) are unauthenticated. Session-based auth concepts (login, register, logout) are not part of the API — those are web-only routes.
 
 ## Database
 
 PostgreSQL via sqlx 0.8. Migrations live in `seki-web/migrations/` as numbered files (001, 002, …). **Never modify existing migration files** — always create new numbered migrations. Migrations run at app startup.
 
-Tables: `players`, `games`, `turns`, `messages`, `territory_reviews`. Clock state is stored directly on the `games` table (`clock_black_ms`, `clock_white_ms`, `clock_black_periods`, `clock_white_periods`, `clock_active_stone`, `clock_last_move_at`, `clock_expires_at`).
+Tables: `users`, `games`, `turns`, `messages`, `territory_reviews`. Clock state is stored directly on the `games` table (`clock_black_ms`, `clock_white_ms`, `clock_black_periods`, `clock_white_periods`, `clock_active_stone`, `clock_last_move_at`, `clock_expires_at`).
 
 ## Environment Variables
 
@@ -67,6 +67,11 @@ Tables: `players`, `games`, `turns`, `messages`, `territory_reviews`. Clock stat
 ## Key Dependency Versions
 
 axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-sessions-sqlx-store 0.15, sqlx 0.8 (postgres), askama 0.15, Rust edition 2024, Node 24, pnpm, Preact 10, esbuild 0.24, wasm-bindgen 0.2, js-sys 0.3.
+
+## Naming: User vs Player
+
+- **User** = account/identity (`User` model in `models/user.rs`, `users` DB table, `CurrentUser`/`ApiUser` extractors, `UserData` template type)
+- **Player** = game participant (`GameWithPlayers`, `has_player()`, `player_stone()`, `turn_player()`, `player_id` in game actions/channels)
 
 ## Conventions
 
