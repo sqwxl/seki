@@ -3,6 +3,7 @@ import type {
   GameStage,
   InitialGameProps,
   PlayerData,
+  ScoreData,
   TerritoryData,
   TurnData,
 } from "./goban/types";
@@ -24,6 +25,7 @@ export type GameCtx = {
   white: PlayerData | undefined;
   result: string | null;
   territory: TerritoryData | undefined;
+  settledScore: ScoreData | undefined;
   onlinePlayers: Set<number>;
   undoRejected: boolean;
   allowUndo: boolean;
@@ -52,6 +54,7 @@ export function createGameContext(
     white: initialProps.white ?? undefined,
     result: null,
     territory: undefined,
+    settledScore: undefined,
     onlinePlayers: new Set(),
     undoRejected: false,
     allowUndo: false,

@@ -281,7 +281,7 @@ pub async fn join_game(
 
     let online_players = state.registry.get_online_player_ids(id).await;
     let game_state =
-        state_serializer::serialize_state(&gwp, &engine, false, None, clock_ref, &online_players);
+        state_serializer::serialize_state(&gwp, &engine, false, None, None, clock_ref, &online_players);
     state.registry.broadcast(id, &game_state.to_string()).await;
 
     crate::services::live::notify_game_created(&state, id).await;

@@ -346,6 +346,23 @@ impl Game {
         Ok(())
     }
 
+    /// Load settled territory scores for a finished game.
+    pub async fn load_settled_scores(
+        pool: &DbPool,
+        game_id: i64,
+    ) -> Result<Option<(i32, i32, i32, i32)>, sqlx::Error> {
+        sqlx::query_as::<_, (i32, i32, i32, i32)>(
+            "SELECT black_territory, black_captures, white_territory, white_captures \
+             FROM territory_reviews \
+             WHERE game_id = $1 AND settled = TRUE \
+             AND black_territory IS NOT NULL \
+             LIMIT 1",
+        )
+        .bind(game_id)
+        .fetch_optional(pool)
+        .await
+    }
+
     pub async fn find_expired_clocks(pool: &DbPool) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games \

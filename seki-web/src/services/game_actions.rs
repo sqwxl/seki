@@ -234,9 +234,8 @@ async fn settle_territory(
     pause_clock(state, game_id, &gwp.game).await?;
 
     let ownership = go_engine::territory::estimate_territory(engine.goban(), dead_stones);
-    let (black_score, white_score) =
-        go_engine::territory::score(engine.goban(), &ownership, dead_stones, gwp.game.komi);
-    let result = go_engine::territory::format_result(black_score, white_score);
+    let gs = go_engine::territory::score(engine.goban(), &ownership, dead_stones, gwp.game.komi);
+    let result = gs.result();
 
     // Persist territory review to DB
     let dead_json: Vec<serde_json::Value> = dead_stones
@@ -247,10 +246,16 @@ async fn settle_territory(
         serde_json::to_string(&dead_json).map_err(|e| AppError::Internal(e.to_string()))?;
 
     sqlx::query(
-        "INSERT INTO territory_reviews (game_id, settled, dead_stones) VALUES ($1, TRUE, $2::jsonb)",
+        "INSERT INTO territory_reviews \
+         (game_id, settled, dead_stones, black_territory, black_captures, white_territory, white_captures) \
+         VALUES ($1, TRUE, $2::jsonb, $3, $4, $5, $6)",
     )
     .bind(game_id)
     .bind(&dead_json_str)
+    .bind(gs.black.territory as i32)
+    .bind(gs.black.captures as i32)
+    .bind(gs.white.territory as i32)
+    .bind(gs.white.captures as i32)
     .execute(&state.db)
     .await
     .map_err(|e| AppError::Internal(e.to_string()))?;
@@ -627,6 +632,7 @@ pub async fn respond_to_undo(
         &result.engine,
         false,
         None,
+        None,
         clock_ref,
         &online_players,
     );
@@ -693,6 +699,7 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
         engine,
         undo_requested,
         territory.as_ref(),
+        None,
         clock_ref,
         &online_players,
     );

@@ -10,8 +10,7 @@ use crate::templates::PlayerData;
 pub struct TerritoryData {
     pub ownership: Vec<i8>,
     pub dead_stones: Vec<(u8, u8)>,
-    pub black_score: f64,
-    pub white_score: f64,
+    pub score: go_engine::territory::GameScore,
     pub black_approved: bool,
     pub white_approved: bool,
 }
@@ -24,8 +23,7 @@ pub fn compute_territory_data(
     white_approved: bool,
 ) -> TerritoryData {
     let ownership = go_engine::territory::estimate_territory(engine.goban(), dead_stones);
-    let (black_score, white_score) =
-        go_engine::territory::score(engine.goban(), &ownership, dead_stones, komi);
+    let score = go_engine::territory::score(engine.goban(), &ownership, dead_stones, komi);
 
     let mut dead_list: Vec<(u8, u8)> = dead_stones.iter().copied().collect();
     dead_list.sort();
@@ -33,8 +31,7 @@ pub fn compute_territory_data(
     TerritoryData {
         ownership,
         dead_stones: dead_list,
-        black_score,
-        white_score,
+        score,
         black_approved,
         white_approved,
     }
@@ -46,6 +43,7 @@ pub fn serialize_state(
     engine: &Engine,
     undo_requested: bool,
     territory: Option<&TerritoryData>,
+    settled_score: Option<&go_engine::territory::GameScore>,
     clock: Option<(&ClockState, &TimeControl)>,
     online_players: &[i64],
 ) -> serde_json::Value {
@@ -93,10 +91,34 @@ pub fn serialize_state(
         val["territory"] = json!({
             "ownership": t.ownership,
             "dead_stones": dead,
-            "score": { "black": t.black_score, "white": t.white_score },
+            "score": {
+                "black": {
+                    "territory": t.score.black.territory,
+                    "captures": t.score.black.captures,
+                },
+                "white": {
+                    "territory": t.score.white.territory,
+                    "captures": t.score.white.captures,
+                },
+            },
             "black_approved": t.black_approved,
             "white_approved": t.white_approved,
         });
+    }
+
+    if territory.is_none() {
+        if let Some(gs) = settled_score {
+            val["score"] = json!({
+                "black": {
+                    "territory": gs.black.territory,
+                    "captures": gs.black.captures,
+                },
+                "white": {
+                    "territory": gs.white.territory,
+                    "captures": gs.white.captures,
+                },
+            });
+        }
     }
 
     if let Some((clock_state, time_control)) = clock {

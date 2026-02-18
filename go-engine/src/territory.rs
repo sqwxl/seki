@@ -338,16 +338,51 @@ pub fn toggle_dead_chain(goban: &Goban, dead_stones: &mut HashSet<Point>, point:
     }
 }
 
-/// Calculate final scores.
+/// Per-color score breakdown: territory (empty points) and captures (prisoners + dead stones).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PlayerPoints {
+    pub territory: u32,
+    pub captures: u32,
+}
+
+impl PlayerPoints {
+    pub fn total(&self) -> u32 {
+        self.territory + self.captures
+    }
+}
+
+/// Full score breakdown for both players.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GameScore {
+    pub black: PlayerPoints,
+    pub white: PlayerPoints,
+    pub komi: f64,
+}
+
+impl GameScore {
+    pub fn black_total(&self) -> f64 {
+        self.black.total() as f64
+    }
+
+    pub fn white_total(&self) -> f64 {
+        self.white.total() as f64 + self.komi
+    }
+
+    pub fn result(&self) -> String {
+        format_result(self.black_total(), self.white_total())
+    }
+}
+
+/// Calculate final scores with full breakdown.
 ///
-/// Returns (black_score, white_score) using Japanese-style scoring:
+/// Uses Japanese-style scoring:
 /// score = territory + captures (including dead opponent stones) + komi (White only)
 pub fn score(
     goban: &Goban,
     ownership: &[i8],
     dead_stones: &HashSet<Point>,
     komi: f64,
-) -> (f64, f64) {
+) -> GameScore {
     let mut black_territory: u32 = 0;
     let mut white_territory: u32 = 0;
 
@@ -370,14 +405,17 @@ pub fn score(
         }
     }
 
-    let black_score =
-        black_territory as f64 + goban.captures().get(Stone::Black) as f64 + dead_white as f64;
-    let white_score = white_territory as f64
-        + goban.captures().get(Stone::White) as f64
-        + dead_black as f64
-        + komi;
-
-    (black_score, white_score)
+    GameScore {
+        black: PlayerPoints {
+            territory: black_territory,
+            captures: goban.captures().get(Stone::Black) as u32 + dead_white,
+        },
+        white: PlayerPoints {
+            territory: white_territory,
+            captures: goban.captures().get(Stone::White) as u32 + dead_black,
+        },
+        komi,
+    }
 }
 
 /// Format the game result string from final scores.
@@ -675,11 +713,13 @@ mod tests {
         let mut dead = HashSet::new();
         dead.insert((1u8, 1u8));
         let ownership = estimate_territory(&goban, &dead);
-        let (black, white) = score(&goban, &ownership, &dead, 0.0);
+        let gs = score(&goban, &ownership, &dead, 0.0);
 
         // Black territory = 1 (center), captures = 0, dead white = 1
-        assert_eq!(black, 2.0);
-        assert_eq!(white, 0.0);
+        assert_eq!(gs.black.territory, 1);
+        assert_eq!(gs.black.captures, 1);
+        assert_eq!(gs.black_total(), 2.0);
+        assert_eq!(gs.white_total(), 0.0);
     }
 
     #[test]
@@ -688,10 +728,10 @@ mod tests {
         let mut dead = HashSet::new();
         dead.insert((1u8, 1u8));
         let ownership = estimate_territory(&goban, &dead);
-        let (black, white) = score(&goban, &ownership, &dead, 6.5);
+        let gs = score(&goban, &ownership, &dead, 6.5);
 
-        assert_eq!(black, 2.0);
-        assert_eq!(white, 6.5);
+        assert_eq!(gs.black_total(), 2.0);
+        assert_eq!(gs.white_total(), 6.5);
     }
 
     #[test]
@@ -708,14 +748,16 @@ mod tests {
         });
         let dead = HashSet::new();
         let ownership = estimate_territory(&goban, &dead);
-        let (black, white) = score(&goban, &ownership, &dead, 6.5);
+        let gs = score(&goban, &ownership, &dead, 6.5);
 
         // Black territory: (1,1) = 1 point
         // Black captures: 3
         // The middle column (col 3) borders both → neutral
         assert_eq!(ownership[1 * 5 + 1], 1); // (1,1) Black territory
-        assert_eq!(black, 4.0); // 1 territory + 3 captures
-        assert_eq!(white, 6.5); // 0 territory + 0 captures + 6.5 komi
+        assert_eq!(gs.black.territory, 1);
+        assert_eq!(gs.black.captures, 3);
+        assert_eq!(gs.black_total(), 4.0); // 1 territory + 3 captures
+        assert_eq!(gs.white_total(), 6.5); // 0 territory + 0 captures + 6.5 komi
     }
 
     // -- Result formatting --
@@ -928,16 +970,18 @@ mod tests {
         ]);
         let dead = detect_dead_stones(&goban);
         let ownership = estimate_territory(&goban, &dead);
-        let (black, white) = score(&goban, &ownership, &dead, 6.5);
+        let gs = score(&goban, &ownership, &dead, 6.5);
 
         // Black territory: 3 internal eyes (1,1), (2,2), (1,3) + dead W pos (3,1) = 4 pts
         // Black prisoners: 1 dead W
         // White territory: 3 internal eyes (7,1), (8,2), (7,3) + dead B pos (9,1) = 4 pts
         // White prisoners: 1 dead B + 6.5 komi
         // Middle column (5) is neutral (borders both)
-        assert_eq!(black, 4.0 + 0.0 + 1.0); // territory + captures + dead_white
-        assert_eq!(white, 4.0 + 0.0 + 1.0 + 6.5); // territory + captures + dead_black + komi
-        assert_eq!(format_result(black, white), "W+6.5");
+        assert_eq!(gs.black.territory, 4);
+        assert_eq!(gs.black.captures, 1);
+        assert_eq!(gs.white.territory, 4);
+        assert_eq!(gs.white.captures, 1);
+        assert_eq!(gs.result(), "W+6.5");
     }
 
     // -- Benson's with mixed colors --

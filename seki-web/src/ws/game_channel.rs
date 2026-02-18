@@ -93,12 +93,34 @@ pub async fn send_initial_state(
 
     let clock_ref = clock_data.as_ref().map(|(clock, tc)| (clock, tc));
 
+    // Load settled scores for finished games
+    let settled_score = if gwp.game.result.is_some() && territory.is_none() {
+        Game::load_settled_scores(&state.db, game_id)
+            .await
+            .ok()
+            .flatten()
+            .map(|(bt, bc, wt, wc)| go_engine::territory::GameScore {
+                black: go_engine::territory::PlayerPoints {
+                    territory: bt as u32,
+                    captures: bc as u32,
+                },
+                white: go_engine::territory::PlayerPoints {
+                    territory: wt as u32,
+                    captures: wc as u32,
+                },
+                komi: gwp.game.komi,
+            })
+    } else {
+        None
+    };
+
     let online_players = state.registry.get_online_player_ids(game_id).await;
     let game_state = state_serializer::serialize_state(
         &gwp,
         &engine,
         undo_requested,
         territory.as_ref(),
+        settled_score.as_ref(),
         clock_ref,
         &online_players,
     );

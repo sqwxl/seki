@@ -35,6 +35,7 @@ export function handleGameMessage(
       ctx.allowUndo = data.allow_undo ?? false;
       ctx.result = data.result;
       ctx.territory = data.territory;
+      ctx.settledScore = data.score;
       ctx.black = data.black ?? undefined;
       ctx.white = data.white ?? undefined;
       if (data.online_players) {

@@ -1,4 +1,5 @@
 import { GameStage } from "./goban/types";
+import type { ScoreData } from "./goban/types";
 import type { GameCtx } from "./game-context";
 import { formatGameDescription, blackSymbol, whiteSymbol } from "./format";
 const CHECKMARK = "✓";
@@ -36,8 +37,18 @@ function setLabel(
   }
 }
 
-function formatPoints(n: number): string {
+function formatN(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
+
+function formatScoreStr(score: ScoreData, komi: number): { bStr: string; wStr: string } {
+  const bTotal = score.black.territory + score.black.captures;
+  const wTotal = score.white.territory + score.white.captures;
+  const bStr = `${formatN(bTotal)} ${blackSymbol()}`;
+  const wStr = komi
+    ? `${formatN(wTotal)}+${formatN(komi)} ${whiteSymbol()}`
+    : `${formatN(wTotal)} ${whiteSymbol()}`;
+  return { bStr, wStr };
 }
 
 export function updatePlayerLabels(
@@ -55,18 +66,19 @@ export function updatePlayerLabels(
   const bOnline = black ? ctx.onlinePlayers.has(black.id) : false;
   const wOnline = white ? ctx.onlinePlayers.has(white.id) : false;
 
-  let bPoints: number;
-  let wPoints: number;
-  if (ctx.territory) {
-    bPoints = ctx.territory.score.black;
-    wPoints = ctx.territory.score.white;
-  } else {
-    bPoints = ctx.gameState.captures.black;
-    wPoints = ctx.gameState.captures.white + ctx.initialProps.komi;
-  }
+  const score = ctx.territory?.score ?? ctx.settledScore;
+  const komi = ctx.initialProps.komi;
 
-  const bStr = `${formatPoints(bPoints)} ${blackSymbol()}`;
-  const wStr = `${formatPoints(wPoints)} ${whiteSymbol()}`;
+  let bStr: string;
+  let wStr: string;
+  if (score) {
+    ({ bStr, wStr } = formatScoreStr(score, komi));
+  } else {
+    bStr = `${formatN(ctx.gameState.captures.black)} ${blackSymbol()}`;
+    wStr = komi
+      ? `${formatN(ctx.gameState.captures.white)}+${formatN(komi)} ${whiteSymbol()}`
+      : `${formatN(ctx.gameState.captures.white)} ${whiteSymbol()}`;
+  }
 
   if (ctx.playerStone === -1) {
     setLabel(topEl, bName, bStr, bOnline);
@@ -87,7 +99,9 @@ export function updateStatus(
   if (ctx.gameStage === GameStage.TerritoryReview && ctx.territory) {
     const bCheck = ctx.territory.black_approved ? ` ${CHECKMARK}` : "";
     const wCheck = ctx.territory.white_approved ? ` ${CHECKMARK}` : "";
-    statusEl.textContent = `B: ${ctx.territory.score.black}${bCheck}  |  W: ${ctx.territory.score.white}${wCheck}`;
+    const komi = ctx.initialProps.komi;
+    const { bStr, wStr } = formatScoreStr(ctx.territory.score, komi);
+    statusEl.textContent = `B: ${bStr}${bCheck}  |  W: ${wStr}${wCheck}`;
   } else {
     statusEl.textContent = "";
   }

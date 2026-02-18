@@ -518,8 +518,35 @@ async fn build_game_response(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let serialized =
-        state_serializer::serialize_state(gwp, engine, false, territory.as_ref(), clock_ref, &[]);
+    let settled_score = if gwp.game.result.is_some() && territory.is_none() {
+        crate::models::game::Game::load_settled_scores(&state.db, game_id)
+            .await
+            .ok()
+            .flatten()
+            .map(|(bt, bc, wt, wc)| go_engine::territory::GameScore {
+                black: go_engine::territory::PlayerPoints {
+                    territory: bt as u32,
+                    captures: bc as u32,
+                },
+                white: go_engine::territory::PlayerPoints {
+                    territory: wt as u32,
+                    captures: wc as u32,
+                },
+                komi: gwp.game.komi,
+            })
+    } else {
+        None
+    };
+
+    let serialized = state_serializer::serialize_state(
+        gwp,
+        engine,
+        false,
+        territory.as_ref(),
+        settled_score.as_ref(),
+        clock_ref,
+        &[],
+    );
 
     let territory_json = serialized.get("territory").cloned();
 

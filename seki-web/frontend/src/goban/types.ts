@@ -87,10 +87,20 @@ export type PlayerData = {
   is_registered: boolean;
 };
 
+export type PlayerPoints = {
+  territory: number;
+  captures: number;
+};
+
+export type ScoreData = {
+  black: PlayerPoints;
+  white: PlayerPoints;
+};
+
 export type TerritoryData = {
   ownership: number[];
   dead_stones: [number, number][];
-  score: { black: number; white: number };
+  score: ScoreData;
   black_approved: boolean;
   white_approved: boolean;
 };
@@ -136,6 +146,7 @@ export type StateMessage = {
   undo_rejected: boolean;
   allow_undo?: boolean;
   territory?: TerritoryData;
+  score?: ScoreData;
   clock?: ClockData;
   online_players?: number[];
 };
