@@ -74,7 +74,7 @@ impl TimeControl {
 }
 
 /// Derive the active clock stone from the game stage string.
-/// Returns `Some(stone)` if a player's clock should be ticking, `None` if paused.
+/// Returns `Some(stone)` if a user's clock should be ticking, `None` if paused.
 pub fn active_stone_from_stage(stage: &str) -> Option<Stone> {
     match stage {
         "black_to_play" => Some(Stone::Black),
@@ -84,7 +84,7 @@ pub fn active_stone_from_stage(stage: &str) -> Option<Stone> {
 }
 
 /// In-memory clock state for a game. Tracks time values only — the active
-/// player is derived from the game stage, not stored here.
+/// user is derived from the game stage, not stored here.
 #[derive(Debug, Clone)]
 pub struct ClockState {
     pub black_remaining_ms: i64,
@@ -145,7 +145,7 @@ impl ClockState {
         self.last_move_at = Some(now);
     }
 
-    /// Process a move: deduct time from the moving player, apply increment/period logic,
+    /// Process a move: deduct time from the moving user, apply increment/period logic,
     /// then record the move timestamp.
     pub fn process_move(
         &mut self,
@@ -206,7 +206,7 @@ impl ClockState {
         }
     }
 
-    /// Real-time remaining ms for a player (deducts elapsed since last_move_at if active).
+    /// Real-time remaining ms for a user (deducts elapsed since last_move_at if active).
     pub fn remaining_ms(
         &self,
         stone: Stone,
@@ -226,7 +226,7 @@ impl ClockState {
         base
     }
 
-    /// Total remaining ms for a player including byoyomi periods.
+    /// Total remaining ms for a user including byoyomi periods.
     fn total_remaining_ms(
         &self,
         stone: Stone,
@@ -254,7 +254,7 @@ impl ClockState {
         }
     }
 
-    /// True if the given player's time has expired (accounting for byoyomi periods).
+    /// True if the given user's time has expired (accounting for byoyomi periods).
     pub fn is_flagged(
         &self,
         stone: Stone,
@@ -265,7 +265,7 @@ impl ClockState {
         self.total_remaining_ms(stone, active_stone, tc, now) <= 0
     }
 
-    /// Compute the absolute time at which the active player's clock expires.
+    /// Compute the absolute time at which the active user's clock expires.
     pub fn expiration(
         &self,
         active_stone: Option<Stone>,
@@ -280,7 +280,7 @@ impl ClockState {
         Some(now + TimeDelta::milliseconds(total_ms))
     }
 
-    /// Deduct elapsed time for the active player and clear last_move_at (pauses the clock).
+    /// Deduct elapsed time for the active user and clear last_move_at (pauses the clock).
     pub fn pause(&mut self, active_stone: Option<Stone>, now: DateTime<Utc>) {
         if let Some(stone) = active_stone {
             if let Some(last) = self.last_move_at {

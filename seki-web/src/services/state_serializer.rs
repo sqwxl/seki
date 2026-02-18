@@ -5,7 +5,7 @@ use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
 use crate::services::clock::{self, ClockState, TimeControl};
-use crate::templates::PlayerData;
+use crate::templates::UserData;
 
 pub struct TerritoryData {
     pub ownership: Vec<i8>,
@@ -45,10 +45,10 @@ pub fn serialize_state(
     territory: Option<&TerritoryData>,
     settled_score: Option<&go_engine::territory::GameScore>,
     clock: Option<(&ClockState, &TimeControl)>,
-    online_players: &[i64],
+    online_users: &[i64],
 ) -> serde_json::Value {
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
-    // for terminal states (done) and waiting states (unstarted with both players).
+    // for terminal states (done) and waiting states (unstarted with both users).
     let stage = if gwp.game.result.is_some() {
         go_engine::Stage::Done
     } else if engine.stage() == go_engine::Stage::Unstarted && !gwp.is_open() {
@@ -79,8 +79,8 @@ pub fn serialize_state(
         "negotiations": negotiations,
         "current_turn_stone": current_turn_stone,
         "moves": moves,
-        "black": gwp.black.as_ref().map(PlayerData::from),
-        "white": gwp.white.as_ref().map(PlayerData::from),
+        "black": gwp.black.as_ref().map(UserData::from),
+        "white": gwp.white.as_ref().map(UserData::from),
         "result": gwp.game.result,
         "undo_rejected": gwp.game.undo_rejected,
         "allow_undo": gwp.game.allow_undo
@@ -126,7 +126,7 @@ pub fn serialize_state(
         val["clock"] = clock_state.to_json(time_control, active_stone);
     }
 
-    val["online_players"] = json!(online_players);
+    val["online_users"] = json!(online_users);
 
     val
 }
@@ -136,12 +136,12 @@ fn current_turn_stone(engine: &Engine) -> i32 {
 }
 
 /// Build the sender label for a chat message (e.g. "alice ●").
-pub fn sender_label(gwp: &GameWithPlayers, player_id: i64, username: Option<&str>) -> String {
+pub fn sender_label(gwp: &GameWithPlayers, user_id: i64, username: Option<&str>) -> String {
     use crate::models::game::{BLACK_SYMBOL, WHITE_SYMBOL};
 
-    let symbol = if gwp.black.as_ref().is_some_and(|p| p.id == player_id) {
+    let symbol = if gwp.black.as_ref().is_some_and(|p| p.id == user_id) {
         BLACK_SYMBOL
-    } else if gwp.white.as_ref().is_some_and(|p| p.id == player_id) {
+    } else if gwp.white.as_ref().is_some_and(|p| p.id == user_id) {
         WHITE_SYMBOL
     } else {
         "?"

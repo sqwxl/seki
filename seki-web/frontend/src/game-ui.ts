@@ -63,8 +63,8 @@ export function updatePlayerLabels(
   const { black, white } = ctx;
   const bName = `${blackSymbol()} ${black ? black.display_name : "…"}`;
   const wName = `${whiteSymbol()} ${white ? white.display_name : "…"}`;
-  const bOnline = black ? ctx.onlinePlayers.has(black.id) : false;
-  const wOnline = white ? ctx.onlinePlayers.has(white.id) : false;
+  const bOnline = black ? ctx.onlineUsers.has(black.id) : false;
+  const wOnline = white ? ctx.onlineUsers.has(white.id) : false;
 
   const score = ctx.territory?.score ?? ctx.settledScore;
   const komi = ctx.initialProps.komi;

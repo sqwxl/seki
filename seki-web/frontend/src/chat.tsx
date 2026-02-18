@@ -35,7 +35,7 @@ export function appendToChat(entry: ChatEntry): void {
   if (entry.player_id != null) {
     const dot = document.createElement("span");
     dot.className = "presence-dot";
-    dot.dataset.playerId = String(entry.player_id);
+    dot.dataset.userId = String(entry.player_id);
     p.appendChild(dot);
     p.appendChild(document.createTextNode(` ${prefix}${entry.sender}: ${entry.text}`));
   } else {
@@ -45,10 +45,10 @@ export function appendToChat(entry: ChatEntry): void {
   box.scrollTop = box.scrollHeight;
 }
 
-export function updateChatPresence(onlinePlayers: Set<number>): void {
-  for (const dot of document.querySelectorAll<HTMLElement>(".chat-box .presence-dot[data-player-id]")) {
-    const id = Number(dot.dataset.playerId);
-    dot.classList.toggle("online", onlinePlayers.has(id));
+export function updateChatPresence(onlineUsers: Set<number>): void {
+  for (const dot of document.querySelectorAll<HTMLElement>(".chat-box .presence-dot[data-user-id]")) {
+    const id = Number(dot.dataset.userId);
+    dot.classList.toggle("online", onlineUsers.has(id));
   }
 }
 

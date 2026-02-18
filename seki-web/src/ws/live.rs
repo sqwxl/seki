@@ -11,19 +11,19 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::services::live::LiveGameItem;
-use crate::session::CurrentPlayer;
+use crate::session::CurrentUser;
 use crate::ws::game_channel;
 
 /// WebSocket upgrade handler: GET /live
 pub async fn ws_upgrade(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    current_user: CurrentUser,
     ws: WebSocketUpgrade,
 ) -> Result<Response, AppError> {
-    Ok(ws.on_upgrade(move |socket| handle_live_socket(socket, state, current_player.id)))
+    Ok(ws.on_upgrade(move |socket| handle_live_socket(socket, state, current_user.id)))
 }
 
-async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) {
+async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
     let (mut ws_sink, mut ws_stream) = socket.split();
 
     // Channel for game room messages (registered in registry per game)
@@ -33,7 +33,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
     let mut live_rx = state.live_tx.subscribe();
 
     // Send lobby init
-    let init = build_init_message(&state, player_id).await;
+    let init = build_init_message(&state, user_id).await;
     if ws_sink.send(Message::Text(init.into())).await.is_err() {
         return;
     }
@@ -60,7 +60,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
                             }
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                            tracing::warn!("Live WS lagged by {n} messages for player={player_id}");
+                            tracing::warn!("Live WS lagged by {n} messages for user={user_id}");
                         }
                         Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                     }
@@ -85,14 +85,14 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
                             if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64()) {
                                 // Verify game exists
                                 if Game::find_by_id(&state.db, game_id).await.is_ok() {
-                                    state.registry.join(game_id, player_id, tx.clone()).await;
+                                    state.registry.join(game_id, user_id, tx.clone()).await;
                                     subscribed_games.insert(game_id);
 
-                                    // Notify others that this player came online
-                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":player_id,"online":true}).to_string()).await;
+                                    // Notify others that this user came online
+                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":true}).to_string()).await;
 
                                     if let Err(e) = game_channel::send_initial_state(
-                                        &state, game_id, player_id, &tx,
+                                        &state, game_id, user_id, &tx,
                                     )
                                     .await
                                     {
@@ -105,10 +105,10 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
                         }
                         "leave_game" => {
                             if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64()) {
-                                let removed = state.registry.leave(game_id, player_id, &tx).await;
+                                let removed = state.registry.leave(game_id, user_id, &tx).await;
                                 subscribed_games.remove(&game_id);
                                 if removed {
-                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":player_id,"online":false}).to_string()).await;
+                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":false}).to_string()).await;
                                 }
                             }
                         }
@@ -118,7 +118,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
                                 && subscribed_games.contains(&game_id)
                             {
                                 game_channel::handle_message(
-                                    &state, game_id, player_id, &data, &tx,
+                                    &state, game_id, user_id, &data, &tx,
                                 )
                                 .await;
                             }
@@ -133,13 +133,13 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
 
     // Cleanup: leave all subscribed games
     for game_id in &subscribed_games {
-        let removed = state.registry.leave(*game_id, player_id, &tx).await;
+        let removed = state.registry.leave(*game_id, user_id, &tx).await;
         if removed {
             state
                 .registry
                 .broadcast(
                     *game_id,
-                    &json!({"kind":"presence","player_id":player_id,"online":false}).to_string(),
+                    &json!({"kind":"presence","player_id":user_id,"online":false}).to_string(),
                 )
                 .await;
         }
@@ -147,15 +147,15 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, player_id: i64) 
     send_task.abort();
 }
 
-async fn build_init_message(state: &AppState, player_id: i64) -> String {
-    let player_games = Game::list_for_player(&state.db, player_id)
+async fn build_init_message(state: &AppState, user_id: i64) -> String {
+    let player_games = Game::list_for_player(&state.db, user_id)
         .await
         .unwrap_or_default();
-    let public_games = Game::list_public_with_players(&state.db, Some(player_id))
+    let public_games = Game::list_public_with_players(&state.db, Some(user_id))
         .await
         .unwrap_or_default();
 
-    let player_items: Vec<LiveGameItem> = player_games
+    let user_items: Vec<LiveGameItem> = player_games
         .iter()
         .map(|gwp| LiveGameItem::from_gwp(gwp, None))
         .collect();
@@ -166,8 +166,8 @@ async fn build_init_message(state: &AppState, player_id: i64) -> String {
 
     json!({
         "kind": "init",
-        "player_id": player_id,
-        "player_games": player_items,
+        "player_id": user_id,
+        "player_games": user_items,
         "public_games": public_items,
     })
     .to_string()

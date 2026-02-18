@@ -8,7 +8,7 @@ use crate::db::DbPool;
 pub struct Message {
     pub id: i64,
     pub game_id: i64,
-    pub player_id: Option<i64>,
+    pub user_id: Option<i64>,
     pub text: String,
     pub move_number: Option<i32>,
     pub created_at: DateTime<Utc>,
@@ -28,15 +28,15 @@ impl Message {
     pub async fn create(
         pool: &DbPool,
         game_id: i64,
-        player_id: Option<i64>,
+        user_id: Option<i64>,
         text: &str,
         move_number: Option<i32>,
     ) -> Result<Message, sqlx::Error> {
         sqlx::query_as::<_, Message>(
-            "INSERT INTO messages (game_id, player_id, text, move_number) VALUES ($1, $2, $3, $4) RETURNING *",
+            "INSERT INTO messages (game_id, user_id, text, move_number) VALUES ($1, $2, $3, $4) RETURNING *",
         )
         .bind(game_id)
-        .bind(player_id)
+        .bind(user_id)
         .bind(text)
         .bind(move_number)
         .fetch_one(pool)

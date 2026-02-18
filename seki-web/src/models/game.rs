@@ -7,7 +7,7 @@ use sqlx::FromRow;
 use go_engine::Stone;
 
 use crate::db::DbPool;
-use crate::models::player::Player;
+use crate::models::user::User;
 
 pub const BLACK_SYMBOL: &str = "●";
 pub const WHITE_SYMBOL: &str = "○";
@@ -89,7 +89,7 @@ impl Game {
 
     pub async fn list_for_player(
         pool: &DbPool,
-        player_id: i64,
+        user_id: i64,
     ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
         let games = sqlx::query_as::<_, Game>(
             "SELECT * FROM games WHERE (black_id = $1 OR white_id = $1) \
@@ -97,31 +97,31 @@ impl Game {
              AND (result IS NULL OR updated_at >= now() - interval '5 minutes') \
              ORDER BY updated_at DESC",
         )
-        .bind(player_id)
+        .bind(user_id)
         .fetch_all(pool)
         .await?;
 
         Self::batch_with_players(pool, games).await
     }
 
-    /// Load players for a batch of games in a single query (avoids N+1).
+    /// Load users for a batch of games in a single query (avoids N+1).
     async fn batch_with_players(
         pool: &DbPool,
         games: Vec<Game>,
     ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
-        // Collect all unique player IDs
-        let mut player_ids: Vec<i64> = games
+        // Collect all unique user IDs
+        let mut user_ids: Vec<i64> = games
             .iter()
             .flat_map(|g| [g.creator_id, g.black_id, g.white_id].into_iter().flatten())
             .collect();
-        player_ids.sort_unstable();
-        player_ids.dedup();
+        user_ids.sort_unstable();
+        user_ids.dedup();
 
-        // Batch fetch all players
-        let players_map: HashMap<i64, Player> = if player_ids.is_empty() {
+        // Batch fetch all users
+        let users_map: HashMap<i64, User> = if user_ids.is_empty() {
             HashMap::new()
         } else {
-            Player::find_by_ids(pool, &player_ids)
+            User::find_by_ids(pool, &user_ids)
                 .await?
                 .into_iter()
                 .map(|p| (p.id, p))
@@ -131,9 +131,9 @@ impl Game {
         Ok(games
             .into_iter()
             .map(|game| {
-                let creator = game.creator_id.and_then(|id| players_map.get(&id).cloned());
-                let black = game.black_id.and_then(|id| players_map.get(&id).cloned());
-                let white = game.white_id.and_then(|id| players_map.get(&id).cloned());
+                let creator = game.creator_id.and_then(|id| users_map.get(&id).cloned());
+                let black = game.black_id.and_then(|id| users_map.get(&id).cloned());
+                let white = game.white_id.and_then(|id| users_map.get(&id).cloned());
                 GameWithPlayers {
                     game,
                     creator,
@@ -162,17 +162,17 @@ impl Game {
     pub async fn find_with_players(pool: &DbPool, id: i64) -> Result<GameWithPlayers, sqlx::Error> {
         let game = Self::find_by_id(pool, id).await?;
         let creator = if let Some(cid) = game.creator_id {
-            Player::find_by_id(pool, cid).await.ok()
+            User::find_by_id(pool, cid).await.ok()
         } else {
             None
         };
         let black = if let Some(bid) = game.black_id {
-            Player::find_by_id(pool, bid).await.ok()
+            User::find_by_id(pool, bid).await.ok()
         } else {
             None
         };
         let white = if let Some(wid) = game.white_id {
-            Player::find_by_id(pool, wid).await.ok()
+            User::find_by_id(pool, wid).await.ok()
         } else {
             None
         };
@@ -240,18 +240,18 @@ impl Game {
         .await
     }
 
-    pub async fn set_black(pool: &DbPool, game_id: i64, player_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn set_black(pool: &DbPool, game_id: i64, user_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE games SET black_id = $1, updated_at = NOW() WHERE id = $2")
-            .bind(player_id)
+            .bind(user_id)
             .bind(game_id)
             .execute(pool)
             .await?;
         Ok(())
     }
 
-    pub async fn set_white(pool: &DbPool, game_id: i64, player_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn set_white(pool: &DbPool, game_id: i64, user_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE games SET white_id = $1, updated_at = NOW() WHERE id = $2")
-            .bind(player_id)
+            .bind(user_id)
             .bind(game_id)
             .execute(pool)
             .await?;
@@ -375,26 +375,26 @@ impl Game {
     }
 }
 
-/// Game with eagerly loaded player associations.
+/// Game with eagerly loaded user associations.
 #[derive(Debug, Clone)]
 pub struct GameWithPlayers {
     pub game: Game,
     #[allow(dead_code)] // Loaded for completeness; not yet read
-    pub creator: Option<Player>,
-    pub black: Option<Player>,
-    pub white: Option<Player>,
+    pub creator: Option<User>,
+    pub black: Option<User>,
+    pub white: Option<User>,
 }
 
 impl GameWithPlayers {
-    pub fn has_player(&self, player_id: i64) -> bool {
-        self.black.as_ref().is_some_and(|p| p.id == player_id)
-            || self.white.as_ref().is_some_and(|p| p.id == player_id)
+    pub fn has_player(&self, user_id: i64) -> bool {
+        self.black.as_ref().is_some_and(|p| p.id == user_id)
+            || self.white.as_ref().is_some_and(|p| p.id == user_id)
     }
 
-    pub fn player_stone(&self, player_id: i64) -> i32 {
-        if self.black.as_ref().is_some_and(|p| p.id == player_id) {
+    pub fn player_stone(&self, user_id: i64) -> i32 {
+        if self.black.as_ref().is_some_and(|p| p.id == user_id) {
             1
-        } else if self.white.as_ref().is_some_and(|p| p.id == player_id) {
+        } else if self.white.as_ref().is_some_and(|p| p.id == user_id) {
             -1
         } else {
             0
@@ -405,23 +405,23 @@ impl GameWithPlayers {
         self.black.is_none() || self.white.is_none()
     }
 
-    /// The player whose turn it is.
-    pub fn turn_player(&self, current_turn: Stone) -> Option<&Player> {
+    /// The user whose turn it is.
+    pub fn turn_player(&self, current_turn: Stone) -> Option<&User> {
         match current_turn {
             Stone::Black => self.black.as_ref(),
             Stone::White => self.white.as_ref(),
         }
     }
 
-    /// The player who is *not* the current turn (i.e. they just played).
-    pub fn out_of_turn_player(&self, current_turn: Stone) -> Option<&Player> {
+    /// The user who is *not* the current turn (i.e. they just played).
+    pub fn out_of_turn_player(&self, current_turn: Stone) -> Option<&User> {
         self.turn_player(current_turn.opp())
     }
 
-    pub fn opponent_of(&self, player_id: i64) -> Option<&Player> {
-        if self.black.as_ref().is_some_and(|p| p.id == player_id) {
+    pub fn opponent_of(&self, user_id: i64) -> Option<&User> {
+        if self.black.as_ref().is_some_and(|p| p.id == user_id) {
             self.white.as_ref()
-        } else if self.white.as_ref().is_some_and(|p| p.id == player_id) {
+        } else if self.white.as_ref().is_some_and(|p| p.id == user_id) {
             self.black.as_ref()
         } else {
             None

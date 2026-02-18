@@ -1,14 +1,14 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "./live";
-import { formatGameDescription, type PlayerData, type GameSettings } from "./format";
+import { formatGameDescription, type UserData, type GameSettings } from "./format";
 
 type LiveGameItem = {
   id: number;
   stage: string;
   result: string | undefined;
-  black: PlayerData | undefined;
-  white: PlayerData | undefined;
+  black: UserData | undefined;
+  white: UserData | undefined;
   settings: GameSettings;
   move_count: number | undefined;
 };
@@ -17,8 +17,8 @@ type GameUpdate = {
   id: number;
   stage: string;
   result: string | undefined;
-  black: PlayerData | undefined;
-  white: PlayerData | undefined;
+  black: UserData | undefined;
+  white: UserData | undefined;
   move_count: number | undefined;
 };
 
@@ -124,7 +124,7 @@ function GamesList() {
 
   const isVisible = (g: LiveGameItem) => g.result !== "Aborted";
 
-  const playerGames = allGames.filter((g) => isMyGame(g) && isVisible(g));
+  const userGames = allGames.filter((g) => isMyGame(g) && isVisible(g));
   const publicGames = allGames.filter(
     (g) => !isMyGame(g) && !g.settings.is_private && isVisible(g),
   );
@@ -132,11 +132,11 @@ function GamesList() {
   return (
     <>
       <h1>Your games</h1>
-      {playerGames.length === 0 ? (
+      {userGames.length === 0 ? (
         <p>No games yet.</p>
       ) : (
         <ul>
-          {playerGames.map((g) => (
+          {userGames.map((g) => (
             <li key={g.id}>
               <a href={`/games/${g.id}`}>{formatGameDescription(g)}</a>
             </li>

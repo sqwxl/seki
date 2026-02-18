@@ -6,7 +6,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers, SYSTEM_SYMBOL};
 use crate::models::message::Message;
-use crate::models::player::Player;
+use crate::models::user::User;
 use crate::models::turn::TurnRow;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
@@ -139,7 +139,7 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
-    // If both players passed, enter territory review
+    // If both users passed, enter territory review
     if engine.stage() == Stage::TerritoryReview {
         // Pause clock during territory review
         pause_clock(state, game_id, &gwp.game).await?;
@@ -413,11 +413,11 @@ pub async fn send_chat(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let player = Player::find_by_id(&state.db, player_id)
+    let user = User::find_by_id(&state.db, player_id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let sender = state_serializer::sender_label(&gwp, player_id, Some(&player.username));
+    let sender = state_serializer::sender_label(&gwp, player_id, Some(&user.username));
 
     state
         .registry
@@ -467,7 +467,7 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
         .map_err(|e| AppError::Internal(e.to_string()))?;
     let last_turn =
         last_turn.ok_or_else(|| AppError::BadRequest("No turns to undo".to_string()))?;
-    if last_turn.player_id != player_id {
+    if last_turn.user_id != player_id {
         return Err(AppError::BadRequest(
             "Can only undo your own turn".to_string(),
         ));
@@ -478,10 +478,10 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
 
     state.registry.set_undo_requested(game_id, true).await;
 
-    let player = Player::find_by_id(&state.db, player_id)
+    let user = User::find_by_id(&state.db, player_id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
-    let requesting_name = player.display_name().to_string();
+    let requesting_name = user.display_name().to_string();
     let opponent = gwp.opponent_of(player_id).cloned();
 
     // System chat
@@ -533,7 +533,7 @@ pub async fn respond_to_undo(
         return Err(AppError::BadRequest("No pending undo request".to_string()));
     }
 
-    // The requesting player is the one who played last (out of turn now)
+    // The requesting user is the one who played last (out of turn now)
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
@@ -542,7 +542,7 @@ pub async fn respond_to_undo(
     let requesting_player_id = gwp
         .out_of_turn_player(engine.current_turn_stone())
         .map(|p| p.id)
-        .ok_or_else(|| AppError::Internal("Cannot determine requesting player".to_string()))?;
+        .ok_or_else(|| AppError::Internal("Cannot determine requesting user".to_string()))?;
 
     if requesting_player_id == player_id {
         return Err(AppError::BadRequest(
@@ -550,10 +550,10 @@ pub async fn respond_to_undo(
         ));
     }
 
-    let responding_player = Player::find_by_id(&state.db, player_id)
+    let responding_user = User::find_by_id(&state.db, player_id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
-    let responding_name = responding_player.display_name().to_string();
+    let responding_name = responding_user.display_name().to_string();
 
     // Clear the in-memory request flag regardless of accept/reject
     state.registry.set_undo_requested(game_id, false).await;
@@ -612,7 +612,7 @@ pub async fn respond_to_undo(
     };
     broadcast_system_chat(state, game_id, &message).await;
 
-    // Notify both players with updated state
+    // Notify both users with updated state
     let kind = if result.accepted {
         "undo_accepted"
     } else {
@@ -626,7 +626,7 @@ pub async fn respond_to_undo(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let online_players = state.registry.get_online_player_ids(game_id).await;
+    let online_users = state.registry.get_online_user_ids(game_id).await;
     let game_state = state_serializer::serialize_state(
         &result.gwp,
         &result.engine,
@@ -634,7 +634,7 @@ pub async fn respond_to_undo(
         None,
         None,
         clock_ref,
-        &online_players,
+        &online_users,
     );
     for pid in [requesting_player_id, player_id] {
         state
@@ -693,7 +693,7 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let online_players = state.registry.get_online_player_ids(game_id).await;
+    let online_users = state.registry.get_online_user_ids(game_id).await;
     let game_state = state_serializer::serialize_state(
         &gwp,
         engine,
@@ -701,7 +701,7 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
         territory.as_ref(),
         None,
         clock_ref,
-        &online_players,
+        &online_users,
     );
 
     state
@@ -777,7 +777,7 @@ fn require_both_players(gwp: &GameWithPlayers) -> Result<(), AppError> {
 
 fn player_stone(gwp: &GameWithPlayers, player_id: i64) -> Result<Stone, AppError> {
     Stone::from_int(gwp.player_stone(player_id) as i8)
-        .ok_or_else(|| AppError::BadRequest("You are not a player in this game".to_string()))
+        .ok_or_else(|| AppError::BadRequest("You are not a user in this game".to_string()))
 }
 
 async fn apply_engine_mutation<F>(
@@ -889,7 +889,7 @@ async fn load_or_init_clock(
 }
 
 /// Persist clock state to both registry and DB (games table).
-/// `active_stone` is the player whose clock should be ticking (None if paused).
+/// `active_stone` is the user whose clock should be ticking (None if paused).
 async fn persist_clock(
     state: &AppState,
     game_id: i64,

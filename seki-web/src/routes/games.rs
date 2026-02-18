@@ -13,22 +13,22 @@ use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
 use crate::services::state_serializer;
-use crate::session::CurrentPlayer;
-use crate::templates::PlayerData;
+use crate::session::CurrentUser;
+use crate::templates::UserData;
 use crate::templates::games_list::GamesListTemplate;
 use crate::templates::games_new::GamesNewTemplate;
 use crate::templates::games_show::{GamesShowTemplate, InitialGameProps};
 
-fn serialize_player_data(player: &CurrentPlayer) -> String {
-    serde_json::to_string(&PlayerData::from(&player.player)).unwrap_or_else(|_| "{}".to_string())
+fn serialize_user_data(user: &CurrentUser) -> String {
+    serde_json::to_string(&UserData::from(&user.user)).unwrap_or_else(|_| "{}".to_string())
 }
 
 // GET /
-pub async fn new_game(current_player: CurrentPlayer) -> Result<Response, AppError> {
+pub async fn new_game(current_user: CurrentUser) -> Result<Response, AppError> {
     let tmpl = GamesNewTemplate {
-        player_username: current_player.username.clone(),
-        player_is_registered: current_player.is_registered(),
-        player_data: serialize_player_data(&current_player),
+        user_username: current_user.username.clone(),
+        user_is_registered: current_user.is_registered(),
+        user_data: serialize_user_data(&current_user),
         flash: None,
     };
     Ok(Html(
@@ -39,11 +39,11 @@ pub async fn new_game(current_player: CurrentPlayer) -> Result<Response, AppErro
 }
 
 // GET /games
-pub async fn list_games(current_player: CurrentPlayer) -> Result<Response, AppError> {
+pub async fn list_games(current_user: CurrentUser) -> Result<Response, AppError> {
     let tmpl = GamesListTemplate {
-        player_username: current_player.username.clone(),
-        player_is_registered: current_player.is_registered(),
-        player_data: serialize_player_data(&current_player),
+        user_username: current_user.username.clone(),
+        user_is_registered: current_user.is_registered(),
+        user_data: serialize_user_data(&current_user),
     };
 
     Ok(Html(
@@ -76,7 +76,7 @@ pub struct CreateGameForm {
 // POST /games
 pub async fn create_game(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    current_user: CurrentUser,
     Form(form): Form<CreateGameForm>,
 ) -> Result<Response, AppError> {
     let cols = form.cols.unwrap_or(19);
@@ -124,16 +124,16 @@ pub async fn create_game(
         byoyomi_periods,
     };
 
-    match game_creator::create_game(&state.db, &current_player, params).await {
+    match game_creator::create_game(&state.db, &current_user, params).await {
         Ok(game) => {
             crate::services::live::notify_game_created(&state, game.id).await;
             Ok(Redirect::to(&format!("/games/{}", game.id)).into_response())
         }
         Err(e) => {
             let tmpl = GamesNewTemplate {
-                player_username: current_player.username.clone(),
-                player_is_registered: current_player.is_registered(),
-                player_data: serialize_player_data(&current_player),
+                user_username: current_user.username.clone(),
+                user_is_registered: current_user.is_registered(),
+                user_data: serialize_user_data(&current_user),
                 flash: Some(e.to_string()),
             };
             Ok((
@@ -151,7 +151,7 @@ pub async fn create_game(
 // GET /games/:id
 pub async fn show_game(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    current_user: CurrentUser,
     Path(id): Path<i64>,
 ) -> Result<Response, AppError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
@@ -161,7 +161,7 @@ pub async fn show_game(
     let chat_log: Vec<serde_json::Value> = messages
         .iter()
         .map(|msg| {
-            let sender = match msg.player_id {
+            let sender = match msg.user_id {
                 Some(pid) => {
                     let username = gwp
                         .black
@@ -174,7 +174,7 @@ pub async fn show_game(
                 None => SYSTEM_SYMBOL.to_string(),
             };
             serde_json::json!({
-                "player_id": msg.player_id,
+                "user_id": msg.user_id,
                 "sender": sender,
                 "text": msg.text,
                 "move_number": msg.move_number,
@@ -184,8 +184,8 @@ pub async fn show_game(
         .collect();
     let chat_log_json = serde_json::to_string(&chat_log).unwrap_or_else(|_| "[]".to_string());
 
-    let is_player = gwp.has_player(current_player.id);
-    let is_creator = gwp.game.creator_id == Some(current_player.id);
+    let is_player = gwp.has_player(current_user.id);
+    let is_creator = gwp.game.creator_id == Some(current_user.id);
     let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
 
     let engine = state
@@ -202,8 +202,8 @@ pub async fn show_game(
 
     let game_props = serde_json::to_string(&InitialGameProps {
         state: engine.game_state(),
-        black: gwp.black.as_ref().map(PlayerData::from),
-        white: gwp.white.as_ref().map(PlayerData::from),
+        black: gwp.black.as_ref().map(UserData::from),
+        white: gwp.white.as_ref().map(UserData::from),
         komi: gwp.game.komi,
         stage,
         settings: crate::services::live::GameSettings {
@@ -220,9 +220,9 @@ pub async fn show_game(
     .unwrap();
 
     let tmpl = GamesShowTemplate {
-        player_username: current_player.username.clone(),
-        player_is_registered: current_player.is_registered(),
-        player_data: serialize_player_data(&current_player),
+        user_username: current_user.username.clone(),
+        user_is_registered: current_user.is_registered(),
+        user_data: serialize_user_data(&current_user),
         game_id: gwp.game.id,
         game_props,
         cols: gwp.game.cols,
@@ -244,29 +244,29 @@ pub async fn show_game(
 // POST /games/:id/join
 pub async fn join_game(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    current_user: CurrentUser,
     Path(id): Path<i64>,
 ) -> Result<Response, AppError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
 
-    if gwp.has_player(current_player.id) {
+    if gwp.has_player(current_user.id) {
         return Ok(Redirect::to(&format!("/games/{id}")).into_response());
     }
 
     if gwp.black.is_none() {
-        Game::set_black(&state.db, id, current_player.id).await?;
+        Game::set_black(&state.db, id, current_user.id).await?;
     } else if gwp.white.is_none() {
-        Game::set_white(&state.db, id, current_player.id).await?;
+        Game::set_white(&state.db, id, current_user.id).await?;
     } else {
         return Err(AppError::BadRequest("Game is full".to_string()));
     }
 
-    // Transition stage from unstarted to black_to_play now that both players are present
+    // Transition stage from unstarted to black_to_play now that both users are present
     if gwp.game.stage == "unstarted" {
         Game::set_stage(&state.db, id, "black_to_play").await?;
     }
 
-    // Notify existing WS clients about the new player
+    // Notify existing WS clients about the new user
     let game = Game::find_by_id(&state.db, id).await?;
     let engine = engine_builder::build_engine(&state.db, &game).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
@@ -279,9 +279,9 @@ pub async fn join_game(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let online_players = state.registry.get_online_player_ids(id).await;
+    let online_users = state.registry.get_online_user_ids(id).await;
     let game_state =
-        state_serializer::serialize_state(&gwp, &engine, false, None, None, clock_ref, &online_players);
+        state_serializer::serialize_state(&gwp, &engine, false, None, None, clock_ref, &online_users);
     state.registry.broadcast(id, &game_state.to_string()).await;
 
     crate::services::live::notify_game_created(&state, id).await;
@@ -298,14 +298,14 @@ pub struct InvitationQuery {
 // GET /games/:id/invitation
 pub async fn invitation(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    current_user: CurrentUser,
     Path(id): Path<i64>,
     Query(query): Query<InvitationQuery>,
 ) -> Result<Response, AppError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
 
-    // If current player is already in the game, redirect
-    if gwp.has_player(current_player.id) {
+    // If current user is already in the game, redirect
+    if gwp.has_player(current_user.id) {
         return Ok(Redirect::to(&format!("/games/{id}")).into_response());
     }
 
@@ -320,10 +320,10 @@ pub async fn invitation(
         return Err(AppError::BadRequest("Game is already full".to_string()));
     }
 
-    // Find the invited player by email
-    let guest = crate::models::player::Player::find_by_email(&state.db, &query.email)
+    // Find the invited user by email
+    let guest = crate::models::user::User::find_by_email(&state.db, &query.email)
         .await?
-        .ok_or_else(|| AppError::NotFound("Player not found".to_string()))?;
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
     // Add guest to game
     if gwp.black.is_none() {
@@ -332,7 +332,7 @@ pub async fn invitation(
         Game::set_white(&state.db, id, guest.id).await?;
     }
 
-    // Transition stage from unstarted to black_to_play now that both players are present
+    // Transition stage from unstarted to black_to_play now that both users are present
     if gwp.game.stage == "unstarted" {
         Game::set_stage(&state.db, id, "black_to_play").await?;
     }

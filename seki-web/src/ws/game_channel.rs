@@ -16,7 +16,7 @@ fn send_to_client(tx: &WsSender, game_id: i64, mut msg: serde_json::Value) {
     let _ = tx.send(msg.to_string());
 }
 
-/// Send the initial game state to a newly connected player.
+/// Send the initial game state to a newly connected user.
 pub async fn send_initial_state(
     state: &AppState,
     game_id: i64,
@@ -25,7 +25,7 @@ pub async fn send_initial_state(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let gwp = Game::find_with_players(&state.db, game_id).await?;
 
-    // Authorization: private games only allow players
+    // Authorization: private games only allow users
     if gwp.game.is_private && !gwp.has_player(player_id) {
         send_to_client(
             tx,
@@ -114,7 +114,7 @@ pub async fn send_initial_state(
         None
     };
 
-    let online_players = state.registry.get_online_player_ids(game_id).await;
+    let online_users = state.registry.get_online_user_ids(game_id).await;
     let game_state = state_serializer::serialize_state(
         &gwp,
         &engine,
@@ -122,7 +122,7 @@ pub async fn send_initial_state(
         territory.as_ref(),
         settled_score.as_ref(),
         clock_ref,
-        &online_players,
+        &online_users,
     );
 
     send_to_client(tx, game_id, game_state);
@@ -152,7 +152,7 @@ pub async fn send_initial_state(
     Ok(())
 }
 
-/// Handle an incoming WebSocket message from a player.
+/// Handle an incoming WebSocket message from a user.
 pub async fn handle_message(
     state: &AppState,
     game_id: i64,

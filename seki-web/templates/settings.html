@@ -6,7 +6,7 @@
 {% block content %}
     <h1>Settings</h1>
 
-    {% if player_is_registered %}
+    {% if user_is_registered %}
         <h2>API Token</h2>
         <p>Use this token to authenticate with the API via <code>Authorization: Bearer &lt;token&gt;</code>.</p>
         {% if let Some(token) = api_token %}

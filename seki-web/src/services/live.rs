@@ -3,7 +3,7 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::models::game::{Game, GameWithPlayers, TimeControlType};
-use crate::templates::PlayerData;
+use crate::templates::UserData;
 
 #[derive(Serialize)]
 pub struct GameSettings {
@@ -23,8 +23,8 @@ pub struct LiveGameItem {
     pub id: i64,
     pub stage: String,
     pub result: Option<String>,
-    pub black: Option<PlayerData>,
-    pub white: Option<PlayerData>,
+    pub black: Option<UserData>,
+    pub white: Option<UserData>,
     pub settings: GameSettings,
     pub move_count: Option<usize>,
 }
@@ -35,8 +35,8 @@ impl LiveGameItem {
             id: gwp.game.id,
             stage: gwp.game.stage.clone(),
             result: gwp.game.result.clone(),
-            black: gwp.black.as_ref().map(PlayerData::from),
-            white: gwp.white.as_ref().map(PlayerData::from),
+            black: gwp.black.as_ref().map(UserData::from),
+            white: gwp.white.as_ref().map(UserData::from),
             settings: GameSettings {
                 cols: gwp.game.cols,
                 rows: gwp.game.rows,
@@ -58,8 +58,8 @@ struct GameUpdate {
     id: i64,
     stage: String,
     result: Option<String>,
-    black: Option<PlayerData>,
-    white: Option<PlayerData>,
+    black: Option<UserData>,
+    white: Option<UserData>,
     move_count: Option<usize>,
 }
 
@@ -97,8 +97,8 @@ pub async fn notify_game_updated(state: &AppState, game_id: i64, move_count: Opt
         id: gwp.game.id,
         stage: gwp.game.stage.clone(),
         result: gwp.game.result.clone(),
-        black: gwp.black.as_ref().map(PlayerData::from),
-        white: gwp.white.as_ref().map(PlayerData::from),
+        black: gwp.black.as_ref().map(UserData::from),
+        white: gwp.white.as_ref().map(UserData::from),
         move_count,
     };
     let msg = json!({

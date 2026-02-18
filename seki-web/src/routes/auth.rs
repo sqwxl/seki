@@ -11,9 +11,9 @@ use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
-use crate::models::player::Player;
-use crate::session::{ANON_PLAYER_TOKEN_COOKIE, CurrentPlayer, PLAYER_ID_KEY};
-use crate::templates::PlayerData;
+use crate::models::user::User;
+use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
+use crate::templates::UserData;
 use crate::templates::auth::{LoginTemplate, RegisterTemplate};
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
@@ -39,8 +39,8 @@ fn get_cookie(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
         })
 }
 
-fn serialize_player_data(player: &CurrentPlayer) -> String {
-    serde_json::to_string(&PlayerData::from(&player.player)).unwrap_or_else(|_| "{}".to_string())
+fn serialize_user_data(user: &CurrentUser) -> String {
+    serde_json::to_string(&UserData::from(&user.user)).unwrap_or_else(|_| "{}".to_string())
 }
 
 #[derive(Deserialize)]
@@ -57,14 +57,14 @@ pub struct LoginForm {
 }
 
 // GET /register
-pub async fn register_form(current_player: CurrentPlayer) -> Result<Response, AppError> {
-    if current_player.is_registered() {
+pub async fn register_form(current_user: CurrentUser) -> Result<Response, AppError> {
+    if current_user.is_registered() {
         return Ok(Redirect::to("/").into_response());
     }
     let tmpl = RegisterTemplate {
-        player_username: current_player.username.clone(),
-        player_is_registered: false,
-        player_data: serialize_player_data(&current_player),
+        user_username: current_user.username.clone(),
+        user_is_registered: false,
+        user_data: serialize_user_data(&current_user),
         flash: None,
     };
     Ok(Html(
@@ -77,21 +77,21 @@ pub async fn register_form(current_player: CurrentPlayer) -> Result<Response, Ap
 // POST /register
 pub async fn register(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    current_user: CurrentUser,
     Form(form): Form<RegisterForm>,
 ) -> Result<Response, AppError> {
-    if current_player.is_registered() {
+    if current_user.is_registered() {
         return Ok(Redirect::to("/").into_response());
     }
 
     let username = form.username.trim().to_string();
-    let player_data = serialize_player_data(&current_player);
-    let player_username = current_player.username.clone();
+    let user_data = serialize_user_data(&current_user);
+    let user_username = current_user.username.clone();
     let render_error = |msg: String| -> Result<Response, AppError> {
         let tmpl = RegisterTemplate {
-            player_username: player_username.clone(),
-            player_is_registered: false,
-            player_data: player_data.clone(),
+            user_username: user_username.clone(),
+            user_is_registered: false,
+            user_data: user_data.clone(),
             flash: Some(msg),
         };
         Ok((
@@ -116,7 +116,7 @@ pub async fn register(
     }
 
     // Check uniqueness
-    if Player::find_by_username(&state.db, &username)
+    if User::find_by_username(&state.db, &username)
         .await?
         .is_some()
     {
@@ -130,24 +130,24 @@ pub async fn register(
         .map_err(|e| AppError::Internal(format!("Password hash error: {e}")))?
         .to_string();
 
-    Player::set_credentials(&state.db, current_player.id, &username, &password_hash).await?;
+    User::set_credentials(&state.db, current_user.id, &username, &password_hash).await?;
 
     Ok(Redirect::to("/").into_response())
 }
 
 // GET /login
 pub async fn login_form(
-    current_player: CurrentPlayer,
+    current_user: CurrentUser,
     headers: axum::http::HeaderMap,
 ) -> Result<Response, AppError> {
-    if current_player.is_registered() {
+    if current_user.is_registered() {
         return Ok(Redirect::to("/").into_response());
     }
     let redirect = referer_path(&headers);
     let tmpl = LoginTemplate {
-        player_username: current_player.username.clone(),
-        player_is_registered: false,
-        player_data: serialize_player_data(&current_player),
+        user_username: current_user.username.clone(),
+        user_is_registered: false,
+        user_data: serialize_user_data(&current_user),
         flash: None,
         redirect,
     };
@@ -174,9 +174,9 @@ pub async fn login(
     let redirect = query.redirect.clone();
     let render_error = |msg: String| -> Result<Response, AppError> {
         let tmpl = LoginTemplate {
-            player_username: String::new(),
-            player_is_registered: false,
-            player_data: "{}".to_string(),
+            user_username: String::new(),
+            user_is_registered: false,
+            user_data: "{}".to_string(),
             flash: Some(msg),
             redirect: redirect.clone(),
         };
@@ -190,12 +190,12 @@ pub async fn login(
             .into_response())
     };
 
-    let player = match Player::find_by_username(&state.db, form.username.trim()).await? {
+    let user = match User::find_by_username(&state.db, form.username.trim()).await? {
         Some(p) => p,
         None => return render_error("Invalid username or password.".to_string()),
     };
 
-    let stored_hash = match &player.password_hash {
+    let stored_hash = match &user.password_hash {
         Some(h) => h.clone(),
         None => return render_error("Invalid username or password.".to_string()),
     };
@@ -211,15 +211,15 @@ pub async fn login(
     }
 
     // Save the current anonymous token in a cookie so we can restore it on logout
-    let anon_token = session.get::<String>(PLAYER_ID_KEY).await.ok().flatten();
+    let anon_token = session.get::<String>(USER_ID_KEY).await.ok().flatten();
 
-    // Switch session to this player's token
-    let token = player
+    // Switch session to this user's token
+    let token = user
         .session_token
         .as_ref()
-        .ok_or_else(|| AppError::Internal("Registered player has no session token".to_string()))?;
+        .ok_or_else(|| AppError::Internal("Registered user has no session token".to_string()))?;
     session
-        .insert(PLAYER_ID_KEY, token.clone())
+        .insert(USER_ID_KEY, token.clone())
         .await
         .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
 
@@ -232,7 +232,7 @@ pub async fn login(
     if let Some(token) = anon_token {
         response.headers_mut().insert(
             axum::http::header::SET_COOKIE,
-            format!("{ANON_PLAYER_TOKEN_COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax")
+            format!("{ANON_USER_TOKEN_COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax")
                 .parse()
                 .unwrap(),
         );
@@ -245,7 +245,7 @@ pub async fn logout(
     session: Session,
     headers: axum::http::HeaderMap,
 ) -> Result<Response, AppError> {
-    let anon_token = get_cookie(&headers, ANON_PLAYER_TOKEN_COOKIE);
+    let anon_token = get_cookie(&headers, ANON_USER_TOKEN_COOKIE);
 
     session
         .flush()
@@ -255,7 +255,7 @@ pub async fn logout(
     // Restore the anonymous identity saved at login
     if let Some(token) = &anon_token {
         session
-            .insert(PLAYER_ID_KEY, token.clone())
+            .insert(USER_ID_KEY, token.clone())
             .await
             .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
     }
@@ -266,7 +266,7 @@ pub async fn logout(
     // Clear the anon cookie regardless
     response.headers_mut().insert(
         axum::http::header::SET_COOKIE,
-        format!("{ANON_PLAYER_TOKEN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0")
+        format!("{ANON_USER_TOKEN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0")
             .parse()
             .unwrap(),
     );

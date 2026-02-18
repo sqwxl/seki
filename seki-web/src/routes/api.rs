@@ -8,22 +8,22 @@ use crate::AppState;
 use crate::error::{ApiError, AppError};
 use crate::models::game::Game;
 use crate::models::message::Message;
-use crate::models::player::Player;
+use crate::models::user::User;
 use crate::models::turn::TurnRow;
 use crate::services::{game_actions, game_creator, state_serializer};
-use crate::session::ApiPlayer;
+use crate::session::ApiUser;
 
 // -- Response types --
 
 #[derive(Serialize)]
-struct PlayerResponse {
+struct UserResponse {
     id: i64,
     username: String,
     is_registered: bool,
 }
 
-impl PlayerResponse {
-    fn from_player(p: &Player) -> Self {
+impl UserResponse {
+    fn from_user(p: &User) -> Self {
         Self {
             id: p.id,
             username: p.username.clone(),
@@ -57,9 +57,9 @@ struct GameResponse {
     is_private: bool,
     is_handicap: bool,
     result: Option<String>,
-    black: Option<PlayerResponse>,
-    white: Option<PlayerResponse>,
-    creator: Option<PlayerResponse>,
+    black: Option<UserResponse>,
+    white: Option<UserResponse>,
+    creator: Option<UserResponse>,
     created_at: DateTime<Utc>,
     started_at: Option<DateTime<Utc>>,
     ended_at: Option<DateTime<Utc>>,
@@ -78,14 +78,14 @@ struct TurnResponse {
     stone: i32,
     col: Option<i32>,
     row: Option<i32>,
-    player_id: i64,
+    user_id: i64,
     created_at: DateTime<Utc>,
 }
 
 #[derive(Serialize)]
 struct MessageResponse {
     id: i64,
-    player_id: Option<i64>,
+    user_id: Option<i64>,
     sender: String,
     text: String,
     move_number: Option<i32>,
@@ -184,7 +184,7 @@ async fn list_games(State(state): State<AppState>) -> Result<Json<Vec<GameListIt
 
 async fn create_game(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Json(body): Json<CreateGameRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let params = game_creator::CreateGameParams {
@@ -204,7 +204,7 @@ async fn create_game(
         byoyomi_periods: body.byoyomi_periods,
     };
 
-    let game = game_creator::create_game(&state.db, &api_player, params).await?;
+    let game = game_creator::create_game(&state.db, &api_user, params).await?;
     crate::services::live::notify_game_created(&state, game.id).await;
     let gwp = Game::find_with_players(&state.db, game.id).await?;
     let engine = state
@@ -234,12 +234,12 @@ async fn get_game(
 
 async fn delete_game(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let game = Game::find_by_id(&state.db, id).await?;
 
-    if game.creator_id != Some(api_player.id) {
+    if game.creator_id != Some(api_user.id) {
         return Err(
             AppError::BadRequest("Only the creator can delete this game".to_string()).into(),
         );
@@ -257,19 +257,19 @@ async fn delete_game(
 
 async fn join_game(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
 
-    if gwp.has_player(api_player.id) {
+    if gwp.has_player(api_user.id) {
         return Err(AppError::BadRequest("Already in this game".to_string()).into());
     }
 
     if gwp.game.black_id.is_none() {
-        Game::set_black(&state.db, id, api_player.id).await?;
+        Game::set_black(&state.db, id, api_user.id).await?;
     } else if gwp.game.white_id.is_none() {
-        Game::set_white(&state.db, id, api_player.id).await?;
+        Game::set_white(&state.db, id, api_user.id).await?;
     } else {
         return Err(AppError::BadRequest("Game is full".to_string()).into());
     }
@@ -290,50 +290,50 @@ async fn join_game(
 
 async fn play_move(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
     Json(body): Json<PlayRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let engine = game_actions::play_move(&state, id, api_player.id, body.col, body.row).await?;
+    let engine = game_actions::play_move(&state, id, api_user.id, body.col, body.row).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn pass(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let engine = game_actions::pass(&state, id, api_player.id).await?;
+    let engine = game_actions::pass(&state, id, api_user.id).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn resign(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let engine = game_actions::resign(&state, id, api_player.id).await?;
+    let engine = game_actions::resign(&state, id, api_user.id).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 async fn abort(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    game_actions::abort(&state, id, api_player.id).await?;
+    game_actions::abort(&state, id, api_user.id).await?;
     Ok(Json(serde_json::json!({ "status": "aborted" })))
 }
 
 async fn request_undo(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
-    game_actions::request_undo(&state, id, api_player.id).await?;
+    game_actions::request_undo(&state, id, api_user.id).await?;
 
     Ok(Json(serde_json::json!({
         "status": "undo_requested",
@@ -343,7 +343,7 @@ async fn request_undo(
 
 async fn respond_to_undo(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
     Json(body): Json<UndoResponseRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
@@ -356,7 +356,7 @@ async fn respond_to_undo(
     }
 
     let result =
-        game_actions::respond_to_undo(&state, id, api_player.id, response == "accept").await?;
+        game_actions::respond_to_undo(&state, id, api_user.id, response == "accept").await?;
 
     Ok(Json(
         build_game_response(&state, id, &result.gwp, &result.engine).await,
@@ -365,11 +365,11 @@ async fn respond_to_undo(
 
 async fn toggle_chain(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
     Json(body): Json<ToggleChainRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    game_actions::toggle_chain(&state, id, api_player.id, body.col, body.row).await?;
+    game_actions::toggle_chain(&state, id, api_user.id, body.col, body.row).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state
         .registry
@@ -381,10 +381,10 @@ async fn toggle_chain(
 
 async fn approve_territory(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    game_actions::approve_territory(&state, id, api_player.id).await?;
+    game_actions::approve_territory(&state, id, api_user.id).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state
         .registry
@@ -406,23 +406,23 @@ async fn get_messages(
     let items: Vec<MessageResponse> = messages
         .into_iter()
         .map(|m| {
-            let sender = match m.player_id {
+            let sender = match m.user_id {
                 Some(pid) => {
-                    let player = if gwp.black.as_ref().is_some_and(|p| p.id == pid) {
+                    let user = if gwp.black.as_ref().is_some_and(|p| p.id == pid) {
                         gwp.black.as_ref()
                     } else if gwp.white.as_ref().is_some_and(|p| p.id == pid) {
                         gwp.white.as_ref()
                     } else {
                         None
                     };
-                    let username = player.map(|p| p.username.as_str());
+                    let username = user.map(|p| p.username.as_str());
                     state_serializer::sender_label(&gwp, pid, username)
                 }
                 None => "\u{2691}".to_string(),
             };
             MessageResponse {
                 id: m.id,
-                player_id: m.player_id,
+                user_id: m.user_id,
                 sender,
                 text: m.text,
                 move_number: m.move_number,
@@ -436,15 +436,15 @@ async fn get_messages(
 
 async fn send_message(
     State(state): State<AppState>,
-    api_player: ApiPlayer,
+    api_user: ApiUser,
     Path(id): Path<i64>,
     Json(body): Json<ChatRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    let chat = game_actions::send_chat(&state, id, api_player.id, &body.text).await?;
+    let chat = game_actions::send_chat(&state, id, api_user.id, &body.text).await?;
 
     Ok(Json(MessageResponse {
         id: chat.message.id,
-        player_id: chat.message.player_id,
+        user_id: chat.message.user_id,
         sender: chat.sender_label,
         text: chat.message.text,
         move_number: chat.message.move_number,
@@ -470,7 +470,7 @@ async fn get_turns(
             stone: t.stone,
             col: t.col,
             row: t.row,
-            player_id: t.player_id,
+            user_id: t.user_id,
             created_at: t.created_at,
         })
         .collect();
@@ -480,8 +480,8 @@ async fn get_turns(
 
 // -- Auth handlers --
 
-async fn get_me(api_player: ApiPlayer) -> Json<PlayerResponse> {
-    Json(PlayerResponse::from_player(&api_player))
+async fn get_me(api_user: ApiUser) -> Json<UserResponse> {
+    Json(UserResponse::from_user(&api_user))
 }
 
 // -- Helpers --
@@ -559,9 +559,9 @@ async fn build_game_response(
         is_private: gwp.game.is_private,
         is_handicap: gwp.game.is_handicap,
         result: gwp.game.result.clone(),
-        black: gwp.black.as_ref().map(PlayerResponse::from_player),
-        white: gwp.white.as_ref().map(PlayerResponse::from_player),
-        creator: gwp.creator.as_ref().map(PlayerResponse::from_player),
+        black: gwp.black.as_ref().map(UserResponse::from_user),
+        white: gwp.white.as_ref().map(UserResponse::from_user),
+        creator: gwp.creator.as_ref().map(UserResponse::from_user),
         created_at: gwp.game.created_at,
         started_at: gwp.game.started_at,
         ended_at: gwp.game.ended_at,

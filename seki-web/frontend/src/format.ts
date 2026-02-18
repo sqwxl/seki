@@ -1,6 +1,6 @@
-import type { GameSettings, PlayerData } from "./goban/types";
+import type { GameSettings, UserData } from "./goban/types";
 
-export type { GameSettings, PlayerData };
+export type { GameSettings, UserData };
 
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
@@ -52,8 +52,8 @@ function isPlayStage(stage: string): boolean {
 }
 
 type DescriptionInput = {
-  black: PlayerData | undefined;
-  white: PlayerData | undefined;
+  black: UserData | undefined;
+  white: UserData | undefined;
   settings: GameSettings;
   stage: string;
   result: string | null | undefined;

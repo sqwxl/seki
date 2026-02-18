@@ -4,13 +4,13 @@ use serde::Serialize;
 
 use crate::services::live::GameSettings;
 
-use super::PlayerData;
+use super::UserData;
 
 #[derive(Serialize)]
 pub struct InitialGameProps {
     pub state: GameState,
-    pub black: Option<PlayerData>,
-    pub white: Option<PlayerData>,
+    pub black: Option<UserData>,
+    pub white: Option<UserData>,
     pub komi: f64,
     pub stage: Stage,
     pub settings: GameSettings,
@@ -19,9 +19,9 @@ pub struct InitialGameProps {
 #[derive(Template)]
 #[template(path = "games/show.html")]
 pub struct GamesShowTemplate {
-    pub player_username: String,
-    pub player_is_registered: bool,
-    pub player_data: String,
+    pub user_username: String,
+    pub user_is_registered: bool,
+    pub user_data: String,
     pub game_id: i64,
     pub game_props: String,
     pub cols: i32,

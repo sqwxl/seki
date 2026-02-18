@@ -8,7 +8,7 @@ use crate::db::DbPool;
 pub struct TurnRow {
     pub id: i64,
     pub game_id: i64,
-    pub player_id: i64,
+    pub user_id: i64,
     pub turn_number: i32,
     pub kind: String,
     pub stone: i32,
@@ -40,7 +40,7 @@ impl TurnRow {
     pub async fn create(
         pool: &DbPool,
         game_id: i64,
-        player_id: i64,
+        user_id: i64,
         turn_number: i32,
         kind: &str,
         stone: i32,
@@ -48,12 +48,12 @@ impl TurnRow {
         row: Option<i32>,
     ) -> Result<TurnRow, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
-            "INSERT INTO turns (game_id, player_id, turn_number, kind, stone, col, row)
+            "INSERT INTO turns (game_id, user_id, turn_number, kind, stone, col, row)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *",
         )
         .bind(game_id)
-        .bind(player_id)
+        .bind(user_id)
         .bind(turn_number)
         .bind(kind)
         .bind(stone)

@@ -2,7 +2,7 @@ import type {
   GameState,
   GameStage,
   InitialGameProps,
-  PlayerData,
+  UserData,
   ScoreData,
   TerritoryData,
   TurnData,
@@ -21,12 +21,12 @@ export type GameCtx = {
   gameStage: GameStage;
   currentTurn: number | null;
   moves: TurnData[];
-  black: PlayerData | undefined;
-  white: PlayerData | undefined;
+  black: UserData | undefined;
+  white: UserData | undefined;
   result: string | null;
   territory: TerritoryData | undefined;
   settledScore: ScoreData | undefined;
-  onlinePlayers: Set<number>;
+  onlineUsers: Set<number>;
   undoRejected: boolean;
   allowUndo: boolean;
 
@@ -55,7 +55,7 @@ export function createGameContext(
     result: null,
     territory: undefined,
     settledScore: undefined,
-    onlinePlayers: new Set(),
+    onlineUsers: new Set(),
     undoRejected: false,
     allowUndo: false,
 

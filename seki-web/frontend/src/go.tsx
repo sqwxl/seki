@@ -10,20 +10,20 @@ import { updateTitle, updatePlayerLabels, updateStatus } from "./game-ui";
 import { updateControls } from "./game-controls";
 import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
-import { readPlayerData, derivePlayerStone } from "./game-util";
+import { readUserData, derivePlayerStone } from "./game-util";
 
 export function go(root: HTMLElement) {
   const initialProps: InitialGameProps = JSON.parse(root.dataset.props!);
   const gameId = Number(root.dataset.gameId!);
-  const playerData = readPlayerData();
+  const userData = readUserData();
   const playerStone = derivePlayerStone(
-    playerData,
+    userData,
     initialProps.black,
     initialProps.white,
   );
 
   console.debug("InitialGameProps", initialProps);
-  console.debug("PlayerData", playerData, "playerStone", playerStone);
+  console.debug("UserData", userData, "playerStone", playerStone);
 
   const ctx = createGameContext(gameId, playerStone, initialProps);
   const channel = createGameChannel(gameId);

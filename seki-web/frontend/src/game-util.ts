@@ -1,7 +1,7 @@
-import type { PlayerData } from "./goban/types";
+import type { UserData } from "./goban/types";
 
-export function readPlayerData(): PlayerData | undefined {
-  const el = document.getElementById("player-data");
+export function readUserData(): UserData | undefined {
+  const el = document.getElementById("user-data");
   if (!el || !el.textContent) {
     return;
   }
@@ -9,17 +9,17 @@ export function readPlayerData(): PlayerData | undefined {
 }
 
 export function derivePlayerStone(
-  playerData: PlayerData | undefined,
-  black: PlayerData | null,
-  white: PlayerData | null,
+  userData: UserData | undefined,
+  black: UserData | null,
+  white: UserData | null,
 ): number {
-  if (!playerData) {
+  if (!userData) {
     return 0;
   }
-  if (black && black.id === playerData.id) {
+  if (black && black.id === userData.id) {
     return 1;
   }
-  if (white && white.id === playerData.id) {
+  if (white && white.id === userData.id) {
     return -1;
   }
   return 0;

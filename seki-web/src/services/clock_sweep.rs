@@ -9,7 +9,7 @@ use crate::services::game_actions;
 
 /// Periodic safety-net sweep that ends games whose clocks have expired.
 /// Runs every 5 seconds, catches games where the client didn't send a timeout_flag
-/// (e.g. both players disconnected, or client crashed).
+/// (e.g. both users disconnected, or client crashed).
 pub async fn run(state: AppState) {
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     loop {

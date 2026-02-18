@@ -75,7 +75,7 @@ export function updateClocks(
     whiteMs -= elapsed;
   }
 
-  // Check for timeout on the active player
+  // Check for timeout on the active user
   if (onFlag && cd.active_stone && !clockState.timeoutFlagSent && settings) {
     const activeStone = cd.active_stone as 1 | -1;
     const total = totalRemainingMs(cd, activeStone, elapsed, settings);

@@ -1,4 +1,4 @@
 pub mod game;
 pub mod message;
-pub mod player;
+pub mod user;
 pub mod turn;

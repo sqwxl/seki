@@ -4,26 +4,26 @@ use axum::response::{Html, IntoResponse, Redirect, Response};
 
 use crate::AppState;
 use crate::error::AppError;
-use crate::models::player::Player;
-use crate::session::CurrentPlayer;
-use crate::templates::PlayerData;
+use crate::models::user::User;
+use crate::session::CurrentUser;
+use crate::templates::UserData;
 use crate::templates::settings::SettingsTemplate;
 
-fn serialize_player_data(player: &CurrentPlayer) -> String {
-    serde_json::to_string(&PlayerData::from(&player.player)).unwrap_or_else(|_| "{}".to_string())
+fn serialize_user_data(user: &CurrentUser) -> String {
+    serde_json::to_string(&UserData::from(&user.user)).unwrap_or_else(|_| "{}".to_string())
 }
 
 // GET /settings
-pub async fn settings_page(current_player: CurrentPlayer) -> Result<Response, AppError> {
-    if !current_player.is_registered() {
+pub async fn settings_page(current_user: CurrentUser) -> Result<Response, AppError> {
+    if !current_user.is_registered() {
         return Ok(Redirect::to("/login?redirect=/settings").into_response());
     }
 
     let tmpl = SettingsTemplate {
-        player_username: current_player.username.clone(),
-        player_is_registered: true,
-        player_data: serialize_player_data(&current_player),
-        api_token: current_player.api_token.clone(),
+        user_username: current_user.username.clone(),
+        user_is_registered: true,
+        user_data: serialize_user_data(&current_user),
+        api_token: current_user.api_token.clone(),
         flash: None,
     };
     Ok(Html(
@@ -36,13 +36,13 @@ pub async fn settings_page(current_player: CurrentPlayer) -> Result<Response, Ap
 // POST /settings/token
 pub async fn generate_token(
     State(state): State<AppState>,
-    current_player: CurrentPlayer,
+    current_user: CurrentUser,
 ) -> Result<Response, AppError> {
-    if !current_player.is_registered() {
+    if !current_user.is_registered() {
         return Ok(Redirect::to("/login?redirect=/settings").into_response());
     }
 
-    Player::generate_api_token(&state.db, current_player.id).await?;
+    User::generate_api_token(&state.db, current_user.id).await?;
 
     Ok(Redirect::to("/settings").into_response())
 }

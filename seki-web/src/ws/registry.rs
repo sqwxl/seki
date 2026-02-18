@@ -20,7 +20,7 @@ pub struct TerritoryReviewState {
 
 #[derive(Debug, Default)]
 struct GameRoom {
-    /// Map of player_id -> list of ws senders (a player may have multiple tabs open).
+    /// Map of player_id -> list of ws senders (a user may have multiple tabs open).
     players: HashMap<i64, Vec<WsSender>>,
     /// In-memory engine, built on first access, then mutated
     engine: Option<Engine>,
@@ -44,15 +44,15 @@ impl GameRegistry {
         }
     }
 
-    /// Add a player's sender to a game room.
+    /// Add a user's sender to a game room.
     pub async fn join(&self, game_id: i64, player_id: i64, sender: WsSender) {
         let mut rooms = self.rooms.write().await;
         let room = rooms.entry(game_id).or_default();
         room.players.entry(player_id).or_default().push(sender);
     }
 
-    /// Remove a player's sender from a game room.
-    /// Returns `true` if the player was fully removed (no remaining senders).
+    /// Remove a user's sender from a game room.
+    /// Returns `true` if the user was fully removed (no remaining senders).
     pub async fn leave(&self, game_id: i64, player_id: i64, sender: &WsSender) -> bool {
         let mut rooms = self.rooms.write().await;
         let mut player_removed = false;
@@ -71,8 +71,8 @@ impl GameRegistry {
         player_removed
     }
 
-    /// Get the IDs of players currently connected to a game room.
-    pub async fn get_online_player_ids(&self, game_id: i64) -> Vec<i64> {
+    /// Get the IDs of users currently connected to a game room.
+    pub async fn get_online_user_ids(&self, game_id: i64) -> Vec<i64> {
         let rooms = self.rooms.read().await;
         rooms
             .get(&game_id)
@@ -80,7 +80,7 @@ impl GameRegistry {
             .unwrap_or_default()
     }
 
-    /// Broadcast a message to all players in a game room.
+    /// Broadcast a message to all users in a game room.
     /// Injects `game_id` into the JSON message.
     pub async fn broadcast(&self, game_id: i64, message: &str) {
         let rooms = self.rooms.read().await;
@@ -94,7 +94,7 @@ impl GameRegistry {
         }
     }
 
-    /// Send a message to a specific player in a game room.
+    /// Send a message to a specific user in a game room.
     /// Injects `game_id` into the JSON message.
     pub async fn send_to_player(&self, game_id: i64, player_id: i64, message: &str) {
         let rooms = self.rooms.read().await;

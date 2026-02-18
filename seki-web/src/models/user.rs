@@ -25,7 +25,7 @@ fn generate_name() -> String {
 
 #[derive(Debug, Clone, FromRow)]
 #[allow(dead_code)] // Fields populated by SELECT * via sqlx
-pub struct Player {
+pub struct User {
     pub id: i64,
     pub session_token: Option<String>,
     pub email: Option<String>,
@@ -36,17 +36,17 @@ pub struct Player {
     pub updated_at: DateTime<Utc>,
 }
 
-impl Player {
-    pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Player, sqlx::Error> {
-        sqlx::query_as::<_, Player>("SELECT * FROM players WHERE id = $1")
+impl User {
+    pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<User, sqlx::Error> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(id)
             .fetch_one(pool)
             .await
     }
 
-    pub async fn find_by_ids(pool: &DbPool, ids: &[i64]) -> Result<Vec<Player>, sqlx::Error> {
+    pub async fn find_by_ids(pool: &DbPool, ids: &[i64]) -> Result<Vec<User>, sqlx::Error> {
         // Use ANY($1) with a slice parameter for Postgres
-        sqlx::query_as::<_, Player>("SELECT * FROM players WHERE id = ANY($1)")
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ANY($1)")
             .bind(ids)
             .fetch_all(pool)
             .await
@@ -55,27 +55,27 @@ impl Player {
     pub async fn find_by_session_token(
         pool: &DbPool,
         token: &str,
-    ) -> Result<Option<Player>, sqlx::Error> {
-        sqlx::query_as::<_, Player>("SELECT * FROM players WHERE session_token = $1")
+    ) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE session_token = $1")
             .bind(token)
             .fetch_optional(pool)
             .await
     }
 
-    pub async fn find_by_email(pool: &DbPool, email: &str) -> Result<Option<Player>, sqlx::Error> {
-        sqlx::query_as::<_, Player>("SELECT * FROM players WHERE email = $1")
+    pub async fn find_by_email(pool: &DbPool, email: &str) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
             .fetch_optional(pool)
             .await
     }
 
-    pub async fn create(pool: &DbPool) -> Result<Player, sqlx::Error> {
+    pub async fn create(pool: &DbPool) -> Result<User, sqlx::Error> {
         let token = generate_token();
         // Retry with a new name on unique constraint violation
         loop {
             let name = generate_name();
-            let result = sqlx::query_as::<_, Player>(
-                "INSERT INTO players (session_token, username) VALUES ($1, $2) RETURNING *",
+            let result = sqlx::query_as::<_, User>(
+                "INSERT INTO users (session_token, username) VALUES ($1, $2) RETURNING *",
             )
             .bind(&token)
             .bind(&name)
@@ -83,7 +83,7 @@ impl Player {
             .await;
 
             match result {
-                Ok(player) => return Ok(player),
+                Ok(user) => return Ok(user),
                 Err(sqlx::Error::Database(e)) if e.is_unique_violation() => continue,
                 Err(e) => return Err(e),
             }
@@ -93,13 +93,13 @@ impl Player {
     pub async fn find_or_create_by_email(
         pool: &DbPool,
         email: &str,
-    ) -> Result<Player, sqlx::Error> {
-        if let Some(player) = Self::find_by_email(pool, email).await? {
-            return Ok(player);
+    ) -> Result<User, sqlx::Error> {
+        if let Some(user) = Self::find_by_email(pool, email).await? {
+            return Ok(user);
         }
         let name = generate_name();
-        sqlx::query_as::<_, Player>(
-            "INSERT INTO players (email, username) VALUES ($1, $2) RETURNING *",
+        sqlx::query_as::<_, User>(
+            "INSERT INTO users (email, username) VALUES ($1, $2) RETURNING *",
         )
         .bind(email)
         .bind(&name)
@@ -118,8 +118,8 @@ impl Player {
     pub async fn find_by_username(
         pool: &DbPool,
         username: &str,
-    ) -> Result<Option<Player>, sqlx::Error> {
-        sqlx::query_as::<_, Player>("SELECT * FROM players WHERE username = $1")
+    ) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
             .bind(username)
             .fetch_optional(pool)
             .await
@@ -127,16 +127,16 @@ impl Player {
 
     pub async fn set_credentials(
         pool: &DbPool,
-        player_id: i64,
+        user_id: i64,
         username: &str,
         password_hash: &str,
-    ) -> Result<Player, sqlx::Error> {
-        sqlx::query_as::<_, Player>(
-            "UPDATE players SET username = $1, password_hash = $2, updated_at = NOW() WHERE id = $3 RETURNING *",
+    ) -> Result<User, sqlx::Error> {
+        sqlx::query_as::<_, User>(
+            "UPDATE users SET username = $1, password_hash = $2, updated_at = NOW() WHERE id = $3 RETURNING *",
         )
         .bind(username)
         .bind(password_hash)
-        .bind(player_id)
+        .bind(user_id)
         .fetch_one(pool)
         .await
     }
@@ -144,20 +144,20 @@ impl Player {
     pub async fn find_by_api_token(
         pool: &DbPool,
         token: &str,
-    ) -> Result<Option<Player>, sqlx::Error> {
-        sqlx::query_as::<_, Player>("SELECT * FROM players WHERE api_token = $1")
+    ) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE api_token = $1")
             .bind(token)
             .fetch_optional(pool)
             .await
     }
 
-    pub async fn generate_api_token(pool: &DbPool, player_id: i64) -> Result<Player, sqlx::Error> {
+    pub async fn generate_api_token(pool: &DbPool, user_id: i64) -> Result<User, sqlx::Error> {
         let token = generate_token();
-        sqlx::query_as::<_, Player>(
-            "UPDATE players SET api_token = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        sqlx::query_as::<_, User>(
+            "UPDATE users SET api_token = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
         )
         .bind(&token)
-        .bind(player_id)
+        .bind(user_id)
         .fetch_one(pool)
         .await
     }

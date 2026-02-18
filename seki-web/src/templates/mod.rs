@@ -7,21 +7,21 @@ pub mod settings;
 
 use serde::Serialize;
 
-use crate::models::player::Player;
+use crate::models::user::User;
 
 #[derive(Serialize)]
-pub struct PlayerData {
+pub struct UserData {
     pub id: i64,
     pub display_name: String,
     pub is_registered: bool,
 }
 
-impl From<&Player> for PlayerData {
-    fn from(player: &Player) -> Self {
+impl From<&User> for UserData {
+    fn from(user: &User) -> Self {
         Self {
-            id: player.id,
-            display_name: player.display_name().to_string(),
-            is_registered: player.is_registered(),
+            id: user.id,
+            display_name: user.display_name().to_string(),
+            is_registered: user.is_registered(),
         }
     }
 }

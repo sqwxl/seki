@@ -38,8 +38,8 @@ export function handleGameMessage(
       ctx.settledScore = data.score;
       ctx.black = data.black ?? undefined;
       ctx.white = data.white ?? undefined;
-      if (data.online_players) {
-        ctx.onlinePlayers = new Set(data.online_players);
+      if (data.online_users) {
+        ctx.onlineUsers = new Set(data.online_users);
       }
 
       if (ctx.board) {
@@ -57,7 +57,7 @@ export function handleGameMessage(
       updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
       updateStatus(ctx, dom.status);
       syncClock(clockState, data.clock, ctx, dom, () => channel.timeoutFlag());
-      updateChatPresence(ctx.onlinePlayers);
+      updateChatPresence(ctx.onlineUsers);
       break;
     }
     case "chat": {
@@ -68,7 +68,7 @@ export function handleGameMessage(
         move_number: data.move_number,
         sent_at: data.sent_at,
       });
-      updateChatPresence(ctx.onlinePlayers);
+      updateChatPresence(ctx.onlineUsers);
       break;
     }
     case "error": {
@@ -114,12 +114,12 @@ export function handleGameMessage(
     }
     case "presence": {
       if (data.online) {
-        ctx.onlinePlayers.add(data.player_id);
+        ctx.onlineUsers.add(data.player_id);
       } else {
-        ctx.onlinePlayers.delete(data.player_id);
+        ctx.onlineUsers.delete(data.player_id);
       }
       updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
-      updateChatPresence(ctx.onlinePlayers);
+      updateChatPresence(ctx.onlineUsers);
       break;
     }
     default: {

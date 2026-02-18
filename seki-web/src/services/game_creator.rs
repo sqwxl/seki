@@ -3,7 +3,7 @@ use rand::RngExt;
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
-use crate::models::player::Player;
+use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
 
 pub struct CreateGameParams {
@@ -25,12 +25,12 @@ pub struct CreateGameParams {
 
 pub async fn create_game(
     pool: &DbPool,
-    creator: &Player,
+    creator: &User,
     params: CreateGameParams,
 ) -> Result<Game, AppError> {
     let friend = if let Some(ref email) = params.invite_email {
         if !email.is_empty() {
-            Some(Player::find_or_create_by_email(pool, email).await?)
+            Some(User::find_or_create_by_email(pool, email).await?)
         } else {
             None
         }

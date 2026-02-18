@@ -81,7 +81,7 @@ export type GameTreeData = {
   root_children: number[];
 };
 
-export type PlayerData = {
+export type UserData = {
   id: number;
   display_name: string;
   is_registered: boolean;
@@ -119,8 +119,8 @@ export type GameSettings = {
 // Baked into the #game element dataset as JSON on initial render
 export type InitialGameProps = {
   state: GameState;
-  black: PlayerData | null;
-  white: PlayerData | null;
+  black: UserData | null;
+  white: UserData | null;
   komi: number;
   stage: GameStage;
   settings: GameSettings;
@@ -140,15 +140,15 @@ export type StateMessage = {
   negotiations?: Record<string, unknown>;
   current_turn_stone: number | null;
   moves: TurnData[];
-  black: PlayerData | null;
-  white: PlayerData | null;
+  black: UserData | null;
+  white: UserData | null;
   result: string | null;
   undo_rejected: boolean;
   allow_undo?: boolean;
   territory?: TerritoryData;
   score?: ScoreData;
   clock?: ClockData;
-  online_players?: number[];
+  online_users?: number[];
 };
 
 export type PresenceMessage = {
@@ -193,7 +193,7 @@ export type UndoRequestSentMessage = {
 
 export type UndoResponseNeededMessage = {
   kind: "undo_response_needed";
-  requesting_player: string;
+  requesting_user: string;
 };
 
 export type IncomingMessage =

@@ -3,23 +3,23 @@ use axum::http::request::Parts;
 use tower_sessions::Session;
 
 use crate::error::{ApiError, AppError};
-use crate::models::player::Player;
+use crate::models::user::User;
 
-pub const PLAYER_ID_KEY: &str = "player_id";
-pub const ANON_PLAYER_TOKEN_COOKIE: &str = "anon_player_token";
+pub const USER_ID_KEY: &str = "user_id";
+pub const ANON_USER_TOKEN_COOKIE: &str = "anon_user_token";
 
-pub struct CurrentPlayer {
-    pub player: Player,
+pub struct CurrentUser {
+    pub user: User,
 }
 
-impl std::ops::Deref for CurrentPlayer {
-    type Target = Player;
+impl std::ops::Deref for CurrentUser {
+    type Target = User;
     fn deref(&self) -> &Self::Target {
-        &self.player
+        &self.user
     }
 }
 
-impl FromRequestParts<crate::AppState> for CurrentPlayer {
+impl FromRequestParts<crate::AppState> for CurrentUser {
     type Rejection = AppError;
 
     async fn from_request_parts(
@@ -32,48 +32,48 @@ impl FromRequestParts<crate::AppState> for CurrentPlayer {
 
         let pool = &state.db;
 
-        // Try to find existing player from session
+        // Try to find existing user from session
         if let Some(token) = session
-            .get::<String>(PLAYER_ID_KEY)
+            .get::<String>(USER_ID_KEY)
             .await
             .map_err(|e| AppError::Internal(format!("Session get error: {e}")))?
         {
-            if let Some(player) = Player::find_by_session_token(pool, &token).await? {
-                return Ok(CurrentPlayer { player });
+            if let Some(user) = User::find_by_session_token(pool, &token).await? {
+                return Ok(CurrentUser { user });
             }
             // Stale token, remove it
             tracing::warn!("Stale session token: {}", token);
-            let _ = session.remove::<String>(PLAYER_ID_KEY).await;
+            let _ = session.remove::<String>(USER_ID_KEY).await;
         }
 
-        // Create anonymous player
-        let player = Player::create(pool).await?;
-        let token = player
+        // Create anonymous user
+        let user = User::create(pool).await?;
+        let token = user
             .session_token
             .as_ref()
-            .expect("newly created player should have session_token")
+            .expect("newly created user should have session_token")
             .clone();
         session
-            .insert(PLAYER_ID_KEY, token)
+            .insert(USER_ID_KEY, token)
             .await
             .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
 
-        Ok(CurrentPlayer { player })
+        Ok(CurrentUser { user })
     }
 }
 
-pub struct ApiPlayer {
-    pub player: Player,
+pub struct ApiUser {
+    pub user: User,
 }
 
-impl std::ops::Deref for ApiPlayer {
-    type Target = Player;
+impl std::ops::Deref for ApiUser {
+    type Target = User;
     fn deref(&self) -> &Self::Target {
-        &self.player
+        &self.user
     }
 }
 
-impl FromRequestParts<crate::AppState> for ApiPlayer {
+impl FromRequestParts<crate::AppState> for ApiUser {
     type Rejection = ApiError;
 
     async fn from_request_parts(
@@ -92,17 +92,17 @@ impl FromRequestParts<crate::AppState> for ApiPlayer {
                 ))
             })?;
 
-        let player = Player::find_by_api_token(&state.db, &header)
+        let user = User::find_by_api_token(&state.db, &header)
             .await
             .map_err(|e| ApiError(AppError::Internal(format!("Database error: {e}"))))?
             .ok_or_else(|| ApiError(AppError::Unauthorized("Invalid API token".to_string())))?;
 
-        if !player.is_registered() {
+        if !user.is_registered() {
             return Err(ApiError(AppError::Unauthorized(
                 "API tokens require a registered account".to_string(),
             )));
         }
 
-        Ok(ApiPlayer { player })
+        Ok(ApiUser { user })
     }
 }
