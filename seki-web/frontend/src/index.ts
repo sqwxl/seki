@@ -1,6 +1,6 @@
-import { go } from "./go";
+import { liveGame } from "./live-game";
 import { initGamesList } from "./games-list";
-import { createBoard, findNavButtons } from "./wasm-board";
+import { initAnalysis } from "./analysis";
 
 const gamesListRoot = document.getElementById("games-list");
 if (gamesListRoot) {
@@ -8,37 +8,11 @@ if (gamesListRoot) {
 }
 
 const gameRoot = document.getElementById("game");
-
 if (gameRoot) {
-  go(gameRoot);
+  liveGame(gameRoot);
 }
 
 const analysisRoot = document.getElementById("analysis");
-
 if (analysisRoot) {
-  const gobanEl = document.getElementById("goban")!;
-  const turnEl = document.getElementById("analysis-turn");
-  const capturesEl = document.getElementById("analysis-captures");
-
-  createBoard({
-    cols: 19,
-    rows: 19,
-    gobanEl,
-    moveTreeEl: document.getElementById("move-tree"),
-    storageKey: "seki:analysis",
-    navButtons: findNavButtons(),
-    buttons: {
-      pass: document.getElementById("pass-btn") as HTMLButtonElement | null,
-      reset: document.getElementById("reset-btn") as HTMLButtonElement | null,
-    },
-    onRender: (engine) => {
-      if (turnEl) {
-        turnEl.textContent =
-          engine.current_turn_stone() === 1 ? "Black to play" : "White to play";
-      }
-      if (capturesEl) {
-        capturesEl.textContent = `Captures: B ${engine.captures_black()}, W ${engine.captures_white()}`;
-      }
-    },
-  });
+  initAnalysis(analysisRoot);
 }

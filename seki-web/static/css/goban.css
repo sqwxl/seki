@@ -46,6 +46,14 @@
   gap: 0.5em;
 }
 
+.turn-indicator {
+  visibility: hidden;
+}
+
+.turn-indicator.active {
+  visibility: visible;
+}
+
 .player-captures {
 }
 

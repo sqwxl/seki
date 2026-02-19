@@ -1,7 +1,12 @@
 import { GameStage } from "./goban/types";
 import type { ScoreData } from "./goban/types";
 import type { GameCtx } from "./game-context";
-import { formatGameDescription, blackSymbol, whiteSymbol } from "./format";
+import {
+  formatGameDescription,
+  blackSymbol,
+  whiteSymbol,
+  formatPoints,
+} from "./format";
 const CHECKMARK = "✓";
 
 export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
@@ -17,37 +22,39 @@ export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
   }
 }
 
-function setLabel(
-  el: HTMLElement,
-  name: string,
-  points: string,
-  isOnline: boolean,
-): void {
+export type LabelOpts = {
+  name: string;
+  captures: string;
+  isOnline?: boolean;
+  isTurn?: boolean;
+};
+
+export function setLabel(el: HTMLElement, opts: LabelOpts): void {
   const nameEl = el.querySelector(".player-name");
   const pointsEl = el.querySelector(".player-captures");
   const dotEl = el.querySelector(".presence-dot");
+  const turnEl = el.querySelector(".turn-indicator");
   if (nameEl) {
-    nameEl.textContent = name;
+    nameEl.textContent = opts.name;
   }
   if (pointsEl) {
-    pointsEl.textContent = points;
+    pointsEl.textContent = opts.captures;
   }
   if (dotEl) {
-    dotEl.classList.toggle("online", isOnline);
+    dotEl.classList.toggle("online", opts.isOnline ?? false);
+  }
+  if (turnEl) {
+    turnEl.classList.toggle("active", opts.isTurn ?? false);
   }
 }
 
-function formatN(n: number): string {
-  return n % 1 === 0 ? String(n) : n.toFixed(1);
-}
-
-function formatScoreStr(score: ScoreData, komi: number): { bStr: string; wStr: string } {
+function formatScoreStr(
+  score: ScoreData,
+  komi: number,
+): { bStr: string; wStr: string } {
   const bTotal = score.black.territory + score.black.captures;
   const wTotal = score.white.territory + score.white.captures;
-  const bStr = `${formatN(bTotal)} ${blackSymbol()}`;
-  const wStr = komi
-    ? `${formatN(wTotal)}+${formatN(komi)} ${whiteSymbol()}`
-    : `${formatN(wTotal)} ${whiteSymbol()}`;
+  const { bStr, wStr } = formatPoints(bTotal, wTotal, komi);
   return { bStr, wStr };
 }
 
@@ -65,6 +72,8 @@ export function updatePlayerLabels(
   const wName = `${whiteSymbol()} ${white ? white.display_name : "…"}`;
   const bOnline = black ? ctx.onlineUsers.has(black.id) : false;
   const wOnline = white ? ctx.onlineUsers.has(white.id) : false;
+  const bTurn = ctx.gameStage === GameStage.BlackToPlay;
+  const wTurn = ctx.gameStage === GameStage.WhiteToPlay;
 
   const score = ctx.territory?.score ?? ctx.settledScore;
   const komi = ctx.initialProps.komi;
@@ -74,25 +83,46 @@ export function updatePlayerLabels(
   if (score) {
     ({ bStr, wStr } = formatScoreStr(score, komi));
   } else {
-    bStr = `${formatN(ctx.gameState.captures.black)} ${blackSymbol()}`;
-    wStr = komi
-      ? `${formatN(ctx.gameState.captures.white)}+${formatN(komi)} ${whiteSymbol()}`
-      : `${formatN(ctx.gameState.captures.white)} ${whiteSymbol()}`;
+    const fmt = formatPoints(
+      ctx.gameState.captures.black,
+      ctx.gameState.captures.white,
+      komi,
+    );
+
+    bStr = fmt.bStr;
+    wStr = fmt.wStr;
   }
 
   if (ctx.playerStone === -1) {
-    setLabel(topEl, bName, bStr, bOnline);
-    setLabel(bottomEl, wName, wStr, wOnline);
+    setLabel(topEl, {
+      name: bName,
+      captures: bStr,
+      isOnline: bOnline,
+      isTurn: bTurn,
+    });
+    setLabel(bottomEl, {
+      name: wName,
+      captures: wStr,
+      isOnline: wOnline,
+      isTurn: wTurn,
+    });
   } else {
-    setLabel(topEl, wName, wStr, wOnline);
-    setLabel(bottomEl, bName, bStr, bOnline);
+    setLabel(topEl, {
+      name: wName,
+      captures: wStr,
+      isOnline: wOnline,
+      isTurn: wTurn,
+    });
+    setLabel(bottomEl, {
+      name: bName,
+      captures: bStr,
+      isOnline: bOnline,
+      isTurn: bTurn,
+    });
   }
 }
 
-export function updateStatus(
-  ctx: GameCtx,
-  statusEl: HTMLElement | null,
-): void {
+export function updateStatus(ctx: GameCtx, statusEl: HTMLElement | null): void {
   if (!statusEl) {
     return;
   }

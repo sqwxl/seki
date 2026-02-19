@@ -8,7 +8,23 @@
     <div style="display: flex; flex-direction: column; align-items: center">
         <h2>Analysis Board</h2>
         <div id="analysis">
-            <div id="goban" style="width: min(70vw, 70dvh); aspect-ratio: 19/19"></div>
+            <div style="margin-bottom: 0.5em">
+                <label for="board-size">Board size: </label>
+                <select id="board-size">
+                    <option value="9">9×9</option>
+                    <option value="13">13×13</option>
+                    <option value="19" selected>19×19</option>
+                </select>
+            </div>
+            <div id="player-top" class="player-label">
+                <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span></span>
+                <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
+            </div>
+            <div id="goban" style="width: min(70vw, 70dvh)"></div>
+            <div id="player-bottom" class="player-label">
+                <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span></span>
+                <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
+            </div>
             <div style="display: flex;
                         gap: 0.5em;
                         align-items: center;
@@ -19,14 +35,6 @@
                 <button id="reset-btn">Reset</button>
             </div>
             <div id="move-tree" class="move-tree"></div>
-            <div style="display: flex;
-                        gap: 1em;
-                        align-items: center;
-                        justify-content: center;
-                        margin-top: 0.5em">
-                <span id="analysis-turn"></span>
-                <span id="analysis-captures"></span>
-            </div>
         </div>
     </div>
 {% endblock %}

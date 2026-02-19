@@ -12,7 +12,7 @@ import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
 import { readUserData, derivePlayerStone } from "./game-util";
 
-export function go(root: HTMLElement) {
+export function liveGame(root: HTMLElement) {
   const initialProps: InitialGameProps = JSON.parse(root.dataset.props!);
   const gameId = Number(root.dataset.gameId!);
   const userData = readUserData();
@@ -28,7 +28,12 @@ export function go(root: HTMLElement) {
   const ctx = createGameContext(gameId, playerStone, initialProps);
   const channel = createGameChannel(gameId);
   const dom = queryGameDom();
-  const clockState: ClockState = { data: undefined, syncedAt: 0, interval: undefined, timeoutFlagSent: false };
+  const clockState: ClockState = {
+    data: undefined,
+    syncedAt: 0,
+    interval: undefined,
+    timeoutFlagSent: false,
+  };
 
   // --- WASM board (async) ---
   createBoard({
@@ -37,8 +42,7 @@ export function go(root: HTMLElement) {
     gobanEl: dom.goban,
     moveTreeEl: document.getElementById("move-tree"),
     storageKey: ctx.analysisStorageKey,
-    baseMoves:
-      ctx.moves.length > 0 ? JSON.stringify(ctx.moves) : undefined,
+    baseMoves: ctx.moves.length > 0 ? JSON.stringify(ctx.moves) : undefined,
     navButtons: findNavButtons(),
     buttons: { reset: dom.resetBtn },
     onVertexClick: (col, row) => handleVertexClick(col, row),
@@ -96,7 +100,10 @@ export function go(root: HTMLElement) {
   dom.passBtn?.addEventListener("click", () => {
     if (ctx.analysisMode) {
       if (ctx.board && ctx.board.engine.pass()) {
-        localStorage.setItem(ctx.analysisStorageKey, ctx.board.engine.tree_json());
+        localStorage.setItem(
+          ctx.analysisStorageKey,
+          ctx.board.engine.tree_json(),
+        );
         ctx.board.render();
       }
     } else {
@@ -104,18 +111,24 @@ export function go(root: HTMLElement) {
     }
   });
 
-  (document.getElementById("confirm-pass-btn") as HTMLButtonElement | null)
-    ?.addEventListener("click", () => channel.pass());
-  (document.getElementById("confirm-resign-btn") as HTMLButtonElement | null)
-    ?.addEventListener("click", () => channel.resign());
-  (document.getElementById("confirm-abort-btn") as HTMLButtonElement | null)
-    ?.addEventListener("click", () => channel.abort());
+  (
+    document.getElementById("confirm-pass-btn") as HTMLButtonElement | null
+  )?.addEventListener("click", () => channel.pass());
+  (
+    document.getElementById("confirm-resign-btn") as HTMLButtonElement | null
+  )?.addEventListener("click", () => channel.resign());
+  (
+    document.getElementById("confirm-abort-btn") as HTMLButtonElement | null
+  )?.addEventListener("click", () => channel.abort());
 
   dom.acceptTerritoryBtn?.addEventListener("click", () => {
     document.getElementById("accept-territory-confirm")?.showPopover();
   });
-  (document.getElementById("confirm-accept-territory-btn") as HTMLButtonElement | null)
-    ?.addEventListener("click", () => channel.approveTerritory());
+  (
+    document.getElementById(
+      "confirm-accept-territory-btn",
+    ) as HTMLButtonElement | null
+  )?.addEventListener("click", () => channel.approveTerritory());
 
   dom.analyzeBtn?.addEventListener("click", () => enterAnalysis());
   dom.exitAnalysisBtn?.addEventListener("click", () => exitAnalysis());

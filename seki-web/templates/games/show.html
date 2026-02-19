@@ -11,14 +11,14 @@
         {% endif %}
         <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
             <div id="player-top" class="player-label">
-                <span class="player-name-group"><span class="player-name"></span><span class="presence-dot"></span></span>
+                <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span><span class="presence-dot"></span></span>
                 <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
             </div>
             <div id="goban"
                  class="goban-container"
                  style="aspect-ratio: {{ cols }}/{{ rows }}"></div>
             <div id="player-bottom" class="player-label">
-                <span class="player-name-group"><span class="player-name"></span><span class="presence-dot"></span></span>
+                <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span><span class="presence-dot"></span></span>
                 <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
             </div>
             <div class="controls">

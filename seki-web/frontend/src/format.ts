@@ -12,6 +12,26 @@ export function whiteSymbol(): string {
   return darkQuery.matches ? "●" : "○";
 }
 
+export function blackCaptureSymbol(): string {
+  return darkQuery.matches ? "⚇" : "⚉";
+}
+
+export function whiteCaptureSymbol(): string {
+  return darkQuery.matches ? "⚉" : "⚇";
+}
+
+function formatN(n: number): string {
+  return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
+
+export function formatPoints(bTotal: number, wTotal: number, komi: number) {
+  const bStr = `${formatN(bTotal)} ${blackCaptureSymbol()}`;
+  const wStr = komi
+    ? `${formatN(wTotal)}+${formatN(komi)} ${whiteCaptureSymbol()}`
+    : `${formatN(wTotal)} ${whiteCaptureSymbol()}`;
+  return { bStr, wStr };
+}
+
 function formatTime(secs: number): string {
   const m = Math.floor(secs / 60);
   const s = secs % 60;
