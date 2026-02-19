@@ -1,8 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
-use crate::db::DbPool;
-
 #[derive(Debug, Clone, FromRow)]
 #[allow(dead_code)] // Fields populated by SELECT * via sqlx
 pub struct Message {
@@ -16,17 +14,17 @@ pub struct Message {
 }
 
 impl Message {
-    pub async fn find_by_game_id(pool: &DbPool, game_id: i64) -> Result<Vec<Message>, sqlx::Error> {
+    pub async fn find_by_game_id(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<Vec<Message>, sqlx::Error> {
         sqlx::query_as::<_, Message>(
             "SELECT * FROM messages WHERE game_id = $1 ORDER BY created_at ASC",
         )
         .bind(game_id)
-        .fetch_all(pool)
+        .fetch_all(executor)
         .await
     }
 
     pub async fn create(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
         user_id: Option<i64>,
         text: &str,
@@ -39,16 +37,16 @@ impl Message {
         .bind(user_id)
         .bind(text)
         .bind(move_number)
-        .fetch_one(pool)
+        .fetch_one(executor)
         .await
     }
 
     pub async fn create_system(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
         text: &str,
         move_number: Option<i32>,
     ) -> Result<Message, sqlx::Error> {
-        Self::create(pool, game_id, None, text, move_number).await
+        Self::create(executor, game_id, None, text, move_number).await
     }
 }

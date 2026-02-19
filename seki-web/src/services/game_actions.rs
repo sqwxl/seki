@@ -48,12 +48,14 @@ pub async fn play_move(
     })
     .await?;
 
-    // Persist the turn
-    let turn_count = TurnRow::count_by_game_id(&state.db, game_id)
+    // Persist all DB writes in a transaction
+    let mut tx = state.db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let turn_count = TurnRow::count_by_game_id(&mut *tx, game_id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
     if let Err(e) = TurnRow::create(
-        &state.db,
+        &mut *tx,
         game_id,
         player_id,
         turn_count as i32,
@@ -68,28 +70,26 @@ pub async fn play_move(
         return Err(AppError::Internal(e.to_string()));
     }
 
-    // Mark game as started on first move and start clock
     let first_move = gwp.game.started_at.is_none();
     if first_move {
-        Game::set_started(&state.db, game_id)
+        Game::set_started(&mut *tx, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
-    // Process clock
-    process_clock_after_move(state, game_id, &gwp.game, stone, first_move).await?;
+    process_clock_after_move(state, &mut *tx, game_id, &gwp.game, stone, first_move).await?;
+    persist_stage(&mut *tx, game_id, &engine).await?;
 
-    // Update stage
-    persist_stage(state, game_id, &engine).await?;
-
-    // Clear pending undo request and rejection flag
-    state.registry.set_undo_requested(game_id, false).await;
     if gwp.game.undo_rejected {
-        Game::set_undo_rejected(&state.db, game_id, false)
+        Game::set_undo_rejected(&mut *tx, game_id, false)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
+    tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
+    // Non-transactional post-actions
+    state.registry.set_undo_requested(game_id, false).await;
     broadcast_game_state(state, game_id, &engine).await;
 
     Ok(engine)
@@ -105,12 +105,14 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
     })
     .await?;
 
-    // Persist the turn
-    let turn_count = TurnRow::count_by_game_id(&state.db, game_id)
+    // Persist all DB writes in a transaction
+    let mut tx = state.db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let turn_count = TurnRow::count_by_game_id(&mut *tx, game_id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
     if let Err(e) = TurnRow::create(
-        &state.db,
+        &mut *tx,
         game_id,
         player_id,
         turn_count as i32,
@@ -125,25 +127,26 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
         return Err(AppError::Internal(e.to_string()));
     }
 
-    // Process clock
-    process_clock_after_move(state, game_id, &gwp.game, stone, false).await?;
+    process_clock_after_move(state, &mut *tx, game_id, &gwp.game, stone, false).await?;
+    persist_stage(&mut *tx, game_id, &engine).await?;
 
-    // Update stage
-    persist_stage(state, game_id, &engine).await?;
-
-    // Clear pending undo request and rejection flag
-    state.registry.set_undo_requested(game_id, false).await;
     if gwp.game.undo_rejected {
-        Game::set_undo_rejected(&state.db, game_id, false)
+        Game::set_undo_rejected(&mut *tx, game_id, false)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
-    // If both users passed, enter territory review
+    // Pause clock if entering territory review
     if engine.stage() == Stage::TerritoryReview {
-        // Pause clock during territory review
-        pause_clock(state, game_id, &gwp.game).await?;
+        pause_clock(state, &mut *tx, game_id, &gwp.game).await?;
+    }
 
+    tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
+    // Non-transactional post-actions
+    state.registry.set_undo_requested(game_id, false).await;
+
+    if engine.stage() == Stage::TerritoryReview {
         let dead_stones = go_engine::territory::detect_dead_stones(engine.goban());
         state
             .registry
@@ -230,20 +233,21 @@ async fn settle_territory(
     engine: &Engine,
     dead_stones: &std::collections::HashSet<go_engine::Point>,
 ) -> Result<(), AppError> {
-    // Pause clock on game end
-    pause_clock(state, game_id, &gwp.game).await?;
-
     let ownership = go_engine::territory::estimate_territory(engine.goban(), dead_stones);
     let gs = go_engine::territory::score(engine.goban(), &ownership, dead_stones, gwp.game.komi);
     let result = gs.result();
 
-    // Persist territory review to DB
     let dead_json: Vec<serde_json::Value> = dead_stones
         .iter()
         .map(|&(c, r)| serde_json::json!([c, r]))
         .collect();
     let dead_json_str =
         serde_json::to_string(&dead_json).map_err(|e| AppError::Internal(e.to_string()))?;
+
+    // Persist all DB writes in a transaction
+    let mut tx = state.db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
+    pause_clock(state, &mut *tx, game_id, &gwp.game).await?;
 
     sqlx::query(
         "INSERT INTO territory_reviews \
@@ -256,16 +260,17 @@ async fn settle_territory(
     .bind(gs.black.captures as i32)
     .bind(gs.white.territory as i32)
     .bind(gs.white.captures as i32)
-    .execute(&state.db)
+    .execute(&mut *tx)
     .await
     .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    // End the game
-    Game::set_ended(&state.db, game_id, &result)
+    Game::set_ended(&mut *tx, game_id, &result)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    // Update engine result in cache
+    tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
+    // Non-transactional post-actions
     state
         .registry
         .with_engine_mut(game_id, |engine| {
@@ -304,23 +309,16 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
     })
     .await?;
 
-    let stage = engine.stage();
-    if stage == Stage::Done {
-        // Pause clock on game end
-        pause_clock(state, game_id, &gwp.game).await?;
+    if engine.stage() == Stage::Done {
+        let mut tx = state.db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
 
-        if let Some(result) = engine.result()
-            && let Err(e) = Game::set_ended(&state.db, game_id, result).await
-        {
-            rollback_engine(state, game_id, &gwp.game).await;
-            return Err(AppError::Internal(e.to_string()));
-        }
+        pause_clock(state, &mut *tx, game_id, &gwp.game).await?;
 
-        let turn_count = TurnRow::count_by_game_id(&state.db, game_id)
+        let turn_count = TurnRow::count_by_game_id(&mut *tx, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
         if let Err(e) = TurnRow::create(
-            &state.db,
+            &mut *tx,
             game_id,
             player_id,
             turn_count as i32,
@@ -334,6 +332,17 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
             rollback_engine(state, game_id, &gwp.game).await;
             return Err(AppError::Internal(e.to_string()));
         }
+
+        if let Some(result) = engine.result() {
+            Game::set_ended(&mut *tx, game_id, result)
+                .await
+                .map_err(|e| {
+                    // tx will rollback on drop
+                    AppError::Internal(e.to_string())
+                })?;
+        }
+
+        tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
     broadcast_game_state(state, game_id, &engine).await;
@@ -354,12 +363,13 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
         ));
     }
 
-    // Pause clock if timed
-    pause_clock(state, game_id, &gwp.game).await?;
-
-    Game::set_ended(&state.db, game_id, "Aborted")
+    // Persist all DB writes in a transaction
+    let mut tx = state.db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    pause_clock(state, &mut *tx, game_id, &gwp.game).await?;
+    Game::set_ended(&mut *tx, game_id, "Aborted")
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
+    tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
 
     live::notify_game_removed(state, game_id);
 
@@ -559,19 +569,37 @@ pub async fn respond_to_undo(
     state.registry.set_undo_requested(game_id, false).await;
 
     let result = if accept {
-        TurnRow::delete_last(&state.db, game_id)
+        // Delete turn + rebuild engine + set stage atomically
+        let mut tx = state.db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
+        TurnRow::delete_last(&mut *tx, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
 
-        let game = Game::find_by_id(&state.db, game_id)
+        // Rebuild engine within the transaction so reads see the deleted turn
+        let game = Game::find_by_id(&mut *tx, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        let engine = engine_builder::build_engine(&state.db, &game)
+        let db_turns = TurnRow::find_by_game_id(&mut *tx, game_id)
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
+        let turns = engine_builder::convert_turns(&db_turns);
+        let engine = Engine::with_moves(game.cols as u8, game.rows as u8, turns);
+
+        persist_stage(&mut *tx, game_id, &engine).await?;
+        engine_builder::cache_engine_state(
+            &mut *tx,
+            game_id,
+            &engine,
+            db_turns.len() as i64,
+            None,
+        )
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+        tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
+
         state.registry.replace_engine(game_id, engine.clone()).await;
-
-        persist_stage(state, game_id, &engine).await?;
 
         let gwp = Game::find_with_players(&state.db, game_id)
             .await
@@ -802,8 +830,12 @@ where
     }
 }
 
-async fn persist_stage(state: &AppState, game_id: i64, engine: &Engine) -> Result<(), AppError> {
-    Game::set_stage(&state.db, game_id, &engine.stage().to_string())
+async fn persist_stage(
+    executor: impl sqlx::PgExecutor<'_>,
+    game_id: i64,
+    engine: &Engine,
+) -> Result<(), AppError> {
+    Game::set_stage(executor, game_id, &engine.stage().to_string())
         .await
         .map_err(|e| AppError::Internal(e.to_string()))
 }
@@ -828,6 +860,7 @@ async fn current_move_number(state: &AppState, game: &Game) -> Option<i32> {
 /// Process clock after a play or pass move.
 async fn process_clock_after_move(
     state: &AppState,
+    executor: impl sqlx::PgExecutor<'_>,
     game_id: i64,
     game: &Game,
     stone: Stone,
@@ -850,13 +883,18 @@ async fn process_clock_after_move(
 
     // After the move, the new active stone is the opponent
     let new_active = Some(stone.opp());
-    persist_clock(state, game_id, &clock, &tc, new_active).await?;
+    persist_clock(state, executor, game_id, &clock, &tc, new_active).await?;
 
     Ok(())
 }
 
 /// Pause the clock (territory review, game end).
-async fn pause_clock(state: &AppState, game_id: i64, game: &Game) -> Result<(), AppError> {
+async fn pause_clock(
+    state: &AppState,
+    executor: impl sqlx::PgExecutor<'_>,
+    game_id: i64,
+    game: &Game,
+) -> Result<(), AppError> {
     let tc = TimeControl::from_game(game);
     if tc.is_none() {
         return Ok(());
@@ -865,7 +903,7 @@ async fn pause_clock(state: &AppState, game_id: i64, game: &Game) -> Result<(), 
     if let Some(mut clock) = state.registry.get_clock(game_id).await {
         let active = clock::active_stone_from_stage(&game.stage);
         clock.pause(active, Utc::now());
-        persist_clock(state, game_id, &clock, &tc, None).await?;
+        persist_clock(state, executor, game_id, &clock, &tc, None).await?;
     }
 
     Ok(())
@@ -892,6 +930,7 @@ async fn load_or_init_clock(
 /// `active_stone` is the user whose clock should be ticking (None if paused).
 async fn persist_clock(
     state: &AppState,
+    executor: impl sqlx::PgExecutor<'_>,
     game_id: i64,
     clock: &ClockState,
     tc: &TimeControl,
@@ -903,7 +942,7 @@ async fn persist_clock(
     let expires_at = clock.expiration(active_stone, tc, now);
 
     Game::update_clock(
-        &state.db,
+        executor,
         game_id,
         clock.black_remaining_ms,
         clock.white_remaining_ms,
@@ -969,10 +1008,17 @@ pub async fn end_game_on_time(
         Stone::White => "W+T",
     };
 
-    Game::set_ended(&state.db, game_id, result)
+    clock.pause(Some(flagged_stone), now);
+
+    // Persist all DB writes in a transaction
+    let mut tx = state.db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    Game::set_ended(&mut *tx, game_id, result)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
+    persist_clock(state, &mut *tx, game_id, &clock, tc, None).await?;
+    tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
 
+    // Non-transactional post-actions
     let _ = state
         .registry
         .with_engine_mut(game_id, |engine| {
@@ -980,9 +1026,6 @@ pub async fn end_game_on_time(
             Ok(())
         })
         .await;
-
-    clock.pause(Some(flagged_stone), now);
-    persist_clock(state, game_id, &clock, tc, None).await?;
 
     broadcast_system_chat(state, game_id, &format!("Game over. {result}")).await;
 

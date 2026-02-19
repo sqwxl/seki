@@ -37,35 +37,35 @@ pub struct User {
 }
 
 impl User {
-    pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<User, sqlx::Error> {
+    pub async fn find_by_id(executor: impl sqlx::PgExecutor<'_>, id: i64) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(id)
-            .fetch_one(pool)
+            .fetch_one(executor)
             .await
     }
 
-    pub async fn find_by_ids(pool: &DbPool, ids: &[i64]) -> Result<Vec<User>, sqlx::Error> {
+    pub async fn find_by_ids(executor: impl sqlx::PgExecutor<'_>, ids: &[i64]) -> Result<Vec<User>, sqlx::Error> {
         // Use ANY($1) with a slice parameter for Postgres
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ANY($1)")
             .bind(ids)
-            .fetch_all(pool)
+            .fetch_all(executor)
             .await
     }
 
     pub async fn find_by_session_token(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         token: &str,
     ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE session_token = $1")
             .bind(token)
-            .fetch_optional(pool)
+            .fetch_optional(executor)
             .await
     }
 
-    pub async fn find_by_email(pool: &DbPool, email: &str) -> Result<Option<User>, sqlx::Error> {
+    pub async fn find_by_email(executor: impl sqlx::PgExecutor<'_>, email: &str) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
-            .fetch_optional(pool)
+            .fetch_optional(executor)
             .await
     }
 
@@ -116,17 +116,17 @@ impl User {
     }
 
     pub async fn find_by_username(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         username: &str,
     ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
             .bind(username)
-            .fetch_optional(pool)
+            .fetch_optional(executor)
             .await
     }
 
     pub async fn set_credentials(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         user_id: i64,
         username: &str,
         password_hash: &str,
@@ -137,28 +137,28 @@ impl User {
         .bind(username)
         .bind(password_hash)
         .bind(user_id)
-        .fetch_one(pool)
+        .fetch_one(executor)
         .await
     }
 
     pub async fn find_by_api_token(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         token: &str,
     ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE api_token = $1")
             .bind(token)
-            .fetch_optional(pool)
+            .fetch_optional(executor)
             .await
     }
 
-    pub async fn generate_api_token(pool: &DbPool, user_id: i64) -> Result<User, sqlx::Error> {
+    pub async fn generate_api_token(executor: impl sqlx::PgExecutor<'_>, user_id: i64) -> Result<User, sqlx::Error> {
         let token = generate_token();
         sqlx::query_as::<_, User>(
             "UPDATE users SET api_token = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
         )
         .bind(&token)
         .bind(user_id)
-        .fetch_one(pool)
+        .fetch_one(executor)
         .await
     }
 }

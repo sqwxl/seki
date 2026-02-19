@@ -253,18 +253,18 @@ pub async fn join_game(
         return Ok(Redirect::to(&format!("/games/{id}")).into_response());
     }
 
+    let mut tx = state.db.begin().await?;
     if gwp.black.is_none() {
-        Game::set_black(&state.db, id, current_user.id).await?;
+        Game::set_black(&mut *tx, id, current_user.id).await?;
     } else if gwp.white.is_none() {
-        Game::set_white(&state.db, id, current_user.id).await?;
+        Game::set_white(&mut *tx, id, current_user.id).await?;
     } else {
         return Err(AppError::BadRequest("Game is full".to_string()));
     }
-
-    // Transition stage from unstarted to black_to_play now that both users are present
     if gwp.game.stage == "unstarted" {
-        Game::set_stage(&state.db, id, "black_to_play").await?;
+        Game::set_stage(&mut *tx, id, "black_to_play").await?;
     }
+    tx.commit().await?;
 
     // Notify existing WS clients about the new user
     let game = Game::find_by_id(&state.db, id).await?;
@@ -326,16 +326,16 @@ pub async fn invitation(
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
     // Add guest to game
+    let mut tx = state.db.begin().await?;
     if gwp.black.is_none() {
-        Game::set_black(&state.db, id, guest.id).await?;
+        Game::set_black(&mut *tx, id, guest.id).await?;
     } else if gwp.white.is_none() {
-        Game::set_white(&state.db, id, guest.id).await?;
+        Game::set_white(&mut *tx, id, guest.id).await?;
     }
-
-    // Transition stage from unstarted to black_to_play now that both users are present
     if gwp.game.stage == "unstarted" {
-        Game::set_stage(&state.db, id, "black_to_play").await?;
+        Game::set_stage(&mut *tx, id, "black_to_play").await?;
     }
+    tx.commit().await?;
 
     Ok(Redirect::to(&format!("/games/{id}")).into_response())
 }

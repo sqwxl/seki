@@ -63,14 +63,14 @@ pub struct Game {
 }
 
 impl Game {
-    pub async fn list_public(pool: &DbPool) -> Result<Vec<Game>, sqlx::Error> {
+    pub async fn list_public(executor: impl sqlx::PgExecutor<'_>) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games WHERE is_private = false \
              AND result IS DISTINCT FROM 'Aborted' \
              AND (result IS NULL OR updated_at >= now() - interval '5 minutes') \
              ORDER BY updated_at DESC",
         )
-        .fetch_all(pool)
+        .fetch_all(executor)
         .await
     }
 
@@ -144,49 +144,52 @@ impl Game {
             .collect())
     }
 
-    pub async fn delete(pool: &DbPool, game_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn delete(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM games WHERE id = $1")
             .bind(game_id)
-            .execute(pool)
+            .execute(executor)
             .await?;
         Ok(())
     }
 
-    pub async fn find_by_id(pool: &DbPool, id: i64) -> Result<Game, sqlx::Error> {
+    pub async fn find_by_id(executor: impl sqlx::PgExecutor<'_>, id: i64) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>("SELECT * FROM games WHERE id = $1")
             .bind(id)
-            .fetch_one(pool)
+            .fetch_one(executor)
             .await
     }
 
     pub async fn find_with_players(pool: &DbPool, id: i64) -> Result<GameWithPlayers, sqlx::Error> {
         let game = Self::find_by_id(pool, id).await?;
-        let creator = if let Some(cid) = game.creator_id {
-            User::find_by_id(pool, cid).await.ok()
+
+        let mut user_ids: Vec<i64> = [game.creator_id, game.black_id, game.white_id]
+            .into_iter()
+            .flatten()
+            .collect();
+        user_ids.sort_unstable();
+        user_ids.dedup();
+
+        let users_map: HashMap<i64, User> = if user_ids.is_empty() {
+            HashMap::new()
         } else {
-            None
+            User::find_by_ids(pool, &user_ids)
+                .await?
+                .into_iter()
+                .map(|u| (u.id, u))
+                .collect()
         };
-        let black = if let Some(bid) = game.black_id {
-            User::find_by_id(pool, bid).await.ok()
-        } else {
-            None
-        };
-        let white = if let Some(wid) = game.white_id {
-            User::find_by_id(pool, wid).await.ok()
-        } else {
-            None
-        };
+
         Ok(GameWithPlayers {
+            creator: game.creator_id.and_then(|id| users_map.get(&id).cloned()),
+            black: game.black_id.and_then(|id| users_map.get(&id).cloned()),
+            white: game.white_id.and_then(|id| users_map.get(&id).cloned()),
             game,
-            creator,
-            black,
-            white,
         })
     }
 
     #[allow(clippy::too_many_arguments)]
     pub async fn create(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         creator_id: i64,
         black_id: Option<i64>,
         white_id: Option<i64>,
@@ -236,86 +239,86 @@ impl Game {
         .bind(clock_white_ms)
         .bind(clock_black_periods)
         .bind(clock_white_periods)
-        .fetch_one(pool)
+        .fetch_one(executor)
         .await
     }
 
-    pub async fn set_black(pool: &DbPool, game_id: i64, user_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn set_black(executor: impl sqlx::PgExecutor<'_>, game_id: i64, user_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE games SET black_id = $1, updated_at = NOW() WHERE id = $2")
             .bind(user_id)
             .bind(game_id)
-            .execute(pool)
+            .execute(executor)
             .await?;
         Ok(())
     }
 
-    pub async fn set_white(pool: &DbPool, game_id: i64, user_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn set_white(executor: impl sqlx::PgExecutor<'_>, game_id: i64, user_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE games SET white_id = $1, updated_at = NOW() WHERE id = $2")
             .bind(user_id)
             .bind(game_id)
-            .execute(pool)
+            .execute(executor)
             .await?;
         Ok(())
     }
 
     pub async fn set_undo_rejected(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
         rejected: bool,
     ) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE games SET undo_rejected = $1, updated_at = NOW() WHERE id = $2")
             .bind(rejected)
             .bind(game_id)
-            .execute(pool)
+            .execute(executor)
             .await?;
         Ok(())
     }
 
-    pub async fn set_started(pool: &DbPool, game_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn set_started(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query(
             "UPDATE games SET started_at = NOW(), updated_at = NOW() WHERE id = $1 AND started_at IS NULL",
         )
         .bind(game_id)
-        .execute(pool)
+        .execute(executor)
         .await?;
         Ok(())
     }
 
-    pub async fn set_stage(pool: &DbPool, game_id: i64, stage: &str) -> Result<(), sqlx::Error> {
+    pub async fn set_stage(executor: impl sqlx::PgExecutor<'_>, game_id: i64, stage: &str) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE games SET stage = $1, updated_at = NOW() WHERE id = $2")
             .bind(stage)
             .bind(game_id)
-            .execute(pool)
+            .execute(executor)
             .await?;
         Ok(())
     }
 
-    pub async fn set_ended(pool: &DbPool, game_id: i64, result: &str) -> Result<(), sqlx::Error> {
+    pub async fn set_ended(executor: impl sqlx::PgExecutor<'_>, game_id: i64, result: &str) -> Result<(), sqlx::Error> {
         sqlx::query(
             "UPDATE games SET ended_at = NOW(), result = $1, stage = 'done', updated_at = NOW() WHERE id = $2",
         )
         .bind(result)
         .bind(game_id)
-        .execute(pool)
+        .execute(executor)
         .await?;
         Ok(())
     }
 
     pub async fn update_cached_engine_state(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
         state: &str,
     ) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE games SET cached_engine_state = $1, updated_at = NOW() WHERE id = $2")
             .bind(state)
             .bind(game_id)
-            .execute(pool)
+            .execute(executor)
             .await?;
         Ok(())
     }
 
     pub async fn update_clock(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
         black_ms: i64,
         white_ms: i64,
@@ -341,14 +344,14 @@ impl Game {
         .bind(active_stone)
         .bind(last_move_at)
         .bind(expires_at)
-        .execute(pool)
+        .execute(executor)
         .await?;
         Ok(())
     }
 
     /// Load settled territory scores for a finished game.
     pub async fn load_settled_scores(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
     ) -> Result<Option<(i32, i32, i32, i32)>, sqlx::Error> {
         sqlx::query_as::<_, (i32, i32, i32, i32)>(
@@ -359,18 +362,18 @@ impl Game {
              LIMIT 1",
         )
         .bind(game_id)
-        .fetch_optional(pool)
+        .fetch_optional(executor)
         .await
     }
 
-    pub async fn find_expired_clocks(pool: &DbPool) -> Result<Vec<Game>, sqlx::Error> {
+    pub async fn find_expired_clocks(executor: impl sqlx::PgExecutor<'_>) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games \
              WHERE result IS NULL \
              AND clock_expires_at IS NOT NULL \
              AND clock_expires_at < NOW()",
         )
-        .fetch_all(pool)
+        .fetch_all(executor)
         .await
     }
 }

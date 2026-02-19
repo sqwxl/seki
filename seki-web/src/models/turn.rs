@@ -1,8 +1,6 @@
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
-use crate::db::DbPool;
-
 #[derive(Debug, Clone, FromRow)]
 #[allow(dead_code)] // Fields populated by SELECT * via sqlx
 pub struct TurnRow {
@@ -19,26 +17,26 @@ pub struct TurnRow {
 }
 
 impl TurnRow {
-    pub async fn find_by_game_id(pool: &DbPool, game_id: i64) -> Result<Vec<TurnRow>, sqlx::Error> {
+    pub async fn find_by_game_id(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<Vec<TurnRow>, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
             "SELECT * FROM turns WHERE game_id = $1 ORDER BY turn_number ASC",
         )
         .bind(game_id)
-        .fetch_all(pool)
+        .fetch_all(executor)
         .await
     }
 
-    pub async fn count_by_game_id(pool: &DbPool, game_id: i64) -> Result<i64, sqlx::Error> {
+    pub async fn count_by_game_id(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<i64, sqlx::Error> {
         let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM turns WHERE game_id = $1")
             .bind(game_id)
-            .fetch_one(pool)
+            .fetch_one(executor)
             .await?;
         Ok(row.0)
     }
 
     #[allow(clippy::too_many_arguments)]
     pub async fn create(
-        pool: &DbPool,
+        executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
         user_id: i64,
         turn_number: i32,
@@ -59,28 +57,28 @@ impl TurnRow {
         .bind(stone)
         .bind(col)
         .bind(row)
-        .fetch_one(pool)
+        .fetch_one(executor)
         .await
     }
 
-    pub async fn delete_last(pool: &DbPool, game_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn delete_last(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query(
             "DELETE FROM turns WHERE id = (
                 SELECT id FROM turns WHERE game_id = $1 ORDER BY turn_number DESC LIMIT 1
             )",
         )
         .bind(game_id)
-        .execute(pool)
+        .execute(executor)
         .await?;
         Ok(())
     }
 
-    pub async fn last_turn(pool: &DbPool, game_id: i64) -> Result<Option<TurnRow>, sqlx::Error> {
+    pub async fn last_turn(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<Option<TurnRow>, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
             "SELECT * FROM turns WHERE game_id = $1 ORDER BY turn_number DESC LIMIT 1",
         )
         .bind(game_id)
-        .fetch_optional(pool)
+        .fetch_optional(executor)
         .await
     }
 }

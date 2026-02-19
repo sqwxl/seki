@@ -38,7 +38,7 @@ pub async fn build_engine(pool: &DbPool, game: &Game) -> Result<Engine, sqlx::Er
 }
 
 pub async fn cache_engine_state(
-    pool: &DbPool,
+    executor: impl sqlx::PgExecutor<'_>,
     game_id: i64,
     engine: &Engine,
     turn_count: i64,
@@ -58,10 +58,10 @@ pub async fn cache_engine_state(
     }
 
     let json_str = serde_json::to_string(&state).unwrap_or_default();
-    Game::update_cached_engine_state(pool, game_id, &json_str).await
+    Game::update_cached_engine_state(executor, game_id, &json_str).await
 }
 
-fn convert_turns(db_turns: &[TurnRow]) -> Vec<Turn> {
+pub(crate) fn convert_turns(db_turns: &[TurnRow]) -> Vec<Turn> {
     db_turns
         .iter()
         .map(|t| {

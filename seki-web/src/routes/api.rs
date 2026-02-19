@@ -266,13 +266,18 @@ async fn join_game(
         return Err(AppError::BadRequest("Already in this game".to_string()).into());
     }
 
+    let mut tx = state.db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
     if gwp.game.black_id.is_none() {
-        Game::set_black(&state.db, id, api_user.id).await?;
+        Game::set_black(&mut *tx, id, api_user.id).await?;
     } else if gwp.game.white_id.is_none() {
-        Game::set_white(&state.db, id, api_user.id).await?;
+        Game::set_white(&mut *tx, id, api_user.id).await?;
     } else {
         return Err(AppError::BadRequest("Game is full".to_string()).into());
     }
+    if gwp.game.stage == "unstarted" {
+        Game::set_stage(&mut *tx, id, "black_to_play").await?;
+    }
+    tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
 
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state
