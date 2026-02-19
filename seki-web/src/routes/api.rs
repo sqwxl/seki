@@ -8,8 +8,8 @@ use crate::AppState;
 use crate::error::{ApiError, AppError};
 use crate::models::game::Game;
 use crate::models::message::Message;
-use crate::models::user::User;
 use crate::models::turn::TurnRow;
+use crate::models::user::User;
 use crate::services::{game_actions, game_creator, state_serializer};
 use crate::session::ApiUser;
 
@@ -266,7 +266,11 @@ async fn join_game(
         return Err(AppError::BadRequest("Already in this game".to_string()).into());
     }
 
-    let mut tx = state.db.begin().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    let mut tx = state
+        .db
+        .begin()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
     if gwp.game.black_id.is_none() {
         Game::set_black(&mut *tx, id, api_user.id).await?;
     } else if gwp.game.white_id.is_none() {
@@ -277,7 +281,9 @@ async fn join_game(
     if gwp.game.stage == "unstarted" {
         Game::set_stage(&mut *tx, id, "black_to_play").await?;
     }
-    tx.commit().await.map_err(|e| AppError::Internal(e.to_string()))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state

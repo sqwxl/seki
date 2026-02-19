@@ -117,10 +117,8 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                             if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64())
                                 && subscribed_games.contains(&game_id)
                             {
-                                game_channel::handle_message(
-                                    &state, game_id, user_id, &data, &tx,
-                                )
-                                .await;
+                                game_channel::handle_message(&state, game_id, user_id, &data, &tx)
+                                    .await;
                             }
                         }
                     }

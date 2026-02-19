@@ -17,7 +17,10 @@ pub struct TurnRow {
 }
 
 impl TurnRow {
-    pub async fn find_by_game_id(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<Vec<TurnRow>, sqlx::Error> {
+    pub async fn find_by_game_id(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<Vec<TurnRow>, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
             "SELECT * FROM turns WHERE game_id = $1 ORDER BY turn_number ASC",
         )
@@ -26,7 +29,10 @@ impl TurnRow {
         .await
     }
 
-    pub async fn count_by_game_id(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<i64, sqlx::Error> {
+    pub async fn count_by_game_id(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<i64, sqlx::Error> {
         let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM turns WHERE game_id = $1")
             .bind(game_id)
             .fetch_one(executor)
@@ -61,7 +67,10 @@ impl TurnRow {
         .await
     }
 
-    pub async fn delete_last(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn delete_last(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query(
             "DELETE FROM turns WHERE id = (
                 SELECT id FROM turns WHERE game_id = $1 ORDER BY turn_number DESC LIMIT 1
@@ -73,7 +82,10 @@ impl TurnRow {
         Ok(())
     }
 
-    pub async fn last_turn(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<Option<TurnRow>, sqlx::Error> {
+    pub async fn last_turn(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<Option<TurnRow>, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
             "SELECT * FROM turns WHERE game_id = $1 ORDER BY turn_number DESC LIMIT 1",
         )

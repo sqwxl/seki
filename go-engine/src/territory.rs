@@ -408,11 +408,11 @@ pub fn score(
     GameScore {
         black: PlayerPoints {
             territory: black_territory,
-            captures: goban.captures().get(Stone::Black) as u32 + dead_white,
+            captures: goban.captures().get(Stone::Black) + dead_white,
         },
         white: PlayerPoints {
             territory: white_territory,
-            captures: goban.captures().get(Stone::White) as u32 + dead_black,
+            captures: goban.captures().get(Stone::White) + dead_black,
         },
         komi,
     }

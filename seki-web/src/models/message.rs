@@ -14,7 +14,10 @@ pub struct Message {
 }
 
 impl Message {
-    pub async fn find_by_game_id(executor: impl sqlx::PgExecutor<'_>, game_id: i64) -> Result<Vec<Message>, sqlx::Error> {
+    pub async fn find_by_game_id(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<Vec<Message>, sqlx::Error> {
         sqlx::query_as::<_, Message>(
             "SELECT * FROM messages WHERE game_id = $1 ORDER BY created_at ASC",
         )

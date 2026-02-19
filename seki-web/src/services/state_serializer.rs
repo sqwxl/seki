@@ -106,19 +106,19 @@ pub fn serialize_state(
         });
     }
 
-    if territory.is_none() {
-        if let Some(gs) = settled_score {
-            val["score"] = json!({
-                "black": {
-                    "territory": gs.black.territory,
-                    "captures": gs.black.captures,
-                },
-                "white": {
-                    "territory": gs.white.territory,
-                    "captures": gs.white.captures,
-                },
-            });
-        }
+    if territory.is_none()
+        && let Some(gs) = settled_score
+    {
+        val["score"] = json!({
+            "black": {
+                "territory": gs.black.territory,
+                "captures": gs.black.captures,
+            },
+            "white": {
+                "territory": gs.white.territory,
+                "captures": gs.white.captures,
+            },
+        });
     }
 
     if let Some((clock_state, time_control)) = clock {

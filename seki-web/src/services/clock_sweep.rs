@@ -41,24 +41,18 @@ async fn sweep(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
 
         if !clock.is_flagged(active, Some(active), &tc, now) {
             // clock_expires_at was approximate; not truly expired yet — update it
-            if let Some(expires_at) = clock.expiration(Some(active), &tc, now) {
-                let _ = Game::update_clock(
-                    &state.db,
-                    game.id,
-                    clock.black_remaining_ms,
-                    clock.white_remaining_ms,
-                    clock.black_periods,
-                    clock.white_periods,
-                    Some(active.to_int() as i32),
-                    clock.last_move_at,
-                    Some(expires_at),
-                )
-                .await;
+            let update = clock.to_update(Some(active), &tc);
+            if update.expires_at.is_some() {
+                let _ = Game::update_clock(&state.db, game.id, &update).await;
             }
             continue;
         }
 
-        tracing::info!("Clock sweep: flagging game {} (active: {:?})", game.id, active);
+        tracing::info!(
+            "Clock sweep: flagging game {} (active: {:?})",
+            game.id,
+            active
+        );
         if let Err(e) =
             game_actions::end_game_on_time(state, game.id, &game, active, clock, &tc, now).await
         {

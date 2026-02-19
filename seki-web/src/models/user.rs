@@ -37,14 +37,20 @@ pub struct User {
 }
 
 impl User {
-    pub async fn find_by_id(executor: impl sqlx::PgExecutor<'_>, id: i64) -> Result<User, sqlx::Error> {
+    pub async fn find_by_id(
+        executor: impl sqlx::PgExecutor<'_>,
+        id: i64,
+    ) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(id)
             .fetch_one(executor)
             .await
     }
 
-    pub async fn find_by_ids(executor: impl sqlx::PgExecutor<'_>, ids: &[i64]) -> Result<Vec<User>, sqlx::Error> {
+    pub async fn find_by_ids(
+        executor: impl sqlx::PgExecutor<'_>,
+        ids: &[i64],
+    ) -> Result<Vec<User>, sqlx::Error> {
         // Use ANY($1) with a slice parameter for Postgres
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ANY($1)")
             .bind(ids)
@@ -62,7 +68,10 @@ impl User {
             .await
     }
 
-    pub async fn find_by_email(executor: impl sqlx::PgExecutor<'_>, email: &str) -> Result<Option<User>, sqlx::Error> {
+    pub async fn find_by_email(
+        executor: impl sqlx::PgExecutor<'_>,
+        email: &str,
+    ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
             .fetch_optional(executor)
@@ -90,21 +99,16 @@ impl User {
         }
     }
 
-    pub async fn find_or_create_by_email(
-        pool: &DbPool,
-        email: &str,
-    ) -> Result<User, sqlx::Error> {
+    pub async fn find_or_create_by_email(pool: &DbPool, email: &str) -> Result<User, sqlx::Error> {
         if let Some(user) = Self::find_by_email(pool, email).await? {
             return Ok(user);
         }
         let name = generate_name();
-        sqlx::query_as::<_, User>(
-            "INSERT INTO users (email, username) VALUES ($1, $2) RETURNING *",
-        )
-        .bind(email)
-        .bind(&name)
-        .fetch_one(pool)
-        .await
+        sqlx::query_as::<_, User>("INSERT INTO users (email, username) VALUES ($1, $2) RETURNING *")
+            .bind(email)
+            .bind(&name)
+            .fetch_one(pool)
+            .await
     }
 
     pub fn display_name(&self) -> &str {
@@ -151,7 +155,10 @@ impl User {
             .await
     }
 
-    pub async fn generate_api_token(executor: impl sqlx::PgExecutor<'_>, user_id: i64) -> Result<User, sqlx::Error> {
+    pub async fn generate_api_token(
+        executor: impl sqlx::PgExecutor<'_>,
+        user_id: i64,
+    ) -> Result<User, sqlx::Error> {
         let token = generate_token();
         sqlx::query_as::<_, User>(
             "UPDATE users SET api_token = $1, updated_at = NOW() WHERE id = $2 RETURNING *",

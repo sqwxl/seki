@@ -98,12 +98,12 @@ impl GameRegistry {
     /// Injects `game_id` into the JSON message.
     pub async fn send_to_player(&self, game_id: i64, player_id: i64, message: &str) {
         let rooms = self.rooms.read().await;
-        if let Some(room) = rooms.get(&game_id) {
-            if let Some(senders) = room.players.get(&player_id) {
-                let wrapped = inject_game_id(game_id, message);
-                for sender in senders {
-                    let _ = sender.send(wrapped.clone());
-                }
+        if let Some(room) = rooms.get(&game_id)
+            && let Some(senders) = room.players.get(&player_id)
+        {
+            let wrapped = inject_game_id(game_id, message);
+            for sender in senders {
+                let _ = sender.send(wrapped.clone());
             }
         }
     }
@@ -120,10 +120,10 @@ impl GameRegistry {
         // Fast path: read lock check
         {
             let rooms = self.rooms.read().await;
-            if let Some(room) = rooms.get(&game.id) {
-                if let Some(ref engine) = room.engine {
-                    return Ok(engine.clone());
-                }
+            if let Some(room) = rooms.get(&game.id)
+                && let Some(ref engine) = room.engine
+            {
+                return Ok(engine.clone());
             }
         }
 
@@ -238,12 +238,12 @@ impl GameRegistry {
 
     pub async fn set_approved(&self, game_id: i64, stone: go_engine::Stone, approved: bool) {
         let mut rooms = self.rooms.write().await;
-        if let Some(room) = rooms.get_mut(&game_id) {
-            if let Some(tr) = room.territory_review.as_mut() {
-                match stone {
-                    go_engine::Stone::Black => tr.black_approved = approved,
-                    go_engine::Stone::White => tr.white_approved = approved,
-                }
+        if let Some(room) = rooms.get_mut(&game_id)
+            && let Some(tr) = room.territory_review.as_mut()
+        {
+            match stone {
+                go_engine::Stone::Black => tr.black_approved = approved,
+                go_engine::Stone::White => tr.white_approved = approved,
             }
         }
     }
@@ -258,12 +258,11 @@ impl GameRegistry {
 
 /// Inject `"game_id": N` into a JSON object string.
 fn inject_game_id(game_id: i64, message: &str) -> String {
-    if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(message) {
-        if let Some(obj) = val.as_object_mut() {
-            obj.insert("game_id".to_string(), serde_json::json!(game_id));
-            return val.to_string();
-        }
+    if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(message)
+        && let Some(obj) = val.as_object_mut()
+    {
+        obj.insert("game_id".to_string(), serde_json::json!(game_id));
+        return val.to_string();
     }
     message.to_string()
 }
-

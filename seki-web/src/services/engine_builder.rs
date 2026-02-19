@@ -65,8 +65,7 @@ pub(crate) fn convert_turns(db_turns: &[TurnRow]) -> Vec<Turn> {
     db_turns
         .iter()
         .map(|t| {
-            let stone =
-                Stone::from_int(t.stone as i8).expect("user stone must be Black or White");
+            let stone = Stone::from_int(t.stone as i8).expect("user stone must be Black or White");
             let kind = Move::from_str(&t.kind).unwrap_or(Move::Play);
             match kind {
                 Move::Play => {

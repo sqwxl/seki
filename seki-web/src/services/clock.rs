@@ -154,11 +154,11 @@ impl ClockState {
         tc: &TimeControl,
         now: DateTime<Utc>,
     ) {
-        if let Some(last) = self.last_move_at {
-            if active_stone == Some(stone) {
-                let elapsed_ms = (now - last).num_milliseconds().max(0);
-                self.deduct(stone, elapsed_ms, tc);
-            }
+        if let Some(last) = self.last_move_at
+            && active_stone == Some(stone)
+        {
+            let elapsed_ms = (now - last).num_milliseconds().max(0);
+            self.deduct(stone, elapsed_ms, tc);
         }
 
         self.last_move_at = Some(now);
@@ -217,11 +217,10 @@ impl ClockState {
             Stone::Black => self.black_remaining_ms,
             Stone::White => self.white_remaining_ms,
         };
-        if active_stone == Some(stone) {
-            if let Some(last) = self.last_move_at {
-                let elapsed = (now - last).num_milliseconds().max(0);
-                return base - elapsed;
-            }
+        if active_stone == Some(stone)
+            && let Some(last) = self.last_move_at
+        {
+            return base - (now - last).num_milliseconds().max(0);
         }
         base
     }
@@ -244,11 +243,7 @@ impl ClockState {
                 period_time_secs, ..
             } => {
                 let period_ms = *period_time_secs as i64 * 1000;
-                if remaining <= 0 {
-                    periods as i64 * period_ms + remaining
-                } else {
-                    remaining + periods as i64 * period_ms
-                }
+                remaining + periods as i64 * period_ms
             }
             _ => remaining,
         }
@@ -282,13 +277,13 @@ impl ClockState {
 
     /// Deduct elapsed time for the active user and clear last_move_at (pauses the clock).
     pub fn pause(&mut self, active_stone: Option<Stone>, now: DateTime<Utc>) {
-        if let Some(stone) = active_stone {
-            if let Some(last) = self.last_move_at {
-                let elapsed = (now - last).num_milliseconds().max(0);
-                match stone {
-                    Stone::Black => self.black_remaining_ms -= elapsed,
-                    Stone::White => self.white_remaining_ms -= elapsed,
-                }
+        if let Some(stone) = active_stone
+            && let Some(last) = self.last_move_at
+        {
+            let elapsed = (now - last).num_milliseconds().max(0);
+            match stone {
+                Stone::Black => self.black_remaining_ms -= elapsed,
+                Stone::White => self.white_remaining_ms -= elapsed,
             }
         }
         self.last_move_at = None;
@@ -316,5 +311,31 @@ impl ClockState {
             },
             "active_stone": self.last_move_at.and(active_stone).map(|s| s.to_int() as i32)
         })
+    }
+}
+
+/// Data for persisting clock state to the `games` table.
+pub struct ClockUpdate {
+    pub black_ms: i64,
+    pub white_ms: i64,
+    pub black_periods: i32,
+    pub white_periods: i32,
+    pub active_stone: Option<i32>,
+    pub last_move_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+impl ClockState {
+    pub fn to_update(&self, active_stone: Option<Stone>, tc: &TimeControl) -> ClockUpdate {
+        let now = Utc::now();
+        ClockUpdate {
+            black_ms: self.black_remaining_ms,
+            white_ms: self.white_remaining_ms,
+            black_periods: self.black_periods,
+            white_periods: self.white_periods,
+            active_stone: active_stone.map(|s| s.to_int() as i32),
+            last_move_at: self.last_move_at,
+            expires_at: self.expiration(active_stone, tc, now),
+        }
     }
 }
