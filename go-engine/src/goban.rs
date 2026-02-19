@@ -173,26 +173,27 @@ impl Goban {
             return Err(GoError::Overwrite);
         }
 
-        let mut goban = self.clone();
-        goban.set_stone(point, stone);
-
-        if goban.is_ko(point, stone) {
+        if self.is_ko(point, stone) {
             return Err(GoError::KoViolation);
         }
+
+        let mut goban = self.clone();
+        goban.set_stone(point, stone);
 
         // Find and remove captured opponent chains
         let mut dead_stones = Vec::new();
         let neighbor_chains = goban.opponent_neighbor_chains(point);
         for chain in &neighbor_chains {
-            if goban.chain_liberties(chain).is_empty() {
+            if !goban.chain_has_any_liberty(chain) {
                 dead_stones.extend(chain);
             }
         }
 
         goban.capture_mut(&dead_stones);
 
-        // Check suicide
-        let liberties = goban.liberties(point);
+        // Check suicide + collect chain/liberties for ko detection
+        let (chain, liberties) = goban.chain_and_liberties(point);
+        let _ = chain; // used only to verify the placed stone is alive
         if liberties.is_empty() {
             return Err(GoError::Suicide);
         }
@@ -263,6 +264,50 @@ impl Goban {
         result
     }
 
+    /// Check whether a chain has at least one liberty, without allocating.
+    fn chain_has_any_liberty(&self, chain: &[Point]) -> bool {
+        chain
+            .iter()
+            .any(|&p| self.neighbors(p).iter().any(|&n| self.stone_at(n).is_none()))
+    }
+
+    /// Single flood-fill that returns both chain members and liberty positions.
+    fn chain_and_liberties(&self, point: Point) -> (Vec<Point>, Vec<Point>) {
+        let stone = match self.stone_at(point) {
+            Some(s) => s,
+            None => return (Vec::new(), Vec::new()),
+        };
+
+        let len = self.board.len();
+        let mut visited = vec![false; len];
+        let mut lib_seen = vec![false; len];
+        let mut chain = Vec::new();
+        let mut liberties = Vec::new();
+        let mut stack = vec![point];
+
+        while let Some(p) = stack.pop() {
+            let vi = self.idx(p.0, p.1);
+            if visited[vi] {
+                continue;
+            }
+            visited[vi] = true;
+            chain.push(p);
+            for n in self.neighbors(p) {
+                let ni = self.idx(n.0, n.1);
+                match self.stone_at(n) {
+                    Some(s) if s == stone && !visited[ni] => stack.push(n),
+                    None if !lib_seen[ni] => {
+                        lib_seen[ni] = true;
+                        liberties.push(n);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        (chain, liberties)
+    }
+
     /// Get the liberties of a single stone's connected group.
     pub fn liberties(&self, point: Point) -> Vec<Point> {
         let chain = self.chain(point);
@@ -313,7 +358,7 @@ impl Goban {
     }
 
     /// Chain flood-fill using a shared visited bitset.
-    fn chain_from(&self, point: Point, visited: &mut [bool]) -> Vec<Point> {
+    pub(crate) fn chain_from(&self, point: Point, visited: &mut [bool]) -> Vec<Point> {
         let stone = match self.stone_at(point) {
             Some(s) => s,
             None => return Vec::new(),
@@ -337,6 +382,61 @@ impl Goban {
         }
 
         result
+    }
+
+    /// Lightweight legality check without cloning the board.
+    pub fn is_legal_move(&self, point: Point, stone: Stone) -> bool {
+        if !self.on_board(point) || self.stone_at(point).is_some() || self.is_ko(point, stone) {
+            return false;
+        }
+
+        let opponent = stone.opp();
+
+        // Fast path: any empty neighbor means immediate liberty
+        if self
+            .neighbors(point)
+            .iter()
+            .any(|&n| self.stone_at(n).is_none())
+        {
+            return true;
+        }
+
+        // Slow path: check captures or friendly liberties without cloning
+        // If any opponent neighbor chain has exactly one liberty (this point),
+        // placing here captures it, so the move is legal.
+        let mut visited = vec![false; self.board.len()];
+        for n in self.neighbors(point) {
+            if self.stone_at(n) == Some(opponent) && !visited[self.idx(n.0, n.1)] {
+                let chain = self.chain_from(n, &mut visited);
+                // Check if this chain has any liberty other than `point`
+                let has_other_liberty = chain.iter().any(|&p| {
+                    self.neighbors(p)
+                        .iter()
+                        .any(|&nb| nb != point && self.stone_at(nb).is_none())
+                });
+                if !has_other_liberty {
+                    return true; // this chain would be captured
+                }
+            }
+        }
+
+        // Check if any friendly neighbor chain has a liberty other than `point`
+        let mut friendly_visited = vec![false; self.board.len()];
+        for n in self.neighbors(point) {
+            if self.stone_at(n) == Some(stone) && !friendly_visited[self.idx(n.0, n.1)] {
+                let chain = self.chain_from(n, &mut friendly_visited);
+                let has_other_liberty = chain.iter().any(|&p| {
+                    self.neighbors(p)
+                        .iter()
+                        .any(|&nb| nb != point && self.stone_at(nb).is_none())
+                });
+                if has_other_liberty {
+                    return true; // friendly chain has liberty, so placed stone survives
+                }
+            }
+        }
+
+        false // suicide
     }
 
     // -- Internal helpers --

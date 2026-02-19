@@ -187,7 +187,7 @@ impl Engine {
     }
 
     pub fn is_legal(&self, point: Point, stone: Stone) -> bool {
-        self.goban.play(point, stone).is_ok()
+        self.goban.is_legal_move(point, stone)
     }
 
     pub fn stage(&self) -> Stage {

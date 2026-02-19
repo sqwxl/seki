@@ -53,8 +53,15 @@ async fn sweep(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
             game.id,
             active
         );
+        let gwp = match Game::find_with_players(&state.db, game.id).await {
+            Ok(gwp) => gwp,
+            Err(e) => {
+                tracing::error!("Clock sweep: failed to load game {}: {e}", game.id);
+                continue;
+            }
+        };
         if let Err(e) =
-            game_actions::end_game_on_time(state, game.id, &game, active, clock, &tc, now).await
+            game_actions::end_game_on_time(state, &gwp, active, clock, &tc, now).await
         {
             tracing::error!("Clock sweep: failed to end game {}: {e}", game.id);
         }

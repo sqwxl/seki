@@ -9,6 +9,8 @@ pub struct TreeNode {
     pub turn: Turn,
     pub parent: Option<NodeId>,
     pub children: Vec<NodeId>,
+    #[serde(default)]
+    pub depth: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,11 +51,17 @@ impl GameTree {
             }
         }
 
+        let depth = match parent {
+            Some(pid) => self.nodes[pid].depth + 1,
+            None => 1,
+        };
+
         let id = self.nodes.len();
         self.nodes.push(TreeNode {
             turn,
             parent,
             children: Vec::new(),
+            depth,
         });
 
         match parent {
@@ -93,6 +101,10 @@ impl GameTree {
 
     pub fn node(&self, id: NodeId) -> &TreeNode {
         &self.nodes[id]
+    }
+
+    pub fn depth(&self, id: NodeId) -> usize {
+        self.nodes[id].depth
     }
 
     pub fn len(&self) -> usize {

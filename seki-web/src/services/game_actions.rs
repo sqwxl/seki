@@ -7,7 +7,6 @@ use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers, SYSTEM_SYMBOL};
 use crate::models::message::Message;
 use crate::models::turn::TurnRow;
-use crate::models::user::User;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
 
@@ -55,14 +54,12 @@ pub async fn play_move(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let turn_count = TurnRow::count_by_game_id(&mut *tx, game_id)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let move_number = (engine.moves().len() - 1) as i32;
     if let Err(e) = TurnRow::create(
         &mut *tx,
         game_id,
         player_id,
-        turn_count as i32,
+        move_number,
         "play",
         stone.to_int() as i32,
         Some(col),
@@ -96,7 +93,7 @@ pub async fn play_move(
 
     // Non-transactional post-actions
     state.registry.set_undo_requested(game_id, false).await;
-    broadcast_game_state(state, game_id, &engine).await;
+    broadcast_game_state(state, &gwp, &engine).await;
 
     Ok(engine)
 }
@@ -118,14 +115,12 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let turn_count = TurnRow::count_by_game_id(&mut *tx, game_id)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let move_number = (engine.moves().len() - 1) as i32;
     if let Err(e) = TurnRow::create(
         &mut *tx,
         game_id,
         player_id,
-        turn_count as i32,
+        move_number,
         "pass",
         stone.to_int() as i32,
         None,
@@ -164,10 +159,10 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
             .registry
             .init_territory_review(game_id, dead_stones)
             .await;
-        broadcast_system_chat(state, game_id, "Territory review has begun").await;
+        broadcast_system_chat(state, game_id, "Territory review has begun", Some(engine.moves().len() as i32)).await;
     }
 
-    broadcast_game_state(state, game_id, &engine).await;
+    broadcast_game_state(state, &gwp, &engine).await;
 
     Ok(engine)
 }
@@ -198,7 +193,7 @@ pub async fn toggle_chain(
         .await
         .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
 
-    broadcast_game_state(state, game_id, &engine).await;
+    broadcast_game_state(state, &gwp, &engine).await;
     Ok(())
 }
 
@@ -232,7 +227,7 @@ pub async fn approve_territory(
     if tr.black_approved && tr.white_approved {
         settle_territory(state, game_id, &gwp, &engine, &tr.dead_stones).await?;
     } else {
-        broadcast_game_state(state, game_id, &engine).await;
+        broadcast_game_state(state, &gwp, &engine).await;
     }
 
     Ok(())
@@ -305,8 +300,8 @@ async fn settle_territory(
 
     state.registry.clear_territory_review(game_id).await;
 
-    broadcast_system_chat(state, game_id, &format!("Game over. {result}")).await;
-    broadcast_game_state(state, game_id, &engine).await;
+    broadcast_system_chat(state, game_id, &format!("Game over. {result}"), Some(engine.moves().len() as i32)).await;
+    broadcast_game_state(state, gwp, &engine).await;
 
     Ok(())
 }
@@ -336,14 +331,12 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
 
         pause_clock(state, &mut *tx, game_id, &gwp.game).await?;
 
-        let turn_count = TurnRow::count_by_game_id(&mut *tx, game_id)
-            .await
-            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let move_number = engine.moves().len() as i32;
         if let Err(e) = TurnRow::create(
             &mut *tx,
             game_id,
             player_id,
-            turn_count as i32,
+            move_number,
             "resign",
             stone.to_int() as i32,
             None,
@@ -369,7 +362,7 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
-    broadcast_game_state(state, game_id, &engine).await;
+    broadcast_game_state(state, &gwp, &engine).await;
 
     Ok(engine)
 }
@@ -412,10 +405,10 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
         })
         .await;
 
-    broadcast_system_chat(state, game_id, "Game aborted").await;
+    broadcast_system_chat(state, game_id, "Game aborted", None).await;
 
     if let Some(engine) = state.registry.get_engine(game_id).await {
-        broadcast_game_state(state, game_id, &engine).await;
+        broadcast_game_state(state, &gwp, &engine).await;
     }
 
     Ok(())
@@ -453,11 +446,10 @@ pub async fn send_chat(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let user = User::find_by_id(&state.db, player_id)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-
-    let sender = state_serializer::sender_label(&gwp, player_id, Some(&user.username));
+    let username = gwp
+        .player_by_id(player_id)
+        .map(|u| u.username.as_str());
+    let sender = state_serializer::sender_label(&gwp, player_id, username);
 
     state
         .registry
@@ -465,6 +457,7 @@ pub async fn send_chat(
             game_id,
             &json!({
                 "kind": "chat",
+                "game_id": game_id,
                 "player_id": player_id,
                 "sender": sender,
                 "text": msg.text,
@@ -518,17 +511,19 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
 
     state.registry.set_undo_requested(game_id, true).await;
 
-    let user = User::find_by_id(&state.db, player_id)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    let requesting_name = user.display_name().to_string();
+    let requesting_name = gwp
+        .player_by_id(player_id)
+        .map(|u| u.display_name().to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
     let opponent = gwp.opponent_of(player_id).cloned();
+    let move_number = current_move_number(state, &gwp.game).await;
 
     // System chat
     broadcast_system_chat(
         state,
         game_id,
         &format!("{requesting_name} requested to undo their last move"),
+        move_number,
     )
     .await;
 
@@ -538,7 +533,7 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
         .send_to_player(
             game_id,
             player_id,
-            &json!({ "kind": "undo_request_sent" }).to_string(),
+            &json!({ "kind": "undo_request_sent", "game_id": game_id }).to_string(),
         )
         .await;
 
@@ -551,6 +546,7 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
                 opponent.id,
                 &json!({
                     "kind": "undo_response_needed",
+                    "game_id": game_id,
                     "requesting_player": requesting_name,
                 })
                 .to_string(),
@@ -590,10 +586,10 @@ pub async fn respond_to_undo(
         ));
     }
 
-    let responding_user = User::find_by_id(&state.db, player_id)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    let responding_name = responding_user.display_name().to_string();
+    let responding_name = gwp
+        .player_by_id(player_id)
+        .map(|u| u.display_name().to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
 
     // Clear the in-memory request flag regardless of accept/reject
     state.registry.set_undo_requested(game_id, false).await;
@@ -668,7 +664,7 @@ pub async fn respond_to_undo(
     } else {
         format!("{responding_name} rejected the undo request")
     };
-    broadcast_system_chat(state, game_id, &message).await;
+    broadcast_system_chat(state, game_id, &message, Some(result.engine.moves().len() as i32)).await;
 
     // Notify both users with updated state
     let kind = if result.accepted {
@@ -702,6 +698,7 @@ pub async fn respond_to_undo(
                 pid,
                 &json!({
                     "kind": kind,
+                    "game_id": game_id,
                     "state": game_state["state"],
                     "current_turn_stone": game_state["current_turn_stone"],
                     "moves": game_state["moves"],
@@ -718,11 +715,8 @@ pub async fn respond_to_undo(
 
 // -- Internal helpers --
 
-async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
-    let Ok(gwp) = Game::find_with_players(&state.db, game_id).await else {
-        return;
-    };
-
+async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers, engine: &Engine) {
+    let game_id = gwp.game.id;
     let undo_requested = state.registry.is_undo_requested(game_id).await;
 
     let territory = if engine.stage() == Stage::TerritoryReview {
@@ -753,7 +747,7 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
 
     let online_users = state.registry.get_online_user_ids(game_id).await;
     let game_state = state_serializer::serialize_state(
-        &gwp,
+        gwp,
         engine,
         undo_requested,
         territory.as_ref(),
@@ -768,12 +762,18 @@ async fn broadcast_game_state(state: &AppState, game_id: i64, engine: &Engine) {
         .await;
 
     // Notify live subscribers (games list, etc.)
-    live::notify_game_updated(state, game_id, Some(engine.moves().len())).await;
+    live::notify_game_updated(state, gwp, Some(engine.moves().len()));
 }
 
-async fn broadcast_system_chat(state: &AppState, game_id: i64, text: &str) {
-    let saved = save_system_message(state, game_id, text).await.ok();
-    let move_number = saved.as_ref().and_then(|m| m.move_number);
+async fn broadcast_system_chat(
+    state: &AppState,
+    game_id: i64,
+    text: &str,
+    move_number: Option<i32>,
+) {
+    let saved = Message::create_system(&state.db, game_id, text, move_number)
+        .await
+        .ok();
     let sent_at = saved.as_ref().map(|m| m.created_at);
 
     state
@@ -782,6 +782,7 @@ async fn broadcast_system_chat(state: &AppState, game_id: i64, text: &str) {
             game_id,
             &json!({
                 "kind": "chat",
+                "game_id": game_id,
                 "sender": SYSTEM_SYMBOL,
                 "text": text,
                 "move_number": move_number,
@@ -790,20 +791,6 @@ async fn broadcast_system_chat(state: &AppState, game_id: i64, text: &str) {
             .to_string(),
         )
         .await;
-}
-
-async fn save_system_message(
-    state: &AppState,
-    game_id: i64,
-    text: &str,
-) -> Result<Message, AppError> {
-    let game = Game::find_by_id(&state.db, game_id)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-    let move_number = current_move_number(state, &game).await;
-    Message::create_system(&state.db, game_id, text, move_number)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))
 }
 
 async fn load_game_and_check_player(
@@ -1006,19 +993,19 @@ pub async fn handle_timeout_flag(
         return Ok(());
     }
 
-    end_game_on_time(state, game_id, &gwp.game, active, clock, &tc, now).await
+    end_game_on_time(state, &gwp, active, clock, &tc, now).await
 }
 
 /// End a game due to time expiration. Used by both client flag and server sweep.
 pub async fn end_game_on_time(
     state: &AppState,
-    game_id: i64,
-    _game: &Game,
+    gwp: &GameWithPlayers,
     flagged_stone: Stone,
     mut clock: ClockState,
     tc: &TimeControl,
     now: chrono::DateTime<chrono::Utc>,
 ) -> Result<(), AppError> {
+    let game_id = gwp.game.id;
     let winner = flagged_stone.opp();
     let result = match winner {
         Stone::Black => "B+T",
@@ -1050,10 +1037,12 @@ pub async fn end_game_on_time(
         })
         .await;
 
-    broadcast_system_chat(state, game_id, &format!("Game over. {result}")).await;
+    let engine = state.registry.get_engine(game_id).await;
+    let move_number = engine.as_ref().map(|e| e.moves().len() as i32);
+    broadcast_system_chat(state, game_id, &format!("Game over. {result}"), move_number).await;
 
-    if let Some(engine) = state.registry.get_engine(game_id).await {
-        broadcast_game_state(state, game_id, &engine).await;
+    if let Some(engine) = engine {
+        broadcast_game_state(state, gwp, &engine).await;
     }
 
     live::notify_game_removed(state, game_id);

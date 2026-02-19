@@ -18,6 +18,8 @@ pub struct Replay {
     /// Remembered navigation path (root-first sequence of NodeIds).
     /// `forward()` follows this path when possible, falling back to children[0].
     path: Vec<NodeId>,
+    /// Undo stack: previous engine states for O(1) back().
+    history: Vec<Engine>,
 }
 
 impl Replay {
@@ -29,6 +31,7 @@ impl Replay {
             current: None,
             engine: Engine::new(cols, rows),
             path: Vec::new(),
+            history: Vec::new(),
         }
     }
 
@@ -44,6 +47,7 @@ impl Replay {
             current,
             engine,
             path,
+            history: Vec::new(),
         }
     }
 
@@ -53,6 +57,22 @@ impl Replay {
             None => Vec::new(),
         };
         self.engine = Engine::with_moves(self.cols, self.rows, moves);
+        self.history.clear();
+    }
+
+    /// Apply a single turn to the engine (play or pass).
+    fn apply_turn(&mut self, turn: Turn) {
+        use crate::turn::Move;
+        match turn.kind {
+            Move::Play => {
+                let point = turn.pos.expect("play move must have a point");
+                let _ = self.engine.try_play(turn.stone, point);
+            }
+            Move::Pass => {
+                let _ = self.engine.try_pass(turn.stone);
+            }
+            Move::Resign => {}
+        }
     }
 
     /// Build the main-line path (following children[0] from root to leaf).
@@ -93,7 +113,7 @@ impl Replay {
 
     /// Depth of a node (number of moves from root).
     fn depth_of(&self, node_id: NodeId) -> usize {
-        self.tree.path_to(node_id).len()
+        self.tree.depth(node_id)
     }
 
     // -- Accessors --
@@ -162,7 +182,9 @@ impl Replay {
     /// Returns true if the move was legal.
     pub fn try_play(&mut self, col: u8, row: u8) -> bool {
         let stone = self.engine.current_turn_stone();
+        let prev = self.engine.clone();
         if self.engine.try_play(stone, (col, row)).is_ok() {
+            self.history.push(prev);
             let turn = Turn::play(stone, (col, row));
             let new_id = self.tree.add_child(self.current, turn);
             self.current = Some(new_id);
@@ -177,7 +199,9 @@ impl Replay {
     /// Returns true on success.
     pub fn pass(&mut self) -> bool {
         let stone = self.engine.current_turn_stone();
+        let prev = self.engine.clone();
         if self.engine.try_pass(stone).is_ok() {
+            self.history.push(prev);
             let turn = Turn::pass(stone);
             let new_id = self.tree.add_child(self.current, turn);
             self.current = Some(new_id);
@@ -217,7 +241,11 @@ impl Replay {
         match self.current {
             Some(id) => {
                 self.current = self.tree.node(id).parent;
-                self.rebuild();
+                if let Some(prev) = self.history.pop() {
+                    self.engine = prev;
+                } else {
+                    self.rebuild();
+                }
                 true
             }
             None => false,
@@ -239,8 +267,10 @@ impl Replay {
             self.path.push(children[0]);
             children[0]
         };
+        self.history.push(self.engine.clone());
+        let turn = &self.tree.node(next).turn;
+        self.apply_turn(turn.clone());
         self.current = Some(next);
-        self.rebuild();
         true
     }
 

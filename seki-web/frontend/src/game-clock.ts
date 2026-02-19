@@ -56,8 +56,11 @@ export function updateClocks(
   settings: GameSettings | undefined,
 ): void {
   if (!clockState.data) {
-    for (const el of document.querySelectorAll<HTMLElement>(".player-clock")) {
-      el.textContent = "";
+    if (dom.topClock) {
+      dom.topClock.textContent = "";
+    }
+    if (dom.bottomClock) {
+      dom.bottomClock.textContent = "";
     }
     return;
   }
@@ -97,29 +100,26 @@ export function updateClocks(
       ? ` (${cd.white.periods})`
       : "";
 
-  if (dom.playerTop && dom.playerBottom) {
-    const topClockEl = dom.playerTop.querySelector<HTMLElement>(".player-clock");
-    const bottomClockEl =
-      dom.playerBottom.querySelector<HTMLElement>(".player-clock");
+  const topClockEl = dom.topClock;
+  const bottomClockEl = dom.bottomClock;
 
-    if (ctx.playerStone === -1) {
-      if (topClockEl) {
-        topClockEl.textContent = blackText + blackPeriods;
-        topClockEl.classList.toggle("low-time", blackMs < 10000);
-      }
-      if (bottomClockEl) {
-        bottomClockEl.textContent = whiteText + whitePeriods;
-        bottomClockEl.classList.toggle("low-time", whiteMs < 10000);
-      }
-    } else {
-      if (topClockEl) {
-        topClockEl.textContent = whiteText + whitePeriods;
-        topClockEl.classList.toggle("low-time", whiteMs < 10000);
-      }
-      if (bottomClockEl) {
-        bottomClockEl.textContent = blackText + blackPeriods;
-        bottomClockEl.classList.toggle("low-time", blackMs < 10000);
-      }
+  if (ctx.playerStone === -1) {
+    if (topClockEl) {
+      topClockEl.textContent = blackText + blackPeriods;
+      topClockEl.classList.toggle("low-time", blackMs < 10000);
+    }
+    if (bottomClockEl) {
+      bottomClockEl.textContent = whiteText + whitePeriods;
+      bottomClockEl.classList.toggle("low-time", whiteMs < 10000);
+    }
+  } else {
+    if (topClockEl) {
+      topClockEl.textContent = whiteText + whitePeriods;
+      topClockEl.classList.toggle("low-time", whiteMs < 10000);
+    }
+    if (bottomClockEl) {
+      bottomClockEl.textContent = blackText + blackPeriods;
+      bottomClockEl.classList.toggle("low-time", blackMs < 10000);
     }
   }
 }

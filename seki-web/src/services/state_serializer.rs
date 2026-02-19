@@ -74,6 +74,7 @@ pub fn serialize_state(
 
     let mut val = json!({
         "kind": "state",
+        "game_id": gwp.game.id,
         "stage": stage.to_string(),
         "state": game_state,
         "negotiations": negotiations,

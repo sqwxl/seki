@@ -84,15 +84,7 @@ pub async fn notify_game_created(state: &AppState, game_id: i64) {
 }
 
 /// Notify live clients that an existing game's state changed.
-pub async fn notify_game_updated(state: &AppState, game_id: i64, move_count: Option<usize>) {
-    let gwp = match Game::find_with_players(&state.db, game_id).await {
-        Ok(gwp) => gwp,
-        Err(e) => {
-            tracing::warn!("live::notify_game_updated failed to load game {game_id}: {e}");
-            return;
-        }
-    };
-
+pub fn notify_game_updated(state: &AppState, gwp: &GameWithPlayers, move_count: Option<usize>) {
     let update = GameUpdate {
         id: gwp.game.id,
         stage: gwp.game.stage.clone(),

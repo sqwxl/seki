@@ -43,10 +43,11 @@ export function handleGameMessage(
       }
 
       if (ctx.board) {
-        ctx.board.updateBaseMoves(
-          JSON.stringify(ctx.moves),
-          !ctx.analysisMode,
-        );
+        const newMovesJson = JSON.stringify(ctx.moves);
+        if (newMovesJson !== ctx.movesJson) {
+          ctx.movesJson = newMovesJson;
+          ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
+        }
         if (!ctx.analysisMode && ctx.board.engine.is_at_latest()) {
           renderGoban(ctx, dom.goban, channel);
         }
@@ -87,10 +88,11 @@ export function handleGameMessage(
         if (data.moves) {
           ctx.moves = data.moves;
           if (ctx.board) {
-            ctx.board.updateBaseMoves(
-              JSON.stringify(ctx.moves),
-              !ctx.analysisMode,
-            );
+            const newMovesJson = JSON.stringify(ctx.moves);
+            if (newMovesJson !== ctx.movesJson) {
+              ctx.movesJson = newMovesJson;
+              ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
+            }
             if (!ctx.analysisMode && ctx.board.engine.is_at_latest()) {
               renderGoban(ctx, dom.goban, channel);
             }

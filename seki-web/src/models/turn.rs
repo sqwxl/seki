@@ -29,17 +29,6 @@ impl TurnRow {
         .await
     }
 
-    pub async fn count_by_game_id(
-        executor: impl sqlx::PgExecutor<'_>,
-        game_id: i64,
-    ) -> Result<i64, sqlx::Error> {
-        let row: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM turns WHERE game_id = $1")
-            .bind(game_id)
-            .fetch_one(executor)
-            .await?;
-        Ok(row.0)
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub async fn create(
         executor: impl sqlx::PgExecutor<'_>,

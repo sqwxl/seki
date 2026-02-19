@@ -81,29 +81,25 @@ impl GameRegistry {
     }
 
     /// Broadcast a message to all users in a game room.
-    /// Injects `game_id` into the JSON message.
     pub async fn broadcast(&self, game_id: i64, message: &str) {
         let rooms = self.rooms.read().await;
         if let Some(room) = rooms.get(&game_id) {
-            let wrapped = inject_game_id(game_id, message);
             for senders in room.players.values() {
                 for sender in senders {
-                    let _ = sender.send(wrapped.clone());
+                    let _ = sender.send(message.to_string());
                 }
             }
         }
     }
 
     /// Send a message to a specific user in a game room.
-    /// Injects `game_id` into the JSON message.
     pub async fn send_to_player(&self, game_id: i64, player_id: i64, message: &str) {
         let rooms = self.rooms.read().await;
         if let Some(room) = rooms.get(&game_id)
             && let Some(senders) = room.players.get(&player_id)
         {
-            let wrapped = inject_game_id(game_id, message);
             for sender in senders {
-                let _ = sender.send(wrapped.clone());
+                let _ = sender.send(message.to_string());
             }
         }
     }
@@ -256,13 +252,3 @@ impl GameRegistry {
     }
 }
 
-/// Inject `"game_id": N` into a JSON object string.
-fn inject_game_id(game_id: i64, message: &str) -> String {
-    if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(message)
-        && let Some(obj) = val.as_object_mut()
-    {
-        obj.insert("game_id".to_string(), serde_json::json!(game_id));
-        return val.to_string();
-    }
-    message.to_string()
-}

@@ -102,10 +102,7 @@ pub fn find_unconditionally_alive(goban: &Goban, stone: Stone) -> HashSet<Point>
             if chain_visited[idx] || goban.stone_at((x, y)) != Some(stone) {
                 continue;
             }
-            let chain = goban.chain((x, y));
-            for &(cx, cy) in &chain {
-                chain_visited[cy as usize * cols as usize + cx as usize] = true;
-            }
+            let chain = goban.chain_from((x, y), &mut chain_visited);
             chains.push(chain);
         }
     }
@@ -132,10 +129,14 @@ pub fn find_unconditionally_alive(goban: &Goban, stone: Stone) -> HashSet<Point>
         let regions = find_enclosed_regions(goban, stone, &chains, &chain_alive, &point_to_chain);
 
         // For each alive chain, count its vital regions
+        let chain_sets: Vec<HashSet<Point>> = chains
+            .iter()
+            .map(|chain| chain.iter().copied().collect())
+            .collect();
         let mut vital_counts = vec![0usize; chains.len()];
         for region in &regions {
             for &ci in &region.bordering_chains {
-                if is_vital_for(goban, region, &chains[ci]) {
+                if is_vital_for(goban, region, &chain_sets[ci]) {
                     vital_counts[ci] += 1;
                 }
             }
@@ -247,9 +248,7 @@ fn find_enclosed_regions(
 
 /// Check if a region is vital for a given chain.
 /// A region is vital for chain C if every empty point in the region is also a liberty of C.
-fn is_vital_for(goban: &Goban, region: &EnclosedRegion, chain: &[Point]) -> bool {
-    let chain_set: HashSet<Point> = chain.iter().copied().collect();
-
+fn is_vital_for(goban: &Goban, region: &EnclosedRegion, chain_set: &HashSet<Point>) -> bool {
     region.points.iter().all(|&rp| {
         // rp is an empty point in the region — check if it's adjacent to the chain
         goban.neighbors(rp).iter().any(|n| chain_set.contains(n))
@@ -266,9 +265,9 @@ fn is_vital_for(goban: &Goban, region: &EnclosedRegion, chain: &[Point]) -> bool
 /// This is conservative: only marks stones that are clearly enclosed by unconditionally
 /// alive opponent groups. Ambiguous groups are left alive for players to toggle.
 pub fn detect_dead_stones(goban: &Goban) -> HashSet<Point> {
-    let alive_black = find_unconditionally_alive(goban, Stone::Black);
+    let mut alive = find_unconditionally_alive(goban, Stone::Black);
     let alive_white = find_unconditionally_alive(goban, Stone::White);
-    let alive: HashSet<Point> = alive_black.union(&alive_white).copied().collect();
+    alive.extend(&alive_white);
 
     // Build a simplified goban with only Benson-alive stones
     let cols = goban.cols();

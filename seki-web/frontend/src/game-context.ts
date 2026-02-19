@@ -33,6 +33,7 @@ export type GameCtx = {
   // UI state
   analysisMode: boolean;
   board: Board | undefined;
+  movesJson: string;
 };
 
 export function createGameContext(
@@ -61,5 +62,6 @@ export function createGameContext(
 
     analysisMode: false,
     board: undefined,
+    movesJson: "[]",
   };
 }

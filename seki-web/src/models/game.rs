@@ -412,6 +412,13 @@ pub struct GameWithPlayers {
 }
 
 impl GameWithPlayers {
+    pub fn player_by_id(&self, user_id: i64) -> Option<&User> {
+        self.black
+            .as_ref()
+            .filter(|p| p.id == user_id)
+            .or_else(|| self.white.as_ref().filter(|p| p.id == user_id))
+    }
+
     pub fn has_player(&self, user_id: i64) -> bool {
         self.black.as_ref().is_some_and(|p| p.id == user_id)
             || self.white.as_ref().is_some_and(|p| p.id == user_id)
