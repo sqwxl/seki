@@ -74,10 +74,26 @@ export function readjustShifts(
     const direction = shiftMap[index];
 
     const neighbors: [number[], [number, number], number[]][] = [
-      [[1, 5, 8], [x - 1, y], [3, 7, 6]],
-      [[2, 5, 6], [x, y - 1], [4, 7, 8]],
-      [[3, 7, 6], [x + 1, y], [1, 5, 8]],
-      [[4, 7, 8], [x, y + 1], [2, 5, 6]],
+      [
+        [1, 5, 8],
+        [x - 1, y],
+        [3, 7, 6],
+      ],
+      [
+        [2, 5, 6],
+        [x, y - 1],
+        [4, 7, 8],
+      ],
+      [
+        [3, 7, 6],
+        [x + 1, y],
+        [1, 5, 8],
+      ],
+      [
+        [4, 7, 8],
+        [x, y + 1],
+        [2, 5, 6],
+      ],
     ];
 
     for (const [directions, [qx, qy], removeShifts] of neighbors) {

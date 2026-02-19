@@ -6,14 +6,17 @@ import {
   whiteCaptureSymbol,
   whiteSymbol,
 } from "./format";
+import { queryGameDom } from "./game-dom";
 
 const SIZE_KEY = "seki:analysis:size";
 const VALID_SIZES = [9, 13, 19];
 
 export function initAnalysis(root: HTMLElement) {
-  const gobanEl = document.getElementById("goban")!;
-  const playerTopEl = document.getElementById("player-top");
-  const playerBottomEl = document.getElementById("player-bottom");
+  const {
+    goban: gobanEl,
+    playerTop: playerTopEl,
+    playerBottom: playerBottomEl,
+  } = queryGameDom();
   const sizeSelect = document.getElementById(
     "board-size",
   ) as HTMLSelectElement | null;

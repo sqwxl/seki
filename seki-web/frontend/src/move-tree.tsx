@@ -193,7 +193,15 @@ export function MoveTree({
       >
         {isRoot ? (
           <>
-            <circle cx={x} cy={y} r={radius} fill="transparent" stroke={isCurrent ? "#555" : "none"} stroke-width={1} stroke-dasharray="3 3" />
+            <circle
+              cx={x}
+              cy={y}
+              r={radius}
+              fill="transparent"
+              stroke={isCurrent ? "#555" : "none"}
+              stroke-width={1}
+              stroke-dasharray="3 3"
+            />
             <line
               x1={x - radius}
               y1={y}

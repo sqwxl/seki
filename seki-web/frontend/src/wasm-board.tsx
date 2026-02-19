@@ -3,6 +3,7 @@ import { Goban } from "./goban/index";
 import type { GameTreeData, MarkerData, Point } from "./goban/types";
 import { MoveTree } from "./move-tree";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
+import { GameDomElements } from "./game-dom";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
 
@@ -117,7 +118,11 @@ function renderMoveTree(
 
   // Inject synthetic root node for the empty board
   const rootId = tree.nodes.length;
-  tree.nodes.push({ turn: { kind: "pass", stone: 0, pos: null }, parent: null, children: [...tree.root_children] });
+  tree.nodes.push({
+    turn: { kind: "pass", stone: 0, pos: null },
+    parent: null,
+    children: [...tree.root_children],
+  });
   for (const childId of tree.root_children) {
     tree.nodes[childId].parent = rootId;
   }
@@ -166,15 +171,15 @@ function navigateEngine(engine: WasmEngine, action: NavAction): boolean {
 export type BoardConfig = {
   cols: number;
   rows: number;
-  gobanEl: HTMLElement;
+  gobanEl: GameDomElements["goban"];
   moveTreeEl?: HTMLElement | null;
   storageKey?: string;
   baseMoves?: string;
   navButtons?: NavButtons;
   buttons?: {
-    undo?: HTMLButtonElement | null;
-    pass?: HTMLButtonElement | null;
-    reset?: HTMLButtonElement | null;
+    undo?: GameDomElements["requestUndoBtn"];
+    pass?: GameDomElements["passBtn"];
+    reset?: GameDomElements["resetBtn"];
   };
   onRender?: (engine: WasmEngine) => void;
   onVertexClick?: (col: number, row: number) => boolean;

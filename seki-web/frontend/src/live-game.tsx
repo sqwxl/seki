@@ -12,9 +12,7 @@ import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
 import { readUserData, derivePlayerStone } from "./game-util";
 
-export function liveGame(root: HTMLElement) {
-  const initialProps: InitialGameProps = JSON.parse(root.dataset.props!);
-  const gameId = Number(root.dataset.gameId!);
+export function liveGame(initialProps: InitialGameProps, gameId: number) {
   const userData = readUserData();
   const playerStone = derivePlayerStone(
     userData,
@@ -40,7 +38,7 @@ export function liveGame(root: HTMLElement) {
     cols: ctx.gameState.cols,
     rows: ctx.gameState.rows,
     gobanEl: dom.goban,
-    moveTreeEl: document.getElementById("move-tree"),
+    moveTreeEl: dom.moveTree,
     storageKey: ctx.analysisStorageKey,
     baseMoves: ctx.moves.length > 0 ? JSON.stringify(ctx.moves) : undefined,
     navButtons: findNavButtons(),

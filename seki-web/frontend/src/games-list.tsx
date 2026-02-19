@@ -1,7 +1,11 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "./live";
-import { formatGameDescription, type UserData, type GameSettings } from "./format";
+import {
+  formatGameDescription,
+  type UserData,
+  type GameSettings,
+} from "./format";
 
 type LiveGameItem = {
   id: number;

@@ -34,8 +34,7 @@ export function updateControls(ctx: GameCtx, dom: GameDomElements): void {
   const isMyTurn = ctx.currentTurn === ctx.playerStone;
 
   if (dom.passBtn) {
-    dom.passBtn.style.display =
-      ctx.playerStone !== 0 && isPlay ? "" : "none";
+    dom.passBtn.style.display = ctx.playerStone !== 0 && isPlay ? "" : "none";
     dom.passBtn.disabled = !isMyTurn;
   }
   if (dom.resignBtn) {
@@ -52,8 +51,7 @@ export function updateControls(ctx: GameCtx, dom: GameDomElements): void {
   }
 
   if (dom.requestUndoBtn) {
-    dom.requestUndoBtn.style.display =
-      ctx.allowUndo && isPlay ? "" : "none";
+    dom.requestUndoBtn.style.display = ctx.allowUndo && isPlay ? "" : "none";
     const canUndo =
       ctx.moves.length > 0 &&
       ctx.playerStone !== 0 &&
