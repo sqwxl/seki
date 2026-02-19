@@ -432,6 +432,7 @@ pub fn format_result(black_score: f64, white_score: f64) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::erasing_op, clippy::identity_op)]
 mod tests {
     use super::*;
 
