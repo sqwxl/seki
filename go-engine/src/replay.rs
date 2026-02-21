@@ -12,6 +12,7 @@ use crate::turn::Turn;
 pub struct Replay {
     cols: u8,
     rows: u8,
+    handicap: u8,
     tree: GameTree,
     current: Option<NodeId>,
     engine: Engine,
@@ -27,6 +28,7 @@ impl Replay {
         Self {
             cols,
             rows,
+            handicap: 0,
             tree: GameTree::new(),
             current: None,
             engine: Engine::new(cols, rows),
@@ -43,6 +45,7 @@ impl Replay {
         Self {
             cols,
             rows,
+            handicap: 0,
             tree,
             current,
             engine,
@@ -51,12 +54,18 @@ impl Replay {
         }
     }
 
+    pub fn set_handicap(&mut self, handicap: u8) {
+        self.handicap = handicap;
+        self.rebuild();
+    }
+
     fn rebuild(&mut self) {
         let moves = match self.current {
             Some(id) => self.tree.moves_to(id),
             None => Vec::new(),
         };
-        self.engine = Engine::with_moves(self.cols, self.rows, moves);
+        self.engine =
+            Engine::with_handicap_and_moves(self.cols, self.rows, self.handicap, moves);
         self.history.clear();
     }
 

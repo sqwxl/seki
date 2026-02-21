@@ -76,20 +76,23 @@ impl Goban {
 
     /// Replay a list of turns onto an empty board of the given dimensions.
     pub fn with_moves(cols: u8, rows: u8, moves: &[Turn]) -> Self {
-        let mut goban = Goban::with_dimensions(cols, rows);
+        Goban::with_dimensions(cols, rows).replay_moves(moves)
+    }
 
+    /// Replay a list of turns onto this board, consuming and returning the result.
+    pub fn replay_moves(mut self, moves: &[Turn]) -> Self {
         for m in moves {
             match m.kind {
                 Move::Play => {
                     let point = m.pos.expect("play move must have a point");
-                    goban = goban.play(point, m.stone).expect("invalid move in replay");
+                    self = self.play(point, m.stone).expect("invalid move in replay");
                 }
-                Move::Pass => goban.pass(),
+                Move::Pass => self.pass(),
                 Move::Resign => {}
             }
         }
 
-        goban
+        self
     }
 
     /// Restore a goban from serialized state.
@@ -446,7 +449,7 @@ impl Goban {
         row as usize * self.cols as usize + col as usize
     }
 
-    fn set_stone(&mut self, (col, row): Point, stone: Stone) {
+    pub fn set_stone(&mut self, (col, row): Point, stone: Stone) {
         if self.on_board((col, row)) {
             let i = self.idx(col, row);
             self.board[i] = stone.to_int();

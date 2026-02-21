@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::Point;
 use crate::error::GoError;
 use crate::goban::{Captures, Goban};
+use crate::handicap;
 use crate::ko::Ko;
 use crate::stone::Stone;
 use crate::turn::Turn;
@@ -65,6 +66,7 @@ pub struct GameState {
 pub struct Engine {
     cols: u8,
     rows: u8,
+    handicap: u8,
     moves: Vec<Turn>,
     goban: Goban,
     result: Option<String>,
@@ -72,22 +74,36 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(cols: u8, rows: u8) -> Self {
-        let goban = Goban::with_dimensions(cols, rows);
-        Engine {
-            cols,
-            rows,
-            moves: Vec::new(),
-            goban,
-            result: None,
-        }
+        Self::create(cols, rows, 0, Vec::new())
     }
 
     pub fn with_moves(cols: u8, rows: u8, moves: Vec<Turn>) -> Self {
-        let goban = Goban::with_moves(cols, rows, &moves);
+        Self::create(cols, rows, 0, moves)
+    }
+
+    pub fn with_handicap(cols: u8, rows: u8, handicap: u8) -> Self {
+        Self::create(cols, rows, handicap, Vec::new())
+    }
+
+    pub fn with_handicap_and_moves(cols: u8, rows: u8, handicap: u8, moves: Vec<Turn>) -> Self {
+        Self::create(cols, rows, handicap, moves)
+    }
+
+    fn create(cols: u8, rows: u8, handicap: u8, moves: Vec<Turn>) -> Self {
+        let mut goban = Goban::with_dimensions(cols, rows);
+        if handicap >= 2 {
+            if let Some(pts) = handicap::handicap_points(cols, rows, handicap) {
+                for pt in pts {
+                    goban.set_stone(pt, Stone::Black);
+                }
+            }
+        }
+        let goban = goban.replay_moves(&moves);
         let result = Self::result_from_moves(&moves);
         Engine {
             cols,
             rows,
+            handicap,
             moves,
             goban,
             result,
@@ -112,6 +128,10 @@ impl Engine {
 
     pub fn rows(&self) -> u8 {
         self.rows
+    }
+
+    pub fn handicap(&self) -> u8 {
+        self.handicap
     }
 
     pub fn moves(&self) -> &[Turn] {
@@ -144,6 +164,7 @@ impl Engine {
 
     pub fn current_turn_stone(&self) -> Stone {
         match self.moves.last() {
+            None if self.handicap >= 2 => Stone::White,
             None => Stone::Black,
             Some(m) => m.stone.opp(),
         }
@@ -220,13 +241,20 @@ impl Engine {
         }
     }
 
-    pub fn from_game_state(cols: u8, rows: u8, moves: Vec<Turn>, state: GameState) -> Self {
+    pub fn from_game_state(
+        cols: u8,
+        rows: u8,
+        handicap: u8,
+        moves: Vec<Turn>,
+        state: GameState,
+    ) -> Self {
         let goban = Goban::from_state(state);
         let result = Self::result_from_moves(&moves);
 
         Engine {
             cols,
             rows,
+            handicap,
             moves,
             goban,
             result,
@@ -262,6 +290,7 @@ mod tests {
         Engine {
             cols,
             rows,
+            handicap: 0,
             moves: Vec::new(),
             goban,
             result: None,
@@ -308,6 +337,53 @@ mod tests {
         let engine = Engine::with_moves(4, 4, moves);
         assert_eq!(engine.stone_at((0, 0)), Some(Stone::Black));
         assert_eq!(engine.stone_at((1, 0)), Some(Stone::White));
+    }
+
+    // -- Handicap --
+
+    #[test]
+    fn handicap_places_stones() {
+        let engine = Engine::with_handicap(19, 19, 4);
+        assert_eq!(engine.stone_at((3, 3)), Some(Stone::Black));
+        assert_eq!(engine.stone_at((15, 3)), Some(Stone::Black));
+        assert_eq!(engine.stone_at((3, 15)), Some(Stone::Black));
+        assert_eq!(engine.stone_at((15, 15)), Some(Stone::Black));
+        assert_eq!(engine.handicap(), 4);
+    }
+
+    #[test]
+    fn handicap_white_plays_first() {
+        let engine = Engine::with_handicap(19, 19, 2);
+        assert_eq!(engine.current_turn_stone(), Stone::White);
+    }
+
+    #[test]
+    fn handicap_stage_is_unstarted() {
+        let engine = Engine::with_handicap(19, 19, 2);
+        assert_eq!(engine.stage(), Stage::Unstarted);
+    }
+
+    #[test]
+    fn handicap_with_moves_replays() {
+        let moves = vec![Turn::play(Stone::White, (0, 0))];
+        let engine = Engine::with_handicap_and_moves(19, 19, 2, moves);
+        assert_eq!(engine.stone_at((0, 0)), Some(Stone::White));
+        assert_eq!(engine.stone_at((15, 3)), Some(Stone::Black));
+        assert_eq!(engine.stone_at((3, 15)), Some(Stone::Black));
+        assert_eq!(engine.current_turn_stone(), Stone::Black);
+    }
+
+    #[test]
+    fn no_handicap_zero() {
+        let engine = Engine::with_handicap(19, 19, 0);
+        assert!(engine.goban().is_empty());
+        assert_eq!(engine.current_turn_stone(), Stone::Black);
+    }
+
+    #[test]
+    fn handicap_non_19x19_ignored() {
+        let engine = Engine::with_handicap(9, 9, 4);
+        assert!(engine.goban().is_empty());
     }
 
     // -- Turn management --
@@ -548,7 +624,7 @@ mod tests {
         let gs = engine.game_state();
         let json = serde_json::to_value(&gs).unwrap();
         let restored_gs: GameState = serde_json::from_value(json).unwrap();
-        let restored = Engine::from_game_state(4, 4, vec![], restored_gs);
+        let restored = Engine::from_game_state(4, 4, 0, vec![], restored_gs);
 
         assert_eq!(restored.cols(), 4);
         assert_eq!(restored.rows(), 4);
@@ -568,7 +644,7 @@ mod tests {
         let json = serde_json::to_value(engine.game_state()).unwrap();
         let moves = engine.moves().to_vec();
         let restored_gs: GameState = serde_json::from_value(json).unwrap();
-        let restored = Engine::from_game_state(4, 4, moves.clone(), restored_gs);
+        let restored = Engine::from_game_state(4, 4, 0, moves.clone(), restored_gs);
 
         assert_eq!(restored.board(), engine.board());
         assert_eq!(restored.captures(), engine.captures());
@@ -585,7 +661,7 @@ mod tests {
         let json = serde_json::to_value(engine.game_state()).unwrap();
         let moves = engine.moves().to_vec();
         let restored_gs: GameState = serde_json::from_value(json).unwrap();
-        let restored = Engine::from_game_state(4, 4, moves, restored_gs);
+        let restored = Engine::from_game_state(4, 4, 0, moves, restored_gs);
 
         assert_eq!(restored.ko(), engine.ko());
         assert_eq!(restored.board(), engine.board());
@@ -600,7 +676,7 @@ mod tests {
         let json = serde_json::to_value(engine.game_state()).unwrap();
         let moves = engine.moves().to_vec();
         let restored_gs: GameState = serde_json::from_value(json).unwrap();
-        let restored = Engine::from_game_state(5, 3, moves, restored_gs);
+        let restored = Engine::from_game_state(5, 3, 0, moves, restored_gs);
 
         assert_eq!(restored.cols(), 5);
         assert_eq!(restored.rows(), 3);
@@ -619,7 +695,7 @@ mod tests {
         let json = serde_json::to_value(engine.game_state()).unwrap();
         let moves = engine.moves().to_vec();
         let restored_gs: GameState = serde_json::from_value(json).unwrap();
-        let restored = Engine::from_game_state(4, 4, moves.clone(), restored_gs);
+        let restored = Engine::from_game_state(4, 4, 0, moves.clone(), restored_gs);
 
         assert_eq!(restored.board(), engine.board());
         assert_eq!(restored.captures(), engine.captures());
@@ -641,7 +717,7 @@ mod tests {
         let json = serde_json::to_value(engine.game_state()).unwrap();
         let moves = engine.moves().to_vec();
         let restored_gs: GameState = serde_json::from_value(json).unwrap();
-        let restored = Engine::from_game_state(4, 4, moves, restored_gs);
+        let restored = Engine::from_game_state(4, 4, 0, moves, restored_gs);
 
         assert_eq!(restored.board(), engine.board());
         assert_eq!(restored.captures(), engine.captures());

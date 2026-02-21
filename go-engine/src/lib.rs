@@ -2,6 +2,7 @@ pub mod engine;
 pub mod error;
 pub mod game_tree;
 pub mod goban;
+pub mod handicap;
 pub mod ko;
 pub mod replay;
 pub mod sgf;

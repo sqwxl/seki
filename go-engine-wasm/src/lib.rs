@@ -17,6 +17,10 @@ impl WasmEngine {
         }
     }
 
+    pub fn set_handicap(&mut self, handicap: u8) {
+        self.inner.set_handicap(handicap);
+    }
+
     // -- Game actions (delegate to Replay) --
 
     pub fn try_play(&mut self, col: u8, row: u8) -> bool {
