@@ -40,6 +40,7 @@ function syncBoardMoves(
     }
     ctx.movesJson = newMovesJson;
     ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
+    ctx.board.save();
     onNewMove?.();
   }
   if (!ctx.analysisMode && ctx.board.engine.is_at_latest()) {

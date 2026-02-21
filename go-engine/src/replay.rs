@@ -328,6 +328,28 @@ impl Replay {
         self.rebuild();
     }
 
+    /// Merge base moves into the existing tree, preserving branches.
+    /// Walks through `moves` using `add_child` (which reuses matching nodes),
+    /// so only genuinely new moves are appended. Analysis branches remain intact.
+    /// Returns the node ID of the base-line tip (or None for empty moves).
+    /// Does NOT move the cursor.
+    pub fn merge_base_moves(&mut self, moves: Vec<Turn>) -> Option<NodeId> {
+        let old_len = self.tree.len();
+        let mut parent: Option<NodeId> = None;
+        for turn in moves {
+            let id = self.tree.add_child(parent, turn);
+            parent = Some(id);
+        }
+        // Only update path if the tree actually grew (avoid clobbering
+        // the user's remembered analysis-branch path on a no-op merge).
+        if self.tree.len() > old_len {
+            if let Some(tip) = parent {
+                self.path = self.tree.path_to(tip);
+            }
+        }
+        parent
+    }
+
     /// Wholesale replace the tree (e.g. from localStorage restore).
     pub fn replace_tree(&mut self, tree: GameTree) {
         self.tree = tree;
@@ -604,5 +626,114 @@ mod tests {
         // to_latest should follow the remembered path (the variation)
         r.to_latest();
         assert_eq!(r.last_play_pos(), Some((4, 4)));
+    }
+
+    #[test]
+    fn merge_base_moves_preserves_branches() {
+        let mut r = Replay::new(9, 9);
+        // Build: B(0,0) -> W(1,0) with an analysis branch W(2,0)
+        r.try_play(0, 0); // node 0
+        r.try_play(1, 0); // node 1 — main line
+        r.back();
+        r.try_play(2, 0); // node 2 — analysis branch
+        assert_eq!(r.tree().len(), 3);
+        // Cursor is at node 2 (analysis branch tip)
+        assert_eq!(r.view_index(), 2);
+
+        // Merge base moves that extend the main line by one move
+        let moves = vec![
+            Turn::play(Stone::Black, (0, 0)),
+            Turn::play(Stone::White, (1, 0)),
+            Turn::play(Stone::Black, (3, 0)), // new move
+        ];
+        r.merge_base_moves(moves);
+
+        // Tree should now have 4 nodes: original 3 + the new one
+        assert_eq!(r.tree().len(), 4);
+        // Analysis branch should still exist
+        let root_child = r.tree().root_children()[0];
+        assert_eq!(r.tree().children_of(Some(root_child)).len(), 2);
+        // Cursor should NOT have moved (still at analysis branch)
+        assert_eq!(r.view_index(), 2);
+        assert_eq!(r.last_play_pos(), Some((2, 0)));
+        // to_latest from root should follow the updated path to the new tip
+        r.to_start();
+        r.to_latest();
+        assert_eq!(r.view_index(), 3);
+        assert_eq!(r.last_play_pos(), Some((3, 0)));
+    }
+
+    #[test]
+    fn merge_base_moves_no_change() {
+        let mut r = Replay::new(9, 9);
+        r.try_play(0, 0);
+        r.try_play(1, 0);
+        assert_eq!(r.tree().len(), 2);
+
+        // Merge the same moves — no change
+        let moves = vec![
+            Turn::play(Stone::Black, (0, 0)),
+            Turn::play(Stone::White, (1, 0)),
+        ];
+        r.merge_base_moves(moves);
+        assert_eq!(r.tree().len(), 2);
+        // Cursor unchanged
+        assert_eq!(r.view_index(), 2);
+    }
+
+    #[test]
+    fn merge_after_tree_roundtrip() {
+        // Simulate: build tree, serialize to JSON (localStorage), restore, merge new moves
+        let mut r = Replay::new(9, 9);
+        r.try_play(0, 0);
+        r.try_play(1, 0);
+        r.try_play(2, 0);
+
+        // Serialize tree to JSON and restore (simulates localStorage save/load)
+        let tree_json = serde_json::to_string(r.tree()).unwrap();
+        let restored_tree: crate::game_tree::GameTree = serde_json::from_str(&tree_json).unwrap();
+        let mut r2 = Replay::new(9, 9);
+        r2.replace_tree(restored_tree);
+        assert_eq!(r2.tree().len(), 3);
+
+        // Now merge the same 3 moves + 2 new ones (simulates WS state arriving)
+        let moves = vec![
+            Turn::play(Stone::Black, (0, 0)),
+            Turn::play(Stone::White, (1, 0)),
+            Turn::play(Stone::Black, (2, 0)),
+            Turn::play(Stone::White, (3, 0)), // new
+            Turn::play(Stone::Black, (4, 0)), // new
+        ];
+        r2.merge_base_moves(moves);
+
+        // Should reuse 3 existing nodes + add 2 new = 5 total
+        assert_eq!(r2.tree().len(), 5);
+        r2.to_start();
+        r2.to_latest();
+        assert_eq!(r2.view_index(), 5);
+    }
+
+    #[test]
+    fn merge_into_empty_then_to_latest() {
+        let mut r = Replay::new(9, 9);
+        assert!(r.is_at_start());
+        assert!(r.is_at_latest());
+
+        // Merge moves into empty tree (simulates first WS state on fresh board)
+        let moves = vec![
+            Turn::play(Stone::Black, (0, 0)),
+            Turn::play(Stone::White, (1, 0)),
+            Turn::play(Stone::Black, (2, 0)),
+        ];
+        r.merge_base_moves(moves);
+
+        // Tree has 3 nodes, cursor hasn't moved (still at root)
+        assert_eq!(r.tree().len(), 3);
+        assert!(r.is_at_start());
+
+        // to_latest should follow the path to the tip
+        r.to_latest();
+        assert_eq!(r.view_index(), 3);
+        assert_eq!(r.last_play_pos(), Some((2, 0)));
     }
 }

@@ -239,10 +239,12 @@ export type BoardConfig = {
 
 export type Board = {
   engine: WasmEngine;
+  baseTipNodeId: number;
+  restoredWithAnalysis: boolean;
   save: () => void;
   render: () => void;
   navigate: (action: NavAction) => void;
-  updateBaseMoves: (movesJson: string, replaceEngine?: boolean) => void;
+  updateBaseMoves: (movesJson: string, navigateToLatest?: boolean) => void;
   updateNav: () => void;
   setShowCoordinates: (show: boolean) => void;
   enterTerritoryReview: () => void;
@@ -251,7 +253,6 @@ export type Board = {
   isTerritoryReview: () => boolean;
   isFinalized: () => boolean;
   destroy: () => void;
-  savedBaseMoves?: string;
 };
 
 const wideQuery = window.matchMedia("(min-width: 1200px)");
@@ -275,28 +276,25 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
   // Base moves the board can be reset to (e.g. game moves from WS)
   let baseMoves = config.baseMoves ?? "[]";
   let baseMoveCount = (JSON.parse(baseMoves) as unknown[]).length;
+  let baseTipNodeId = -1;
 
   // Initialize from localStorage or baseMoves
   const saved = config.storageKey
     ? localStorage.getItem(config.storageKey)
     : null;
-  let restoredBaseMoves: string | undefined;
+  let restoredWithAnalysis = false;
   if (saved) {
-    // Try restoring a tree first, fall back to flat moves
     if (!engine.replace_tree(saved)) {
       engine.replace_moves(saved);
     }
-    // Restore saved base move count for correct tree branching
     const savedBase = localStorage.getItem(`${config.storageKey}:base`);
     if (savedBase) {
       baseMoves = savedBase;
       baseMoveCount = (JSON.parse(savedBase) as unknown[]).length;
-      restoredBaseMoves = savedBase;
     }
-    // Restore saved position instead of always going to latest
-    const savedNodeId = config.storageKey
-      ? localStorage.getItem(`${config.storageKey}:node`)
-      : null;
+    restoredWithAnalysis = engine.tree_node_count() > baseMoveCount;
+    // Restore saved cursor position
+    const savedNodeId = localStorage.getItem(`${config.storageKey}:node`);
     if (savedNodeId != null) {
       const id = parseInt(savedNodeId, 10);
       if (id >= 0) {
@@ -309,6 +307,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     }
   } else if (baseMoves !== "[]") {
     engine.replace_moves(baseMoves);
+    baseTipNodeId = baseMoveCount - 1;
     engine.to_latest();
   }
 
@@ -517,8 +516,8 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         finalizedNodes.size > 0
           ? new Set(finalizedNodes.keys())
           : undefined;
-      const branchId = config.branchAtBaseTip && baseMoveCount > 0
-        ? baseMoveCount - 1
+      const branchId = config.branchAtBaseTip && baseTipNodeId >= 0
+        ? baseTipNodeId
         : undefined;
       const treeSize = engine.tree_node_count();
       const hasAnalysis = branchId != null
@@ -565,29 +564,12 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     return nodeId >= 0 && finalizedNodes.has(nodeId);
   }
 
-  function doUpdateBaseMoves(movesJson: string, replaceEngine = true) {
+  function doUpdateBaseMoves(movesJson: string, navigateToLatest = true) {
     baseMoves = movesJson;
     baseMoveCount = (JSON.parse(movesJson) as unknown[]).length;
-    if (replaceEngine) {
-      const wasAtLatest = engine.is_at_latest();
-      engine.replace_moves(movesJson);
-      if (wasAtLatest) {
-        engine.to_latest();
-      }
-      if (config.moveTreeEl) {
-        const fIds =
-          finalizedNodes.size > 0
-            ? new Set(finalizedNodes.keys())
-            : undefined;
-        const branchId = config.branchAtBaseTip && baseMoveCount > 0
-          ? baseMoveCount - 1
-          : undefined;
-        const treeSize = engine.tree_node_count();
-        const hasAnalysis = branchId != null
-          ? treeSize > baseMoveCount
-          : treeSize > 0;
-        renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId, hasAnalysis ? doReset : undefined);
-      }
+    baseTipNodeId = engine.merge_base_moves(movesJson);
+    if (navigateToLatest && baseTipNodeId >= 0) {
+      engine.navigate_to(baseTipNodeId);
     }
   }
 
@@ -703,6 +685,8 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   return {
     engine,
+    get baseTipNodeId() { return baseTipNodeId; },
+    restoredWithAnalysis,
     save,
     render: doRender,
     navigate: doNavigate,
@@ -718,6 +702,5 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     isTerritoryReview: () => !!territoryState,
     isFinalized: isCurrentFinalized,
     destroy: () => abortController.abort(),
-    savedBaseMoves: restoredBaseMoves,
   };
 }

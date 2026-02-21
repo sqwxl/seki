@@ -100,16 +100,27 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     },
   }).then((b) => {
     ctx.board = b;
-    if (b.savedBaseMoves) {
-      // Restored analysis from localStorage — pre-populate movesJson
-      // so the initial WS state sync doesn't wipe the tree
-      ctx.movesJson = b.savedBaseMoves;
+    if (b.restoredWithAnalysis) {
       enterAnalysis();
-    } else if (ctx.moves.length > 0) {
-      ctx.board.updateBaseMoves(JSON.stringify(ctx.moves), false);
+    }
+    // Sync any moves that arrived from WS while board was loading.
+    // ctx.movesJson stays "[]" so syncBoardMoves will also trigger
+    // when WS state arrives later — merge_base_moves is idempotent.
+    if (ctx.moves.length > 0) {
+      const latestMovesJson = JSON.stringify(ctx.moves);
+      if (latestMovesJson !== ctx.movesJson) {
+        ctx.movesJson = latestMovesJson;
+        ctx.board.updateBaseMoves(latestMovesJson);
+        ctx.board.save();
+        if (ctx.analysisMode) {
+          ctx.premove = undefined;
+          ctx.analysisMode = false;
+        }
+      }
     }
     ctx.board.render();
     ctx.board.updateNav();
+    updateControls(ctx, dom);
   });
 
   // --- Analysis helpers (stay here — tightly coupled to orchestrator) ---
@@ -129,9 +140,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
       if (replaceBaseMoves) {
         ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
       }
-      const moveCount = ctx.moves.length;
-      if (moveCount > 0) {
-        ctx.board.engine.navigate_to(moveCount - 1);
+      if (ctx.board.baseTipNodeId >= 0) {
+        ctx.board.engine.navigate_to(ctx.board.baseTipNodeId);
       } else {
         ctx.board.engine.to_start();
       }

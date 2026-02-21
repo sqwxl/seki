@@ -105,6 +105,15 @@ impl WasmEngine {
         }
     }
 
+    /// Merge base moves into the tree, preserving analysis branches.
+    /// Returns the tip node ID of the merged line, or -1 on error/empty.
+    pub fn merge_base_moves(&mut self, json: &str) -> i32 {
+        match serde_json::from_str(json) {
+            Ok(moves) => self.inner.merge_base_moves(moves).map_or(-1, |id| id as i32),
+            Err(_) => -1,
+        }
+    }
+
     // -- Tree API --
 
     pub fn navigate_to(&mut self, node_id: usize) {
