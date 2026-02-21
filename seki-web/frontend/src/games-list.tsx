@@ -59,11 +59,36 @@ function useDarkMode(): boolean {
   return dark;
 }
 
-function GamesList() {
+function parseInitialGames(root: HTMLElement): InitMessage | undefined {
+  const json = root.dataset.initialGames;
+  if (!json) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(json) as InitMessage;
+  } catch {
+    return undefined;
+  }
+}
+
+function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
+  const map = new Map<number, LiveGameItem>();
+  for (const g of msg.player_games) {
+    map.set(g.id, g);
+  }
+  for (const g of msg.public_games) {
+    map.set(g.id, g);
+  }
+  return map;
+}
+
+function GamesList({ initial }: { initial?: InitMessage }) {
   useDarkMode(); // trigger re-render on theme change to swap stone symbols
-  const [games, setGames] = useState<Map<number, LiveGameItem>>(new Map());
-  const playerIdRef = useRef<number | undefined>(undefined);
-  const [playerId, setPlayerId] = useState<number | undefined>(undefined);
+  const [games, setGames] = useState<Map<number, LiveGameItem>>(
+    () => initial ? buildGamesMap(initial) : new Map(),
+  );
+  const playerIdRef = useRef<number | undefined>(initial?.player_id);
+  const [playerId, setPlayerId] = useState<number | undefined>(initial?.player_id);
 
   useEffect(() => {
     const unsubs = [
@@ -71,14 +96,7 @@ function GamesList() {
         const msg = data as unknown as InitMessage;
         playerIdRef.current = msg.player_id;
         setPlayerId(msg.player_id);
-        const map = new Map<number, LiveGameItem>();
-        for (const g of msg.player_games) {
-          map.set(g.id, g);
-        }
-        for (const g of msg.public_games) {
-          map.set(g.id, g);
-        }
-        setGames(map);
+        setGames(buildGamesMap(msg));
       }),
 
       subscribe("game_created", (data) => {
@@ -164,7 +182,8 @@ function GamesList() {
 }
 
 function initGamesList(root: HTMLElement) {
-  render(<GamesList />, root);
+  const initial = parseInitialGames(root);
+  render(<GamesList initial={initial} />, root);
 }
 
 export { initGamesList };

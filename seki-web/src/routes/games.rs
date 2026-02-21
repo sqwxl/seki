@@ -12,6 +12,7 @@ use crate::models::message::Message;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
+use crate::services::live::LiveGameItem;
 use crate::services::state_serializer;
 use crate::session::CurrentUser;
 use crate::templates::UserData;
@@ -39,11 +40,38 @@ pub async fn new_game(current_user: CurrentUser) -> Result<Response, AppError> {
 }
 
 // GET /games
-pub async fn list_games(current_user: CurrentUser) -> Result<Response, AppError> {
+pub async fn list_games(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+) -> Result<Response, AppError> {
+    let (player_games, public_games) = tokio::join!(
+        Game::list_for_player(&state.db, current_user.id),
+        Game::list_public_with_players(&state.db, Some(current_user.id)),
+    );
+
+    let player_items: Vec<LiveGameItem> = player_games
+        .unwrap_or_default()
+        .iter()
+        .map(|gwp| LiveGameItem::from_gwp(gwp, None))
+        .collect();
+    let public_items: Vec<LiveGameItem> = public_games
+        .unwrap_or_default()
+        .iter()
+        .map(|gwp| LiveGameItem::from_gwp(gwp, None))
+        .collect();
+
+    let initial_games = serde_json::to_string(&serde_json::json!({
+        "player_id": current_user.id,
+        "player_games": player_items,
+        "public_games": public_items,
+    }))
+    .unwrap_or_default();
+
     let tmpl = GamesListTemplate {
         user_username: current_user.username.clone(),
         user_is_registered: current_user.is_registered(),
         user_data: serialize_user_data(&current_user),
+        initial_games,
     };
 
     Ok(Html(

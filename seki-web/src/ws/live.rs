@@ -146,12 +146,12 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
 }
 
 async fn build_init_message(state: &AppState, user_id: i64) -> String {
-    let player_games = Game::list_for_player(&state.db, user_id)
-        .await
-        .unwrap_or_default();
-    let public_games = Game::list_public_with_players(&state.db, Some(user_id))
-        .await
-        .unwrap_or_default();
+    let (player_games, public_games) = tokio::join!(
+        Game::list_for_player(&state.db, user_id),
+        Game::list_public_with_players(&state.db, Some(user_id)),
+    );
+    let player_games = player_games.unwrap_or_default();
+    let public_games = public_games.unwrap_or_default();
 
     let user_items: Vec<LiveGameItem> = player_games
         .iter()
