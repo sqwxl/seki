@@ -24,10 +24,7 @@
                 </div>
                 <div class="controls">
                     {{ controls::nav_bar() }}
-                    <div id="action-buttons"
-                         style="display: flex;
-                                gap: 0.25em;
-                                align-items: center">
+                    <div id="action-buttons">
                         <button id="pass-btn"{% if !is_player %} style="display: none"{% endif %}>Pass</button>
                         {% if is_player %}
                             <div id="pass-confirm" popover>

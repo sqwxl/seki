@@ -17,7 +17,14 @@
 }
 
 .goban-container {
-  width: min(70vw, 70vh);
+  width: min(90vw, 70vh);
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .goban-container {
+    width: min(70vw, 70vh);
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,14 +37,30 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 1.25em;
+  font-size: 1em;
   min-height: 1.5em;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .player-label {
+    font-size: 1.25em;
+  }
 }
 
 .player-name-group {
   display: flex;
   align-items: center;
   gap: 0.35em;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-info {

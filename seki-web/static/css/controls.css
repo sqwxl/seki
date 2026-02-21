@@ -1,9 +1,11 @@
 .controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5em;
   align-items: center;
   justify-content: center;
   margin-top: 0.5em;
+  max-width: 100%;
 }
 
 .move-tree {
@@ -12,6 +14,15 @@
   max-height: 150px;
   overflow: auto;
   scroll-behavior: smooth;
+}
+
+#action-buttons,
+.controls-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em;
+  align-items: center;
+  justify-content: center;
 }
 
 .controls-navbar {

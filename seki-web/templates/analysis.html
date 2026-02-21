@@ -24,14 +24,14 @@
                     <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
                 </div>
                 <div class="controls">
-                    <div id="play-controls" style="display: flex; gap: 0.5em; align-items: center">
+                    <div id="play-controls" class="controls-group">
                         {{ controls::nav_bar() }}
                         <button id="pass-btn">Pass</button>
                         <button id="score-btn">Score</button>
                         <button id="reset-btn">Reset</button>
                         <button id="toggle-coords-btn" title="Toggle coordinates">A1</button>
                     </div>
-                    <div id="territory-controls" style="display: none; gap: 0.5em; align-items: center">
+                    <div id="territory-controls" class="controls-group" style="display: none">
                         <button id="territory-ready-btn">Ready</button>
                         <button id="territory-exit-btn">Exit</button>
                     </div>

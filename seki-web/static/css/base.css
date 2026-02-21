@@ -22,6 +22,7 @@
 html,
 body {
   margin: 0;
+  overflow-x: hidden;
 }
 
 body {
@@ -45,25 +46,32 @@ body {
   justify-content: center;
 }
 
-nav,
-nav > div {
+nav {
   display: flex;
   width: 100%;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
-  font-size: 1.125em;
+  flex-wrap: wrap;
+  padding: 0.5em 1em;
+  gap: 0.5em;
+  font-size: 0.875em;
+}
 
-  div {
-    justify-content: center;
-    gap: 1em;
+nav > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+}
 
-    & > * {
-      margin: 1em 0;
-    }
-  }
+nav a {
+  text-decoration: none;
+  white-space: nowrap;
+}
 
-  & > a {
-    text-decoration: none;
+@media (min-width: 768px) {
+  nav {
+    font-size: 1em;
+    padding: 0.5em 1.5em;
   }
 }
 
@@ -100,6 +108,22 @@ button.link {
   flex-direction: column;
   align-items: center;
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  padding: 0 0.5em;
+}
+
+.game-page h2 {
+  text-align: center;
+  word-break: break-word;
+  font-size: 1.1em;
+  margin: 0.5em 0;
+}
+
+@media (min-width: 768px) {
+  .game-page h2 {
+    font-size: 1.5em;
+  }
 }
 
 .game-page-body {
@@ -107,6 +131,7 @@ button.link {
   flex-direction: column;
   align-items: center;
   width: 100%;
+  max-width: 100%;
 }
 
 @media (min-width: 1200px) {
