@@ -432,7 +432,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     doRender();
   }
 
-  function doRender() {
+  function doRenderBoard(): TerritoryInfo {
     const nodeId = engine.current_node_id();
     const finalized = nodeId >= 0 && finalizedNodes.has(nodeId);
 
@@ -500,6 +500,12 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     };
 
     renderFromEngine(engine, config.gobanEl, onVertexClick, overlay, showCoordinates, config.ghostStone);
+
+    return territoryInfo;
+  }
+
+  function doRender() {
+    const territoryInfo = doRenderBoard();
 
     if (config.moveTreeEl) {
       const fIds =
@@ -698,7 +704,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     updateNav: doUpdateNav,
     setShowCoordinates: (show: boolean) => {
       showCoordinates = show;
-      doRender();
+      doRenderBoard();
     },
     enterTerritoryReview: enterTerritory,
     exitTerritoryReview: exitTerritory,
