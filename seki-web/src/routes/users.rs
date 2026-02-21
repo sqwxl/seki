@@ -6,7 +6,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::user::User;
-use crate::services::live::LiveGameItem;
+use crate::services::live::build_live_items;
 use crate::session::CurrentUser;
 use crate::templates::UserData;
 use crate::templates::user_profile::UserProfileTemplate;
@@ -29,10 +29,7 @@ pub async fn profile(
         .await
         .unwrap_or_default();
 
-    let items: Vec<LiveGameItem> = games
-        .iter()
-        .map(|gwp| LiveGameItem::from_gwp(gwp, None))
-        .collect();
+    let items = build_live_items(&state.db, &games).await;
 
     let initial_games = serde_json::to_string(&serde_json::json!({
         "profile_user_id": profile_user.id,

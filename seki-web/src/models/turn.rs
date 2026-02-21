@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
@@ -69,6 +71,23 @@ impl TurnRow {
         .execute(executor)
         .await?;
         Ok(())
+    }
+
+    /// Return move counts for multiple games in one query.
+    pub async fn count_by_game_ids(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_ids: &[i64],
+    ) -> Result<HashMap<i64, i64>, sqlx::Error> {
+        if game_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows: Vec<(i64, i64)> = sqlx::query_as(
+            "SELECT game_id, COUNT(*) FROM turns WHERE game_id = ANY($1) GROUP BY game_id",
+        )
+        .bind(game_ids)
+        .fetch_all(executor)
+        .await?;
+        Ok(rows.into_iter().collect())
     }
 
     pub async fn last_turn(

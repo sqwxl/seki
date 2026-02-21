@@ -12,7 +12,7 @@ use crate::models::message::Message;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
-use crate::services::live::LiveGameItem;
+use crate::services::live::build_live_items;
 use crate::services::state_serializer;
 use crate::session::CurrentUser;
 use crate::templates::UserData;
@@ -49,16 +49,12 @@ pub async fn list_games(
         Game::list_public_with_players(&state.db, Some(current_user.id)),
     );
 
-    let player_items: Vec<LiveGameItem> = player_games
-        .unwrap_or_default()
-        .iter()
-        .map(|gwp| LiveGameItem::from_gwp(gwp, None))
-        .collect();
-    let public_items: Vec<LiveGameItem> = public_games
-        .unwrap_or_default()
-        .iter()
-        .map(|gwp| LiveGameItem::from_gwp(gwp, None))
-        .collect();
+    let player_games = player_games.unwrap_or_default();
+    let public_games = public_games.unwrap_or_default();
+    let (player_items, public_items) = tokio::join!(
+        build_live_items(&state.db, &player_games),
+        build_live_items(&state.db, &public_games),
+    );
 
     let initial_games = serde_json::to_string(&serde_json::json!({
         "player_id": current_user.id,

@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
-use crate::services::live::LiveGameItem;
+use crate::services::live::build_live_items;
 use crate::session::CurrentUser;
 use crate::ws::game_channel;
 
@@ -153,14 +153,10 @@ async fn build_init_message(state: &AppState, user_id: i64) -> String {
     let player_games = player_games.unwrap_or_default();
     let public_games = public_games.unwrap_or_default();
 
-    let user_items: Vec<LiveGameItem> = player_games
-        .iter()
-        .map(|gwp| LiveGameItem::from_gwp(gwp, None))
-        .collect();
-    let public_items: Vec<LiveGameItem> = public_games
-        .iter()
-        .map(|gwp| LiveGameItem::from_gwp(gwp, None))
-        .collect();
+    let (user_items, public_items) = tokio::join!(
+        build_live_items(&state.db, &player_games),
+        build_live_items(&state.db, &public_games),
+    );
 
     json!({
         "kind": "init",
