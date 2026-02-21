@@ -12,11 +12,18 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [x] Undo/takeback requests (with opponent approval)
 - [x] Territory review (mark dead stones, approve scoring)
 - [x] Ko rule enforcement
+- [ ] Superko detection (prevent repeated board positions)
 - [x] Invite players by email
 - [x] Abort game (before first move)
 - [x] Game clocks (Fischer, byo-yomi, correspondence)
+- [x] Premove support (queue move during opponent's turn)
 - [ ] Detect player disconnect, pause clock, offer to abort
 - [ ] Rematch option after game (challenge opponent to new game with same settings)
+- [ ] Multiple rulesets (Japanese, Chinese, AGA)
+- [ ] Conditional moves (pre-plan responses, useful for correspondence)
+- [ ] Score estimator (mid-game score estimate)
+- [ ] Vacation/pause system (for correspondence games)
+- [ ] Turn notifications (email/push when it's your turn)
 
 ### Board & Navigation
 
@@ -33,7 +40,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Zen mode (board only)
 - [ ] Appearance customization (stones, board)
 - [x] Dark mode (basic, follows system preference)
-- [ ] Sounds
+- [ ] Sounds (stone placement done, need capture, pass, clock, chat sounds)
 
 ### Real-time
 
@@ -43,6 +50,8 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Filter games list (unranked, rank range, time, size)
 - [ ] Auto-match system
 - [ ] Game playback (replay game as it happened: actions, clock and chat in real time)
+- [ ] Spectator count/list on games
+- [ ] Tournament support (brackets, pairings, scheduling)
 
 ### Auth & Accounts
 
@@ -87,6 +96,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Post-game reviews (live analysis)
 - [ ] Live demonstrations/lessons with voice
 - [ ] Game reviews/lessons save and replay
+- [ ] AI review integration (KataGo or similar)
 
 ### Game Variants
 
@@ -97,5 +107,6 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 
 - [ ] Email support (via SES)
 - [ ] Domain registration and deployment
+- [ ] Mobile-responsive design
 
 [^1]: "Seki" is a Japanese go term meaning _mutual life_. It is a situation where two groups of stones share liberties which neither player can fill without dying.
