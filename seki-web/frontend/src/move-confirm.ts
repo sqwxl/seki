@@ -8,14 +8,22 @@ export function readMoveConfirmation(): boolean {
   return window.matchMedia("(max-width: 1024px)").matches;
 }
 
+function updateLabel(btn: HTMLElement, enabled: boolean): void {
+  btn.textContent = enabled ? "➁" : "➀";
+  btn.title = enabled ? "Move confirmation: ON (click to disable)" : "Move confirmation: OFF (click to enable)";
+}
+
 export function setupMoveConfirmToggle(onChange: (enabled: boolean) => void): void {
-  const cb = document.getElementById("toggle-move-confirm-btn") as HTMLInputElement | null;
-  if (!cb) {
+  const btn = document.getElementById("toggle-move-confirm-btn");
+  if (!btn) {
     return;
   }
-  cb.checked = readMoveConfirmation();
-  cb.addEventListener("change", () => {
-    localStorage.setItem(KEY, String(cb.checked));
-    onChange(cb.checked);
+  let enabled = readMoveConfirmation();
+  updateLabel(btn, enabled);
+  btn.addEventListener("click", () => {
+    enabled = !enabled;
+    localStorage.setItem(KEY, String(enabled));
+    updateLabel(btn, enabled);
+    onChange(enabled);
   });
 }
