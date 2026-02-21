@@ -23,24 +23,29 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Conditional moves (pre-plan responses, useful for correspondence)
 - [ ] Score estimator (mid-game score estimate)
 - [ ] Vacation/pause system (for correspondence games)
-- [ ] Turn notifications (email/push when it's your turn)
+- [x] Turn notification (tab title flash when it's your turn)
+- [ ] Turn notifications (email/push)
 
 ### Board & Navigation
 
 - [x] Move history navigation (arrow keys, home/end)
-- [x] Move tree visualization with branches
+- [x] Move tree visualization with branches and active path highlighting
 - [x] In-game analysis mode (local exploration without affecting live game)
 - [x] Standalone analysis board (`/analysis`)
+- [x] Analysis persistence (saved to localStorage, restored on refresh)
 - [x] Last move and ko point markers
 - [x] Player labels with capture counts
 - [x] Online presence indicators (player labels and chat)
+- [x] Tab title shows game description, flashes "YOUR MOVE" when it's your turn
+- [x] Move confirmation toggle (click twice to confirm)
 - [ ] Board annotations in analysis
-- [ ] Board coordinates
+- [x] Board coordinates (toggleable)
 - [ ] Import/export SGF
 - [ ] Zen mode (board only)
 - [ ] Appearance customization (stones, board)
 - [x] Dark mode (basic, follows system preference)
-- [ ] Sounds (stone placement done, need capture, pass, clock, chat sounds)
+- [x] Sound effects (stone placement, pass)
+- [ ] Additional sounds (capture, clock, chat)
 
 ### Real-time
 
