@@ -1,4 +1,4 @@
-import type { IncomingMessage } from "./goban/types";
+import { isPlayStage, type IncomingMessage } from "./goban/types";
 import type { GameCtx } from "./game-context";
 import type { GameDomElements } from "./game-dom";
 import type { GameChannel } from "./game-channel";
@@ -7,13 +7,15 @@ import { syncClock } from "./game-clock";
 import { updateControls } from "./game-controls";
 import { renderGoban } from "./game-render";
 import { updateTitle, updatePlayerLabels, updateStatus } from "./game-ui";
-import { appendToChat, updateChatPresence } from "./chat";
+import { appendToChat, updateChatPresence, type SenderResolver } from "./chat";
+import { playStoneSound } from "./game-sound";
 
 export type GameMessageDeps = {
   ctx: GameCtx;
   dom: GameDomElements;
   clockState: ClockState;
   channel: GameChannel;
+  resolveSender: SenderResolver;
 };
 
 export function handleGameMessage(
@@ -21,7 +23,7 @@ export function handleGameMessage(
   deps: GameMessageDeps,
 ): void {
   const data = raw as IncomingMessage;
-  const { ctx, dom, clockState, channel } = deps;
+  const { ctx, dom, clockState, channel, resolveSender } = deps;
 
   console.debug("Game message:", data);
 
@@ -45,6 +47,10 @@ export function handleGameMessage(
       if (ctx.board) {
         const newMovesJson = JSON.stringify(ctx.moves);
         if (newMovesJson !== ctx.movesJson) {
+          const lastMove = ctx.moves[ctx.moves.length - 1];
+          if (lastMove && lastMove.kind === "play") {
+            playStoneSound();
+          }
           ctx.movesJson = newMovesJson;
           ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
         }
@@ -59,16 +65,34 @@ export function handleGameMessage(
       updateStatus(ctx, dom.status);
       syncClock(clockState, data.clock, ctx, dom, () => channel.timeoutFlag());
       updateChatPresence(ctx.onlineUsers);
+
+      if (!isPlayStage(ctx.gameStage)) {
+        ctx.premove = undefined;
+      } else if (
+        ctx.premove &&
+        ctx.currentTurn === ctx.playerStone
+      ) {
+        const [col, row] = ctx.premove;
+        ctx.premove = undefined;
+        if (ctx.gameState.board[row * ctx.gameState.cols + col] === 0) {
+          channel.play(col, row);
+        }
+        if (ctx.board && !ctx.analysisMode && ctx.board.engine.is_at_latest()) {
+          renderGoban(ctx, dom.goban, channel);
+        }
+      }
       break;
     }
     case "chat": {
-      appendToChat({
-        player_id: data.player_id,
-        sender: data.sender,
-        text: data.text,
-        move_number: data.move_number,
-        sent_at: data.sent_at,
-      });
+      appendToChat(
+        {
+          user_id: data.player_id,
+          text: data.text,
+          move_number: data.move_number,
+          sent_at: data.sent_at,
+        },
+        resolveSender,
+      );
       updateChatPresence(ctx.onlineUsers);
       break;
     }
@@ -79,6 +103,7 @@ export function handleGameMessage(
     case "undo_accepted":
     case "undo_rejected": {
       hideUndoResponseControls();
+      ctx.premove = undefined;
       if (data.undo_rejected !== undefined) {
         ctx.undoRejected = data.undo_rejected;
       }

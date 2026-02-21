@@ -2,6 +2,7 @@ import type {
   GameState,
   GameStage,
   InitialGameProps,
+  Point,
   UserData,
   ScoreData,
   TerritoryData,
@@ -34,6 +35,7 @@ export type GameCtx = {
   analysisMode: boolean;
   board: Board | undefined;
   movesJson: string;
+  premove: Point | undefined;
 };
 
 export function createGameContext(
@@ -63,5 +65,6 @@ export function createGameContext(
     analysisMode: false,
     board: undefined,
     movesJson: "[]",
+    premove: undefined,
   };
 }

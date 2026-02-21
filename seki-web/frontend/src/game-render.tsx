@@ -1,6 +1,13 @@
 import { render } from "preact";
 import { Goban } from "./goban/index";
-import { GameStage, type MarkerData, type Point } from "./goban/types";
+import {
+  GameStage,
+  isPlayStage,
+  type GhostStoneData,
+  type MarkerData,
+  type Point,
+  type Sign,
+} from "./goban/types";
 import type { GameCtx } from "./game-context";
 import type { GameChannel } from "./game-channel";
 
@@ -19,13 +26,23 @@ export function renderGoban(
 
   const isTerritoryReview =
     ctx.gameStage === GameStage.TerritoryReview && ctx.territory != null;
+  const isMyTurn = ctx.currentTurn === ctx.playerStone;
 
   const onVertexClick = isLiveClickable(ctx)
     ? (_: Event, position: Point) => {
         if (isTerritoryReview) {
           channel.toggleChain(position[0], position[1]);
-        } else {
+        } else if (isMyTurn) {
+          ctx.premove = undefined;
           channel.play(position[0], position[1]);
+        } else {
+          const [col, row] = position;
+          if (ctx.premove && ctx.premove[0] === col && ctx.premove[1] === row) {
+            ctx.premove = undefined;
+          } else {
+            ctx.premove = position;
+          }
+          renderGoban(ctx, gobanEl, channel);
         }
       }
     : undefined;
@@ -56,6 +73,13 @@ export function renderGoban(
     );
   }
 
+  let ghostStoneMap: (GhostStoneData | null)[] | undefined;
+  if (ctx.premove) {
+    const [pc, pr] = ctx.premove;
+    ghostStoneMap = Array(boardData.length).fill(null);
+    ghostStoneMap![pr * cols + pc] = { sign: ctx.playerStone as Sign };
+  }
+
   const avail = gobanEl.clientWidth;
   const extra = 0.8;
   const vertexSize = Math.max(avail / (Math.max(cols, rows) + extra), 12);
@@ -67,6 +91,7 @@ export function renderGoban(
       vertexSize={vertexSize}
       signMap={boardData}
       markerMap={markerMap}
+      ghostStoneMap={ghostStoneMap}
       paintMap={paintMap}
       dimmedVertices={dimmedVertices}
       fuzzyStonePlacement
@@ -90,9 +115,5 @@ function isLiveClickable(ctx: GameCtx): boolean {
   if (ctx.gameStage === GameStage.TerritoryReview) {
     return true;
   }
-  return (
-    (ctx.gameStage === GameStage.BlackToPlay ||
-      ctx.gameStage === GameStage.WhiteToPlay) &&
-    ctx.currentTurn === ctx.playerStone
-  );
+  return isPlayStage(ctx.gameStage);
 }
