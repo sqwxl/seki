@@ -24,11 +24,7 @@
                 <a href="/analysis">Analysis Board</a>
             </div>
             <div>
-                {% if user_is_registered %}
-                    <a href="/settings">{{ user_username }}</a>
-                {% else %}
-                    <span>{{ user_username }}</span>
-                {% endif %}
+                <a href="/users/{{ user_username }}">{{ user_username }}</a>
                 {% if user_is_registered %}
                     <form action="/logout" method="post" style="display:inline">
                         <button type="submit" class="link">Log out</button>

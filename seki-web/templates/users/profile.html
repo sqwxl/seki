@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ profile_username }} - Seki{% endblock %}
+{% block content %}
+<h1>{{ profile_username }}</h1>
+<div id="user-games" data-initial-games="{{ initial_games }}"></div>
+{% endblock %}

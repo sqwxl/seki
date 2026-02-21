@@ -4,6 +4,7 @@ pub mod games_list;
 pub mod games_new;
 pub mod games_show;
 pub mod settings;
+pub mod user_profile;
 
 use serde::Serialize;
 

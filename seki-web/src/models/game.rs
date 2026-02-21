@@ -102,6 +102,21 @@ impl Game {
         Self::batch_with_players(pool, games).await
     }
 
+    pub async fn list_all_for_player(
+        pool: &DbPool,
+        user_id: i64,
+    ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
+        let games = sqlx::query_as::<_, Game>(
+            "SELECT * FROM games WHERE (black_id = $1 OR white_id = $1) \
+             ORDER BY updated_at DESC",
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await?;
+
+        Self::batch_with_players(pool, games).await
+    }
+
     /// Load users for a batch of games in a single query (avoids N+1).
     async fn batch_with_players(
         pool: &DbPool,
