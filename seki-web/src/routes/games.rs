@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 use crate::AppState;
 use crate::error::AppError;
-use crate::models::game::{Game, SYSTEM_SYMBOL, TimeControlType};
+use crate::models::game::{Game, TimeControlType};
 use crate::models::message::Message;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
@@ -59,7 +59,6 @@ pub struct CreateGameForm {
     pub komi: Option<f64>,
     pub handicap: Option<i32>,
     pub is_private: Option<String>,
-    pub is_handicap: Option<String>,
     pub allow_undo: Option<String>,
     pub color: Option<String>,
     pub invite_email: Option<String>,
@@ -111,9 +110,8 @@ pub async fn create_game(
         cols,
         rows: cols, // TODO: support non-square boards?
         komi: form.komi.unwrap_or(0.5),
-        handicap: form.handicap.unwrap_or(2),
+        handicap: form.handicap.unwrap_or(0),
         is_private: form.is_private.as_deref() == Some("true"),
-        is_handicap: form.is_handicap.as_deref() == Some("true"),
         allow_undo: form.allow_undo.as_deref() == Some("true"),
         color: form.color.unwrap_or_else(|| "black".to_string()),
         invite_email: form.invite_email,
@@ -161,21 +159,8 @@ pub async fn show_game(
     let chat_log: Vec<serde_json::Value> = messages
         .iter()
         .map(|msg| {
-            let sender = match msg.user_id {
-                Some(pid) => {
-                    let username = gwp
-                        .black
-                        .as_ref()
-                        .filter(|p| p.id == pid)
-                        .or(gwp.white.as_ref().filter(|p| p.id == pid))
-                        .map(|p| p.username.as_str());
-                    state_serializer::sender_label(&gwp, pid, username)
-                }
-                None => SYSTEM_SYMBOL.to_string(),
-            };
             serde_json::json!({
                 "user_id": msg.user_id,
-                "sender": sender,
                 "text": msg.text,
                 "move_number": msg.move_number,
                 "sent_at": msg.created_at
@@ -209,6 +194,7 @@ pub async fn show_game(
         settings: crate::services::live::GameSettings {
             cols: gwp.game.cols,
             rows: gwp.game.rows,
+            handicap: engine_builder::game_handicap(&gwp.game) as i32,
             time_control: gwp.game.time_control,
             main_time_secs: gwp.game.main_time_secs,
             increment_secs: gwp.game.increment_secs,

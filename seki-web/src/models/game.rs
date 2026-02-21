@@ -9,9 +9,6 @@ use go_engine::Stone;
 use crate::db::DbPool;
 use crate::models::user::User;
 
-pub const BLACK_SYMBOL: &str = "●";
-pub const WHITE_SYMBOL: &str = "○";
-pub const SYSTEM_SYMBOL: &str = "⚑";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
 #[sqlx(type_name = "time_control_type", rename_all = "lowercase")]
@@ -39,7 +36,6 @@ pub struct Game {
     pub komi: f64,
     pub handicap: i32,
     pub is_private: bool,
-    pub is_handicap: bool,
     pub allow_undo: bool,
     pub started_at: Option<DateTime<Utc>>,
     pub ended_at: Option<DateTime<Utc>>,
@@ -206,7 +202,6 @@ impl Game {
         komi: f64,
         handicap: i32,
         is_private: bool,
-        is_handicap: bool,
         allow_undo: bool,
         invite_token: &str,
         time_control: TimeControlType,
@@ -221,10 +216,10 @@ impl Game {
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, \
-             is_private, is_handicap, allow_undo, invite_token, time_control, main_time_secs, \
+             is_private, allow_undo, invite_token, time_control, main_time_secs, \
              increment_secs, byoyomi_time_secs, byoyomi_periods, \
              clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
              RETURNING *",
         )
         .bind(creator_id)
@@ -235,7 +230,6 @@ impl Game {
         .bind(komi)
         .bind(handicap)
         .bind(is_private)
-        .bind(is_handicap)
         .bind(allow_undo)
         .bind(invite_token)
         .bind(time_control)

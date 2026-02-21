@@ -40,7 +40,6 @@ struct GameListItem {
     komi: f64,
     handicap: i32,
     is_private: bool,
-    is_handicap: bool,
     result: Option<String>,
     created_at: DateTime<Utc>,
     started_at: Option<DateTime<Utc>>,
@@ -55,7 +54,6 @@ struct GameResponse {
     komi: f64,
     handicap: i32,
     is_private: bool,
-    is_handicap: bool,
     result: Option<String>,
     black: Option<UserResponse>,
     white: Option<UserResponse>,
@@ -86,7 +84,6 @@ struct TurnResponse {
 struct MessageResponse {
     id: i64,
     user_id: Option<i64>,
-    sender: String,
     text: String,
     move_number: Option<i32>,
     created_at: DateTime<Utc>,
@@ -101,7 +98,6 @@ struct CreateGameRequest {
     komi: Option<f64>,
     handicap: Option<i32>,
     is_private: Option<bool>,
-    is_handicap: Option<bool>,
     allow_undo: Option<bool>,
     color: Option<String>,
     invite_email: Option<String>,
@@ -172,7 +168,6 @@ async fn list_games(State(state): State<AppState>) -> Result<Json<Vec<GameListIt
             komi: g.komi,
             handicap: g.handicap,
             is_private: g.is_private,
-            is_handicap: g.is_handicap,
             result: g.result,
             created_at: g.created_at,
             started_at: g.started_at,
@@ -193,7 +188,6 @@ async fn create_game(
         komi: body.komi.unwrap_or(0.5),
         handicap: body.handicap.unwrap_or(0),
         is_private: body.is_private.unwrap_or(false),
-        is_handicap: body.is_handicap.unwrap_or(false),
         allow_undo: body.allow_undo.unwrap_or(false),
         color: body.color.unwrap_or_else(|| "black".to_string()),
         invite_email: body.invite_email,
@@ -411,34 +405,17 @@ async fn get_messages(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> Result<Json<Vec<MessageResponse>>, ApiError> {
-    let gwp = Game::find_with_players(&state.db, id).await?;
+    Game::find_by_id(&state.db, id).await?;
     let messages = Message::find_by_game_id(&state.db, id).await?;
 
     let items: Vec<MessageResponse> = messages
         .into_iter()
-        .map(|m| {
-            let sender = match m.user_id {
-                Some(pid) => {
-                    let user = if gwp.black.as_ref().is_some_and(|p| p.id == pid) {
-                        gwp.black.as_ref()
-                    } else if gwp.white.as_ref().is_some_and(|p| p.id == pid) {
-                        gwp.white.as_ref()
-                    } else {
-                        None
-                    };
-                    let username = user.map(|p| p.username.as_str());
-                    state_serializer::sender_label(&gwp, pid, username)
-                }
-                None => "\u{2691}".to_string(),
-            };
-            MessageResponse {
-                id: m.id,
-                user_id: m.user_id,
-                sender,
-                text: m.text,
-                move_number: m.move_number,
-                created_at: m.created_at,
-            }
+        .map(|m| MessageResponse {
+            id: m.id,
+            user_id: m.user_id,
+            text: m.text,
+            move_number: m.move_number,
+            created_at: m.created_at,
         })
         .collect();
 
@@ -456,7 +433,6 @@ async fn send_message(
     Ok(Json(MessageResponse {
         id: chat.message.id,
         user_id: chat.message.user_id,
-        sender: chat.sender_label,
         text: chat.message.text,
         move_number: chat.message.move_number,
         created_at: chat.message.created_at,
@@ -568,7 +544,6 @@ async fn build_game_response(
         komi: gwp.game.komi,
         handicap: gwp.game.handicap,
         is_private: gwp.game.is_private,
-        is_handicap: gwp.game.is_handicap,
         result: gwp.game.result.clone(),
         black: gwp.black.as_ref().map(UserResponse::from_user),
         white: gwp.white.as_ref().map(UserResponse::from_user),
