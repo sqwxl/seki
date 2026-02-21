@@ -4,6 +4,7 @@ import type { GameTreeData, MarkerData, Point, ScoreData } from "./goban/types";
 import { MoveTree } from "./move-tree";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 import { GameDomElements } from "./game-dom";
+import { flashPassEffect } from "./game-messages";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
 
@@ -555,6 +556,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         }
         if (engine.pass()) {
           save();
+          flashPassEffect(config.gobanEl);
           // Auto-enter territory review after two consecutive passes
           if (engine.stage() === "territory_review") {
             enterTerritory();

@@ -9,7 +9,7 @@ import { queryGameDom } from "./game-dom";
 import { renderGoban } from "./game-render";
 import { updateTitle, updatePlayerLabels, updateStatus } from "./game-ui";
 import { updateControls } from "./game-controls";
-import { handleGameMessage } from "./game-messages";
+import { handleGameMessage, flashPassEffect } from "./game-messages";
 import type { ClockState } from "./game-clock";
 import { readUserData, derivePlayerStone } from "./game-util";
 
@@ -121,6 +121,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
           ctx.board.engine.tree_json(),
         );
         ctx.board.render();
+        flashPassEffect(dom.goban);
       }
     } else {
       document.getElementById("pass-confirm")?.showPopover();

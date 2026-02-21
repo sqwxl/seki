@@ -50,6 +50,8 @@ export function handleGameMessage(
           const lastMove = ctx.moves[ctx.moves.length - 1];
           if (lastMove && lastMove.kind === "play") {
             playStoneSound();
+          } else if (lastMove && lastMove.kind === "pass") {
+            flashPassEffect(dom.goban);
           }
           ctx.movesJson = newMovesJson;
           ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
@@ -175,4 +177,14 @@ function hideUndoResponseControls(): void {
   if (popover) {
     popover.hidePopover();
   }
+}
+
+export function flashPassEffect(goban: HTMLElement): void {
+  goban.classList.remove("goban-pass-flash");
+  // Force reflow so re-adding the class restarts the animation
+  void goban.offsetWidth;
+  goban.classList.add("goban-pass-flash");
+  goban.addEventListener("animationend", () => {
+    goban.classList.remove("goban-pass-flash");
+  }, { once: true });
 }

@@ -104,6 +104,30 @@
   z-index: 3;
 }
 
+/* Pass flash */
+
+.goban-container.goban-pass-flash {
+  animation: goban-pass-flash 300ms ease-in-out;
+}
+
+@keyframes goban-pass-flash {
+  50% {
+    filter: brightness(1.4);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .goban-container.goban-pass-flash {
+    animation: goban-pass-flash-dark 300ms ease-in-out;
+  }
+
+  @keyframes goban-pass-flash-dark {
+    50% {
+      filter: brightness(1.2);
+    }
+  }
+}
+
 /* Busy screen */
 
 .goban.goban-busy::after {
