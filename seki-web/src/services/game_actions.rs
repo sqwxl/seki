@@ -4,7 +4,7 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::error::AppError;
-use crate::models::game::{Game, GameWithPlayers, SYSTEM_SYMBOL};
+use crate::models::game::{Game, GameWithPlayers};
 use crate::models::message::Message;
 use crate::models::turn::TurnRow;
 use crate::services::clock::{self, ClockState, TimeControl};
@@ -14,7 +14,6 @@ use crate::services::{engine_builder, live, state_serializer};
 
 pub struct ChatSent {
     pub message: Message,
-    pub sender_label: String,
 }
 
 pub struct UndoResult {
@@ -446,11 +445,6 @@ pub async fn send_chat(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let username = gwp
-        .player_by_id(player_id)
-        .map(|u| u.username.as_str());
-    let sender = state_serializer::sender_label(&gwp, player_id, username);
-
     state
         .registry
         .broadcast(
@@ -459,7 +453,6 @@ pub async fn send_chat(
                 "kind": "chat",
                 "game_id": game_id,
                 "player_id": player_id,
-                "sender": sender,
                 "text": msg.text,
                 "move_number": msg.move_number,
                 "sent_at": msg.created_at
@@ -468,10 +461,7 @@ pub async fn send_chat(
         )
         .await;
 
-    Ok(ChatSent {
-        message: msg,
-        sender_label: sender,
-    })
+    Ok(ChatSent { message: msg })
 }
 
 pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Result<(), AppError> {
@@ -614,7 +604,7 @@ pub async fn respond_to_undo(
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
         let turns = engine_builder::convert_turns(&db_turns);
-        let engine = Engine::with_moves(game.cols as u8, game.rows as u8, turns);
+        let engine = Engine::with_handicap_and_moves(game.cols as u8, game.rows as u8, game.handicap as u8, turns);
 
         persist_stage(&mut *tx, game_id, &engine).await?;
         engine_builder::cache_engine_state(&mut *tx, game_id, &engine, db_turns.len() as i64, None)
@@ -783,7 +773,6 @@ async fn broadcast_system_chat(
             &json!({
                 "kind": "chat",
                 "game_id": game_id,
-                "sender": SYSTEM_SYMBOL,
                 "text": text,
                 "move_number": move_number,
                 "sent_at": sent_at

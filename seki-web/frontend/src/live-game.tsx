@@ -1,6 +1,7 @@
 import { GameStage, type InitialGameProps } from "./goban/types";
 import { createBoard, findNavButtons } from "./wasm-board";
-import { renderChatHistory, setupChat } from "./chat";
+import { renderChatHistory, setupChat, type SenderResolver } from "./chat";
+import { blackSymbol, whiteSymbol } from "./format";
 import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
 import { createGameChannel } from "./game-channel";
@@ -37,8 +38,10 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   createBoard({
     cols: ctx.gameState.cols,
     rows: ctx.gameState.rows,
+    handicap: initialProps.settings.handicap,
     gobanEl: dom.goban,
     moveTreeEl: dom.moveTree,
+    moveTreeDirection: "responsive",
     storageKey: ctx.analysisStorageKey,
     baseMoves: ctx.moves.length > 0 ? JSON.stringify(ctx.moves) : undefined,
     navButtons: findNavButtons(),
@@ -56,6 +59,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
 
   // --- Analysis helpers (stay here — tightly coupled to orchestrator) ---
   function enterAnalysis() {
+    ctx.premove = undefined;
     ctx.analysisMode = true;
     updateControls(ctx, dom);
     if (ctx.board) {
@@ -64,6 +68,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   }
 
   function exitAnalysis() {
+    ctx.premove = undefined;
     ctx.analysisMode = false;
     if (ctx.board) {
       ctx.board.engine.to_latest();
@@ -90,8 +95,21 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     return true;
   }
 
+  // --- Chat sender resolver ---
+  const resolveSender: SenderResolver = (userId) => {
+    if (userId == null) {
+      return "⚑";
+    }
+    const isBlack = ctx.black?.id === userId;
+    const isWhite = ctx.white?.id === userId;
+    const name = (isBlack ? ctx.black : isWhite ? ctx.white : undefined)
+      ?.display_name ?? "?";
+    const symbol = isBlack ? blackSymbol() : isWhite ? whiteSymbol() : "?";
+    return `${name} ${symbol}`;
+  };
+
   // --- WebSocket ---
-  const deps = { ctx, dom, clockState, channel };
+  const deps = { ctx, dom, clockState, channel, resolveSender };
   joinGame(gameId, (raw) => handleGameMessage(raw, deps));
 
   // --- Event listeners ---
@@ -155,6 +173,6 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   updateStatus(ctx, dom.status);
   updateControls(ctx, dom);
 
-  renderChatHistory();
+  renderChatHistory(resolveSender);
   setupChat((text) => channel.say(text));
 }

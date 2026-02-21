@@ -1,10 +1,11 @@
 export type ChatEntry = {
-  player_id?: number;
-  sender: string;
+  user_id?: number | null;
   text: string;
   move_number?: number;
   sent_at?: string;
 };
+
+export type SenderResolver = (userId: number | null | undefined) => string;
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -25,23 +26,27 @@ function formatPrefix(entry: ChatEntry): string {
   return "";
 }
 
-export function appendToChat(entry: ChatEntry): void {
+export function appendToChat(
+  entry: ChatEntry,
+  resolveSender: SenderResolver,
+): void {
   const box = document.getElementById("chat-box");
   if (!box) {
     return;
   }
+  const sender = resolveSender(entry.user_id);
   const p = document.createElement("p");
   const prefix = formatPrefix(entry);
-  if (entry.player_id != null) {
+  if (entry.user_id != null) {
     const dot = document.createElement("span");
     dot.className = "presence-dot";
-    dot.dataset.userId = String(entry.player_id);
+    dot.dataset.userId = String(entry.user_id);
     p.appendChild(dot);
     p.appendChild(
-      document.createTextNode(` ${prefix}${entry.sender}: ${entry.text}`),
+      document.createTextNode(` ${prefix}${sender}: ${entry.text}`),
     );
   } else {
-    p.textContent = `${prefix}${entry.sender}: ${entry.text}`;
+    p.textContent = `${prefix}${sender}: ${entry.text}`;
   }
   box.appendChild(p);
   box.scrollTop = box.scrollHeight;
@@ -56,7 +61,7 @@ export function updateChatPresence(onlineUsers: Set<number>): void {
   }
 }
 
-export function renderChatHistory(): void {
+export function renderChatHistory(resolveSender: SenderResolver): void {
   const box = document.getElementById("chat-box");
   if (!box) {
     return;
@@ -68,7 +73,7 @@ export function renderChatHistory(): void {
 
   const messages: ChatEntry[] = JSON.parse(rawMessages);
   for (const msg of messages) {
-    appendToChat(msg);
+    appendToChat(msg, resolveSender);
   }
 }
 
