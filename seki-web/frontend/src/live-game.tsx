@@ -9,7 +9,7 @@ import { queryGameDom } from "./game-dom";
 import { renderGoban } from "./game-render";
 import { updateTitle, updatePlayerLabels, updateStatus } from "./game-ui";
 import { updateControls } from "./game-controls";
-import { handleGameMessage, flashPassEffect } from "./game-messages";
+import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
 import { readUserData, derivePlayerStone } from "./game-util";
 
@@ -45,7 +45,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     storageKey: ctx.analysisStorageKey,
     baseMoves: ctx.moves.length > 0 ? JSON.stringify(ctx.moves) : undefined,
     navButtons: findNavButtons(),
-    buttons: { reset: dom.resetBtn },
+    buttons: { pass: dom.passBtn, reset: dom.resetBtn },
     onVertexClick: (col, row) => handleVertexClick(col, row),
     onRender: () => updateControls(ctx, dom),
   }).then((b) => {
@@ -113,17 +113,9 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   joinGame(gameId, (raw) => handleGameMessage(raw, deps));
 
   // --- Event listeners ---
-  dom.passBtn?.addEventListener("click", () => {
-    if (ctx.analysisMode) {
-      if (ctx.board && ctx.board.engine.pass()) {
-        localStorage.setItem(
-          ctx.analysisStorageKey,
-          ctx.board.engine.tree_json(),
-        );
-        ctx.board.render();
-        flashPassEffect(dom.goban);
-      }
-    } else {
+  dom.passBtn?.addEventListener("click", (e) => {
+    if (!ctx.analysisMode) {
+      e.stopImmediatePropagation();
       document.getElementById("pass-confirm")?.showPopover();
     }
   });
