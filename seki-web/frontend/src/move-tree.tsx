@@ -254,35 +254,28 @@ export function MoveTree({
               stroke-width={2}
             />
           </>
+        ) : isPass ? (
+          <rect
+            x={x - radius}
+            y={y - radius}
+            width={radius * 2}
+            height={radius * 2}
+            rx={2}
+            fill={stone === 1 ? "#222" : "#fff"}
+            stroke={strokeColor}
+            stroke-width={strokeWidth}
+          />
         ) : (
           <circle
             cx={x}
             cy={y}
             r={radius}
-            fill={
-              isPass
-                ? "#f5f5f5"
-                : stone === 1
-                  ? "#222"
-                  : "#fff"
-            }
+            fill={stone === 1 ? "#222" : "#fff"}
             stroke={strokeColor}
             stroke-width={strokeWidth}
           />
         )}
-        {!isFinalized && !isRoot && isPass && (
-          <text
-            x={x}
-            y={y}
-            text-anchor="middle"
-            dominant-baseline="central"
-            font-size={10}
-            fill="#888"
-          >
-            ⋯
-          </text>
-        )}
-        {!isFinalized && !isRoot && !isPass && (
+        {!isFinalized && !isRoot && (
           <text
             x={x}
             y={y}

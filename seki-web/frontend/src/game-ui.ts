@@ -52,15 +52,21 @@ export function updateTurnFlash(ctx: GameCtx): void {
 }
 
 export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
+  const desc = formatGameDescription({
+    black: ctx.black,
+    white: ctx.white,
+    settings: ctx.initialProps.settings,
+    stage: ctx.gameStage,
+    result: ctx.result,
+    move_count: ctx.moves.length > 0 ? ctx.moves.length : undefined,
+  });
   if (titleEl) {
-    titleEl.textContent = formatGameDescription({
-      black: ctx.black,
-      white: ctx.white,
-      settings: ctx.initialProps.settings,
-      stage: ctx.gameStage,
-      result: ctx.result,
-      move_count: ctx.moves.length > 0 ? ctx.moves.length : undefined,
-    });
+    titleEl.textContent = desc;
+  }
+  if (!flashInterval) {
+    document.title = desc;
+  } else {
+    savedTitle = desc;
   }
 }
 
