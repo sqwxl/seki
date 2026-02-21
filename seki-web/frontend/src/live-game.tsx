@@ -82,7 +82,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     baseMoves: ctx.moves.length > 0 ? JSON.stringify(ctx.moves) : undefined,
     branchAtBaseTip: true,
     navButtons: findNavButtons(),
-    buttons: { pass: dom.passBtn, reset: dom.resetBtn },
+    buttons: { pass: dom.passBtn },
     ghostStone: getGhostStone,
     territoryOverlay: getServerTerritory,
     onVertexClick: (col, row) => handleVertexClick(col, row),

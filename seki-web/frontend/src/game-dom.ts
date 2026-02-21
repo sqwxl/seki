@@ -9,7 +9,6 @@ export type GameDomElements = {
   passBtn: HTMLButtonElement | null;
   resignBtn: HTMLButtonElement | null;
   requestUndoBtn: HTMLButtonElement | null;
-  resetBtn: HTMLButtonElement | null;
   analyzeBtn: HTMLButtonElement | null;
   exitAnalysisBtn: HTMLButtonElement | null;
   acceptTerritoryBtn: HTMLButtonElement | null;
@@ -41,7 +40,6 @@ export function queryGameDom(): GameDomElements {
     requestUndoBtn: document.getElementById(
       "request-undo-btn",
     ) as HTMLButtonElement | null,
-    resetBtn: document.getElementById("reset-btn") as HTMLButtonElement | null,
     analyzeBtn: document.getElementById(
       "analyze-btn",
     ) as HTMLButtonElement | null,

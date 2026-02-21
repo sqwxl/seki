@@ -16,9 +16,6 @@ export function updateControls(ctx: GameCtx, dom: GameDomElements): void {
     if (dom.abortBtn) {
       dom.abortBtn.style.display = "none";
     }
-    if (dom.resetBtn) {
-      dom.resetBtn.style.display = "";
-    }
     if (dom.analyzeBtn) {
       dom.analyzeBtn.style.display = "none";
     }
@@ -39,9 +36,6 @@ export function updateControls(ctx: GameCtx, dom: GameDomElements): void {
   }
   if (dom.resignBtn) {
     dom.resignBtn.style.display = isPlay ? "" : "none";
-  }
-  if (dom.resetBtn) {
-    dom.resetBtn.style.display = "none";
   }
   if (dom.analyzeBtn) {
     dom.analyzeBtn.style.display = isReview ? "none" : "";

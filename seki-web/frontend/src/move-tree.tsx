@@ -1,5 +1,5 @@
 import { h } from "preact";
-import { useEffect } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import type { GameTreeData } from "./goban/types";
 
 const NODE_RADIUS = 12;
@@ -54,22 +54,23 @@ function layoutTree(tree: GameTreeData, branchAfterNodeId?: number): LayoutNode[
 type MoveTreeProps = {
   tree: GameTreeData;
   currentNodeId: number;
-  scrollContainer: HTMLElement;
   finalizedNodeIds?: Set<number>;
   branchAfterNodeId?: number;
   direction?: "horizontal" | "vertical";
   onNavigate: (nodeId: number) => void;
+  onReset?: () => void;
 };
 
 export function MoveTree({
   tree,
   currentNodeId,
-  scrollContainer,
   finalizedNodeIds,
   branchAfterNodeId,
   direction = "horizontal",
   onNavigate,
+  onReset,
 }: MoveTreeProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const layout = layoutTree(tree, branchAfterNodeId);
   const vertical = direction === "vertical";
 
@@ -100,6 +101,10 @@ export function MoveTree({
 
   // Auto-scroll to keep current node visible
   useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      return;
+    }
     let x: number;
     let y: number;
     if (currentNodeId === -1) {
@@ -114,20 +119,20 @@ export function MoveTree({
       y = cy(cur.col, cur.row);
     }
     const pad = PADDING;
-    const sl = scrollContainer.scrollLeft;
-    const st = scrollContainer.scrollTop;
-    const w = scrollContainer.clientWidth;
-    const h = scrollContainer.clientHeight;
+    const sl = el.scrollLeft;
+    const st = el.scrollTop;
+    const w = el.clientWidth;
+    const h = el.clientHeight;
 
     if (x - pad < sl) {
-      scrollContainer.scrollLeft = Math.max(0, x - pad);
+      el.scrollLeft = Math.max(0, x - pad);
     } else if (x + pad > sl + w) {
-      scrollContainer.scrollLeft = x + pad - w;
+      el.scrollLeft = x + pad - w;
     }
     if (y - pad < st) {
-      scrollContainer.scrollTop = Math.max(0, y - pad);
+      el.scrollTop = Math.max(0, y - pad);
     } else if (y + pad > st + h) {
-      scrollContainer.scrollTop = y + pad - h;
+      el.scrollTop = y + pad - h;
     }
   }, [currentNodeId, tree]);
 
@@ -293,10 +298,39 @@ export function MoveTree({
     );
   }
 
+  const resetBtn = onReset && (
+    <button
+      onClick={onReset}
+      style={{
+        alignSelf: "flex-start",
+        fontSize: "0.75rem",
+        padding: "2px 8px",
+        cursor: "pointer",
+        flexShrink: 0,
+      }}
+    >
+      Reset
+    </button>
+  );
+
   return (
-    <svg width={svgWidth} height={svgHeight}>
-      {edges}
-      {nodes}
-    </svg>
+    <>
+      {vertical && resetBtn}
+      <div
+        ref={scrollRef}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "auto",
+          scrollBehavior: "smooth",
+        }}
+      >
+        <svg width={svgWidth} height={svgHeight}>
+          {edges}
+          {nodes}
+        </svg>
+      </div>
+      {!vertical && resetBtn}
+    </>
   );
 }

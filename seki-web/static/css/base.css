@@ -154,8 +154,7 @@ button.link {
     width: auto;
     min-width: auto;
     max-height: 80vh;
-    overflow: auto;
-    scroll-behavior: smooth;
+    overflow: hidden;
   }
   .game-page-body .chat {
     grid-column: 3;

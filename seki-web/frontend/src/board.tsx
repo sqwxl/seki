@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { Goban } from "./goban/index";
-import type { GameTreeData, GhostStoneData, MarkerData, Point, ScoreData, Sign } from "./goban/types";
+import type { GhostStoneData, GameTreeData, MarkerData, Point, ScoreData, Sign } from "./goban/types";
 import { MoveTree } from "./move-tree";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 import { GameDomElements } from "./game-dom";
@@ -145,6 +145,7 @@ function renderMoveTree(
   finalizedNodeIds?: Set<number>,
   direction?: "horizontal" | "vertical",
   branchAfterNodeId?: number,
+  onReset?: () => void,
 ): void {
   const treeJson = engine.tree_json();
   const tree: GameTreeData = JSON.parse(treeJson);
@@ -169,7 +170,6 @@ function renderMoveTree(
     <MoveTree
       tree={tree}
       currentNodeId={currentNodeId}
-      scrollContainer={moveTreeEl}
       finalizedNodeIds={finalizedNodeIds}
       branchAfterNodeId={branchAfterNodeId}
       direction={direction}
@@ -181,6 +181,7 @@ function renderMoveTree(
         }
         doRender();
       }}
+      onReset={onReset}
     />,
     moveTreeEl,
   );
@@ -227,7 +228,6 @@ export type BoardConfig = {
   buttons?: {
     undo?: GameDomElements["requestUndoBtn"];
     pass?: GameDomElements["passBtn"];
-    reset?: GameDomElements["resetBtn"];
   };
   ghostStone?: GhostStoneGetter;
   territoryOverlay?: () => TerritoryOverlay | undefined;
@@ -418,6 +418,20 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     }
   }
 
+  function doReset() {
+    if (config.storageKey) {
+      localStorage.removeItem(config.storageKey);
+      localStorage.removeItem(`${config.storageKey}:base`);
+      localStorage.removeItem(`${config.storageKey}:finalized`);
+      localStorage.removeItem(`${config.storageKey}:node`);
+    }
+    territoryState = undefined;
+    finalizedNodes = new Map();
+    engine.replace_moves(baseMoves);
+    engine.to_latest();
+    doRender();
+  }
+
   function doRender() {
     const nodeId = engine.current_node_id();
     const finalized = nodeId >= 0 && finalizedNodes.has(nodeId);
@@ -495,7 +509,11 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       const branchId = config.branchAtBaseTip && baseMoveCount > 0
         ? baseMoveCount - 1
         : undefined;
-      renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId);
+      const totalNodes = engine.total_moves();
+      const hasAnalysis = branchId != null
+        ? totalNodes > branchId + 1
+        : totalNodes > 0;
+      renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId, hasAnalysis ? doReset : undefined);
     }
 
     if (config.navButtons) {
@@ -553,7 +571,11 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         const branchId = config.branchAtBaseTip && baseMoveCount > 0
           ? baseMoveCount - 1
           : undefined;
-        renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId);
+        const totalNodes = engine.total_moves();
+        const hasAnalysis = branchId != null
+          ? totalNodes > branchId + 1
+          : totalNodes > 0;
+        renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId, hasAnalysis ? doReset : undefined);
       }
     }
   }
@@ -627,23 +649,6 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       opts,
     );
 
-    config.buttons.reset?.addEventListener(
-      "click",
-      () => {
-        if (config.storageKey) {
-          localStorage.removeItem(config.storageKey);
-          localStorage.removeItem(`${config.storageKey}:base`);
-          localStorage.removeItem(`${config.storageKey}:finalized`);
-          localStorage.removeItem(`${config.storageKey}:node`);
-        }
-        territoryState = undefined;
-        finalizedNodes = new Map();
-        engine.replace_moves(baseMoves);
-        engine.to_latest();
-        doRender();
-      },
-      opts,
-    );
   }
 
   // Keyboard navigation
