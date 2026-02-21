@@ -429,17 +429,11 @@ pub async fn send_chat(
         ));
     }
 
-    let gwp = Game::find_with_players(&state.db, game_id)
+    let game = Game::find_by_id(&state.db, game_id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    if !gwp.has_player(player_id) {
-        return Err(AppError::BadRequest(
-            "Only players can send messages".to_string(),
-        ));
-    }
-
-    let move_number = current_move_number(state, &gwp.game).await;
+    let move_number = current_move_number(state, &game).await;
 
     let msg = Message::create(&state.db, game_id, Some(player_id), text, move_number)
         .await
