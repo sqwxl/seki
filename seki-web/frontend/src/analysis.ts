@@ -8,6 +8,7 @@ import {
   formatPoints,
 } from "./format";
 import { queryGameDom } from "./game-dom";
+import { playStoneSound, playPassSound } from "./game-sound";
 
 const SIZE_KEY = "seki:analysis:size";
 const VALID_SIZES = [9, 13, 19];
@@ -105,6 +106,8 @@ export function initAnalysis(root: HTMLElement) {
         pass: document.getElementById("pass-btn") as HTMLButtonElement | null,
         reset: document.getElementById("reset-btn") as HTMLButtonElement | null,
       },
+      onStonePlay: playStoneSound,
+      onPass: playPassSound,
       onRender: (engine, territory) => {
         const { reviewing, finalized, score } = territory;
         updateControls(reviewing, finalized);

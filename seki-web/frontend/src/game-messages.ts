@@ -7,7 +7,7 @@ import { syncClock } from "./game-clock";
 import { updateControls } from "./game-controls";
 import { updateTitle, updatePlayerLabels, updateStatus } from "./game-ui";
 import { appendToChat, updateChatPresence, type SenderResolver } from "./chat";
-import { playStoneSound } from "./game-sound";
+import { playStoneSound, playPassSound } from "./game-sound";
 
 export type GameMessageDeps = {
   ctx: GameCtx;
@@ -32,6 +32,7 @@ function syncBoardMoves(
       if (lastMove?.kind === "play") {
         playStoneSound();
       } else if (lastMove?.kind === "pass") {
+        playPassSound();
         flashPassEffect(gobanEl);
       }
     }

@@ -13,6 +13,7 @@ import { updateControls } from "./game-controls";
 import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
 import { readUserData, derivePlayerStone } from "./game-util";
+import { playStoneSound, playPassSound } from "./game-sound";
 
 export function liveGame(initialProps: InitialGameProps, gameId: number) {
   const userData = readUserData();
@@ -84,6 +85,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     ghostStone: getGhostStone,
     territoryOverlay: getServerTerritory,
     onVertexClick: (col, row) => handleVertexClick(col, row),
+    onStonePlay: playStoneSound,
+    onPass: playPassSound,
     onRender: () => updateControls(ctx, dom),
   }).then((b) => {
     ctx.board = b;

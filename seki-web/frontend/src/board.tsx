@@ -230,6 +230,8 @@ export type BoardConfig = {
   territoryOverlay?: () => TerritoryOverlay | undefined;
   onRender?: (engine: WasmEngine, territory: TerritoryInfo) => void;
   onVertexClick?: (col: number, row: number) => boolean;
+  onStonePlay?: () => void;
+  onPass?: () => void;
 };
 
 export type Board = {
@@ -463,6 +465,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         return;
       }
       if (engine.try_play(col, row)) {
+        config.onStonePlay?.();
         save();
         doRender();
       }
@@ -589,6 +592,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
           return;
         }
         if (engine.pass()) {
+          config.onPass?.();
           save();
           flashPassEffect(config.gobanEl);
           // Auto-enter territory review after two consecutive passes
