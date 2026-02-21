@@ -116,7 +116,8 @@ button.link {
     align-items: start;
     width: 100%;
   }
-  .game-page-body #game {
+  .game-page-body #game,
+  .game-page-body #analysis {
     grid-column: 2;
   }
   .game-page-body .move-tree {

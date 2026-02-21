@@ -2,40 +2,38 @@
 {% import "macros/board_controls.html" as controls %}
 {% block title %}Analysis Board - Seki{% endblock %}
 {% block content %}
-    <div style="display: flex; flex-direction: column; align-items: center">
+    <div class="game-page">
         <h2>Analysis Board</h2>
-        <div id="analysis">
-            <div style="margin-bottom: 0.5em">
-                <label for="board-size">Board size:</label>
-                <select id="board-size">
-                    <option value="9">9×9</option>
-                    <option value="13">13×13</option>
-                    <option value="19" selected>19×19</option>
-                </select>
-            </div>
-            <div id="player-top" class="player-label">
-                <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span></span>
-                <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
-            </div>
-            <div id="goban" class="goban-container" style="width: min(70vw, 70dvh)"></div>
-            <div id="player-bottom" class="player-label">
-                <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span></span>
-                <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
-            </div>
-            <div style="display: flex;
-                        gap: 0.5em;
-                        align-items: center;
-                        justify-content: center;
-                        margin-top: 0.5em">
-                <div id="play-controls" style="display: flex; gap: 0.5em; align-items: center">
-                    {{ controls::nav_bar() }}
-                    <button id="pass-btn">Pass</button>
-                    <button id="score-btn">Score</button>
-                    <button id="reset-btn">Reset</button>
+        <div class="game-page-body">
+            <div id="analysis">
+                <div style="margin-bottom: 0.5em">
+                    <label for="board-size">Board size:</label>
+                    <select id="board-size">
+                        <option value="9">9×9</option>
+                        <option value="13">13×13</option>
+                        <option value="19" selected>19×19</option>
+                    </select>
                 </div>
-                <div id="territory-controls" style="display: none; gap: 0.5em; align-items: center">
-                    <button id="territory-ready-btn">Ready</button>
-                    <button id="territory-exit-btn">Exit</button>
+                <div id="player-top" class="player-label">
+                    <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span></span>
+                    <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
+                </div>
+                <div id="goban" class="goban-container" style="aspect-ratio: 1/1"></div>
+                <div id="player-bottom" class="player-label">
+                    <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span></span>
+                    <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
+                </div>
+                <div class="controls">
+                    <div id="play-controls" style="display: flex; gap: 0.5em; align-items: center">
+                        {{ controls::nav_bar() }}
+                        <button id="pass-btn">Pass</button>
+                        <button id="score-btn">Score</button>
+                        <button id="reset-btn">Reset</button>
+                    </div>
+                    <div id="territory-controls" style="display: none; gap: 0.5em; align-items: center">
+                        <button id="territory-ready-btn">Ready</button>
+                        <button id="territory-exit-btn">Exit</button>
+                    </div>
                 </div>
             </div>
             <div id="move-tree" class="move-tree"></div>

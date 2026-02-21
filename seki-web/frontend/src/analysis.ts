@@ -101,6 +101,7 @@ export function initAnalysis(root: HTMLElement) {
       gobanEl,
       komi: KOMI,
       moveTreeEl: document.getElementById("move-tree"),
+      moveTreeDirection: "responsive",
       storageKey: `seki:analysis:tree:${size}`,
       navButtons: findNavButtons(),
       buttons: {
