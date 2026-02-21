@@ -89,6 +89,10 @@ export function formatGameDescription(g: DescriptionInput): string {
     formatSize(g.settings.cols, g.settings.rows),
   ];
 
+  if (g.settings.handicap >= 2) {
+    parts.push(`H${g.settings.handicap}`);
+  }
+
   const tc = formatTimeControl(g.settings);
   if (tc) {
     parts.push(tc);
