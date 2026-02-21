@@ -86,7 +86,7 @@ pub fn serialize_state(
         "moves": moves,
         "black": gwp.black.as_ref().map(UserData::from),
         "white": gwp.white.as_ref().map(UserData::from),
-        "result": engine.result(),
+        "result": gwp.game.result,
         "undo_rejected": gwp.game.undo_rejected,
         "allow_undo": gwp.game.allow_undo
     });

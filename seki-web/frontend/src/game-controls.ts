@@ -17,6 +17,9 @@ export function updateControls(ctx: GameCtx, dom: GameDomElements): void {
     if (dom.abortBtn) {
       dom.abortBtn.style.display = "none";
     }
+    if (dom.confirmMoveBtn) {
+      dom.confirmMoveBtn.style.display = "none";
+    }
     if (dom.analyzeBtn) {
       dom.analyzeBtn.style.display = "none";
     }
@@ -72,6 +75,11 @@ export function updateControls(ctx: GameCtx, dom: GameDomElements): void {
       (ctx.playerStone === 1 && ctx.territory?.black_approved) ||
       (ctx.playerStone === -1 && ctx.territory?.white_approved);
     dom.acceptTerritoryBtn.disabled = !!alreadyApproved;
+  }
+
+  if (dom.confirmMoveBtn) {
+    dom.confirmMoveBtn.style.display =
+      ctx.premove && isMyTurn ? "" : "none";
   }
 
   if (dom.abortBtn) {

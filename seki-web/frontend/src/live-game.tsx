@@ -169,13 +169,14 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
         ctx.board.render();
       }
     } else {
-      // Toggle premove
-      if (ctx.premove && ctx.premove[0] === col && ctx.premove[1] === row) {
-        ctx.premove = undefined;
-      } else {
-        ctx.premove = [col, row];
-      }
-      ctx.board.render();
+      // Premoves disabled for now
+      // if (ctx.premove && ctx.premove[0] === col && ctx.premove[1] === row) {
+      //   ctx.premove = undefined;
+      // } else {
+      //   ctx.premove = [col, row];
+      // }
+      // ctx.board.render();
+      return false;
     }
     return true;
   }
@@ -258,6 +259,15 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
       const wName = ctx.white?.display_name ?? "White";
       downloadSgf(sgf, `${bName}-vs-${wName}.sgf`);
     });
+
+  dom.confirmMoveBtn?.addEventListener("click", () => {
+    if (ctx.premove) {
+      const [col, row] = ctx.premove;
+      ctx.premove = undefined;
+      channel.play(col, row);
+      updateControls(ctx, dom);
+    }
+  });
 
   dom.requestUndoBtn?.addEventListener("click", () => {
     channel.requestUndo();

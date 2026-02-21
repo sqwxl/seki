@@ -29,6 +29,11 @@
   }
 }
 
+#confirm-move-btn {
+  font-size: 2em;
+  padding: 0.1em 0.4em;
+}
+
 #action-buttons,
 .controls-group {
   display: flex;

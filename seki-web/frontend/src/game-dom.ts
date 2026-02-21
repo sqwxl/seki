@@ -11,6 +11,7 @@ export type GameDomElements = {
   requestUndoBtn: HTMLButtonElement | null;
   analyzeBtn: HTMLButtonElement | null;
   exitAnalysisBtn: HTMLButtonElement | null;
+  confirmMoveBtn: HTMLButtonElement | null;
   acceptTerritoryBtn: HTMLButtonElement | null;
   abortBtn: HTMLButtonElement | null;
   moveTree: HTMLDivElement | null;
@@ -45,6 +46,9 @@ export function queryGameDom(): GameDomElements {
     ) as HTMLButtonElement | null,
     exitAnalysisBtn: document.getElementById(
       "exit-analysis-btn",
+    ) as HTMLButtonElement | null,
+    confirmMoveBtn: document.getElementById(
+      "confirm-move-btn",
     ) as HTMLButtonElement | null,
     acceptTerritoryBtn: document.getElementById(
       "accept-territory-btn",

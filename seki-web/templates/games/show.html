@@ -61,6 +61,9 @@
                             <button id="toggle-move-confirm-btn">➁</button>
                         </span>
                     </div>
+                    {% if is_player %}
+                        <button id="confirm-move-btn" title="Confirm move" style="display: none">✓</button>
+                    {% endif %}
                 </div>
                 <div id="status" style="text-align: center; margin-top: 0.5em"></div>
                 {% if is_player %}
