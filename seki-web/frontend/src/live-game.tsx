@@ -1,12 +1,12 @@
-import { GameStage, type InitialGameProps } from "./goban/types";
-import { createBoard, findNavButtons } from "./wasm-board";
+import { GameStage, type InitialGameProps, type Point, type Sign } from "./goban/types";
+import { createBoard, findNavButtons, type TerritoryOverlay } from "./board";
 import { renderChatHistory, setupChat, type SenderResolver } from "./chat";
+import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
 import { blackSymbol, whiteSymbol } from "./format";
 import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
 import { createGameChannel } from "./game-channel";
 import { queryGameDom } from "./game-dom";
-import { renderGoban } from "./game-render";
 import { updateTitle, updatePlayerLabels, updateStatus } from "./game-ui";
 import { updateControls } from "./game-controls";
 import { handleGameMessage } from "./game-messages";
@@ -34,11 +34,37 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     timeoutFlagSent: false,
   };
 
+  // --- Coordinate toggle ---
+  const showCoordinates = readShowCoordinates();
+  setupCoordToggle(() => ctx.board);
+
+  // --- Ghost stone (premove) getter ---
+  function getGhostStone(): { col: number; row: number; sign: Sign } | undefined {
+    if (!ctx.premove || ctx.analysisMode) {
+      return undefined;
+    }
+    const [col, row] = ctx.premove;
+    return { col, row, sign: ctx.playerStone as Sign };
+  }
+
+  // --- Server territory overlay getter ---
+  function getServerTerritory(): TerritoryOverlay | undefined {
+    if (ctx.gameStage !== GameStage.TerritoryReview || !ctx.territory) {
+      return undefined;
+    }
+    const paintMap = ctx.territory.ownership.map((v) => (v === 0 ? null : v));
+    const dimmedVertices: Point[] = ctx.territory.dead_stones.map(
+      ([c, r]) => [c, r] as Point,
+    );
+    return { paintMap, dimmedVertices };
+  }
+
   // --- WASM board (async) ---
   createBoard({
     cols: ctx.gameState.cols,
     rows: ctx.gameState.rows,
     handicap: initialProps.settings.handicap,
+    showCoordinates,
     gobanEl: dom.goban,
     moveTreeEl: dom.moveTree,
     moveTreeDirection: "responsive",
@@ -46,6 +72,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     baseMoves: ctx.moves.length > 0 ? JSON.stringify(ctx.moves) : undefined,
     navButtons: findNavButtons(),
     buttons: { pass: dom.passBtn, reset: dom.resetBtn },
+    ghostStone: getGhostStone,
+    territoryOverlay: getServerTerritory,
     onVertexClick: (col, row) => handleVertexClick(col, row),
     onRender: () => updateControls(ctx, dom),
   }).then((b) => {
@@ -53,7 +81,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     if (ctx.moves.length > 0) {
       ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
     }
-    renderGoban(ctx, dom.goban, channel);
+    ctx.board.render();
     ctx.board.updateNav();
   });
 
@@ -72,7 +100,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     ctx.analysisMode = false;
     if (ctx.board) {
       ctx.board.engine.to_latest();
-      renderGoban(ctx, dom.goban, channel);
+      ctx.board.render();
     }
     updateControls(ctx, dom);
   }
@@ -89,8 +117,20 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     }
     if (ctx.gameStage === GameStage.TerritoryReview) {
       channel.toggleChain(col, row);
-    } else {
+      return true;
+    }
+    const isMyTurn = ctx.currentTurn === ctx.playerStone;
+    if (isMyTurn) {
+      ctx.premove = undefined;
       channel.play(col, row);
+    } else {
+      // Toggle premove
+      if (ctx.premove && ctx.premove[0] === col && ctx.premove[1] === row) {
+        ctx.premove = undefined;
+      } else {
+        ctx.premove = [col, row];
+      }
+      ctx.board.render();
     }
     return true;
   }
@@ -153,14 +193,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     .getElementById("reject-undo-btn")
     ?.addEventListener("click", () => channel.rejectUndo());
 
-  window.addEventListener("resize", () => {
-    if (!ctx.analysisMode && ctx.board && ctx.board.engine.is_at_latest()) {
-      renderGoban(ctx, dom.goban, channel);
-    }
-  });
-
   // --- Initial render ---
-  renderGoban(ctx, dom.goban, channel);
   updateTitle(ctx, dom.title);
   updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
   updateStatus(ctx, dom.status);

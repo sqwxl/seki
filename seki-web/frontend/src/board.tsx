@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { Goban } from "./goban/index";
-import type { GameTreeData, MarkerData, Point, ScoreData } from "./goban/types";
+import type { GameTreeData, GhostStoneData, MarkerData, Point, ScoreData, Sign } from "./goban/types";
 import { MoveTree } from "./move-tree";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 import { GameDomElements } from "./game-dom";
@@ -65,22 +65,31 @@ function computeVertexSize(
   gobanEl: HTMLElement,
   cols: number,
   rows: number,
+  showCoordinates?: boolean,
 ): number {
   const avail = gobanEl.clientWidth;
   const extra = 0.8;
-  return Math.max(avail / (Math.max(cols, rows) + extra), 12);
+  // When coordinates are shown, the grid has 1em labels on each side.
+  // Solve: vertexSize * (maxDim + extra) + 2 * vertexSize = avail
+  // => vertexSize * (maxDim + extra + 2) = avail
+  const coordExtra = showCoordinates ? 2 : 0;
+  return Math.max(avail / (Math.max(cols, rows) + extra + coordExtra), 12);
 }
 
-type TerritoryOverlay = {
+export type TerritoryOverlay = {
   paintMap: (number | null)[];
   dimmedVertices: Point[];
 };
+
+type GhostStoneGetter = () => { col: number; row: number; sign: Sign } | undefined;
 
 function renderFromEngine(
   engine: WasmEngine,
   gobanEl: HTMLElement,
   onVertexClick?: (evt: Event, position: Point) => void,
   overlay?: TerritoryOverlay,
+  showCoordinates?: boolean,
+  ghostStone?: GhostStoneGetter,
 ): void {
   const board = [...engine.board()] as number[];
   const cols = engine.cols();
@@ -101,15 +110,26 @@ function renderFromEngine(
     }
   }
 
+  let ghostStoneMap: (GhostStoneData | null)[] | undefined;
+  if (ghostStone) {
+    const gs = ghostStone();
+    if (gs) {
+      ghostStoneMap = Array(board.length).fill(null);
+      ghostStoneMap![gs.row * cols + gs.col] = { sign: gs.sign };
+    }
+  }
+
   render(
     <Goban
       cols={cols}
       rows={rows}
-      vertexSize={computeVertexSize(gobanEl, cols, rows)}
+      vertexSize={computeVertexSize(gobanEl, cols, rows, showCoordinates)}
       signMap={board}
       markerMap={markerMap}
+      ghostStoneMap={ghostStoneMap}
       paintMap={overlay?.paintMap}
       dimmedVertices={overlay?.dimmedVertices}
+      showCoordinates={showCoordinates}
       fuzzyStonePlacement
       animateStonePlacement
       onVertexClick={onVertexClick}
@@ -193,6 +213,7 @@ export type BoardConfig = {
   cols: number;
   rows: number;
   handicap?: number;
+  showCoordinates?: boolean;
   gobanEl: GameDomElements["goban"];
   moveTreeEl?: HTMLElement | null;
   moveTreeDirection?: "horizontal" | "vertical" | "responsive";
@@ -205,6 +226,8 @@ export type BoardConfig = {
     pass?: GameDomElements["passBtn"];
     reset?: GameDomElements["resetBtn"];
   };
+  ghostStone?: GhostStoneGetter;
+  territoryOverlay?: () => TerritoryOverlay | undefined;
   onRender?: (engine: WasmEngine, territory: TerritoryInfo) => void;
   onVertexClick?: (col: number, row: number) => boolean;
 };
@@ -215,6 +238,7 @@ export type Board = {
   navigate: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string, replaceEngine?: boolean) => void;
   updateNav: () => void;
+  setShowCoordinates: (show: boolean) => void;
   enterTerritoryReview: () => void;
   exitTerritoryReview: () => void;
   finalizeTerritoryReview: () => ScoreData | undefined;
@@ -232,6 +256,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     engine.set_handicap(config.handicap);
   }
   const komi = config.komi ?? 6.5;
+  let showCoordinates = config.showCoordinates ?? false;
 
   function resolveTreeDirection(): "horizontal" | "vertical" | undefined {
     if (config.moveTreeDirection === "responsive") {
@@ -401,6 +426,15 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         finalized: false,
         score: territoryState.score,
       };
+    } else if (config.territoryOverlay && engine.is_at_latest()) {
+      // Server-sent territory data (live game)
+      const serverOverlay = config.territoryOverlay();
+      if (serverOverlay) {
+        overlay = serverOverlay;
+        territoryInfo = { reviewing: true, finalized: false, score: undefined };
+      } else {
+        territoryInfo = { reviewing: false, finalized: false, score: undefined };
+      }
     } else {
       territoryInfo = { reviewing: false, finalized: false, score: undefined };
     }
@@ -434,7 +468,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       }
     };
 
-    renderFromEngine(engine, config.gobanEl, onVertexClick, overlay);
+    renderFromEngine(engine, config.gobanEl, onVertexClick, overlay, showCoordinates, config.ghostStone);
 
     if (config.moveTreeEl) {
       const fIds =
@@ -627,6 +661,10 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     navigate: doNavigate,
     updateBaseMoves: doUpdateBaseMoves,
     updateNav: doUpdateNav,
+    setShowCoordinates: (show: boolean) => {
+      showCoordinates = show;
+      doRender();
+    },
     enterTerritoryReview: enterTerritory,
     exitTerritoryReview: exitTerritory,
     finalizeTerritoryReview: finalizeTerritory,

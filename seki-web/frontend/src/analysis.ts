@@ -1,6 +1,7 @@
-import { createBoard, findNavButtons } from "./wasm-board";
-import type { Board } from "./wasm-board";
-import { setLabel } from "./game-ui";
+import { createBoard, findNavButtons } from "./board";
+import type { Board } from "./board";
+import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
+import { formatScoreStr, setLabel } from "./game-ui";
 import {
   blackSymbol,
   whiteSymbol,
@@ -46,6 +47,9 @@ export function initAnalysis(root: HTMLElement) {
 
   let board: Board | undefined;
   let territoryAbort: AbortController | undefined;
+
+  const showCoordinates = readShowCoordinates();
+  setupCoordToggle(() => board);
 
   function updateControls(reviewing: boolean, finalized: boolean) {
     if (playControls) {
@@ -98,6 +102,7 @@ export function initAnalysis(root: HTMLElement) {
     board = await createBoard({
       cols: size,
       rows: size,
+      showCoordinates,
       gobanEl,
       komi: KOMI,
       moveTreeEl: document.getElementById("move-tree"),
@@ -117,9 +122,7 @@ export function initAnalysis(root: HTMLElement) {
         let bStr: string;
         let wStr: string;
         if (score) {
-          const bTotal = score.black.territory + score.black.captures;
-          const wTotal = score.white.territory + score.white.captures;
-          ({ bStr, wStr } = formatPoints(bTotal, wTotal, KOMI));
+          ({ bStr, wStr } = formatScoreStr(score, KOMI));
         } else {
           ({ bStr, wStr } = formatPoints(
             engine.captures_black(),

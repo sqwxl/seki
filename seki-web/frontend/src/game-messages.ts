@@ -5,7 +5,6 @@ import type { GameChannel } from "./game-channel";
 import type { ClockState } from "./game-clock";
 import { syncClock } from "./game-clock";
 import { updateControls } from "./game-controls";
-import { renderGoban } from "./game-render";
 import { updateTitle, updatePlayerLabels, updateStatus } from "./game-ui";
 import { appendToChat, updateChatPresence, type SenderResolver } from "./chat";
 import { playStoneSound } from "./game-sound";
@@ -17,6 +16,33 @@ export type GameMessageDeps = {
   channel: GameChannel;
   resolveSender: SenderResolver;
 };
+
+function syncBoardMoves(
+  ctx: GameCtx,
+  playEffects: boolean,
+  gobanEl: HTMLElement,
+): void {
+  if (!ctx.board) {
+    return;
+  }
+  const newMovesJson = JSON.stringify(ctx.moves);
+  if (newMovesJson !== ctx.movesJson) {
+    if (playEffects) {
+      const lastMove = ctx.moves[ctx.moves.length - 1];
+      if (lastMove?.kind === "play") {
+        playStoneSound();
+      } else if (lastMove?.kind === "pass") {
+        flashPassEffect(gobanEl);
+      }
+    }
+    ctx.movesJson = newMovesJson;
+    ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
+  }
+  if (!ctx.analysisMode && ctx.board.engine.is_at_latest()) {
+    ctx.board.render();
+  }
+  ctx.board.updateNav();
+}
 
 export function handleGameMessage(
   raw: Record<string, unknown>,
@@ -44,23 +70,7 @@ export function handleGameMessage(
         ctx.onlineUsers = new Set(data.online_users);
       }
 
-      if (ctx.board) {
-        const newMovesJson = JSON.stringify(ctx.moves);
-        if (newMovesJson !== ctx.movesJson) {
-          const lastMove = ctx.moves[ctx.moves.length - 1];
-          if (lastMove && lastMove.kind === "play") {
-            playStoneSound();
-          } else if (lastMove && lastMove.kind === "pass") {
-            flashPassEffect(dom.goban);
-          }
-          ctx.movesJson = newMovesJson;
-          ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
-        }
-        if (!ctx.analysisMode && ctx.board.engine.is_at_latest()) {
-          renderGoban(ctx, dom.goban, channel);
-        }
-        ctx.board.updateNav();
-      }
+      syncBoardMoves(ctx, true, dom.goban);
       updateControls(ctx, dom);
       updateTitle(ctx, dom.title);
       updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
@@ -80,7 +90,7 @@ export function handleGameMessage(
           channel.play(col, row);
         }
         if (ctx.board && !ctx.analysisMode && ctx.board.engine.is_at_latest()) {
-          renderGoban(ctx, dom.goban, channel);
+          ctx.board?.render();
         }
       }
       break;
@@ -114,17 +124,7 @@ export function handleGameMessage(
         ctx.currentTurn = data.current_turn_stone ?? null;
         if (data.moves) {
           ctx.moves = data.moves;
-          if (ctx.board) {
-            const newMovesJson = JSON.stringify(ctx.moves);
-            if (newMovesJson !== ctx.movesJson) {
-              ctx.movesJson = newMovesJson;
-              ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
-            }
-            if (!ctx.analysisMode && ctx.board.engine.is_at_latest()) {
-              renderGoban(ctx, dom.goban, channel);
-            }
-            ctx.board.updateNav();
-          }
+          syncBoardMoves(ctx, false, dom.goban);
         }
         updateControls(ctx, dom);
         updateStatus(ctx, dom.status);

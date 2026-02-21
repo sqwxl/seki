@@ -48,7 +48,7 @@ export function setLabel(el: HTMLElement, opts: LabelOpts): void {
   }
 }
 
-function formatScoreStr(
+export function formatScoreStr(
   score: ScoreData,
   komi: number,
 ): { bStr: string; wStr: string } {

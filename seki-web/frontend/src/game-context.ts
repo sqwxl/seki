@@ -8,7 +8,7 @@ import type {
   TerritoryData,
   TurnData,
 } from "./goban/types";
-import type { Board } from "./wasm-board";
+import type { Board } from "./board";
 
 export type GameCtx = {
   // Immutable config (set once)
