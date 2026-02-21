@@ -233,6 +233,47 @@ impl Replay {
         }
     }
 
+    /// Remove a node and all its descendants from the tree.
+    /// If the cursor is within the removed subtree, it moves to the parent.
+    pub fn remove_subtree(&mut self, node_id: NodeId) -> bool {
+        if node_id >= self.tree.len() {
+            return false;
+        }
+
+        // Check if cursor is in the subtree being removed
+        let cursor_in_subtree = if let Some(cur) = self.current {
+            let mut check = Some(cur);
+            let mut found = false;
+            while let Some(id) = check {
+                if id == node_id {
+                    found = true;
+                    break;
+                }
+                check = self.tree.node(id).parent;
+            }
+            found
+        } else {
+            false
+        };
+
+        let parent = self.tree.node(node_id).parent;
+
+        if !self.tree.remove_subtree(node_id) {
+            return false;
+        }
+
+        if cursor_in_subtree {
+            self.current = parent;
+            self.path = match parent {
+                Some(pid) => self.tree.path_to(pid),
+                None => Vec::new(),
+            };
+            self.rebuild();
+        }
+
+        true
+    }
+
     /// Undo the current node (remove it if it's a leaf, then move to parent).
     pub fn undo(&mut self) -> bool {
         match self.current {
@@ -661,6 +702,79 @@ mod tests {
         r.to_latest();
         assert_eq!(r.view_index(), 3);
         assert_eq!(r.last_play_pos(), Some((3, 0)));
+    }
+
+    #[test]
+    fn remove_subtree_prunes_undone_move() {
+        // Simulate undo: merge shorter base moves, then remove old tip
+        let mut r = Replay::new(9, 9);
+        r.try_play(0, 0); // node 0
+        r.try_play(1, 0); // node 1
+        r.try_play(2, 0); // node 2
+
+        // Navigate to latest
+        assert_eq!(r.view_index(), 3);
+        assert!(r.is_at_latest());
+
+        // Merge shorter base (simulates undo of last move)
+        let moves = vec![
+            Turn::play(Stone::Black, (0, 0)),
+            Turn::play(Stone::White, (1, 0)),
+        ];
+        let tip = r.merge_base_moves(moves).unwrap();
+        assert_eq!(tip, 1); // new tip is node 1
+
+        // Old node 2 still exists as a child
+        assert!(!r.tree().children_of(Some(tip)).is_empty());
+
+        // Remove the old tip
+        assert!(r.remove_subtree(2));
+
+        // Node 1 is now a leaf
+        assert!(r.tree().children_of(Some(tip)).is_empty());
+
+        // Navigate to tip and verify is_at_latest
+        r.navigate_to(tip);
+        assert!(r.is_at_latest());
+        assert_eq!(r.view_index(), 2);
+    }
+
+    #[test]
+    fn remove_subtree_moves_cursor_to_parent() {
+        let mut r = Replay::new(9, 9);
+        r.try_play(0, 0); // node 0
+        r.try_play(1, 0); // node 1
+        r.try_play(2, 0); // node 2
+
+        // Cursor is at node 2 (the last move)
+        assert_eq!(r.view_index(), 3);
+
+        // Remove subtree starting at node 1 (includes node 2)
+        assert!(r.remove_subtree(1));
+
+        // Cursor should move to node 0 (parent of removed node 1)
+        assert_eq!(r.view_index(), 1);
+        assert_eq!(r.last_play_pos(), Some((0, 0)));
+    }
+
+    #[test]
+    fn remove_subtree_preserves_analysis_branches() {
+        let mut r = Replay::new(9, 9);
+        r.try_play(0, 0); // node 0
+        r.try_play(1, 0); // node 1
+        r.back();
+        r.try_play(2, 0); // node 2 — analysis branch
+
+        // Now add the "game move" as another child of node 0
+        // Back to node 0, play a third variation
+        r.back();
+        r.try_play(3, 0); // node 3 — another branch
+
+        assert_eq!(r.tree().children_of(Some(0)).len(), 3);
+
+        // Remove only node 1 subtree
+        assert!(r.remove_subtree(1));
+        assert_eq!(r.tree().children_of(Some(0)).len(), 2);
     }
 
     #[test]

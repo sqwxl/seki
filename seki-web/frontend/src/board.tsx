@@ -244,7 +244,7 @@ export type Board = {
   save: () => void;
   render: () => void;
   navigate: (action: NavAction) => void;
-  updateBaseMoves: (movesJson: string, navigateToLatest?: boolean) => void;
+  updateBaseMoves: (movesJson: string) => void;
   updateNav: () => void;
   setShowCoordinates: (show: boolean) => void;
   enterTerritoryReview: () => void;
@@ -564,13 +564,11 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     return nodeId >= 0 && finalizedNodes.has(nodeId);
   }
 
-  function doUpdateBaseMoves(movesJson: string, navigateToLatest = true) {
+  function doUpdateBaseMoves(movesJson: string) {
     baseMoves = movesJson;
     baseMoveCount = (JSON.parse(movesJson) as unknown[]).length;
-    baseTipNodeId = engine.merge_base_moves(movesJson);
-    if (navigateToLatest && baseTipNodeId >= 0) {
-      engine.navigate_to(baseTipNodeId);
-    }
+    engine.replace_moves(movesJson);
+    baseTipNodeId = baseMoveCount > 0 ? baseMoveCount - 1 : -1;
   }
 
   function doUpdateNav() {

@@ -39,11 +39,11 @@ function syncBoardMoves(
       }
     }
     ctx.movesJson = newMovesJson;
-    ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
+    ctx.board.updateBaseMoves(ctx.movesJson);
     ctx.board.save();
     onNewMove?.();
   }
-  if (!ctx.analysisMode && ctx.board.engine.is_at_latest()) {
+  if (!ctx.analysisMode) {
     ctx.board.render();
   }
   ctx.board.updateNav();
@@ -133,6 +133,7 @@ export function handleGameMessage(
           syncBoardMoves(ctx, false, dom.goban);
         }
         updateControls(ctx, dom);
+        updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
         updateStatus(ctx, dom.status);
       }
       break;

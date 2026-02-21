@@ -114,6 +114,11 @@ impl WasmEngine {
         }
     }
 
+    /// Remove a node and all its descendants from the tree.
+    pub fn remove_subtree(&mut self, node_id: usize) -> bool {
+        self.inner.remove_subtree(node_id)
+    }
+
     // -- Tree API --
 
     pub fn navigate_to(&mut self, node_id: usize) {

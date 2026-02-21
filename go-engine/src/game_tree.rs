@@ -123,6 +123,36 @@ impl GameTree {
         &self.nodes
     }
 
+    /// Remove a node and all its descendants from the tree.
+    /// Returns true if the node existed.
+    pub fn remove_subtree(&mut self, node_id: NodeId) -> bool {
+        if node_id >= self.nodes.len() {
+            return false;
+        }
+
+        // Collect all descendants (BFS)
+        let mut queue = vec![node_id];
+        let mut i = 0;
+        while i < queue.len() {
+            let children = self.nodes[queue[i]].children.clone();
+            queue.extend(children);
+            i += 1;
+        }
+
+        // Remove from parent's children list
+        match self.nodes[node_id].parent {
+            Some(pid) => self.nodes[pid].children.retain(|&id| id != node_id),
+            None => self.root_children.retain(|&id| id != node_id),
+        }
+
+        // Clear children lists of removed nodes (slots become orphaned in the arena)
+        for &id in &queue {
+            self.nodes[id].children.clear();
+        }
+
+        true
+    }
+
     /// Remove a leaf node (one with no children). Returns true if removed.
     pub fn remove_leaf(&mut self, node_id: NodeId) -> bool {
         if node_id >= self.nodes.len() || !self.nodes[node_id].children.is_empty() {
@@ -247,6 +277,41 @@ mod tests {
         // Can remove leaf
         assert!(tree.remove_leaf(b));
         assert!(tree.children_of(Some(a)).is_empty());
+    }
+
+    #[test]
+    fn remove_subtree_leaf() {
+        let mut tree = GameTree::new();
+        let a = tree.add_child(None, Turn::play(Stone::Black, (0, 0)));
+        let b = tree.add_child(Some(a), Turn::play(Stone::White, (1, 0)));
+
+        assert!(tree.remove_subtree(b));
+        assert!(tree.children_of(Some(a)).is_empty());
+    }
+
+    #[test]
+    fn remove_subtree_with_descendants() {
+        let mut tree = GameTree::new();
+        let a = tree.add_child(None, Turn::play(Stone::Black, (0, 0)));
+        let b = tree.add_child(Some(a), Turn::play(Stone::White, (1, 0)));
+        let _c = tree.add_child(Some(b), Turn::play(Stone::Black, (2, 0)));
+
+        // Remove b — should also remove c
+        assert!(tree.remove_subtree(b));
+        assert!(tree.children_of(Some(a)).is_empty());
+    }
+
+    #[test]
+    fn remove_subtree_preserves_siblings() {
+        let mut tree = GameTree::new();
+        let a = tree.add_child(None, Turn::play(Stone::Black, (0, 0)));
+        let b = tree.add_child(Some(a), Turn::play(Stone::White, (1, 0)));
+        let c = tree.add_child(Some(a), Turn::play(Stone::White, (2, 0)));
+
+        // Remove b, c should remain
+        assert!(tree.remove_subtree(b));
+        assert_eq!(tree.children_of(Some(a)).len(), 1);
+        assert_eq!(tree.children_of(Some(a))[0], c);
     }
 
     #[test]

@@ -15,7 +15,6 @@ export type GameCtx = {
   gameId: number;
   playerStone: number;
   initialProps: InitialGameProps;
-  analysisStorageKey: string;
 
   // Mutable game state
   gameState: GameState;
@@ -47,7 +46,6 @@ export function createGameContext(
     gameId,
     playerStone,
     initialProps,
-    analysisStorageKey: `seki:game:${gameId}:analysis`,
 
     gameState: initialProps.state,
     gameStage: initialProps.stage,

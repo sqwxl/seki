@@ -81,9 +81,6 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     gobanEl: dom.goban,
     moveTreeEl: dom.moveTree,
     moveTreeDirection: "responsive",
-    storageKey: ctx.analysisStorageKey,
-    baseMoves: ctx.moves.length > 0 ? JSON.stringify(ctx.moves) : undefined,
-    branchAtBaseTip: true,
     navButtons: findNavButtons(),
     buttons: { pass: dom.passBtn },
     ghostStone: getGhostStone,
@@ -100,23 +97,10 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     },
   }).then((b) => {
     ctx.board = b;
-    if (b.restoredWithAnalysis) {
-      enterAnalysis();
-    }
-    // Sync any moves that arrived from WS while board was loading.
-    // ctx.movesJson stays "[]" so syncBoardMoves will also trigger
-    // when WS state arrives later — merge_base_moves is idempotent.
+    // Sync any moves that arrived from WS while board was loading
     if (ctx.moves.length > 0) {
-      const latestMovesJson = JSON.stringify(ctx.moves);
-      if (latestMovesJson !== ctx.movesJson) {
-        ctx.movesJson = latestMovesJson;
-        ctx.board.updateBaseMoves(latestMovesJson);
-        ctx.board.save();
-        if (ctx.analysisMode) {
-          ctx.premove = undefined;
-          ctx.analysisMode = false;
-        }
-      }
+      ctx.movesJson = JSON.stringify(ctx.moves);
+      ctx.board.updateBaseMoves(ctx.movesJson);
     }
     ctx.board.render();
     ctx.board.updateNav();
@@ -133,32 +117,27 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     }
   }
 
-  function exitAnalysis(replaceBaseMoves = false) {
+  function exitAnalysis() {
     ctx.premove = undefined;
     ctx.analysisMode = false;
     if (ctx.board) {
-      if (replaceBaseMoves) {
-        ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
-      }
-      if (ctx.board.baseTipNodeId >= 0) {
-        ctx.board.engine.navigate_to(ctx.board.baseTipNodeId);
-      } else {
-        ctx.board.engine.to_start();
-      }
+      ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
       ctx.board.render();
     }
     updateControls(ctx, dom);
   }
 
   function handleVertexClick(col: number, row: number): boolean {
+    // In analysis mode, let the board handle clicks (local play)
     if (ctx.analysisMode) {
       return false;
     }
+    // In live mode, always consume clicks — never fall through to local play
     if (!ctx.board || !ctx.board.engine.is_at_latest()) {
-      return false;
+      return true;
     }
     if (ctx.playerStone === 0) {
-      return false;
+      return true;
     }
     if (ctx.gameStage === GameStage.TerritoryReview) {
       channel.toggleChain(col, row);
@@ -178,15 +157,6 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
         ctx.premove = [col, row];
         ctx.board.render();
       }
-    } else {
-      // Premoves disabled for now
-      // if (ctx.premove && ctx.premove[0] === col && ctx.premove[1] === row) {
-      //   ctx.premove = undefined;
-      // } else {
-      //   ctx.premove = [col, row];
-      // }
-      // ctx.board.render();
-      return false;
     }
     return true;
   }
@@ -209,7 +179,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     ctx, dom, clockState, channel, resolveSender,
     onNewMove: () => {
       if (ctx.analysisMode) {
-        exitAnalysis(true);
+        exitAnalysis();
       }
     },
   };
