@@ -1,11 +1,30 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use go_engine::game_tree::NodeId;
+use go_engine::sgf::convert::MoveTime;
 use go_engine::{GameTree, Point, Replay, Stone};
 use wasm_bindgen::prelude::*;
+
+/// Parse SGF text and return metadata as JSON.
+/// Returns JSON: `{ cols, rows, komi?, handicap?, black_name?, ... }`
+/// On parse error: `{ "error": "message" }`
+#[wasm_bindgen]
+pub fn parse_sgf(sgf_text: &str) -> String {
+    let collection = match go_engine::sgf::parse(sgf_text) {
+        Ok(c) => c,
+        Err(e) => return format!(r#"{{"error":"{}"}}"#, e),
+    };
+    let Some(first) = collection.first() else {
+        return r#"{"error":"empty SGF collection"}"#.to_string();
+    };
+    let conv = go_engine::sgf::convert::sgf_to_game_tree(first);
+    serde_json::to_string(&conv.metadata).unwrap_or_else(|e| format!(r#"{{"error":"{}"}}"#, e))
+}
 
 #[wasm_bindgen]
 pub struct WasmEngine {
     inner: Replay,
+    move_times: HashMap<NodeId, MoveTime>,
 }
 
 #[wasm_bindgen]
@@ -14,6 +33,7 @@ impl WasmEngine {
     pub fn new(cols: u8, rows: u8) -> Self {
         Self {
             inner: Replay::new(cols, rows),
+            move_times: HashMap::new(),
         }
     }
 
@@ -115,6 +135,64 @@ impl WasmEngine {
             }
             Err(_) => false,
         }
+    }
+
+    // -- SGF import/export --
+
+    /// Load an SGF tree into the current engine, replacing the existing tree.
+    /// Returns true on success, false on parse error.
+    pub fn load_sgf_tree(&mut self, sgf_text: &str) -> bool {
+        let collection = match go_engine::sgf::parse(sgf_text) {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+        let Some(first) = collection.first() else {
+            return false;
+        };
+        let conv = go_engine::sgf::convert::sgf_to_game_tree(first);
+        self.move_times = conv.move_times;
+        self.inner.replace_tree(conv.tree);
+        true
+    }
+
+    /// Parse an SGF and load only the move_times map, without touching the tree.
+    /// Use this to restore move_times after the tree has been loaded from localStorage.
+    pub fn load_sgf_move_times(&mut self, sgf_text: &str) -> bool {
+        let collection = match go_engine::sgf::parse(sgf_text) {
+            Ok(c) => c,
+            Err(_) => return false,
+        };
+        let Some(first) = collection.first() else {
+            return false;
+        };
+        let conv = go_engine::sgf::convert::sgf_to_game_tree(first);
+        self.move_times = conv.move_times;
+        true
+    }
+
+    /// Return per-move time data for the current node as JSON, or empty string.
+    pub fn current_move_time(&self) -> String {
+        let Some(node_id) = self.inner.current_node() else {
+            return String::new();
+        };
+        match self.move_times.get(&node_id) {
+            Some(mt) => serde_json::to_string(mt).unwrap_or_default(),
+            None => String::new(),
+        }
+    }
+
+    /// Export the current tree as an SGF string.
+    /// `meta_json` should be a JSON string with SgfMetadata fields.
+    pub fn export_sgf(&self, meta_json: &str) -> String {
+        let meta: go_engine::sgf::convert::SgfMetadata =
+            serde_json::from_str(meta_json).unwrap_or_else(|_| {
+                go_engine::sgf::convert::SgfMetadata {
+                    cols: self.inner.cols(),
+                    rows: self.inner.rows(),
+                    ..Default::default()
+                }
+            });
+        go_engine::sgf::convert::game_tree_to_sgf(self.inner.tree(), &meta)
     }
 
     // -- Engine accessors (WASM-friendly types) --

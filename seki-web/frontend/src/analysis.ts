@@ -1,4 +1,4 @@
-import { createBoard, findNavButtons } from "./board";
+import { createBoard, ensureWasm, findNavButtons } from "./board";
 import type { Board } from "./board";
 import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
 import { formatScoreStr, setLabel } from "./game-ui";
@@ -6,11 +6,17 @@ import {
   blackSymbol,
   whiteSymbol,
   formatPoints,
+  formatSgfTime,
+  formatTime,
 } from "./format";
 import { queryGameDom } from "./game-dom";
 import { playStoneSound, playPassSound } from "./game-sound";
+import { readFileAsText, downloadSgf } from "./sgf-io";
+import type { SgfMeta } from "./sgf-io";
 
 const SIZE_KEY = "seki:analysis:size";
+const SGF_META_KEY = "seki:analysis:sgfMeta";
+const SGF_TEXT_KEY = "seki:analysis:sgfText";
 const VALID_SIZES = [9, 13, 19];
 const KOMI = 6.5;
 
@@ -48,6 +54,17 @@ export function initAnalysis(root: HTMLElement) {
 
   let board: Board | undefined;
   let territoryAbort: AbortController | undefined;
+  let sgfMeta: SgfMeta | undefined;
+  let sgfText: string | undefined;
+
+  // Restore saved SGF metadata and text
+  const savedMeta = localStorage.getItem(SGF_META_KEY);
+  if (savedMeta) {
+    try {
+      sgfMeta = JSON.parse(savedMeta);
+    } catch { /* ignore */ }
+  }
+  sgfText = localStorage.getItem(SGF_TEXT_KEY) ?? undefined;
 
   const showCoordinates = readShowCoordinates();
   setupCoordToggle(() => board);
@@ -126,17 +143,47 @@ export function initAnalysis(root: HTMLElement) {
         }
 
         // White on top, black on bottom
+        const whiteName = sgfMeta?.white_name ?? "White";
+        const blackName = sgfMeta?.black_name ?? "Black";
+
+        // Per-move time (BL/WL) if available, else static time settings
+        const mtJson = engine.current_move_time();
+        let bClock = "";
+        let wClock = "";
+        if (mtJson) {
+          const mt = JSON.parse(mtJson);
+          if (mt.black_time != null) {
+            bClock = formatTime(mt.black_time);
+            if (mt.black_periods != null) {
+              bClock += ` (${mt.black_periods})`;
+            }
+          }
+          if (mt.white_time != null) {
+            wClock = formatTime(mt.white_time);
+            if (mt.white_periods != null) {
+              wClock += ` (${mt.white_periods})`;
+            }
+          }
+        }
+        if (!bClock && !wClock) {
+          const fallback = formatSgfTime(sgfMeta?.time_limit_secs, sgfMeta?.overtime) ?? "";
+          bClock = fallback;
+          wClock = fallback;
+        }
+
         if (playerTopEl) {
           setLabel(playerTopEl, {
-            name: `${whiteSymbol()} White`,
+            name: `${whiteSymbol()} ${whiteName}`,
             captures: wStr,
+            clock: wClock,
             isTurn: !reviewing && !finalized && !isBlackTurn,
           });
         }
         if (playerBottomEl) {
           setLabel(playerBottomEl, {
-            name: `${blackSymbol()} Black`,
+            name: `${blackSymbol()} ${blackName}`,
             captures: bStr,
+            clock: bClock,
             isTurn: !reviewing && !finalized && isBlackTurn,
           });
         }
@@ -153,16 +200,103 @@ export function initAnalysis(root: HTMLElement) {
     exitBtn?.addEventListener("click", () => {
       board?.exitTerritoryReview();
     }, tOpts);
+
+    // Restore move_times from saved SGF text (tree already restored via storageKey)
+    if (sgfText && board) {
+      board.engine.load_sgf_move_times(sgfText);
+    }
   }
 
   if (sizeSelect) {
     sizeSelect.addEventListener("change", () => {
       const size = parseInt(sizeSelect.value, 10);
       currentSize = size;
+      sgfMeta = undefined;
+      sgfText = undefined;
+      localStorage.removeItem(SGF_META_KEY);
+      localStorage.removeItem(SGF_TEXT_KEY);
       localStorage.setItem(SIZE_KEY, String(size));
       initBoard(size);
     });
   }
+
+  // --- SGF import ---
+  const sgfImport = document.getElementById("sgf-import") as HTMLInputElement | null;
+  sgfImport?.addEventListener("change", async () => {
+    const file = sgfImport.files?.[0];
+    if (!file) {
+      return;
+    }
+    const text = await readFileAsText(file);
+    const wasm = await ensureWasm();
+    const metaJson = wasm.parse_sgf(text);
+    const meta: SgfMeta = JSON.parse(metaJson);
+    if (meta.error) {
+      alert(`SGF error: ${meta.error}`);
+      sgfImport.value = "";
+      return;
+    }
+    if (meta.cols !== meta.rows) {
+      alert("Non-square boards are not supported.");
+      sgfImport.value = "";
+      return;
+    }
+    const size = meta.cols;
+    if (!VALID_SIZES.includes(size)) {
+      alert(`Unsupported board size: ${size}×${size}`);
+      sgfImport.value = "";
+      return;
+    }
+    // Update size selector and current size
+    currentSize = size;
+    localStorage.setItem(SIZE_KEY, String(size));
+    if (sizeSelect) {
+      sizeSelect.value = String(size);
+    }
+    // Clear stored tree for this size so initBoard starts fresh
+    localStorage.removeItem(`seki:analysis:tree:${size}`);
+    localStorage.removeItem(`seki:analysis:tree:${size}:base`);
+    localStorage.removeItem(`seki:analysis:tree:${size}:finalized`);
+    localStorage.removeItem(`seki:analysis:tree:${size}:node`);
+    sgfMeta = meta;
+    sgfText = text;
+    localStorage.setItem(SGF_META_KEY, JSON.stringify(meta));
+    localStorage.setItem(SGF_TEXT_KEY, text);
+    await initBoard(size);
+    if (board) {
+      board.engine.load_sgf_tree(text);
+      board.engine.to_start();
+      board.save();
+      board.render();
+    }
+    sgfImport.value = "";
+  });
+
+  // --- SGF export ---
+  const sgfExport = document.getElementById("sgf-export") as HTMLButtonElement | null;
+  sgfExport?.addEventListener("click", () => {
+    if (!board) {
+      return;
+    }
+    const meta: SgfMeta = {
+      cols: currentSize,
+      rows: currentSize,
+      komi: sgfMeta?.komi ?? KOMI,
+      handicap: sgfMeta?.handicap,
+      black_name: sgfMeta?.black_name,
+      white_name: sgfMeta?.white_name,
+      game_name: sgfMeta?.game_name,
+      result: sgfMeta?.result,
+      time_limit_secs: sgfMeta?.time_limit_secs,
+      overtime: sgfMeta?.overtime,
+    };
+    const sgf = board.engine.export_sgf(JSON.stringify(meta));
+    const filename = sgfMeta?.game_name
+      ?? (sgfMeta?.black_name && sgfMeta?.white_name
+        ? `${sgfMeta.black_name}-vs-${sgfMeta.white_name}`
+        : "analysis");
+    downloadSgf(sgf, `${filename}.sgf`);
+  });
 
   initBoard(currentSize);
 }

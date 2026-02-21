@@ -10,7 +10,7 @@ const koMarker: MarkerData = { type: "triangle", label: "ko" };
 
 let wasmModule: typeof import("/static/wasm/go_engine_wasm.js") | undefined;
 
-async function ensureWasm(): Promise<
+export async function ensureWasm(): Promise<
   typeof import("/static/wasm/go_engine_wasm.js")
 > {
   if (wasmModule) {
@@ -239,6 +239,7 @@ export type BoardConfig = {
 
 export type Board = {
   engine: WasmEngine;
+  save: () => void;
   render: () => void;
   navigate: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string, replaceEngine?: boolean) => void;
@@ -298,7 +299,11 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       : null;
     if (savedNodeId != null) {
       const id = parseInt(savedNodeId, 10);
-      engine.navigate_to(id);
+      if (id >= 0) {
+        engine.navigate_to(id);
+      } else {
+        engine.to_start();
+      }
     } else {
       engine.to_latest();
     }
@@ -698,6 +703,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   return {
     engine,
+    save,
     render: doRender,
     navigate: doNavigate,
     updateBaseMoves: doUpdateBaseMoves,

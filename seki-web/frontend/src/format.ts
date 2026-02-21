@@ -32,13 +32,13 @@ export function formatPoints(bTotal: number, wTotal: number, komi: number) {
   return { bStr, wStr };
 }
 
-function formatTime(secs: number): string {
+export function formatTime(secs: number): string {
   const m = Math.floor(secs / 60);
-  const s = secs % 60;
+  const s = Math.floor(secs % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-function formatTimeControl(s: GameSettings): string | undefined {
+export function formatTimeControl(s: GameSettings): string | undefined {
   switch (s.time_control) {
     case "none":
       return undefined;
@@ -57,6 +57,44 @@ function formatTimeControl(s: GameSettings): string | undefined {
       const days = Math.floor((s.main_time_secs ?? 259200) / 86400);
       return `${days}d`;
     }
+  }
+}
+
+/** Format SGF time metadata (TM + OT) into a readable string. */
+export function formatSgfTime(timeLimitSecs?: number, overtime?: string): string | undefined {
+  if (timeLimitSecs == null && !overtime) {
+    return undefined;
+  }
+  const parts: string[] = [];
+  if (timeLimitSecs != null) {
+    parts.push(formatTime(timeLimitSecs));
+  }
+  if (overtime) {
+    parts.push(overtime);
+  }
+  return parts.join(" + ");
+}
+
+/** Convert GameSettings time control to SGF TM/OT fields. */
+export function settingsToSgfTime(s: GameSettings): { time_limit_secs?: number; overtime?: string } {
+  switch (s.time_control) {
+    case "none":
+      return {};
+    case "fischer":
+      return {
+        time_limit_secs: s.main_time_secs ?? 600,
+        overtime: `Fischer ${s.increment_secs ?? 5}s increment`,
+      };
+    case "byoyomi":
+      return {
+        time_limit_secs: s.main_time_secs ?? 1200,
+        overtime: `${s.byoyomi_periods ?? 3}x${s.byoyomi_time_secs ?? 30} byo-yomi`,
+      };
+    case "correspondence":
+      return {
+        time_limit_secs: s.main_time_secs ?? 259200,
+        overtime: "Correspondence",
+      };
   }
 }
 

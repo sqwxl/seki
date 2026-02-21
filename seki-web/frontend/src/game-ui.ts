@@ -73,6 +73,7 @@ export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
 export type LabelOpts = {
   name: string;
   captures: string;
+  clock?: string;
   isOnline?: boolean;
   isTurn?: boolean;
 };
@@ -80,6 +81,7 @@ export type LabelOpts = {
 export function setLabel(el: HTMLElement, opts: LabelOpts): void {
   const nameEl = el.querySelector(".player-name");
   const pointsEl = el.querySelector(".player-captures");
+  const clockEl = el.querySelector(".player-clock");
   const dotEl = el.querySelector(".presence-dot");
   const turnEl = el.querySelector(".turn-indicator");
   if (nameEl) {
@@ -87,6 +89,9 @@ export function setLabel(el: HTMLElement, opts: LabelOpts): void {
   }
   if (pointsEl) {
     pointsEl.textContent = opts.captures;
+  }
+  if (clockEl && opts.clock != null) {
+    clockEl.textContent = opts.clock;
   }
   if (dotEl) {
     dotEl.classList.toggle("online", opts.isOnline ?? false);

@@ -127,6 +127,18 @@ impl Replay {
 
     // -- Accessors --
 
+    pub fn cols(&self) -> u8 {
+        self.cols
+    }
+
+    pub fn rows(&self) -> u8 {
+        self.rows
+    }
+
+    pub fn handicap(&self) -> u8 {
+        self.handicap
+    }
+
     pub fn engine(&self) -> &Engine {
         &self.engine
     }

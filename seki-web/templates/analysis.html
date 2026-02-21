@@ -28,6 +28,10 @@
                         {{ controls::nav_bar() }}
                         <button id="pass-btn">Pass</button>
                         <button id="score-btn">Score</button>
+                        <label for="sgf-import" class="btn" title="Import SGF file">Load SGF
+                            <input type="file" id="sgf-import" accept=".sgf,.SGF" hidden>
+                        </label>
+                        <button id="sgf-export" title="Export as SGF file">Save SGF</button>
                         <button id="toggle-coords-btn" title="Toggle coordinates">A1</button>
                     </div>
                     <div id="territory-controls" class="controls-group" style="display: none">

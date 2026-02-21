@@ -14,6 +14,9 @@ import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
 import { readUserData, derivePlayerStone } from "./game-util";
 import { playStoneSound, playPassSound } from "./game-sound";
+import { settingsToSgfTime } from "./format";
+import { downloadSgf } from "./sgf-io";
+import type { SgfMeta } from "./sgf-io";
 
 export function liveGame(initialProps: InitialGameProps, gameId: number) {
   const userData = readUserData();
@@ -230,6 +233,31 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
 
   dom.analyzeBtn?.addEventListener("click", () => enterAnalysis());
   dom.exitAnalysisBtn?.addEventListener("click", () => exitAnalysis());
+
+  // --- SGF export ---
+  (document.getElementById("sgf-export") as HTMLButtonElement | null)
+    ?.addEventListener("click", () => {
+      if (!ctx.board) {
+        return;
+      }
+      const timeFields = settingsToSgfTime(initialProps.settings);
+      const meta: SgfMeta = {
+        cols: ctx.gameState.cols,
+        rows: ctx.gameState.rows,
+        komi: initialProps.komi,
+        handicap: initialProps.settings.handicap || undefined,
+        black_name: ctx.black?.display_name,
+        white_name: ctx.white?.display_name,
+        result: ctx.result ?? undefined,
+        game_name: undefined,
+        time_limit_secs: timeFields.time_limit_secs,
+        overtime: timeFields.overtime,
+      };
+      const sgf = ctx.board.engine.export_sgf(JSON.stringify(meta));
+      const bName = ctx.black?.display_name ?? "Black";
+      const wName = ctx.white?.display_name ?? "White";
+      downloadSgf(sgf, `${bName}-vs-${wName}.sgf`);
+    });
 
   dom.requestUndoBtn?.addEventListener("click", () => {
     channel.requestUndo();
