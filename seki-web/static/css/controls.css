@@ -11,13 +11,18 @@
 .move-tree {
   display: flex;
   flex-direction: column;
-  width: 0;
-  min-width: 100%;
+  width: min(90vw, 70vh);
   max-height: 150px;
   overflow: hidden;
   border: 1px solid #ccc;
   border-radius: 4px;
   padding: 4px;
+}
+
+@media (min-width: 768px) {
+  .move-tree {
+    width: min(70vw, 70vh);
+  }
 }
 
 #action-buttons,
@@ -27,6 +32,13 @@
   gap: 0.25em;
   align-items: center;
   justify-content: center;
+}
+
+.btn-group {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0.25em;
+  align-items: center;
 }
 
 .controls-navbar {

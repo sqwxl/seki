@@ -1,5 +1,12 @@
 .chat {
-  width: 100%;
+  width: min(90vw, 70vh);
+  margin-bottom: 0.5em;
+}
+
+@media (min-width: 768px) {
+  .chat {
+    width: min(70vw, 70vh);
+  }
 }
 .chat-box {
   background-color: var(--bg-muted);
@@ -13,4 +20,12 @@
 }
 .chat-box p + p {
   margin-top: 0.2em;
+}
+.chat form {
+  display: flex;
+  gap: 0.25em;
+}
+.chat form input[type="text"] {
+  flex: 1;
+  min-width: 0;
 }

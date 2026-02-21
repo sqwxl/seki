@@ -91,16 +91,16 @@ button.link {
 }
 
 .presence-dot {
-  display: inline-block;
+  display: none;
   width: 0.5em;
   height: 0.5em;
   border-radius: 50%;
-  background-color: #888;
+  background-color: #4caf50;
   vertical-align: middle;
 }
 
 .presence-dot.online {
-  background-color: #4caf50;
+  display: inline-block;
 }
 
 .game-page {
@@ -130,6 +130,7 @@ button.link {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 0.5em;
   width: 100%;
   max-width: 100%;
 }
@@ -159,6 +160,7 @@ button.link {
   .game-page-body .chat {
     grid-column: 3;
     align-self: stretch;
+    width: auto;
     min-width: 280px;
     max-width: calc(100% - 3em);
     margin-left: 1.5em;
