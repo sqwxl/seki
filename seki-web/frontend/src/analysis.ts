@@ -60,32 +60,24 @@ export function initAnalysis(root: HTMLElement) {
       territoryControls.style.display =
         reviewing ? "flex" : "none";
     }
-    // When finalized, hide action buttons but keep nav visible
+    // When finalized, hide action buttons but keep nav and reset visible
     if (finalized && playControls) {
       const scoreEl = playControls.querySelector("#score-btn");
       const passEl = playControls.querySelector("#pass-btn");
-      const resetEl = playControls.querySelector("#reset-btn");
       if (scoreEl) {
         (scoreEl as HTMLElement).style.display = "none";
       }
       if (passEl) {
         (passEl as HTMLElement).style.display = "none";
       }
-      if (resetEl) {
-        (resetEl as HTMLElement).style.display = "none";
-      }
     } else if (playControls) {
       const scoreEl = playControls.querySelector("#score-btn");
       const passEl = playControls.querySelector("#pass-btn");
-      const resetEl = playControls.querySelector("#reset-btn");
       if (scoreEl) {
         (scoreEl as HTMLElement).style.display = "";
       }
       if (passEl) {
         (passEl as HTMLElement).style.display = "";
-      }
-      if (resetEl) {
-        (resetEl as HTMLElement).style.display = "";
       }
     }
   }
