@@ -79,8 +79,6 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     handicap: initialProps.settings.handicap,
     showCoordinates,
     gobanEl: dom.goban,
-    moveTreeEl: dom.moveTree,
-    moveTreeDirection: "responsive",
     navButtons: findNavButtons(),
     buttons: { pass: dom.passBtn },
     ghostStone: getGhostStone,
