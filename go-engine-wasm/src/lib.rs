@@ -1,4 +1,6 @@
-use go_engine::{GameTree, Replay, Stone};
+use std::collections::HashSet;
+
+use go_engine::{GameTree, Point, Replay, Stone};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -178,4 +180,66 @@ impl WasmEngine {
             .map(|(_, row)| row as i8)
             .unwrap_or(-1)
     }
+
+    // -- Territory review --
+
+    pub fn stage(&self) -> String {
+        self.inner.engine().stage().to_string()
+    }
+
+    /// Returns JSON array of [col, row] pairs for auto-detected dead stones.
+    pub fn detect_dead_stones(&self) -> String {
+        let dead = go_engine::territory::detect_dead_stones(self.inner.engine().goban());
+        let pts: Vec<[u8; 2]> = dead.into_iter().map(|(c, r)| [c, r]).collect();
+        serde_json::to_string(&pts).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Toggle the chain at (col, row) in/out of the dead stones set.
+    /// Takes and returns JSON arrays of [col, row] pairs.
+    pub fn toggle_dead_chain(&self, col: u8, row: u8, dead_stones_json: &str) -> String {
+        let mut dead = parse_dead_stones(dead_stones_json);
+        go_engine::territory::toggle_dead_chain(
+            self.inner.engine().goban(),
+            &mut dead,
+            (col, row),
+        );
+        serialize_dead_stones(&dead)
+    }
+
+    /// Returns JSON array of ownership values (1=Black, -1=White, 0=neutral).
+    pub fn estimate_territory(&self, dead_stones_json: &str) -> String {
+        let dead = parse_dead_stones(dead_stones_json);
+        let ownership =
+            go_engine::territory::estimate_territory(self.inner.engine().goban(), &dead);
+        serde_json::to_string(&ownership).unwrap_or_else(|_| "[]".into())
+    }
+
+    /// Returns JSON score object:
+    /// {"black":{"territory":n,"captures":n},"white":{"territory":n,"captures":n},"result":"B+3.5"}
+    pub fn score(&self, dead_stones_json: &str, komi: f64) -> String {
+        let dead = parse_dead_stones(dead_stones_json);
+        let goban = self.inner.engine().goban();
+        let ownership = go_engine::territory::estimate_territory(goban, &dead);
+        let gs = go_engine::territory::score(goban, &ownership, &dead, komi);
+        let result = gs.result();
+        format!(
+            r#"{{"black":{{"territory":{},"captures":{}}},"white":{{"territory":{},"captures":{}}},"result":"{}"}}"#,
+            gs.black.territory, gs.black.captures,
+            gs.white.territory, gs.white.captures,
+            result,
+        )
+    }
+}
+
+fn parse_dead_stones(json: &str) -> HashSet<Point> {
+    serde_json::from_str::<Vec<[u8; 2]>>(json)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|[c, r]| (c, r))
+        .collect()
+}
+
+fn serialize_dead_stones(dead: &HashSet<Point>) -> String {
+    let pts: Vec<[u8; 2]> = dead.iter().map(|&(c, r)| [c, r]).collect();
+    serde_json::to_string(&pts).unwrap_or_else(|_| "[]".into())
 }

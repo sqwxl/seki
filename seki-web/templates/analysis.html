@@ -27,9 +27,16 @@
                         align-items: center;
                         justify-content: center;
                         margin-top: 0.5em">
-                {{ controls::nav_bar() }}
-                <button id="pass-btn">Pass</button>
-                <button id="reset-btn">Reset</button>
+                <div id="play-controls" style="display: flex; gap: 0.5em; align-items: center">
+                    {{ controls::nav_bar() }}
+                    <button id="pass-btn">Pass</button>
+                    <button id="score-btn">Score</button>
+                    <button id="reset-btn">Reset</button>
+                </div>
+                <div id="territory-controls" style="display: none; gap: 0.5em; align-items: center">
+                    <button id="territory-ready-btn">Ready</button>
+                    <button id="territory-exit-btn">Exit</button>
+                </div>
             </div>
             <div id="move-tree" class="move-tree"></div>
         </div>

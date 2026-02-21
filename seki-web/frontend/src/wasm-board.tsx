@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { Goban } from "./goban/index";
-import type { GameTreeData, MarkerData, Point } from "./goban/types";
+import type { GameTreeData, MarkerData, Point, ScoreData } from "./goban/types";
 import { MoveTree } from "./move-tree";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 import { GameDomElements } from "./game-dom";
@@ -70,26 +70,34 @@ function computeVertexSize(
   return Math.max(avail / (Math.max(cols, rows) + extra), 12);
 }
 
+type TerritoryOverlay = {
+  paintMap: (number | null)[];
+  dimmedVertices: Point[];
+};
+
 function renderFromEngine(
   engine: WasmEngine,
   gobanEl: HTMLElement,
   onVertexClick?: (evt: Event, position: Point) => void,
+  overlay?: TerritoryOverlay,
 ): void {
   const board = [...engine.board()] as number[];
   const cols = engine.cols();
   const rows = engine.rows();
   const markerMap: (MarkerData | null)[] = Array(board.length).fill(null);
 
-  if (engine.has_last_move()) {
-    const lc = engine.last_move_col();
-    const lr = engine.last_move_row();
-    markerMap[lr * cols + lc] = { type: "circle" };
-  }
+  if (!overlay) {
+    if (engine.has_last_move()) {
+      const lc = engine.last_move_col();
+      const lr = engine.last_move_row();
+      markerMap[lr * cols + lc] = { type: "circle" };
+    }
 
-  if (engine.has_ko()) {
-    const kc = engine.ko_col();
-    const kr = engine.ko_row();
-    markerMap[kr * cols + kc] = koMarker;
+    if (engine.has_ko()) {
+      const kc = engine.ko_col();
+      const kr = engine.ko_row();
+      markerMap[kr * cols + kc] = koMarker;
+    }
   }
 
   render(
@@ -99,6 +107,8 @@ function renderFromEngine(
       vertexSize={computeVertexSize(gobanEl, cols, rows)}
       signMap={board}
       markerMap={markerMap}
+      paintMap={overlay?.paintMap}
+      dimmedVertices={overlay?.dimmedVertices}
       fuzzyStonePlacement
       animateStonePlacement
       onVertexClick={onVertexClick}
@@ -168,6 +178,12 @@ function navigateEngine(engine: WasmEngine, action: NavAction): boolean {
 
 // --- Board factory ---
 
+export type TerritoryInfo = {
+  reviewing: boolean;
+  finalized: boolean;
+  score: ScoreData | undefined;
+};
+
 export type BoardConfig = {
   cols: number;
   rows: number;
@@ -175,13 +191,14 @@ export type BoardConfig = {
   moveTreeEl?: HTMLElement | null;
   storageKey?: string;
   baseMoves?: string;
+  komi?: number;
   navButtons?: NavButtons;
   buttons?: {
     undo?: GameDomElements["requestUndoBtn"];
     pass?: GameDomElements["passBtn"];
     reset?: GameDomElements["resetBtn"];
   };
-  onRender?: (engine: WasmEngine) => void;
+  onRender?: (engine: WasmEngine, territory: TerritoryInfo) => void;
   onVertexClick?: (col: number, row: number) => boolean;
 };
 
@@ -191,12 +208,18 @@ export type Board = {
   navigate: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string, replaceEngine?: boolean) => void;
   updateNav: () => void;
+  enterTerritoryReview: () => void;
+  exitTerritoryReview: () => void;
+  finalizeTerritoryReview: () => ScoreData | undefined;
+  isTerritoryReview: () => boolean;
+  isFinalized: () => boolean;
   destroy: () => void;
 };
 
 export async function createBoard(config: BoardConfig): Promise<Board> {
   const wasm = await ensureWasm();
   const engine = new wasm.WasmEngine(config.cols, config.rows);
+  const komi = config.komi ?? 6.5;
 
   // Base moves the board can be reset to (e.g. game moves from WS)
   let baseMoves = config.baseMoves ?? "[]";
@@ -216,6 +239,110 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     engine.to_latest();
   }
 
+  // --- Territory review state ---
+  type TerritoryState = {
+    deadStones: [number, number][];
+    ownership: number[];
+    score: ScoreData | undefined;
+  };
+  let territoryState: TerritoryState | undefined;
+
+  // Finalized nodes: nodeId → dead stones at finalization
+  let finalizedNodes = loadFinalizedNodes();
+
+  function loadFinalizedNodes(): Map<number, [number, number][]> {
+    if (!config.storageKey) {
+      return new Map();
+    }
+    const raw = localStorage.getItem(`${config.storageKey}:finalized`);
+    if (!raw) {
+      return new Map();
+    }
+    try {
+      const data: Record<string, [number, number][]> = JSON.parse(raw);
+      const map = new Map<number, [number, number][]>();
+      for (const [k, v] of Object.entries(data)) {
+        map.set(Number(k), v);
+      }
+      return map;
+    } catch {
+      return new Map();
+    }
+  }
+
+  function saveFinalizedNodes() {
+    if (!config.storageKey) {
+      return;
+    }
+    if (finalizedNodes.size === 0) {
+      localStorage.removeItem(`${config.storageKey}:finalized`);
+      return;
+    }
+    const data: Record<string, [number, number][]> = {};
+    for (const [id, dead] of finalizedNodes) {
+      data[String(id)] = dead;
+    }
+    localStorage.setItem(
+      `${config.storageKey}:finalized`,
+      JSON.stringify(data),
+    );
+  }
+
+  function buildOverlay(
+    deadStones: [number, number][],
+    ownership: number[],
+  ): TerritoryOverlay {
+    const size = engine.cols() * engine.rows();
+    const paintMap: (number | null)[] = new Array(size);
+    for (let i = 0; i < size; i++) {
+      paintMap[i] = ownership[i] || null;
+    }
+    const dimmedVertices: Point[] = deadStones;
+    return { paintMap, dimmedVertices };
+  }
+
+  function computeTerritoryState(
+    deadStones: [number, number][],
+  ): TerritoryState {
+    const deadJson = JSON.stringify(deadStones);
+    const ownership: number[] = JSON.parse(engine.estimate_territory(deadJson));
+    const scoreJson = engine.score(deadJson, komi);
+    const parsed = JSON.parse(scoreJson);
+    const score: ScoreData = {
+      black: parsed.black,
+      white: parsed.white,
+    };
+    return { deadStones, ownership, score };
+  }
+
+  function enterTerritory() {
+    const deadJson = engine.detect_dead_stones();
+    const deadStones: [number, number][] = JSON.parse(deadJson);
+    territoryState = computeTerritoryState(deadStones);
+    doRender();
+  }
+
+  function exitTerritory() {
+    territoryState = undefined;
+    doRender();
+  }
+
+  function finalizeTerritory(): ScoreData | undefined {
+    if (!territoryState) {
+      return undefined;
+    }
+    const nodeId = engine.current_node_id();
+    if (nodeId < 0) {
+      return undefined;
+    }
+    const score = territoryState.score;
+    finalizedNodes.set(nodeId, territoryState.deadStones);
+    saveFinalizedNodes();
+    territoryState = undefined;
+    doRender();
+    return score;
+  }
+
   function save() {
     if (config.storageKey) {
       localStorage.setItem(config.storageKey, engine.tree_json());
@@ -223,7 +350,53 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
   }
 
   function doRender() {
+    const nodeId = engine.current_node_id();
+    const finalized = nodeId >= 0 && finalizedNodes.has(nodeId);
+
+    let overlay: TerritoryOverlay | undefined;
+    let territoryInfo: TerritoryInfo;
+
+    if (finalized) {
+      // Read-only territory display for finalized node
+      const deadStones = finalizedNodes.get(nodeId)!;
+      const ts = computeTerritoryState(deadStones);
+      overlay = buildOverlay(ts.deadStones, ts.ownership);
+      territoryInfo = { reviewing: false, finalized: true, score: ts.score };
+    } else if (territoryState) {
+      // Active territory review
+      overlay = buildOverlay(
+        territoryState.deadStones,
+        territoryState.ownership,
+      );
+      territoryInfo = {
+        reviewing: true,
+        finalized: false,
+        score: territoryState.score,
+      };
+    } else {
+      territoryInfo = { reviewing: false, finalized: false, score: undefined };
+    }
+
     const onVertexClick = (_: Event, [col, row]: Point) => {
+      // Finalized: no interaction
+      if (finalized) {
+        return;
+      }
+
+      // Territory review: toggle dead stones
+      if (territoryState) {
+        const deadJson = engine.toggle_dead_chain(
+          col,
+          row,
+          JSON.stringify(territoryState.deadStones),
+        );
+        const newDead: [number, number][] = JSON.parse(deadJson);
+        territoryState = computeTerritoryState(newDead);
+        doRender();
+        return;
+      }
+
+      // Normal play
       if (config.onVertexClick && config.onVertexClick(col, row)) {
         return;
       }
@@ -233,7 +406,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       }
     };
 
-    renderFromEngine(engine, config.gobanEl, onVertexClick);
+    renderFromEngine(engine, config.gobanEl, onVertexClick, overlay);
 
     if (config.moveTreeEl) {
       renderMoveTree(engine, config.moveTreeEl, doRender);
@@ -244,14 +417,29 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     }
 
     if (config.onRender) {
-      config.onRender(engine);
+      config.onRender(engine, territoryInfo);
     }
   }
 
   function doNavigate(action: NavAction) {
+    // Clear active territory review when navigating
+    if (territoryState) {
+      territoryState = undefined;
+    }
     if (navigateEngine(engine, action)) {
+      // Auto-enter territory review if navigating to a two-pass position
+      const stage = engine.stage();
+      if (stage === "territory_review" && !isCurrentFinalized()) {
+        enterTerritory();
+        return;
+      }
       doRender();
     }
+  }
+
+  function isCurrentFinalized(): boolean {
+    const nodeId = engine.current_node_id();
+    return nodeId >= 0 && finalizedNodes.has(nodeId);
   }
 
   function doUpdateBaseMoves(movesJson: string, replaceEngine = true) {
@@ -305,6 +493,9 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     config.buttons.undo?.addEventListener(
       "click",
       () => {
+        if (territoryState || isCurrentFinalized()) {
+          return;
+        }
         if (engine.undo()) {
           save();
           doRender();
@@ -316,8 +507,16 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     config.buttons.pass?.addEventListener(
       "click",
       () => {
+        if (territoryState || isCurrentFinalized()) {
+          return;
+        }
         if (engine.pass()) {
           save();
+          // Auto-enter territory review after two consecutive passes
+          if (engine.stage() === "territory_review") {
+            enterTerritory();
+            return;
+          }
           doRender();
         }
       },
@@ -329,7 +528,10 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       () => {
         if (config.storageKey) {
           localStorage.removeItem(config.storageKey);
+          localStorage.removeItem(`${config.storageKey}:finalized`);
         }
+        territoryState = undefined;
+        finalizedNodes = new Map();
         engine.replace_moves(baseMoves);
         engine.to_latest();
         doRender();
@@ -379,6 +581,11 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     navigate: doNavigate,
     updateBaseMoves: doUpdateBaseMoves,
     updateNav: doUpdateNav,
+    enterTerritoryReview: enterTerritory,
+    exitTerritoryReview: exitTerritory,
+    finalizeTerritoryReview: finalizeTerritory,
+    isTerritoryReview: () => !!territoryState,
+    isFinalized: isCurrentFinalized,
     destroy: () => abortController.abort(),
   };
 }
