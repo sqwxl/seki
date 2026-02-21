@@ -52,7 +52,11 @@ pub fn serialize_state(
     let stage = if gwp.game.result.is_some() {
         go_engine::Stage::Done
     } else if engine.stage() == go_engine::Stage::Unstarted && !gwp.is_open() {
-        go_engine::Stage::BlackToPlay
+        if gwp.game.handicap >= 2 {
+            go_engine::Stage::WhiteToPlay
+        } else {
+            go_engine::Stage::BlackToPlay
+        }
     } else {
         engine.stage()
     };
@@ -82,7 +86,7 @@ pub fn serialize_state(
         "moves": moves,
         "black": gwp.black.as_ref().map(UserData::from),
         "white": gwp.white.as_ref().map(UserData::from),
-        "result": gwp.game.result,
+        "result": engine.result(),
         "undo_rejected": gwp.game.undo_rejected,
         "allow_undo": gwp.game.allow_undo
     });
@@ -136,17 +140,3 @@ fn current_turn_stone(engine: &Engine) -> i32 {
     engine.current_turn_stone().to_int() as i32
 }
 
-/// Build the sender label for a chat message (e.g. "alice ●").
-pub fn sender_label(gwp: &GameWithPlayers, user_id: i64, username: Option<&str>) -> String {
-    use crate::models::game::{BLACK_SYMBOL, WHITE_SYMBOL};
-
-    let symbol = if gwp.black.as_ref().is_some_and(|p| p.id == user_id) {
-        BLACK_SYMBOL
-    } else if gwp.white.as_ref().is_some_and(|p| p.id == user_id) {
-        WHITE_SYMBOL
-    } else {
-        "?"
-    };
-    let name = username.unwrap_or("-");
-    format!("{name} {symbol}")
-}

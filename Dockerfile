@@ -4,11 +4,13 @@ WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 COPY go-engine/Cargo.toml go-engine/Cargo.toml
+COPY go-engine-wasm/Cargo.toml go-engine-wasm/Cargo.toml
 COPY seki-web/Cargo.toml seki-web/Cargo.toml
 
 # Create dummy sources so cargo can resolve deps
-RUN mkdir -p go-engine/src seki-web/src \
+RUN mkdir -p go-engine/src go-engine-wasm/src seki-web/src \
     && echo "fn main() {}" > go-engine/src/lib.rs \
+    && echo "fn main() {}" > go-engine-wasm/src/lib.rs \
     && echo "fn main() {}" > seki-web/src/main.rs
 
 RUN cargo build --release -p seki-web

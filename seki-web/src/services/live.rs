@@ -3,12 +3,14 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::models::game::{Game, GameWithPlayers, TimeControlType};
+use crate::services::engine_builder;
 use crate::templates::UserData;
 
 #[derive(Serialize)]
 pub struct GameSettings {
     pub cols: i32,
     pub rows: i32,
+    pub handicap: i32,
     pub time_control: TimeControlType,
     pub main_time_secs: Option<i32>,
     pub increment_secs: Option<i32>,
@@ -40,6 +42,7 @@ impl LiveGameItem {
             settings: GameSettings {
                 cols: gwp.game.cols,
                 rows: gwp.game.rows,
+                handicap: engine_builder::game_handicap(&gwp.game) as i32,
                 time_control: gwp.game.time_control,
                 main_time_secs: gwp.game.main_time_secs,
                 increment_secs: gwp.game.increment_secs,

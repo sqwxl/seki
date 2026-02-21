@@ -108,6 +108,7 @@ export type TerritoryData = {
 export type GameSettings = {
   cols: number;
   rows: number;
+  handicap: number;
   time_control: "none" | "fischer" | "byoyomi" | "correspondence";
   main_time_secs: number | undefined;
   increment_secs: number | undefined;
@@ -160,7 +161,6 @@ export type PresenceMessage = {
 export type ChatMessage = {
   kind: "chat";
   player_id?: number;
-  sender: string;
   text: string;
   move_number?: number;
   sent_at?: string;
