@@ -8,8 +8,9 @@ type CoordColsProps = {
 const CAPITAL_A_CHAR_CODE = 65;
 
 function colToCoord(i: number): string {
-  let coord = String.fromCharCode(CAPITAL_A_CHAR_CODE + i);
-  return coord.repeat(1 + (i % 26));
+  // Standard Go notation skips 'I' to avoid confusion with 'J'
+  const code = CAPITAL_A_CHAR_CODE + i + (i >= 8 ? 1 : 0);
+  return String.fromCharCode(code);
 }
 
 function rowToCoord(i: number, rows: number): string {
@@ -22,8 +23,8 @@ export function CoordCols({ style, cols }: CoordColsProps): JSX.Element {
       className="goban-coordx"
       style={{ display: "flex", textAlign: "center", ...style }}
     >
-      {Array(cols).map((i) => (
-        <div key={i}>
+      {Array.from({ length: cols }, (_, i) => (
+        <div key={i} style={{ flex: 1 }}>
           <span style={{ display: "block" }}>{colToCoord(i)}</span>
         </div>
       ))}
@@ -39,8 +40,8 @@ type CoordRowsProps = {
 export function CoordRows({ style, rows }: CoordRowsProps): JSX.Element {
   return (
     <div className="goban-coordy" style={{ textAlign: "center", ...style }}>
-      {Array(rows).map((i) => (
-        <div key={i}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} style={{ flex: 1 }}>
           <span style={{ display: "block" }}>{rowToCoord(i, rows)}</span>
         </div>
       ))}
