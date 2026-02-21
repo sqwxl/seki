@@ -8,7 +8,7 @@ import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
 import { createGameChannel } from "./game-channel";
 import { queryGameDom } from "./game-dom";
-import { updateTitle, updatePlayerLabels, updateStatus } from "./game-ui";
+import { updateTitle, updatePlayerLabels, updateStatus, updateTurnFlash } from "./game-ui";
 import { updateControls } from "./game-controls";
 import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
@@ -241,6 +241,9 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   document
     .getElementById("reject-undo-btn")
     ?.addEventListener("click", () => channel.rejectUndo());
+
+  // --- Tab title flash ---
+  document.addEventListener("visibilitychange", () => updateTurnFlash(ctx));
 
   // --- Initial render ---
   updateTitle(ctx, dom.title);

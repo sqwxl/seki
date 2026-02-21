@@ -1,4 +1,4 @@
-import { GameStage } from "./goban/types";
+import { GameStage, isPlayStage } from "./goban/types";
 import type { ScoreData } from "./goban/types";
 import type { GameCtx } from "./game-context";
 import {
@@ -8,6 +8,48 @@ import {
   formatPoints,
 } from "./format";
 const CHECKMARK = "✓";
+
+// --- Tab title flash ("YOUR MOVE") ---
+
+let flashInterval: ReturnType<typeof setInterval> | undefined;
+let savedTitle: string | undefined;
+
+function startFlashing() {
+  if (flashInterval) {
+    return;
+  }
+  savedTitle = document.title;
+  let on = true;
+  document.title = "YOUR MOVE";
+  flashInterval = setInterval(() => {
+    on = !on;
+    document.title = on ? "YOUR MOVE" : (savedTitle ?? "");
+  }, 1000);
+}
+
+function stopFlashing() {
+  if (!flashInterval) {
+    return;
+  }
+  clearInterval(flashInterval);
+  flashInterval = undefined;
+  if (savedTitle != null) {
+    document.title = savedTitle;
+    savedTitle = undefined;
+  }
+}
+
+export function updateTurnFlash(ctx: GameCtx): void {
+  const isMyTurn =
+    ctx.playerStone !== 0 &&
+    ctx.currentTurn === ctx.playerStone &&
+    isPlayStage(ctx.gameStage);
+  if (isMyTurn && document.hidden) {
+    startFlashing();
+  } else {
+    stopFlashing();
+  }
+}
 
 export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
   if (titleEl) {

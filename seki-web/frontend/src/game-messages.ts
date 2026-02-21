@@ -5,7 +5,7 @@ import type { GameChannel } from "./game-channel";
 import type { ClockState } from "./game-clock";
 import { syncClock } from "./game-clock";
 import { updateControls } from "./game-controls";
-import { updateTitle, updatePlayerLabels, updateStatus } from "./game-ui";
+import { updateTitle, updatePlayerLabels, updateStatus, updateTurnFlash } from "./game-ui";
 import { appendToChat, updateChatPresence, type SenderResolver } from "./chat";
 import { playStoneSound, playPassSound } from "./game-sound";
 
@@ -79,6 +79,7 @@ export function handleGameMessage(
       updateTitle(ctx, dom.title);
       updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
       updateStatus(ctx, dom.status);
+      updateTurnFlash(ctx);
       syncClock(clockState, data.clock, ctx, dom, () => channel.timeoutFlag());
       updateChatPresence(ctx.onlineUsers);
 
