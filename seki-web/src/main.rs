@@ -3,8 +3,10 @@ use axum::extract::Request;
 use axum::routing::{get, post};
 use tokio::sync::broadcast;
 use tower::Layer as _;
+use tower::ServiceBuilder;
 use tower_http::normalize_path::NormalizePathLayer;
 use tower_http::services::ServeDir;
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_sessions::cookie::time::Duration;
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::PostgresStore;
@@ -103,10 +105,15 @@ async fn main() {
         // Static files
         .nest_service(
             "/static",
-            ServeDir::new(
-                std::env::var("STATIC_DIR")
-                    .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()),
-            ),
+            ServiceBuilder::new()
+                .layer(SetResponseHeaderLayer::overriding(
+                    axum::http::header::CACHE_CONTROL,
+                    axum::http::HeaderValue::from_static("no-cache"),
+                ))
+                .service(ServeDir::new(
+                    std::env::var("STATIC_DIR")
+                        .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()),
+                )),
         )
         // Middleware
         .layer(session_layer)
