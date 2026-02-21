@@ -111,6 +111,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   function enterAnalysis() {
     ctx.premove = undefined;
     ctx.analysisMode = true;
+    dom.goban.classList.add("goban-analysis");
     updateControls(ctx, dom);
     if (ctx.board) {
       ctx.board.render();
@@ -120,6 +121,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   function exitAnalysis() {
     ctx.premove = undefined;
     ctx.analysisMode = false;
+    dom.goban.classList.remove("goban-analysis");
     if (ctx.board) {
       ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
       ctx.board.render();
