@@ -2,84 +2,86 @@
 {% import "macros/board_controls.html" as controls %}
 {% block title %}Game - Seki{% endblock %}
 {% block content %}
-    <div style="display: flex; flex-direction: column; align-items: center">
+    <div class="game-page">
         <h2 id="game-title"></h2>
         {% if !is_creator && !is_private && has_open_slot && !is_player %}
             <form action="/games/{{ game_id }}/join" method="post">
                 <button type="submit">Join Game</button>
             </form>
         {% endif %}
-        <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
-            <div id="player-top" class="player-label">
-                <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span><span class="presence-dot"></span></span>
-                <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
-            </div>
-            <div id="goban"
-                 class="goban-container"
-                 style="aspect-ratio: {{ cols }}/{{ rows }}"></div>
-            <div id="player-bottom" class="player-label">
-                <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span><span class="presence-dot"></span></span>
-                <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
-            </div>
-            <div class="controls">
-                {{ controls::nav_bar() }}
-                <div id="action-buttons"
-                     style="display: flex;
-                            gap: 0.25em;
-                            align-items: center">
-                    <button id="pass-btn"{% if !is_player %} style="display: none"{% endif %}>Pass</button>
-                    {% if is_player %}
-                        <div id="pass-confirm" popover>
-                            <p>Pass your turn?</p>
-                            <button id="confirm-pass-btn" popovertarget="pass-confirm">Yes</button>
-                            <button popovertarget="pass-confirm">No</button>
-                        </div>
-                        <button id="resign-btn" popovertarget="resign-confirm">Resign</button>
-                        <div id="resign-confirm" popover>
-                            <p>Resign this game?</p>
-                            <button id="confirm-resign-btn" popovertarget="resign-confirm">Yes</button>
-                            <button popovertarget="resign-confirm">No</button>
-                        </div>
-                        <button id="request-undo-btn">Undo</button>
-                        <button id="abort-btn" popovertarget="abort-confirm" style="display: none">Abort</button>
-                        <div id="abort-confirm" popover>
-                            <p>Abort this game?</p>
-                            <button id="confirm-abort-btn" popovertarget="abort-confirm">Yes</button>
-                            <button popovertarget="abort-confirm">No</button>
-                        </div>
-                        <button id="accept-territory-btn" style="display: none">Accept</button>
-                        <div id="accept-territory-confirm" popover>
-                            <p>Accept territory?</p>
-                            <button id="confirm-accept-territory-btn"
-                                    popovertarget="accept-territory-confirm">Yes</button>
-                            <button popovertarget="accept-territory-confirm">No</button>
-                        </div>
-                    {% endif %}
-                    <button id="reset-btn" style="display: none">Reset</button>
-                    <button id="analyze-btn">Analyze</button>
-                    <button id="exit-analysis-btn" style="display: none">Back to game</button>
+        <div class="game-page-body">
+            <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
+                <div id="player-top" class="player-label">
+                    <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span><span class="presence-dot"></span></span>
+                    <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
                 </div>
+                <div id="goban"
+                     class="goban-container"
+                     style="aspect-ratio: {{ cols }}/{{ rows }}"></div>
+                <div id="player-bottom" class="player-label">
+                    <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span><span class="presence-dot"></span></span>
+                    <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
+                </div>
+                <div class="controls">
+                    {{ controls::nav_bar() }}
+                    <div id="action-buttons"
+                         style="display: flex;
+                                gap: 0.25em;
+                                align-items: center">
+                        <button id="pass-btn"{% if !is_player %} style="display: none"{% endif %}>Pass</button>
+                        {% if is_player %}
+                            <div id="pass-confirm" popover>
+                                <p>Pass your turn?</p>
+                                <button id="confirm-pass-btn" popovertarget="pass-confirm">Yes</button>
+                                <button popovertarget="pass-confirm">No</button>
+                            </div>
+                            <button id="resign-btn" popovertarget="resign-confirm">Resign</button>
+                            <div id="resign-confirm" popover>
+                                <p>Resign this game?</p>
+                                <button id="confirm-resign-btn" popovertarget="resign-confirm">Yes</button>
+                                <button popovertarget="resign-confirm">No</button>
+                            </div>
+                            <button id="request-undo-btn">Undo</button>
+                            <button id="abort-btn" popovertarget="abort-confirm" style="display: none">Abort</button>
+                            <div id="abort-confirm" popover>
+                                <p>Abort this game?</p>
+                                <button id="confirm-abort-btn" popovertarget="abort-confirm">Yes</button>
+                                <button popovertarget="abort-confirm">No</button>
+                            </div>
+                            <button id="accept-territory-btn" style="display: none">Accept</button>
+                            <div id="accept-territory-confirm" popover>
+                                <p>Accept territory?</p>
+                                <button id="confirm-accept-territory-btn"
+                                        popovertarget="accept-territory-confirm">Yes</button>
+                                <button popovertarget="accept-territory-confirm">No</button>
+                            </div>
+                        {% endif %}
+                        <button id="reset-btn" style="display: none">Reset</button>
+                        <button id="analyze-btn">Analyze</button>
+                        <button id="exit-analysis-btn" style="display: none">Back to game</button>
+                    </div>
+                </div>
+                <div id="status" style="text-align: center; margin-top: 0.5em"></div>
+                {% if is_player %}
+                    <div id="undo-response-controls" popover>
+                        <p>Opponent has requested to undo their last move.</p>
+                        <button id="accept-undo-btn" popovertarget="undo-response-controls">Accept</button>
+                        <button id="reject-undo-btn" popovertarget="undo-response-controls">Reject</button>
+                    </div>
+                {% endif %}
             </div>
             <div id="move-tree" class="move-tree"></div>
-            <div id="status" style="text-align: center; margin-top: 0.5em"></div>
-            {% if is_player %}
-                <div id="undo-response-controls" popover>
-                    <p>Opponent has requested to undo their last move.</p>
-                    <button id="accept-undo-btn" popovertarget="undo-response-controls">Accept</button>
-                    <button id="reject-undo-btn" popovertarget="undo-response-controls">Reject</button>
-                </div>
-            {% endif %}
+            <div id="chat" class="chat">
+                <div id="chat-box" class="chat-box" data-chat-log="{{ chat_log_json }}"></div>
+                <form id="chat-form">
+                    <input type="text"
+                           id="chat-input"
+                           placeholder="Say something..."
+                           autocomplete="off" />
+                    <button type="submit">Send</button>
+                </form>
+            </div>
         </div>
         <div id="game-error"></div>
-        <div id="chat" class="chat">
-            <div id="chat-box" class="chat-box" data-chat-log="{{ chat_log_json }}"></div>
-            <form id="chat-form">
-                <input type="text"
-                       id="chat-input"
-                       placeholder="Say something..."
-                       autocomplete="off" />
-                <button type="submit">Send</button>
-            </form>
-        </div>
     </div>
 {% endblock %}

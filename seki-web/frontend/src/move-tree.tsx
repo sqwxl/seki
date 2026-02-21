@@ -54,6 +54,8 @@ type MoveTreeProps = {
   tree: GameTreeData;
   currentNodeId: number;
   scrollContainer: HTMLElement;
+  finalizedNodeIds?: Set<number>;
+  direction?: "horizontal" | "vertical";
   onNavigate: (nodeId: number) => void;
 };
 
@@ -61,9 +63,12 @@ export function MoveTree({
   tree,
   currentNodeId,
   scrollContainer,
+  finalizedNodeIds,
+  direction = "horizontal",
   onNavigate,
 }: MoveTreeProps) {
   const layout = layoutTree(tree);
+  const vertical = direction === "vertical";
 
   if (layout.length === 0) {
     return null;
@@ -72,15 +77,22 @@ export function MoveTree({
   const maxCol = layout.reduce((m, n) => Math.max(m, n.col), 0);
   const maxRow = layout.reduce((m, n) => Math.max(m, n.row), 0);
 
-  const rootX = PADDING;
-  const svgWidth = (maxCol + 1) * COL_SPACING + PADDING * 2 + COL_SPACING;
-  const svgHeight = (maxRow + 1) * ROW_SPACING + PADDING * 2;
+  const svgWidth = vertical
+    ? (maxRow + 1) * ROW_SPACING + PADDING * 2
+    : (maxCol + 1) * COL_SPACING + PADDING * 2 + COL_SPACING;
+  const svgHeight = vertical
+    ? (maxCol + 1) * COL_SPACING + PADDING * 2 + COL_SPACING
+    : (maxRow + 1) * ROW_SPACING + PADDING * 2;
 
-  function cx(col: number): number {
-    return PADDING + (col + 1) * COL_SPACING;
+  function cx(col: number, row: number): number {
+    return vertical
+      ? PADDING + row * ROW_SPACING
+      : PADDING + (col + 1) * COL_SPACING;
   }
-  function cy(row: number): number {
-    return PADDING + row * ROW_SPACING;
+  function cy(col: number, row: number): number {
+    return vertical
+      ? PADDING + (col + 1) * COL_SPACING
+      : PADDING + row * ROW_SPACING;
   }
 
   // Auto-scroll to keep current node visible
@@ -88,15 +100,15 @@ export function MoveTree({
     let x: number;
     let y: number;
     if (currentNodeId === -1) {
-      x = rootX;
-      y = cy(0);
+      x = cx(0, 0);
+      y = cy(0, 0);
     } else {
       const cur = layout.find((n) => n.id === currentNodeId);
       if (!cur) {
         return;
       }
-      x = cx(cur.col);
-      y = cy(cur.row);
+      x = cx(cur.col, cur.row);
+      y = cy(cur.col, cur.row);
     }
     const pad = PADDING;
     const sl = scrollContainer.scrollLeft;
@@ -126,13 +138,15 @@ export function MoveTree({
     if (treeNode.parent != null) {
       const parentLayout = layout[treeNode.parent];
       if (parentLayout) {
-        const x1 = cx(parentLayout.col);
-        const y1 = cy(parentLayout.row);
-        const x2 = cx(node.col);
-        const y2 = cy(node.row);
+        const x1 = cx(parentLayout.col, parentLayout.row);
+        const y1 = cy(parentLayout.col, parentLayout.row);
+        const x2 = cx(node.col, node.row);
+        const y2 = cy(node.col, node.row);
 
-        if (y1 === y2) {
-          // Straight horizontal line
+        // Same-branch check: horizontal checks y, vertical checks x
+        const straight = vertical ? x1 === x2 : y1 === y2;
+
+        if (straight) {
           edges.push(
             <line
               key={`e-${treeNode.parent}-${node.id}`}
@@ -145,11 +159,14 @@ export function MoveTree({
             />,
           );
         } else {
-          // L-shaped: go down from parent, then across to child
+          // L-shaped: horizontal = down then across, vertical = across then down
+          const mid = vertical
+            ? `${x2},${y1}`
+            : `${x1},${y2}`;
           edges.push(
             <polyline
               key={`e-${treeNode.parent}-${node.id}`}
-              points={`${x1},${y1} ${x1},${y2} ${x2},${y2}`}
+              points={`${x1},${y1} ${mid} ${x2},${y2}`}
               fill="none"
               stroke="#888"
               stroke-width={1.5}
@@ -167,20 +184,14 @@ export function MoveTree({
       continue;
     }
     const treeNode = tree.nodes[node.id];
-    const x = cx(node.col);
-    const y = cy(node.row);
+    const x = cx(node.col, node.row);
+    const y = cy(node.col, node.row);
     const isCurrent = node.id === currentNodeId;
     const stone = treeNode.turn.stone;
     const isPass = treeNode.turn.kind === "pass";
+    const isFinalized = finalizedNodeIds?.has(node.id) ?? false;
 
     const isRoot = stone === 0;
-    const fill = isRoot
-      ? "#222"
-      : isPass
-        ? "#f5f5f5"
-        : stone === 1
-          ? "#222"
-          : "#fff";
     const radius = isCurrent ? NODE_RADIUS * 1.4 : NODE_RADIUS;
     const strokeColor = "#555";
     const strokeWidth = 1.2;
@@ -191,7 +202,23 @@ export function MoveTree({
         style={{ cursor: "pointer" }}
         onClick={() => onNavigate(node.id)}
       >
-        {isRoot ? (
+        {isFinalized ? (
+          <>
+            {/* Split circle: left=black, right=white */}
+            <path
+              d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 0 ${x} ${y + radius} Z`}
+              fill="#222"
+              stroke={strokeColor}
+              stroke-width={strokeWidth}
+            />
+            <path
+              d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 1 ${x} ${y + radius} Z`}
+              fill="#fff"
+              stroke={strokeColor}
+              stroke-width={strokeWidth}
+            />
+          </>
+        ) : isRoot ? (
           <>
             <circle
               cx={x}
@@ -224,12 +251,18 @@ export function MoveTree({
             cx={x}
             cy={y}
             r={radius}
-            fill={fill}
+            fill={
+              isPass
+                ? "#f5f5f5"
+                : stone === 1
+                  ? "#222"
+                  : "#fff"
+            }
             stroke={strokeColor}
             stroke-width={strokeWidth}
           />
         )}
-        {!isRoot && isPass && (
+        {!isFinalized && !isRoot && isPass && (
           <text
             x={x}
             y={y}
@@ -241,7 +274,7 @@ export function MoveTree({
             ⋯
           </text>
         )}
-        {!isRoot && !isPass && (
+        {!isFinalized && !isRoot && !isPass && (
           <text
             x={x}
             y={y}

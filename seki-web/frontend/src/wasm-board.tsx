@@ -121,6 +121,8 @@ function renderMoveTree(
   engine: WasmEngine,
   moveTreeEl: HTMLElement,
   doRender: () => void,
+  finalizedNodeIds?: Set<number>,
+  direction?: "horizontal" | "vertical",
 ): void {
   const treeJson = engine.tree_json();
   const tree: GameTreeData = JSON.parse(treeJson);
@@ -146,6 +148,8 @@ function renderMoveTree(
       tree={tree}
       currentNodeId={currentNodeId}
       scrollContainer={moveTreeEl}
+      finalizedNodeIds={finalizedNodeIds}
+      direction={direction}
       onNavigate={(nodeId) => {
         if (nodeId === rootId) {
           engine.to_start();
@@ -187,8 +191,10 @@ export type TerritoryInfo = {
 export type BoardConfig = {
   cols: number;
   rows: number;
+  handicap?: number;
   gobanEl: GameDomElements["goban"];
   moveTreeEl?: HTMLElement | null;
+  moveTreeDirection?: "horizontal" | "vertical" | "responsive";
   storageKey?: string;
   baseMoves?: string;
   komi?: number;
@@ -216,10 +222,22 @@ export type Board = {
   destroy: () => void;
 };
 
+const wideQuery = window.matchMedia("(min-width: 1200px)");
+
 export async function createBoard(config: BoardConfig): Promise<Board> {
   const wasm = await ensureWasm();
   const engine = new wasm.WasmEngine(config.cols, config.rows);
+  if (config.handicap && config.handicap >= 2) {
+    engine.set_handicap(config.handicap);
+  }
   const komi = config.komi ?? 6.5;
+
+  function resolveTreeDirection(): "horizontal" | "vertical" | undefined {
+    if (config.moveTreeDirection === "responsive") {
+      return wideQuery.matches ? "vertical" : "horizontal";
+    }
+    return config.moveTreeDirection;
+  }
 
   // Base moves the board can be reset to (e.g. game moves from WS)
   let baseMoves = config.baseMoves ?? "[]";
@@ -233,7 +251,16 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     if (!engine.replace_tree(saved)) {
       engine.replace_moves(saved);
     }
-    engine.to_latest();
+    // Restore saved position instead of always going to latest
+    const savedNodeId = config.storageKey
+      ? localStorage.getItem(`${config.storageKey}:node`)
+      : null;
+    if (savedNodeId != null) {
+      const id = parseInt(savedNodeId, 10);
+      engine.navigate_to(id);
+    } else {
+      engine.to_latest();
+    }
   } else if (baseMoves !== "[]") {
     engine.replace_moves(baseMoves);
     engine.to_latest();
@@ -409,11 +436,23 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     renderFromEngine(engine, config.gobanEl, onVertexClick, overlay);
 
     if (config.moveTreeEl) {
-      renderMoveTree(engine, config.moveTreeEl, doRender);
+      const fIds =
+        finalizedNodes.size > 0
+          ? new Set(finalizedNodes.keys())
+          : undefined;
+      renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection());
     }
 
     if (config.navButtons) {
       updateNavButtons(engine, config.navButtons);
+    }
+
+    // Persist current node for restore on refresh
+    if (config.storageKey) {
+      localStorage.setItem(
+        `${config.storageKey}:node`,
+        String(engine.current_node_id()),
+      );
     }
 
     if (config.onRender) {
@@ -451,7 +490,11 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         engine.to_latest();
       }
       if (config.moveTreeEl) {
-        renderMoveTree(engine, config.moveTreeEl, doRender);
+        const fIds =
+          finalizedNodes.size > 0
+            ? new Set(finalizedNodes.keys())
+            : undefined;
+        renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection());
       }
     }
   }
@@ -529,6 +572,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         if (config.storageKey) {
           localStorage.removeItem(config.storageKey);
           localStorage.removeItem(`${config.storageKey}:finalized`);
+          localStorage.removeItem(`${config.storageKey}:node`);
         }
         territoryState = undefined;
         finalizedNodes = new Map();
