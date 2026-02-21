@@ -515,10 +515,10 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       const branchId = config.branchAtBaseTip && baseMoveCount > 0
         ? baseMoveCount - 1
         : undefined;
-      const totalNodes = engine.total_moves();
+      const treeSize = engine.tree_node_count();
       const hasAnalysis = branchId != null
-        ? totalNodes > branchId + 1
-        : totalNodes > 0;
+        ? treeSize > baseMoveCount
+        : treeSize > 0;
       renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId, hasAnalysis ? doReset : undefined);
     }
 
@@ -577,10 +577,10 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         const branchId = config.branchAtBaseTip && baseMoveCount > 0
           ? baseMoveCount - 1
           : undefined;
-        const totalNodes = engine.total_moves();
+        const treeSize = engine.tree_node_count();
         const hasAnalysis = branchId != null
-          ? totalNodes > branchId + 1
-          : totalNodes > 0;
+          ? treeSize > baseMoveCount
+          : treeSize > 0;
         renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId, hasAnalysis ? doReset : undefined);
       }
     }

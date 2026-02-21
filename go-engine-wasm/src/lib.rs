@@ -98,6 +98,10 @@ impl WasmEngine {
         }
     }
 
+    pub fn tree_node_count(&self) -> usize {
+        self.inner.tree().len()
+    }
+
     pub fn tree_json(&self) -> String {
         serde_json::to_string(self.inner.tree())
             .unwrap_or_else(|_| r#"{"nodes":[],"root_children":[]}"#.to_string())
