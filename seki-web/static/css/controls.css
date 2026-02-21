@@ -6,6 +6,10 @@
   justify-content: center;
   margin-top: 0.5em;
   max-width: 100%;
+  button {
+    font-size: 1.3em;
+    font-family: monospace;
+  }
 }
 
 .move-tree {

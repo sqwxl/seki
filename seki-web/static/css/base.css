@@ -79,6 +79,7 @@ a,
 a:visited,
 button.link {
   color: inherit;
+  text-decoration: none;
 }
 
 button.link {

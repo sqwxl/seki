@@ -74,6 +74,7 @@ export type LabelOpts = {
   name: string;
   captures: string;
   clock?: string;
+  profileUrl?: string;
   isOnline?: boolean;
   isTurn?: boolean;
 };
@@ -85,7 +86,18 @@ export function setLabel(el: HTMLElement, opts: LabelOpts): void {
   const dotEl = el.querySelector(".presence-dot");
   const turnEl = el.querySelector(".turn-indicator");
   if (nameEl) {
-    nameEl.textContent = opts.name;
+    if (opts.profileUrl) {
+      let a = nameEl.querySelector("a");
+      if (!a) {
+        nameEl.textContent = "";
+        a = document.createElement("a");
+        nameEl.appendChild(a);
+      }
+      a.href = opts.profileUrl;
+      a.textContent = opts.name;
+    } else {
+      nameEl.textContent = opts.name;
+    }
   }
   if (pointsEl) {
     pointsEl.textContent = opts.captures;
@@ -123,6 +135,8 @@ export function updatePlayerLabels(
   const { black, white } = ctx;
   const bName = `${blackSymbol()} ${black ? black.display_name : "…"}`;
   const wName = `${whiteSymbol()} ${white ? white.display_name : "…"}`;
+  const bUrl = black ? `/users/${black.display_name}` : undefined;
+  const wUrl = white ? `/users/${white.display_name}` : undefined;
   const bOnline = black ? ctx.onlineUsers.has(black.id) : false;
   const wOnline = white ? ctx.onlineUsers.has(white.id) : false;
   const bTurn = ctx.gameStage === GameStage.BlackToPlay;
@@ -150,12 +164,14 @@ export function updatePlayerLabels(
     setLabel(topEl, {
       name: bName,
       captures: bStr,
+      profileUrl: bUrl,
       isOnline: bOnline,
       isTurn: bTurn,
     });
     setLabel(bottomEl, {
       name: wName,
       captures: wStr,
+      profileUrl: wUrl,
       isOnline: wOnline,
       isTurn: wTurn,
     });
@@ -163,12 +179,14 @@ export function updatePlayerLabels(
     setLabel(topEl, {
       name: wName,
       captures: wStr,
+      profileUrl: wUrl,
       isOnline: wOnline,
       isTurn: wTurn,
     });
     setLabel(bottomEl, {
       name: bName,
       captures: bStr,
+      profileUrl: bUrl,
       isOnline: bOnline,
       isTurn: bTurn,
     });
