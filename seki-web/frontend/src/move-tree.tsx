@@ -78,6 +78,16 @@ export function MoveTree({
     return null;
   }
 
+  // Compute active path: ancestors from current node to root
+  const activePath = new Set<number>();
+  if (currentNodeId >= 0 && currentNodeId < tree.nodes.length) {
+    let id: number | null = currentNodeId;
+    while (id != null) {
+      activePath.add(id);
+      id = tree.nodes[id].parent;
+    }
+  }
+
   const maxCol = layout.reduce((m, n) => Math.max(m, n.col), 0);
   const maxRow = layout.reduce((m, n) => Math.max(m, n.row), 0);
 
@@ -200,9 +210,16 @@ export function MoveTree({
     const isFinalized = finalizedNodeIds?.has(node.id) ?? false;
 
     const isRoot = stone === 0;
-    const radius = isCurrent ? NODE_RADIUS * 1.4 : NODE_RADIUS;
-    const strokeColor = "#555";
-    const strokeWidth = 1.2;
+    const onPath = isRoot || activePath.has(node.id);
+    const radius = NODE_RADIUS;
+    // Active: heavier stroke for path emphasis; muted: lighter stroke
+    const strokeColor = onPath ? "#444" : "#aaa";
+    const strokeWidth = onPath ? 2 : 1;
+    // Muted fills: #666/#ccc give 3.6:1 contrast between muted black/white
+    const blackFill = onPath ? "#222" : "#666";
+    const whiteFill = onPath ? "#fff" : "#ddd";
+    const stoneFill = stone === 1 ? blackFill : whiteFill;
+    const textFill = stone === 1 ? "#fff" : "#222";
 
     nodes.push(
       <g
@@ -215,13 +232,13 @@ export function MoveTree({
             {/* Split circle: left=black, right=white */}
             <path
               d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 0 ${x} ${y + radius} Z`}
-              fill="#222"
+              fill={blackFill}
               stroke={strokeColor}
               stroke-width={strokeWidth}
             />
             <path
               d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 1 ${x} ${y + radius} Z`}
-              fill="#fff"
+              fill={whiteFill}
               stroke={strokeColor}
               stroke-width={strokeWidth}
             />
@@ -250,7 +267,7 @@ export function MoveTree({
               y1={y - radius}
               x2={x}
               y2={y + radius}
-              stroke={strokeColor}
+              stroke="#555"
               stroke-width={2}
             />
           </>
@@ -261,7 +278,7 @@ export function MoveTree({
             width={radius * 2}
             height={radius * 2}
             rx={2}
-            fill={stone === 1 ? "#222" : "#fff"}
+            fill={stoneFill}
             stroke={strokeColor}
             stroke-width={strokeWidth}
           />
@@ -270,7 +287,7 @@ export function MoveTree({
             cx={x}
             cy={y}
             r={radius}
-            fill={stone === 1 ? "#222" : "#fff"}
+            fill={stoneFill}
             stroke={strokeColor}
             stroke-width={strokeWidth}
           />
@@ -282,7 +299,7 @@ export function MoveTree({
             text-anchor="middle"
             dominant-baseline="central"
             font-size={10}
-            fill={stone === 1 ? "#fff" : "#222"}
+            fill={textFill}
           >
             {node.col}
           </text>
