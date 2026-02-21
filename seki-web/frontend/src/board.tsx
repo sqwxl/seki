@@ -144,6 +144,7 @@ function renderMoveTree(
   doRender: () => void,
   finalizedNodeIds?: Set<number>,
   direction?: "horizontal" | "vertical",
+  branchAfterNodeId?: number,
 ): void {
   const treeJson = engine.tree_json();
   const tree: GameTreeData = JSON.parse(treeJson);
@@ -170,6 +171,7 @@ function renderMoveTree(
       currentNodeId={currentNodeId}
       scrollContainer={moveTreeEl}
       finalizedNodeIds={finalizedNodeIds}
+      branchAfterNodeId={branchAfterNodeId}
       direction={direction}
       onNavigate={(nodeId) => {
         if (nodeId === rootId) {
@@ -219,6 +221,7 @@ export type BoardConfig = {
   moveTreeDirection?: "horizontal" | "vertical" | "responsive";
   storageKey?: string;
   baseMoves?: string;
+  branchAtBaseTip?: boolean;
   komi?: number;
   navButtons?: NavButtons;
   buttons?: {
@@ -247,6 +250,7 @@ export type Board = {
   isTerritoryReview: () => boolean;
   isFinalized: () => boolean;
   destroy: () => void;
+  savedBaseMoves?: string;
 };
 
 const wideQuery = window.matchMedia("(min-width: 1200px)");
@@ -269,15 +273,24 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   // Base moves the board can be reset to (e.g. game moves from WS)
   let baseMoves = config.baseMoves ?? "[]";
+  let baseMoveCount = (JSON.parse(baseMoves) as unknown[]).length;
 
   // Initialize from localStorage or baseMoves
   const saved = config.storageKey
     ? localStorage.getItem(config.storageKey)
     : null;
+  let restoredBaseMoves: string | undefined;
   if (saved) {
     // Try restoring a tree first, fall back to flat moves
     if (!engine.replace_tree(saved)) {
       engine.replace_moves(saved);
+    }
+    // Restore saved base move count for correct tree branching
+    const savedBase = localStorage.getItem(`${config.storageKey}:base`);
+    if (savedBase) {
+      baseMoves = savedBase;
+      baseMoveCount = (JSON.parse(savedBase) as unknown[]).length;
+      restoredBaseMoves = savedBase;
     }
     // Restore saved position instead of always going to latest
     const savedNodeId = config.storageKey
@@ -401,6 +414,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
   function save() {
     if (config.storageKey) {
       localStorage.setItem(config.storageKey, engine.tree_json());
+      localStorage.setItem(`${config.storageKey}:base`, baseMoves);
     }
   }
 
@@ -478,7 +492,10 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         finalizedNodes.size > 0
           ? new Set(finalizedNodes.keys())
           : undefined;
-      renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection());
+      const branchId = config.branchAtBaseTip && baseMoveCount > 0
+        ? baseMoveCount - 1
+        : undefined;
+      renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId);
     }
 
     if (config.navButtons) {
@@ -521,6 +538,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   function doUpdateBaseMoves(movesJson: string, replaceEngine = true) {
     baseMoves = movesJson;
+    baseMoveCount = (JSON.parse(movesJson) as unknown[]).length;
     if (replaceEngine) {
       const wasAtLatest = engine.is_at_latest();
       engine.replace_moves(movesJson);
@@ -532,7 +550,10 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
           finalizedNodes.size > 0
             ? new Set(finalizedNodes.keys())
             : undefined;
-        renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection());
+        const branchId = config.branchAtBaseTip && baseMoveCount > 0
+          ? baseMoveCount - 1
+          : undefined;
+        renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId);
       }
     }
   }
@@ -611,6 +632,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       () => {
         if (config.storageKey) {
           localStorage.removeItem(config.storageKey);
+          localStorage.removeItem(`${config.storageKey}:base`);
           localStorage.removeItem(`${config.storageKey}:finalized`);
           localStorage.removeItem(`${config.storageKey}:node`);
         }
@@ -675,5 +697,6 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     isTerritoryReview: () => !!territoryState,
     isFinalized: isCurrentFinalized,
     destroy: () => abortController.abort(),
+    savedBaseMoves: restoredBaseMoves,
   };
 }

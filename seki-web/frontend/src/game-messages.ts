@@ -15,12 +15,14 @@ export type GameMessageDeps = {
   clockState: ClockState;
   channel: GameChannel;
   resolveSender: SenderResolver;
+  onNewMove?: () => void;
 };
 
 function syncBoardMoves(
   ctx: GameCtx,
   playEffects: boolean,
   gobanEl: HTMLElement,
+  onNewMove?: () => void,
 ): void {
   if (!ctx.board) {
     return;
@@ -38,6 +40,7 @@ function syncBoardMoves(
     }
     ctx.movesJson = newMovesJson;
     ctx.board.updateBaseMoves(ctx.movesJson, !ctx.analysisMode);
+    onNewMove?.();
   }
   if (!ctx.analysisMode && ctx.board.engine.is_at_latest()) {
     ctx.board.render();
@@ -50,7 +53,7 @@ export function handleGameMessage(
   deps: GameMessageDeps,
 ): void {
   const data = raw as IncomingMessage;
-  const { ctx, dom, clockState, channel, resolveSender } = deps;
+  const { ctx, dom, clockState, channel, resolveSender, onNewMove } = deps;
 
   console.debug("Game message:", data);
 
@@ -71,7 +74,7 @@ export function handleGameMessage(
         ctx.onlineUsers = new Set(data.online_users);
       }
 
-      syncBoardMoves(ctx, true, dom.goban);
+      syncBoardMoves(ctx, true, dom.goban, onNewMove);
       updateControls(ctx, dom);
       updateTitle(ctx, dom.title);
       updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);

@@ -80,6 +80,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     moveTreeDirection: "responsive",
     storageKey: ctx.analysisStorageKey,
     baseMoves: ctx.moves.length > 0 ? JSON.stringify(ctx.moves) : undefined,
+    branchAtBaseTip: true,
     navButtons: findNavButtons(),
     buttons: { pass: dom.passBtn, reset: dom.resetBtn },
     ghostStone: getGhostStone,
@@ -87,11 +88,22 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     onVertexClick: (col, row) => handleVertexClick(col, row),
     onStonePlay: playStoneSound,
     onPass: playPassSound,
-    onRender: () => updateControls(ctx, dom),
+    onRender: (engine) => {
+      // Auto-enter analysis when navigating away from latest game move
+      if (!ctx.analysisMode && engine.view_index() < ctx.moves.length) {
+        enterAnalysis();
+      }
+      updateControls(ctx, dom);
+    },
   }).then((b) => {
     ctx.board = b;
-    if (ctx.moves.length > 0) {
-      ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
+    if (b.savedBaseMoves) {
+      // Restored analysis from localStorage — pre-populate movesJson
+      // so the initial WS state sync doesn't wipe the tree
+      ctx.movesJson = b.savedBaseMoves;
+      enterAnalysis();
+    } else if (ctx.moves.length > 0) {
+      ctx.board.updateBaseMoves(JSON.stringify(ctx.moves), false);
     }
     ctx.board.render();
     ctx.board.updateNav();
@@ -107,11 +119,19 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     }
   }
 
-  function exitAnalysis() {
+  function exitAnalysis(replaceBaseMoves = false) {
     ctx.premove = undefined;
     ctx.analysisMode = false;
     if (ctx.board) {
-      ctx.board.engine.to_latest();
+      if (replaceBaseMoves) {
+        ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
+      }
+      const moveCount = ctx.moves.length;
+      if (moveCount > 0) {
+        ctx.board.engine.navigate_to(moveCount - 1);
+      } else {
+        ctx.board.engine.to_start();
+      }
       ctx.board.render();
     }
     updateControls(ctx, dom);
@@ -171,7 +191,14 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   };
 
   // --- WebSocket ---
-  const deps = { ctx, dom, clockState, channel, resolveSender };
+  const deps = {
+    ctx, dom, clockState, channel, resolveSender,
+    onNewMove: () => {
+      if (ctx.analysisMode) {
+        exitAnalysis(true);
+      }
+    },
+  };
   joinGame(gameId, (raw) => handleGameMessage(raw, deps));
 
   // --- Event listeners ---

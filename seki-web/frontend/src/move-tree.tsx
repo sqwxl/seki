@@ -13,7 +13,7 @@ type LayoutNode = {
   row: number;
 };
 
-function layoutTree(tree: GameTreeData): LayoutNode[] {
+function layoutTree(tree: GameTreeData, branchAfterNodeId?: number): LayoutNode[] {
   if (tree.nodes.length === 0) {
     return [];
   }
@@ -25,12 +25,13 @@ function layoutTree(tree: GameTreeData): LayoutNode[] {
     layout[nodeId] = { id: nodeId, col, row };
 
     const children = tree.nodes[nodeId].children;
+    const allBranch = nodeId === branchAfterNodeId;
     for (let i = 0; i < children.length; i++) {
-      if (i === 0) {
+      if (i === 0 && !allBranch) {
         // First child stays on the same row
         walk(children[i], col + 1, row);
       } else {
-        // Additional children get new rows
+        // Additional children (or all children when branching) get new rows
         nextRow++;
         walk(children[i], col + 1, nextRow);
       }
@@ -55,6 +56,7 @@ type MoveTreeProps = {
   currentNodeId: number;
   scrollContainer: HTMLElement;
   finalizedNodeIds?: Set<number>;
+  branchAfterNodeId?: number;
   direction?: "horizontal" | "vertical";
   onNavigate: (nodeId: number) => void;
 };
@@ -64,10 +66,11 @@ export function MoveTree({
   currentNodeId,
   scrollContainer,
   finalizedNodeIds,
+  branchAfterNodeId,
   direction = "horizontal",
   onNavigate,
 }: MoveTreeProps) {
-  const layout = layoutTree(tree);
+  const layout = layoutTree(tree, branchAfterNodeId);
   const vertical = direction === "vertical";
 
   if (layout.length === 0) {
