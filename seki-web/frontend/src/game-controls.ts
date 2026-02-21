@@ -6,6 +6,7 @@ export function updateControls(ctx: GameCtx, dom: GameDomElements): void {
   if (ctx.analysisMode) {
     if (dom.passBtn) {
       dom.passBtn.style.display = "";
+      dom.passBtn.disabled = false;
     }
     if (dom.resignBtn) {
       dom.resignBtn.style.display = "none";

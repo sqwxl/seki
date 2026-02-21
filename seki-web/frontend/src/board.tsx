@@ -631,8 +631,12 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     config.buttons.pass?.addEventListener(
       "click",
       () => {
-        if (territoryState || isCurrentFinalized()) {
+        const stage = engine.stage();
+        if (isCurrentFinalized() || stage === "territory_review" || stage === "done") {
           return;
+        }
+        if (territoryState) {
+          territoryState = undefined;
         }
         if (engine.pass()) {
           config.onPass?.();
