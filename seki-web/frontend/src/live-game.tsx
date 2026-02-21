@@ -2,6 +2,7 @@ import { GameStage, type InitialGameProps, type Point, type Sign } from "./goban
 import { createBoard, findNavButtons, type TerritoryOverlay } from "./board";
 import { renderChatHistory, setupChat, type SenderResolver } from "./chat";
 import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
+import { readMoveConfirmation, setupMoveConfirmToggle } from "./move-confirm";
 import { blackSymbol, whiteSymbol } from "./format";
 import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
@@ -37,6 +38,14 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   // --- Coordinate toggle ---
   const showCoordinates = readShowCoordinates();
   setupCoordToggle(() => ctx.board);
+
+  // --- Move confirmation toggle ---
+  let moveConfirmEnabled = readMoveConfirmation();
+  setupMoveConfirmToggle((v) => {
+    moveConfirmEnabled = v;
+    ctx.premove = undefined;
+    ctx.board?.render();
+  });
 
   // --- Ghost stone (premove) getter ---
   function getGhostStone(): { col: number; row: number; sign: Sign } | undefined {
@@ -121,8 +130,18 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     }
     const isMyTurn = ctx.currentTurn === ctx.playerStone;
     if (isMyTurn) {
-      ctx.premove = undefined;
-      channel.play(col, row);
+      if (!moveConfirmEnabled) {
+        ctx.premove = undefined;
+        channel.play(col, row);
+      } else if (ctx.premove && ctx.premove[0] === col && ctx.premove[1] === row) {
+        // Confirm: same position clicked twice
+        ctx.premove = undefined;
+        channel.play(col, row);
+      } else {
+        // Show ghost stone at clicked position
+        ctx.premove = [col, row];
+        ctx.board.render();
+      }
     } else {
       // Toggle premove
       if (ctx.premove && ctx.premove[0] === col && ctx.premove[1] === row) {
