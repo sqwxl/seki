@@ -13,4 +13,4 @@ frontend:
     cd seki-web/frontend && pnpm run dev
 
 server:
-    cargo watch -x 'run -p seki-web'
+    cargo watch -i .claude/worktrees -x 'run -p seki-web'
