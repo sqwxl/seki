@@ -100,7 +100,7 @@ export function MoveTree({
 
   function cx(col: number, row: number): number {
     return vertical
-      ? PADDING + row * ROW_SPACING
+      ? PADDING + (maxRow - row) * ROW_SPACING
       : PADDING + (col + 1) * COL_SPACING;
   }
   function cy(col: number, row: number): number {
@@ -335,7 +335,8 @@ export function MoveTree({
           scrollBehavior: "smooth",
         }}
       >
-        <svg width={svgWidth} height={svgHeight}>
+        <svg style={vertical ? { display: "block", marginLeft: "auto" } : undefined}
+          width={svgWidth} height={svgHeight}>
           {edges}
           {nodes}
         </svg>
