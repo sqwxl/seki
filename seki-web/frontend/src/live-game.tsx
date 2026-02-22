@@ -109,6 +109,13 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
           ctx.board?.render();
         },
       },
+      moveTreeToggle: {
+        enabled: showMoveTree,
+        onClick: () => {
+          setMoveTree(!showMoveTree);
+          doRenderControls();
+        },
+      },
     };
 
     if (ctx.analysisMode) {
@@ -255,26 +262,35 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     doRenderControls();
   });
 
-  // --- Analysis helpers ---
-  let moveTreeEl: HTMLDivElement | undefined;
+  // --- Move tree helpers ---
+  let showMoveTree = false;
+  const moveTreeEl = document.createElement("div");
+  moveTreeEl.className = "move-tree";
 
+  function setMoveTree(visible: boolean) {
+    showMoveTree = visible;
+    if (visible) {
+      // Insert after #game, before #chat (if not already in DOM)
+      if (!moveTreeEl.parentElement) {
+        const gameEl = dom.goban.closest("#game");
+        if (gameEl) {
+          gameEl.after(moveTreeEl);
+        }
+      }
+      ctx.board?.setMoveTreeEl(moveTreeEl);
+    } else {
+      moveTreeEl.remove();
+      ctx.board?.setMoveTreeEl(null);
+    }
+    ctx.board?.render();
+  }
+
+  // --- Analysis helpers ---
   function enterAnalysis() {
     pm.clear();
     ctx.analysisMode = true;
     dom.goban.classList.add("goban-analysis");
-    if (!moveTreeEl) {
-      moveTreeEl = document.createElement("div");
-      moveTreeEl.className = "move-tree";
-      // Insert after #game, before #chat
-      const gameEl = dom.goban.closest("#game");
-      if (gameEl) {
-        gameEl.after(moveTreeEl);
-      }
-    }
-    if (ctx.board) {
-      ctx.board.setMoveTreeEl(moveTreeEl);
-      ctx.board.render();
-    }
+    setMoveTree(true);
     doRenderControls();
   }
 
@@ -282,12 +298,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     pm.clear();
     ctx.analysisMode = false;
     dom.goban.classList.remove("goban-analysis");
-    if (moveTreeEl) {
-      moveTreeEl.remove();
-      moveTreeEl = undefined;
-    }
+    setMoveTree(false);
     if (ctx.board) {
-      ctx.board.setMoveTreeEl(null);
       ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
       ctx.board.render();
     }

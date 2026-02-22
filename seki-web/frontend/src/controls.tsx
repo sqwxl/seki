@@ -4,7 +4,7 @@ import {
   IconPlaybackPrev, IconPlaybackRewind, IconPlaybackForward, IconPlaybackNext,
   IconPass, IconBalance, IconUndo, IconWhiteFlag, IconAnalysis,
   IconFileUpload, IconFileExport, IconCheck, IconX,
-  IconTouchSingle, IconTouchDouble,
+  IconTouchSingle, IconTouchDouble, IconGraph,
 } from "./icons";
 
 type ButtonDef = {
@@ -41,6 +41,8 @@ export type ControlsProps = {
   acceptTerritory?: ConfirmDef & { disabled?: boolean };
   analyze?: ButtonDef;
   exitAnalysis?: ButtonDef;
+  estimate?: ButtonDef;
+  exitEstimate?: ButtonDef;
   sgfImport?: { onFileChange: (input: HTMLInputElement) => void };
   sgfExport?: ButtonDef;
 
@@ -51,6 +53,7 @@ export type ControlsProps = {
   // Toggles
   coordsToggle?: { enabled: boolean; onClick: () => void };
   moveConfirmToggle?: { enabled: boolean; onClick: () => void };
+  moveTreeToggle?: { enabled: boolean; onClick: () => void };
 
   // Confirm move button
   confirmMove?: ButtonDef;
@@ -149,7 +152,7 @@ function AnalysisControls(props: ControlsProps) {
           <IconFileExport />
         </button>
       )}
-      <ToggleButtons coordsToggle={props.coordsToggle} moveConfirmToggle={props.moveConfirmToggle} />
+      <ToggleButtons coordsToggle={props.coordsToggle} moveConfirmToggle={props.moveConfirmToggle} moveTreeToggle={props.moveTreeToggle} />
     </div>
   );
 }
@@ -196,15 +199,20 @@ function LiveControls(props: ControlsProps) {
               <IconAnalysis />
             </button>
           )}
-          {props.exitAnalysis && (
-            <button onClick={props.exitAnalysis.onClick}>Back to game</button>
+          {props.estimate && (
+            <button title={props.estimate.title ?? "Estimate score"} onClick={props.estimate.onClick}>
+              <IconBalance />
+            </button>
+          )}
+          {(props.exitAnalysis || props.exitEstimate) && (
+            <button onClick={(props.exitAnalysis ?? props.exitEstimate)!.onClick}>Back to game</button>
           )}
           {props.sgfExport && (
             <button title={props.sgfExport.title ?? "Export SGF"} onClick={props.sgfExport.onClick}>
               <IconFileExport />
             </button>
           )}
-          <ToggleButtons coordsToggle={props.coordsToggle} moveConfirmToggle={props.moveConfirmToggle} />
+          <ToggleButtons coordsToggle={props.coordsToggle} moveConfirmToggle={props.moveConfirmToggle} moveTreeToggle={props.moveTreeToggle} />
         </span>
       </div>
     </>
@@ -242,9 +250,10 @@ function SgfImportButton({ onFileChange }: { onFileChange: (input: HTMLInputElem
   );
 }
 
-function ToggleButtons({ coordsToggle, moveConfirmToggle }: {
+function ToggleButtons({ coordsToggle, moveConfirmToggle, moveTreeToggle }: {
   coordsToggle?: ControlsProps["coordsToggle"];
   moveConfirmToggle?: ControlsProps["moveConfirmToggle"];
+  moveTreeToggle?: ControlsProps["moveTreeToggle"];
 }) {
   return (
     <>
@@ -258,6 +267,15 @@ function ToggleButtons({ coordsToggle, moveConfirmToggle }: {
             : "Move confirmation: OFF (click to enable)"}
           onClick={moveConfirmToggle.onClick}>
           {moveConfirmToggle.enabled ? <IconTouchDouble /> : <IconTouchSingle />}
+        </button>
+      )}
+      {moveTreeToggle && (
+        <button
+          title={moveTreeToggle.enabled
+            ? "Hide move tree"
+            : "Show move tree"}
+          onClick={moveTreeToggle.onClick}>
+          <IconGraph />
         </button>
       )}
     </>
