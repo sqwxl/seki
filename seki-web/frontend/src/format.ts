@@ -102,6 +102,7 @@ function isPlayStage(stage: string): boolean {
 }
 
 type DescriptionInput = {
+  creator_id: number | undefined;
   black: UserData | undefined;
   white: UserData | undefined;
   settings: GameSettings;
@@ -114,8 +115,12 @@ export function formatGameDescription(g: DescriptionInput): string {
   const b = g.black?.display_name ?? "?";
   const w = g.white?.display_name ?? "?";
 
+  const creatorIsWhite = g.creator_id != null && g.white?.id === g.creator_id;
+  const first = creatorIsWhite ? `${w} ${whiteSymbol()}` : `${b} ${blackSymbol()}`;
+  const second = creatorIsWhite ? `${b} ${blackSymbol()}` : `${w} ${whiteSymbol()}`;
+
   const parts: string[] = [
-    `${b} ${blackSymbol()} vs ${w} ${whiteSymbol()}`,
+    `${first} vs ${second}`,
     formatSize(g.settings.cols, g.settings.rows),
   ];
 

@@ -1,7 +1,10 @@
+import { render } from "preact";
+import { createElement } from "preact";
 import { GameStage, isPlayStage } from "./goban/types";
 import type { ScoreData } from "./goban/types";
 import type { GameCtx } from "./game-context";
 import { formatGameDescription, blackSymbol, whiteSymbol, formatPoints } from "./format";
+import { GameDescription } from "./game-description";
 import { renderPlayerLabel } from "./player-label";
 import type { ClockState } from "./game-clock";
 import { computeClockDisplay } from "./game-clock";
@@ -51,17 +54,20 @@ export function updateTurnFlash(ctx: GameCtx): void {
 }
 
 export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
-  const desc = formatGameDescription({
+  const props = {
+    id: ctx.gameId,
+    creator_id: ctx.initialProps.creator_id,
     black: ctx.black,
     white: ctx.white,
     settings: ctx.initialProps.settings,
     stage: ctx.gameStage,
-    result: ctx.result,
+    result: ctx.result ?? undefined,
     move_count: ctx.moves.length > 0 ? ctx.moves.length : undefined,
-  });
+  };
   if (titleEl) {
-    titleEl.textContent = desc;
+    render(createElement(GameDescription, props), titleEl);
   }
+  const desc = formatGameDescription(props);
   if (!flashInterval) {
     document.title = desc;
   } else {

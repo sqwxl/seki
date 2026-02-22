@@ -211,6 +211,7 @@ pub async fn show_game(
 
     let game_props = serde_json::to_string(&InitialGameProps {
         state: engine.game_state(),
+        creator_id: gwp.game.creator_id,
         black: gwp.black.as_ref().map(UserData::from),
         white: gwp.white.as_ref().map(UserData::from),
         komi: gwp.game.komi,

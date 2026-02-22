@@ -121,6 +121,7 @@ export type GameSettings = {
 // Baked into the #game element dataset as JSON on initial render
 export type InitialGameProps = {
   state: GameState;
+  creator_id: number | undefined;
   black: UserData | null;
   white: UserData | null;
   komi: number;
