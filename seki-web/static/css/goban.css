@@ -67,6 +67,7 @@
   gap: 0.35em;
   min-width: 0;
   overflow: hidden;
+  line-height: 1;
 }
 
 .player-name {
@@ -79,6 +80,7 @@
   display: flex;
   align-items: center;
   gap: 0.5em;
+  line-height: 1;
 }
 
 .turn-indicator {
@@ -90,6 +92,7 @@
 }
 
 .icon,
+.turn-indicator,
 .stone-icon,
 .captures-icon {
   display: inline-flex;

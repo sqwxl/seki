@@ -5,7 +5,7 @@ import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
 import { readMoveConfirmation, setupMoveConfirmToggle } from "./move-confirm";
 import { blackSymbol, whiteSymbol } from "./format";
 import {
-  setIcon, setIconAll, asteriskSvg, checkSvg, xSvg,
+  setIcon, setIconAll, checkSvg, xSvg,
   playbackPrevSvg, playbackRewindSvg, playbackForwardSvg, playbackNextSvg,
   undoSvg, passSvg, whiteFlagSvg, analysisSvg, fileExportSvg,
 } from "./icons";
@@ -13,7 +13,7 @@ import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
 import { createGameChannel } from "./game-channel";
 import { queryGameDom } from "./game-dom";
-import { updateTitle, updatePlayerLabels, updateStatus, updateTurnFlash } from "./game-ui";
+import { updateTitle, renderPlayerLabels, updateStatus, updateTurnFlash } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
 import { updateControls } from "./game-controls";
 import { handleGameMessage } from "./game-messages";
@@ -60,7 +60,6 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   setIcon("resign-btn", whiteFlagSvg);
   setIcon("analyze-btn", analysisSvg);
   setIcon("sgf-export", fileExportSvg);
-  setIconAll(".turn-indicator", asteriskSvg);
   setIconAll(".confirm-yes", checkSvg);
   setIconAll(".confirm-no", xSvg);
 
@@ -112,8 +111,11 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     onStonePlay: playStoneSound,
     onPass: playPassSound,
     onRender: (engine) => {
-      // Auto-enter analysis when navigating away from latest game move
-      if (!ctx.analysisMode && engine.view_index() < ctx.moves.length) {
+      // Auto-enter analysis when navigating away from latest game move.
+      // Guard on ctx.board to skip the initial render inside createBoard(),
+      // where the engine has no moves yet but ctx.moves may already be
+      // populated from a WS message that arrived during WASM loading.
+      if (ctx.board && !ctx.analysisMode && engine.view_index() < ctx.moves.length) {
         enterAnalysis();
       }
       updateControls(ctx, dom);
@@ -199,9 +201,12 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     return `${name} ${symbol}`;
   };
 
+  // --- Render labels closure ---
+  const renderLabels = () => renderPlayerLabels(ctx, dom.playerTop, dom.playerBottom, clockState);
+
   // --- WebSocket ---
   const deps = {
-    ctx, dom, clockState, territoryCountdown, channel, resolveSender,
+    ctx, dom, clockState, territoryCountdown, channel, resolveSender, renderLabels,
     onNewMove: () => {
       if (ctx.analysisMode) {
         exitAnalysis();
@@ -290,7 +295,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
 
   // --- Initial render ---
   updateTitle(ctx, dom.title);
-  updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
+  renderLabels();
   updateStatus(ctx, dom.status);
   updateControls(ctx, dom);
 

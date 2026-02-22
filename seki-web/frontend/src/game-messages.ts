@@ -5,7 +5,7 @@ import type { GameChannel } from "./game-channel";
 import type { ClockState } from "./game-clock";
 import { syncClock } from "./game-clock";
 import { updateControls } from "./game-controls";
-import { updateTitle, updatePlayerLabels, updateStatus, updateTurnFlash, syncTerritoryCountdown } from "./game-ui";
+import { updateTitle, updateStatus, updateTurnFlash, syncTerritoryCountdown } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
 import { appendToChat, updateChatPresence, type SenderResolver } from "./chat";
 import { playStoneSound, playPassSound } from "./game-sound";
@@ -17,6 +17,7 @@ export type GameMessageDeps = {
   territoryCountdown: TerritoryCountdown;
   channel: GameChannel;
   resolveSender: SenderResolver;
+  renderLabels: () => void;
   onNewMove?: () => void;
 };
 
@@ -80,10 +81,10 @@ export function handleGameMessage(
       syncBoardMoves(ctx, true, dom.goban, onNewMove);
       updateControls(ctx, dom);
       updateTitle(ctx, dom.title);
-      updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
+      deps.renderLabels();
       updateStatus(ctx, dom.status);
       updateTurnFlash(ctx);
-      syncClock(clockState, data.clock, ctx, dom, () => channel.timeoutFlag());
+      syncClock(clockState, data.clock, ctx, () => channel.timeoutFlag(), deps.renderLabels);
       syncTerritoryCountdown(
         territoryCountdown,
         ctx.territory?.expires_at,
@@ -142,7 +143,7 @@ export function handleGameMessage(
           syncBoardMoves(ctx, false, dom.goban);
         }
         updateControls(ctx, dom);
-        updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
+        deps.renderLabels();
         updateStatus(ctx, dom.status);
       }
       break;
@@ -163,7 +164,7 @@ export function handleGameMessage(
       } else {
         ctx.onlineUsers.delete(data.player_id);
       }
-      updatePlayerLabels(ctx, dom.playerTop, dom.playerBottom);
+      deps.renderLabels();
       updateChatPresence(ctx.onlineUsers);
       break;
     }

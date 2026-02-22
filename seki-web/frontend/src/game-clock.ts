@@ -1,12 +1,18 @@
 import type { ClockData, GameSettings } from "./goban/types";
 import type { GameCtx } from "./game-context";
-import type { GameDomElements } from "./game-dom";
 
 export type ClockState = {
   data: ClockData | undefined;
   syncedAt: number; // performance.now() when data was received
   interval: ReturnType<typeof setInterval> | undefined;
   timeoutFlagSent: boolean;
+};
+
+export type ClockDisplay = {
+  blackText: string;
+  whiteText: string;
+  blackLow: boolean;
+  whiteLow: boolean;
 };
 
 export function formatClock(ms: number, isCorrespondence: boolean): string {
@@ -48,21 +54,9 @@ function totalRemainingMs(
   return remaining;
 }
 
-export function updateClocks(
-  clockState: ClockState,
-  ctx: GameCtx,
-  dom: GameDomElements,
-  onFlag: (() => void) | undefined,
-  settings: GameSettings | undefined,
-): void {
+export function computeClockDisplay(clockState: ClockState): ClockDisplay {
   if (!clockState.data) {
-    if (dom.topClock) {
-      dom.topClock.textContent = "";
-    }
-    if (dom.bottomClock) {
-      dom.bottomClock.textContent = "";
-    }
-    return;
+    return { blackText: "", whiteText: "", blackLow: false, whiteLow: false };
   }
 
   const cd = clockState.data;
@@ -78,16 +72,6 @@ export function updateClocks(
     whiteMs -= elapsed;
   }
 
-  // Check for timeout on the active user
-  if (onFlag && cd.active_stone && !clockState.timeoutFlagSent && settings) {
-    const activeStone = cd.active_stone as 1 | -1;
-    const total = totalRemainingMs(cd, activeStone, elapsed, settings);
-    if (total <= 0) {
-      clockState.timeoutFlagSent = true;
-      onFlag();
-    }
-  }
-
   const blackText = formatClock(blackMs, isCorr);
   const whiteText = formatClock(whiteMs, isCorr);
 
@@ -100,27 +84,29 @@ export function updateClocks(
       ? ` (${cd.white.periods})`
       : "";
 
-  const topClockEl = dom.topClock;
-  const bottomClockEl = dom.bottomClock;
+  return {
+    blackText: blackText + blackPeriods,
+    whiteText: whiteText + whitePeriods,
+    blackLow: blackMs < 10000,
+    whiteLow: whiteMs < 10000,
+  };
+}
 
-  if (ctx.playerStone === -1) {
-    if (topClockEl) {
-      topClockEl.textContent = blackText + blackPeriods;
-      topClockEl.classList.toggle("low-time", blackMs < 10000);
-    }
-    if (bottomClockEl) {
-      bottomClockEl.textContent = whiteText + whitePeriods;
-      bottomClockEl.classList.toggle("low-time", whiteMs < 10000);
-    }
-  } else {
-    if (topClockEl) {
-      topClockEl.textContent = whiteText + whitePeriods;
-      topClockEl.classList.toggle("low-time", whiteMs < 10000);
-    }
-    if (bottomClockEl) {
-      bottomClockEl.textContent = blackText + blackPeriods;
-      bottomClockEl.classList.toggle("low-time", blackMs < 10000);
-    }
+export function checkClockTimeout(
+  clockState: ClockState,
+  settings: GameSettings,
+  onFlag: () => void,
+): void {
+  if (!clockState.data || !clockState.data.active_stone || clockState.timeoutFlagSent) {
+    return;
+  }
+  const cd = clockState.data;
+  const elapsed = performance.now() - clockState.syncedAt;
+  const activeStone = cd.active_stone as 1 | -1;
+  const total = totalRemainingMs(cd, activeStone, elapsed, settings);
+  if (total <= 0) {
+    clockState.timeoutFlagSent = true;
+    onFlag();
   }
 }
 
@@ -128,8 +114,8 @@ export function syncClock(
   clockState: ClockState,
   clockData: ClockData | undefined,
   ctx: GameCtx,
-  dom: GameDomElements,
   onFlag: (() => void) | undefined,
+  renderLabels: () => void,
 ): void {
   clockState.data = clockData;
   clockState.syncedAt = performance.now();
@@ -140,12 +126,17 @@ export function syncClock(
   }
   const settings = ctx.initialProps.settings;
   if (clockState.data && clockState.data.active_stone) {
-    updateClocks(clockState, ctx, dom, onFlag, settings);
-    clockState.interval = setInterval(
-      () => updateClocks(clockState, ctx, dom, onFlag, settings),
-      100,
-    );
+    if (onFlag) {
+      checkClockTimeout(clockState, settings, onFlag);
+    }
+    renderLabels();
+    clockState.interval = setInterval(() => {
+      if (onFlag) {
+        checkClockTimeout(clockState, settings, onFlag);
+      }
+      renderLabels();
+    }, 100);
   } else {
-    updateClocks(clockState, ctx, dom, onFlag, settings);
+    renderLabels();
   }
 }

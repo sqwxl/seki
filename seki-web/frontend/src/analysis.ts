@@ -1,9 +1,14 @@
 import { createBoard, ensureWasm, findNavButtons } from "./board";
 import type { Board } from "./board";
 import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
-import { formatScoreStr, setLabel } from "./game-ui";
+import { readMoveConfirmation, setupMoveConfirmToggle } from "./move-confirm";
+import { formatScoreStr } from "./game-ui";
+import { renderPlayerLabel } from "./player-label";
 import {
+  blackSymbol,
+  whiteSymbol,
   formatPoints,
+  formatSize,
   formatSgfTime,
   formatTime,
 } from "./format";
@@ -11,10 +16,11 @@ import { queryGameDom } from "./game-dom";
 import { playStoneSound, playPassSound } from "./game-sound";
 import { readFileAsText, downloadSgf } from "./sgf-io";
 import type { SgfMeta } from "./sgf-io";
+import type { Point, Sign } from "./goban/types";
 import {
-  setIcon, setIconAll, asteriskSvg,
+  setIcon, checkSvg,
   playbackPrevSvg, playbackRewindSvg, playbackForwardSvg, playbackNextSvg,
-  fileUploadSvg, fileExportSvg,
+  passSvg, balanceSvg, fileUploadSvg, fileExportSvg,
 } from "./icons";
 
 const SIZE_KEY = "seki:analysis:size";
@@ -23,12 +29,43 @@ const SGF_TEXT_KEY = "seki:analysis:sgfText";
 const VALID_SIZES = [9, 13, 19];
 const KOMI = 6.5;
 
+function formatSgfDescription(meta: SgfMeta): string {
+  const b = meta.black_name ?? "Black";
+  const w = meta.white_name ?? "White";
+  const parts: string[] = [
+    `${b} ${blackSymbol()} vs ${w} ${whiteSymbol()}`,
+    formatSize(meta.cols, meta.rows),
+  ];
+  if (meta.handicap && meta.handicap >= 2) {
+    parts.push(`H${meta.handicap}`);
+  }
+  const tc = formatSgfTime(meta.time_limit_secs, meta.overtime);
+  if (tc) {
+    parts.push(tc);
+  }
+  if (meta.result) {
+    parts.push(meta.result);
+  }
+  return parts.join(" - ");
+}
+
+function updateDescription(el: HTMLElement, meta: SgfMeta | undefined) {
+  if (meta) {
+    el.textContent = formatSgfDescription(meta);
+    el.style.display = "";
+  } else {
+    el.textContent = "";
+    el.style.display = "none";
+  }
+}
+
 export function initAnalysis(root: HTMLElement) {
   const {
     goban: gobanEl,
     playerTop: playerTopEl,
     playerBottom: playerBottomEl,
   } = queryGameDom();
+  const descriptionEl = document.getElementById("game-description")!;
   const sizeSelect = document.getElementById(
     "board-size",
   ) as HTMLSelectElement | null;
@@ -38,9 +75,10 @@ export function initAnalysis(root: HTMLElement) {
   setIcon("back-btn", playbackRewindSvg);
   setIcon("forward-btn", playbackForwardSvg);
   setIcon("end-btn", playbackNextSvg);
-  setIcon("sgf-import-label", fileUploadSvg);
+  setIcon("pass-btn", passSvg);
+  setIcon("score-btn", balanceSvg);
+  setIcon("sgf-import-btn", fileUploadSvg);
   setIcon("sgf-export", fileExportSvg);
-  setIconAll(".turn-indicator", asteriskSvg);
 
   // Territory UI elements
   const playControls = document.getElementById("play-controls");
@@ -77,9 +115,38 @@ export function initAnalysis(root: HTMLElement) {
     } catch { /* ignore */ }
   }
   sgfText = localStorage.getItem(SGF_TEXT_KEY) ?? undefined;
+  updateDescription(descriptionEl, sgfMeta);
 
   const showCoordinates = readShowCoordinates();
   setupCoordToggle(() => board);
+
+  // --- Move confirmation ---
+  const confirmMoveBtn = document.getElementById("confirm-move-btn") as HTMLButtonElement | null;
+  if (confirmMoveBtn) {
+    setIcon("confirm-move-btn", checkSvg);
+  }
+  let moveConfirmEnabled = readMoveConfirmation();
+  let premove: Point | undefined;
+  setupMoveConfirmToggle((v) => {
+    moveConfirmEnabled = v;
+    premove = undefined;
+    updateConfirmBtn();
+    board?.render();
+  });
+
+  function getGhostStone(): { col: number; row: number; sign: Sign } | undefined {
+    if (!premove || !board) {
+      return undefined;
+    }
+    const [col, row] = premove;
+    return { col, row, sign: board.engine.current_turn_stone() as Sign };
+  }
+
+  function updateConfirmBtn() {
+    if (confirmMoveBtn) {
+      confirmMoveBtn.style.display = premove ? "" : "none";
+    }
+  }
 
   function updateControls(reviewing: boolean, finalized: boolean) {
     if (playControls) {
@@ -121,6 +188,9 @@ export function initAnalysis(root: HTMLElement) {
     const tOpts = { signal: territoryAbort.signal };
     gobanEl.style.aspectRatio = `${size}/${size}`;
 
+    premove = undefined;
+    updateConfirmBtn();
+
     board = await createBoard({
       cols: size,
       rows: size,
@@ -134,8 +204,31 @@ export function initAnalysis(root: HTMLElement) {
       buttons: {
         pass: document.getElementById("pass-btn") as HTMLButtonElement | null,
       },
-      onStonePlay: playStoneSound,
-      onPass: playPassSound,
+      ghostStone: getGhostStone,
+      onVertexClick: (col, row) => {
+        if (!moveConfirmEnabled) {
+          return false;
+        }
+        if (premove && premove[0] === col && premove[1] === row) {
+          premove = undefined;
+          updateConfirmBtn();
+          return false; // let the board play the move
+        }
+        premove = [col, row];
+        updateConfirmBtn();
+        board?.render();
+        return true; // consume the click
+      },
+      onStonePlay: () => {
+        premove = undefined;
+        updateConfirmBtn();
+        playStoneSound();
+      },
+      onPass: () => {
+        premove = undefined;
+        updateConfirmBtn();
+        playPassSound();
+      },
       onRender: (engine, territory) => {
         const { reviewing, finalized, score } = territory;
         updateControls(reviewing, finalized);
@@ -184,7 +277,7 @@ export function initAnalysis(root: HTMLElement) {
         }
 
         if (playerTopEl) {
-          setLabel(playerTopEl, {
+          renderPlayerLabel(playerTopEl, {
             name: whiteName,
             captures: wStr,
             stone: "white",
@@ -193,7 +286,7 @@ export function initAnalysis(root: HTMLElement) {
           });
         }
         if (playerBottomEl) {
-          setLabel(playerBottomEl, {
+          renderPlayerLabel(playerBottomEl, {
             name: blackName,
             captures: bStr,
             stone: "black",
@@ -215,6 +308,20 @@ export function initAnalysis(root: HTMLElement) {
       board?.exitTerritoryReview();
     }, tOpts);
 
+    // Wire confirm-move button (re-wired on each initBoard)
+    confirmMoveBtn?.addEventListener("click", () => {
+      if (premove && board) {
+        const [col, row] = premove;
+        premove = undefined;
+        updateConfirmBtn();
+        if (board.engine.try_play(col, row)) {
+          playStoneSound();
+          board.save();
+          board.render();
+        }
+      }
+    }, tOpts);
+
     // Restore move_times from saved SGF text (tree already restored via storageKey)
     if (sgfText && board) {
       board.engine.load_sgf_move_times(sgfText);
@@ -230,12 +337,16 @@ export function initAnalysis(root: HTMLElement) {
       localStorage.removeItem(SGF_META_KEY);
       localStorage.removeItem(SGF_TEXT_KEY);
       localStorage.setItem(SIZE_KEY, String(size));
+      updateDescription(descriptionEl, undefined);
       initBoard(size);
     });
   }
 
   // --- SGF import ---
   const sgfImport = document.getElementById("sgf-import") as HTMLInputElement | null;
+  document.getElementById("sgf-import-btn")?.addEventListener("click", () => {
+    sgfImport?.click();
+  });
   sgfImport?.addEventListener("change", async () => {
     const file = sgfImport.files?.[0];
     if (!file) {
@@ -276,6 +387,7 @@ export function initAnalysis(root: HTMLElement) {
     sgfText = text;
     localStorage.setItem(SGF_META_KEY, JSON.stringify(meta));
     localStorage.setItem(SGF_TEXT_KEY, text);
+    updateDescription(descriptionEl, sgfMeta);
     await initBoard(size);
     if (board) {
       board.engine.load_sgf_tree(text);

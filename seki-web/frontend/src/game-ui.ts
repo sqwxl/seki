@@ -1,19 +1,12 @@
 import { GameStage, isPlayStage } from "./goban/types";
 import type { ScoreData } from "./goban/types";
 import type { GameCtx } from "./game-context";
-import {
-  formatGameDescription,
-  blackSymbol,
-  whiteSymbol,
-  formatPoints,
-} from "./format";
-import {
-  stoneBlackSvg,
-  stoneWhiteSvg,
-  capturesBlackSvg,
-  capturesWhiteSvg,
-} from "./icons";
-const CHECKMARK = "✓";
+import { formatGameDescription, blackSymbol, whiteSymbol, formatPoints } from "./format";
+import { renderPlayerLabel } from "./player-label";
+import type { ClockState } from "./game-clock";
+import { computeClockDisplay } from "./game-clock";
+
+const CHECKMARK = "\u2713";
 
 // --- Tab title flash ("YOUR MOVE") ---
 
@@ -76,61 +69,6 @@ export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
   }
 }
 
-export type LabelOpts = {
-  name: string;
-  captures: string;
-  stone: "black" | "white";
-  clock?: string;
-  profileUrl?: string;
-  isOnline?: boolean;
-  isTurn?: boolean;
-};
-
-export function setLabel(el: HTMLElement, opts: LabelOpts): void {
-  const stoneIconEl = el.querySelector(".stone-icon");
-  const nameEl = el.querySelector(".player-name");
-  const capturesIconEl = el.querySelector(".captures-icon");
-  const pointsEl = el.querySelector(".player-captures");
-  const clockEl = el.querySelector(".player-clock");
-  const dotEl = el.querySelector(".presence-dot");
-  const turnEl = el.querySelector(".turn-indicator");
-  // Safe: SVG content is hardcoded constants from icons.ts, not user input
-  if (stoneIconEl) {
-    stoneIconEl.innerHTML = opts.stone === "black" ? stoneBlackSvg() : stoneWhiteSvg();
-    stoneIconEl.setAttribute("data-stone", opts.stone);
-  }
-  if (nameEl) {
-    if (opts.profileUrl) {
-      let a = nameEl.querySelector("a");
-      if (!a) {
-        nameEl.textContent = "";
-        a = document.createElement("a");
-        nameEl.appendChild(a);
-      }
-      a.href = opts.profileUrl;
-      a.textContent = opts.name;
-    } else {
-      nameEl.textContent = opts.name;
-    }
-  }
-  if (capturesIconEl) {
-    capturesIconEl.innerHTML = opts.stone === "black" ? capturesBlackSvg() : capturesWhiteSvg();
-    capturesIconEl.setAttribute("data-stone", opts.stone);
-  }
-  if (pointsEl) {
-    pointsEl.textContent = opts.captures;
-  }
-  if (clockEl && opts.clock != null) {
-    clockEl.textContent = opts.clock;
-  }
-  if (dotEl) {
-    dotEl.classList.toggle("online", opts.isOnline ?? false);
-  }
-  if (turnEl) {
-    turnEl.classList.toggle("active", opts.isTurn ?? false);
-  }
-}
-
 export function formatScoreStr(
   score: ScoreData,
   komi: number,
@@ -141,18 +79,19 @@ export function formatScoreStr(
   return { bStr, wStr };
 }
 
-export function updatePlayerLabels(
+export function renderPlayerLabels(
   ctx: GameCtx,
   topEl: HTMLElement | null,
   bottomEl: HTMLElement | null,
+  clockState?: ClockState,
 ): void {
   if (!topEl || !bottomEl) {
     return;
   }
 
   const { black, white } = ctx;
-  const bName = black ? black.display_name : "…";
-  const wName = white ? white.display_name : "…";
+  const bName = black ? black.display_name : "\u2026";
+  const wName = white ? white.display_name : "\u2026";
   const bUrl = black ? `/users/${black.display_name}` : undefined;
   const wUrl = white ? `/users/${white.display_name}` : undefined;
   const bOnline = black ? ctx.onlineUsers.has(black.id) : false;
@@ -173,41 +112,60 @@ export function updatePlayerLabels(
       ctx.gameState.captures.white,
       komi,
     );
-
     bStr = fmt.bStr;
     wStr = fmt.wStr;
   }
 
+  let bClock: string | undefined;
+  let wClock: string | undefined;
+  let bClockLow = false;
+  let wClockLow = false;
+  if (clockState) {
+    const cd = computeClockDisplay(clockState);
+    bClock = cd.blackText || undefined;
+    wClock = cd.whiteText || undefined;
+    bClockLow = cd.blackLow;
+    wClockLow = cd.whiteLow;
+  }
+
   if (ctx.playerStone === -1) {
-    setLabel(topEl, {
+    renderPlayerLabel(topEl, {
       name: bName,
       captures: bStr,
       stone: "black",
+      clock: bClock,
+      clockLowTime: bClockLow,
       profileUrl: bUrl,
       isOnline: bOnline,
       isTurn: bTurn,
     });
-    setLabel(bottomEl, {
+    renderPlayerLabel(bottomEl, {
       name: wName,
       captures: wStr,
       stone: "white",
+      clock: wClock,
+      clockLowTime: wClockLow,
       profileUrl: wUrl,
       isOnline: wOnline,
       isTurn: wTurn,
     });
   } else {
-    setLabel(topEl, {
+    renderPlayerLabel(topEl, {
       name: wName,
       captures: wStr,
       stone: "white",
+      clock: wClock,
+      clockLowTime: wClockLow,
       profileUrl: wUrl,
       isOnline: wOnline,
       isTurn: wTurn,
     });
-    setLabel(bottomEl, {
+    renderPlayerLabel(bottomEl, {
       name: bName,
       captures: bStr,
       stone: "black",
+      clock: bClock,
+      clockLowTime: bClockLow,
       profileUrl: bUrl,
       isOnline: bOnline,
       isTurn: bTurn,

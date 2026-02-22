@@ -4,8 +4,6 @@ export type GameDomElements = {
   title: HTMLHeadingElement | null;
   playerTop: HTMLDivElement | null;
   playerBottom: HTMLDivElement | null;
-  topClock: HTMLSpanElement | null;
-  bottomClock: HTMLSpanElement | null;
   passBtn: HTMLButtonElement | null;
   resignBtn: HTMLButtonElement | null;
   requestUndoBtn: HTMLButtonElement | null;
@@ -18,21 +16,11 @@ export type GameDomElements = {
 };
 
 export function queryGameDom(): GameDomElements {
-  const playerTop = document.getElementById(
-    "player-top",
-  ) as HTMLDivElement | null;
-  const playerBottom = document.getElementById(
-    "player-bottom",
-  ) as HTMLDivElement | null;
-
   return {
     status: document.getElementById("status") as HTMLDivElement | null,
     title: document.getElementById("game-title") as HTMLHeadingElement | null,
-    playerTop,
-    playerBottom,
-    topClock: playerTop?.querySelector<HTMLElement>(".player-clock") ?? null,
-    bottomClock:
-      playerBottom?.querySelector<HTMLElement>(".player-clock") ?? null,
+    playerTop: document.getElementById("player-top") as HTMLDivElement | null,
+    playerBottom: document.getElementById("player-bottom") as HTMLDivElement | null,
     goban: document.getElementById("goban")! as HTMLDivElement,
     passBtn: document.getElementById("pass-btn") as HTMLButtonElement | null,
     resignBtn: document.getElementById(

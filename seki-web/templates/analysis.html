@@ -4,6 +4,7 @@
 {% block content %}
     <div class="game-page">
         <h2>Analysis Board</h2>
+        <p id="game-description" style="display: none"></p>
         <div class="game-page-body">
             <div id="analysis">
                 <div style="margin-bottom: 0.5em">
@@ -14,30 +15,25 @@
                         <option value="19" selected>19×19</option>
                     </select>
                 </div>
-                <div id="player-top" class="player-label">
-                    <span class="player-name-group"><span class="turn-indicator"></span><span class="stone-icon"></span><span class="player-name"></span></span>
-                    <span class="player-info"><span class="captures-icon"></span><span class="player-captures"></span><span class="player-clock"></span></span>
-                </div>
+                <div id="player-top" class="player-label"></div>
                 <div id="goban" class="goban-container" style="aspect-ratio: 1/1"></div>
-                <div id="player-bottom" class="player-label">
-                    <span class="player-name-group"><span class="turn-indicator"></span><span class="stone-icon"></span><span class="player-name"></span></span>
-                    <span class="player-info"><span class="captures-icon"></span><span class="player-captures"></span><span class="player-clock"></span></span>
-                </div>
+                <div id="player-bottom" class="player-label"></div>
                 <div class="controls">
                     <div id="play-controls" class="controls-group">
                         {{ controls::nav_bar() }}
-                        <button id="pass-btn">Pass</button>
-                        <button id="score-btn">Score</button>
-                        <label for="sgf-import" id="sgf-import-label" class="btn" title="Import SGF file">
-                            <input type="file" id="sgf-import" accept=".sgf,.SGF" hidden>
-                        </label>
+                        <button id="pass-btn" title="Pass"></button>
+                        <button id="score-btn" title="Estimate score"></button>
+                        <button id="sgf-import-btn" type="button" title="Import SGF file"></button>
+                        <input type="file" id="sgf-import" accept=".sgf,.SGF" hidden>
                         <button id="sgf-export" title="Export as SGF file"></button>
                         <button id="toggle-coords-btn" title="Toggle coordinates">A1</button>
+                        <button id="toggle-move-confirm-btn"></button>
                     </div>
                     <div id="territory-controls" class="controls-group" style="display: none">
                         <button id="territory-ready-btn">Ready</button>
                         <button id="territory-exit-btn">Exit</button>
                     </div>
+                    <button id="confirm-move-btn" title="Confirm move" style="display: none">✓</button>
                 </div>
             </div>
             <div id="move-tree" class="move-tree"></div>
