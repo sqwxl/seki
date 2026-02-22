@@ -3,9 +3,16 @@ import { initGamesList } from "./games-list";
 import { initUserGames } from "./user-games";
 import { initAnalysis } from "./analysis";
 import { initNotificationToggle } from "./game-notifications";
+import { initNewGameForm } from "./game-settings-form";
 import { InitialGameProps } from "./goban/types";
 
 initNotificationToggle();
+
+const newGameRoot = document.getElementById("new-game-form");
+
+if (newGameRoot) {
+  initNewGameForm(newGameRoot);
+}
 
 const gamesListRoot = document.getElementById("games-list");
 
