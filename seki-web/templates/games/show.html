@@ -29,28 +29,28 @@
                             <button id="request-undo-btn" title="Undo"></button>
                             <div id="pass-confirm" popover>
                                 <p>Pass your turn?</p>
-                                <button id="confirm-pass-btn" popovertarget="pass-confirm">Yes</button>
-                                <button popovertarget="pass-confirm">No</button>
+                                <button id="confirm-pass-btn" class="confirm-yes" popovertarget="pass-confirm"></button>
+                                <button class="confirm-no" popovertarget="pass-confirm"></button>
                             </div>
                             <button id="pass-btn" title="Pass"></button>
                             <button id="resign-btn" popovertarget="resign-confirm" title="Resign"></button>
                             <div id="resign-confirm" popover>
                                 <p>Resign this game?</p>
-                                <button id="confirm-resign-btn" popovertarget="resign-confirm">Yes</button>
-                                <button popovertarget="resign-confirm">No</button>
+                                <button id="confirm-resign-btn" class="confirm-yes" popovertarget="resign-confirm"></button>
+                                <button class="confirm-no" popovertarget="resign-confirm"></button>
                             </div>
                             <button id="abort-btn" popovertarget="abort-confirm" style="display: none">Abort</button>
                             <div id="abort-confirm" popover>
                                 <p>Abort this game?</p>
-                                <button id="confirm-abort-btn" popovertarget="abort-confirm">Yes</button>
-                                <button popovertarget="abort-confirm">No</button>
+                                <button id="confirm-abort-btn" class="confirm-yes" popovertarget="abort-confirm"></button>
+                                <button class="confirm-no" popovertarget="abort-confirm"></button>
                             </div>
                             <button id="accept-territory-btn" style="display: none">Accept</button>
                             <div id="accept-territory-confirm" popover>
                                 <p>Accept territory?</p>
-                                <button id="confirm-accept-territory-btn"
-                                        popovertarget="accept-territory-confirm">Yes</button>
-                                <button popovertarget="accept-territory-confirm">No</button>
+                                <button id="confirm-accept-territory-btn" class="confirm-yes"
+                                        popovertarget="accept-territory-confirm"></button>
+                                <button class="confirm-no" popovertarget="accept-territory-confirm"></button>
                             </div>
                         {% endif %}
                         <span class="btn-group">
@@ -69,8 +69,8 @@
                 {% if is_player %}
                     <div id="undo-response-controls" popover>
                         <p>Opponent has requested to undo their last move.</p>
-                        <button id="accept-undo-btn" popovertarget="undo-response-controls">Accept</button>
-                        <button id="reject-undo-btn" popovertarget="undo-response-controls">Reject</button>
+                        <button id="accept-undo-btn" class="confirm-yes" popovertarget="undo-response-controls"></button>
+                        <button id="reject-undo-btn" class="confirm-no" popovertarget="undo-response-controls"></button>
                     </div>
                 {% endif %}
             </div>

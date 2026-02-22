@@ -137,6 +137,10 @@ export const undoSvg = `${svgOpen}<path d="M320-200q-17 0-28.5-11.5T280-240q0-17
 
 export const whiteFlagSvg = `${svgOpen}<path d="M280-400v240q0 17-11.5 28.5T240-120q-17 0-28.5-11.5T200-160v-600q0-17 11.5-28.5T240-800h287q14 0 25 9t14 23l10 48h184q17 0 28.5 11.5T800-680v320q0 17-11.5 28.5T760-320H553q-14 0-25-9t-14-23l-10-48H280Zm306 0h134v-240H543q-14 0-25-9t-14-23l-10-48H280v240h257q14 0 25 9t14 23l10 48Zm-86-160Z"/></svg>`;
 
+export const checkSvg = `${svgOpen}<path d="m382-354 339-339q12-12 28-12t28 12q12 12 12 28.5T777-636L410-268q-12 12-28 12t-28-12L182-440q-12-12-11.5-28.5T183-497q12-12 28.5-12t28.5 12l142 143Z"/></svg>`;
+
+export const xSvg = `${svgOpen}<path d="M480-424 284-228q-11 11-28 11t-28-11q-11-11-11-28t11-28l196-196-196-196q-11-11-11-28t11-28q11-11 28-11t28 11l196 196 196-196q11-11 28-11t28 11q11 11 11 28t-11 28L536-480l196 196q11 11 11 28t-11 28q-11 11-28 11t-28-11L480-424Z"/></svg>`;
+
 // --- Simple icon Preact components (no dark-mode swapping) ---
 // NOTE: dangerouslySetInnerHTML is safe - SVG content is hardcoded constants, not user input
 

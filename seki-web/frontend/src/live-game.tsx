@@ -5,7 +5,7 @@ import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
 import { readMoveConfirmation, setupMoveConfirmToggle } from "./move-confirm";
 import { blackSymbol, whiteSymbol } from "./format";
 import {
-  setIcon, setIconAll, asteriskSvg,
+  setIcon, setIconAll, asteriskSvg, checkSvg, xSvg,
   playbackPrevSvg, playbackRewindSvg, playbackForwardSvg, playbackNextSvg,
   undoSvg, passSvg, whiteFlagSvg, analysisSvg, fileExportSvg,
 } from "./icons";
@@ -61,6 +61,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   setIcon("analyze-btn", analysisSvg);
   setIcon("sgf-export", fileExportSvg);
   setIconAll(".turn-indicator", asteriskSvg);
+  setIconAll(".confirm-yes", checkSvg);
+  setIconAll(".confirm-no", xSvg);
 
   // --- Coordinate toggle ---
   const showCoordinates = readShowCoordinates();
