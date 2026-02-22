@@ -6,10 +6,21 @@
   justify-content: center;
   margin-top: 0.5em;
   max-width: 100%;
-  button {
-    font-size: 1.3em;
-    font-family: monospace;
-  }
+}
+
+.controls button,
+.controls .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3em;
+  min-height: 2em;
+  min-width: 2em;
+}
+
+.controls button > svg,
+.controls .btn > svg {
+  display: block;
 }
 
 .move-tree {

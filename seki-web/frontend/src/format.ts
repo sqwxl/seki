@@ -12,23 +12,15 @@ export function whiteSymbol(): string {
   return darkQuery.matches ? "●" : "○";
 }
 
-export function blackCaptureSymbol(): string {
-  return darkQuery.matches ? "⚇" : "⚉";
-}
-
-export function whiteCaptureSymbol(): string {
-  return darkQuery.matches ? "⚉" : "⚇";
-}
-
 function formatN(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(1);
 }
 
 export function formatPoints(bTotal: number, wTotal: number, komi: number) {
-  const bStr = `${formatN(bTotal)} ${blackCaptureSymbol()}`;
+  const bStr = formatN(bTotal);
   const wStr = komi
-    ? `${formatN(wTotal)}+${formatN(komi)} ${whiteCaptureSymbol()}`
-    : `${formatN(wTotal)} ${whiteCaptureSymbol()}`;
+    ? `${formatN(wTotal)}+${formatN(komi)}`
+    : formatN(wTotal);
   return { bStr, wStr };
 }
 
@@ -98,7 +90,7 @@ export function settingsToSgfTime(s: GameSettings): { time_limit_secs?: number; 
   }
 }
 
-function formatSize(cols: number, rows: number): string {
+export function formatSize(cols: number, rows: number): string {
   if (cols === rows) {
     return `${cols}×${cols}`;
   }

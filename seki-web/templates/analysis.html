@@ -15,23 +15,23 @@
                     </select>
                 </div>
                 <div id="player-top" class="player-label">
-                    <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span></span>
-                    <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
+                    <span class="player-name-group"><span class="turn-indicator"></span><span class="stone-icon"></span><span class="player-name"></span></span>
+                    <span class="player-info"><span class="captures-icon"></span><span class="player-captures"></span><span class="player-clock"></span></span>
                 </div>
                 <div id="goban" class="goban-container" style="aspect-ratio: 1/1"></div>
                 <div id="player-bottom" class="player-label">
-                    <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span></span>
-                    <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
+                    <span class="player-name-group"><span class="turn-indicator"></span><span class="stone-icon"></span><span class="player-name"></span></span>
+                    <span class="player-info"><span class="captures-icon"></span><span class="player-captures"></span><span class="player-clock"></span></span>
                 </div>
                 <div class="controls">
                     <div id="play-controls" class="controls-group">
                         {{ controls::nav_bar() }}
                         <button id="pass-btn">Pass</button>
                         <button id="score-btn">Score</button>
-                        <label for="sgf-import" class="btn" title="Import SGF file">Load SGF
+                        <label for="sgf-import" id="sgf-import-label" class="btn" title="Import SGF file">
                             <input type="file" id="sgf-import" accept=".sgf,.SGF" hidden>
                         </label>
-                        <button id="sgf-export" title="Export as SGF file">Save SGF</button>
+                        <button id="sgf-export" title="Export as SGF file"></button>
                         <button id="toggle-coords-btn" title="Toggle coordinates">A1</button>
                     </div>
                     <div id="territory-controls" class="controls-group" style="display: none">

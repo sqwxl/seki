@@ -103,6 +103,7 @@ export type TerritoryData = {
   score: ScoreData;
   black_approved: boolean;
   white_approved: boolean;
+  expires_at?: string;
 };
 
 export type GameSettings = {

@@ -3,8 +3,6 @@ import type { Board } from "./board";
 import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
 import { formatScoreStr, setLabel } from "./game-ui";
 import {
-  blackSymbol,
-  whiteSymbol,
   formatPoints,
   formatSgfTime,
   formatTime,
@@ -13,6 +11,11 @@ import { queryGameDom } from "./game-dom";
 import { playStoneSound, playPassSound } from "./game-sound";
 import { readFileAsText, downloadSgf } from "./sgf-io";
 import type { SgfMeta } from "./sgf-io";
+import {
+  setIcon, setIconAll, asteriskSvg,
+  playbackPrevSvg, playbackRewindSvg, playbackForwardSvg, playbackNextSvg,
+  fileUploadSvg, fileExportSvg,
+} from "./icons";
 
 const SIZE_KEY = "seki:analysis:size";
 const SGF_META_KEY = "seki:analysis:sgfMeta";
@@ -29,6 +32,15 @@ export function initAnalysis(root: HTMLElement) {
   const sizeSelect = document.getElementById(
     "board-size",
   ) as HTMLSelectElement | null;
+
+  // --- Populate SVG icons ---
+  setIcon("start-btn", playbackPrevSvg);
+  setIcon("back-btn", playbackRewindSvg);
+  setIcon("forward-btn", playbackForwardSvg);
+  setIcon("end-btn", playbackNextSvg);
+  setIcon("sgf-import-label", fileUploadSvg);
+  setIcon("sgf-export", fileExportSvg);
+  setIconAll(".turn-indicator", asteriskSvg);
 
   // Territory UI elements
   const playControls = document.getElementById("play-controls");
@@ -173,16 +185,18 @@ export function initAnalysis(root: HTMLElement) {
 
         if (playerTopEl) {
           setLabel(playerTopEl, {
-            name: `${whiteSymbol()} ${whiteName}`,
+            name: whiteName,
             captures: wStr,
+            stone: "white",
             clock: wClock,
             isTurn: !reviewing && !finalized && !isBlackTurn,
           });
         }
         if (playerBottomEl) {
           setLabel(playerBottomEl, {
-            name: `${blackSymbol()} ${blackName}`,
+            name: blackName,
             captures: bStr,
+            stone: "black",
             clock: bClock,
             isTurn: !reviewing && !finalized && isBlackTurn,
           });

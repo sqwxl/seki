@@ -1,3 +1,5 @@
+import { touchDoubleSvg, touchSingleSvg } from "./icons";
+
 const KEY = "seki:moveConfirmation";
 
 export function readMoveConfirmation(): boolean {
@@ -9,7 +11,7 @@ export function readMoveConfirmation(): boolean {
 }
 
 function updateLabel(btn: HTMLElement, enabled: boolean): void {
-  btn.textContent = enabled ? "➁" : "➀";
+  btn.innerHTML = enabled ? touchDoubleSvg : touchSingleSvg; // safe: hardcoded SVG constants
   btn.title = enabled ? "Move confirmation: ON (click to disable)" : "Move confirmation: OFF (click to enable)";
 }
 

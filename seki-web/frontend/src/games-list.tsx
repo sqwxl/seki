@@ -1,11 +1,8 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "./live";
-import {
-  formatGameDescription,
-  type UserData,
-  type GameSettings,
-} from "./format";
+import { GameDescription } from "./game-description";
+import type { UserData, GameSettings } from "./format";
 
 type LiveGameItem = {
   id: number;
@@ -48,17 +45,6 @@ type GameRemovedMessage = {
   game_id: number;
 };
 
-function useDarkMode(): boolean {
-  const query = window.matchMedia("(prefers-color-scheme: dark)");
-  const [dark, setDark] = useState(query.matches);
-  useEffect(() => {
-    const handler = (e: MediaQueryListEvent) => setDark(e.matches);
-    query.addEventListener("change", handler);
-    return () => query.removeEventListener("change", handler);
-  }, []);
-  return dark;
-}
-
 function parseInitialGames(root: HTMLElement): InitMessage | undefined {
   const json = root.dataset.initialGames;
   if (!json) {
@@ -83,7 +69,6 @@ function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
 }
 
 function GamesList({ initial }: { initial?: InitMessage }) {
-  useDarkMode(); // trigger re-render on theme change to swap stone symbols
   const [games, setGames] = useState<Map<number, LiveGameItem>>(
     () => initial ? buildGamesMap(initial) : new Map(),
   );
@@ -163,7 +148,7 @@ function GamesList({ initial }: { initial?: InitMessage }) {
         <ul>
           {userGames.map((g) => (
             <li key={g.id}>
-              <a href={`/games/${g.id}`}>{formatGameDescription(g)}</a>
+              <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
             </li>
           ))}
         </ul>
@@ -175,7 +160,7 @@ function GamesList({ initial }: { initial?: InitMessage }) {
         <ul>
           {openGames.map((g) => (
             <li key={g.id}>
-              <a href={`/games/${g.id}`}>{formatGameDescription(g)}</a>
+              <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
             </li>
           ))}
         </ul>
@@ -187,7 +172,7 @@ function GamesList({ initial }: { initial?: InitMessage }) {
         <ul>
           {publicGames.map((g) => (
             <li key={g.id}>
-              <a href={`/games/${g.id}`}>{formatGameDescription(g)}</a>
+              <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
             </li>
           ))}
         </ul>

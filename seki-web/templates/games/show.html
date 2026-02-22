@@ -12,28 +12,28 @@
         <div class="game-page-body">
             <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
                 <div id="player-top" class="player-label">
-                    <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span><span class="presence-dot"></span></span>
-                    <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
+                    <span class="player-name-group"><span class="turn-indicator"></span><span class="stone-icon"></span><span class="player-name"></span><span class="presence-dot"></span></span>
+                    <span class="player-info"><span class="captures-icon"></span><span class="player-captures"></span><span class="player-clock"></span></span>
                 </div>
                 <div id="goban"
                      class="goban-container"
                      style="aspect-ratio: {{ cols }}/{{ rows }}"></div>
                 <div id="player-bottom" class="player-label">
-                    <span class="player-name-group"><span class="turn-indicator">✶</span><span class="player-name"></span><span class="presence-dot"></span></span>
-                    <span class="player-info"><span class="player-captures"></span><span class="player-clock"></span></span>
+                    <span class="player-name-group"><span class="turn-indicator"></span><span class="stone-icon"></span><span class="player-name"></span><span class="presence-dot"></span></span>
+                    <span class="player-info"><span class="captures-icon"></span><span class="player-captures"></span><span class="player-clock"></span></span>
                 </div>
                 <div class="controls">
                     {{ controls::nav_bar() }}
                     <div id="action-buttons">
                         {% if is_player %}
-                            <button id="request-undo-btn" title="Undo">⎌</button>
+                            <button id="request-undo-btn" title="Undo"></button>
                             <div id="pass-confirm" popover>
                                 <p>Pass your turn?</p>
                                 <button id="confirm-pass-btn" popovertarget="pass-confirm">Yes</button>
                                 <button popovertarget="pass-confirm">No</button>
                             </div>
-                            <button id="pass-btn" title="Pass">⋯</button>
-                            <button id="resign-btn" popovertarget="resign-confirm" title="Resign">⚐</button>
+                            <button id="pass-btn" title="Pass"></button>
+                            <button id="resign-btn" popovertarget="resign-confirm" title="Resign"></button>
                             <div id="resign-confirm" popover>
                                 <p>Resign this game?</p>
                                 <button id="confirm-resign-btn" popovertarget="resign-confirm">Yes</button>
@@ -54,11 +54,11 @@
                             </div>
                         {% endif %}
                         <span class="btn-group">
-                            <button id="analyze-btn">Analyze</button>
+                            <button id="analyze-btn" title="Analyze"></button>
                             <button id="exit-analysis-btn" style="display: none">Back to game</button>
-                            <button id="sgf-export">Export SGF</button>
+                            <button id="sgf-export" title="Export SGF"></button>
                             <button id="toggle-coords-btn" title="Toggle coordinates">A1</button>
-                            <button id="toggle-move-confirm-btn">➁</button>
+                            <button id="toggle-move-confirm-btn"></button>
                         </span>
                     </div>
                     {% if is_player %}

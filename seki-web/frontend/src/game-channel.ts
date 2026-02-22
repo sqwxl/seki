@@ -12,6 +12,7 @@ export type GameChannel = {
   approveTerritory(): void;
   abort(): void;
   timeoutFlag(): void;
+  territoryTimeoutFlag(): void;
 };
 
 export function createGameChannel(gameId: number): GameChannel {
@@ -52,6 +53,9 @@ export function createGameChannel(gameId: number): GameChannel {
     },
     timeoutFlag() {
       gameSend({ action: "timeout_flag" });
+    },
+    territoryTimeoutFlag() {
+      gameSend({ action: "territory_timeout_flag" });
     },
   };
 }

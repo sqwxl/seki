@@ -1,11 +1,8 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "./live";
-import {
-  formatGameDescription,
-  type UserData,
-  type GameSettings,
-} from "./format";
+import { GameDescription } from "./game-description";
+import type { UserData, GameSettings } from "./format";
 
 type LiveGameItem = {
   id: number;
@@ -128,7 +125,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
     <ul>
       {allGames.map((g) => (
         <li key={g.id}>
-          <a href={`/games/${g.id}`}>{formatGameDescription(g)}</a>
+          <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
         </li>
       ))}
     </ul>

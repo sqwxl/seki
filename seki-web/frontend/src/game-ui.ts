@@ -7,6 +7,12 @@ import {
   whiteSymbol,
   formatPoints,
 } from "./format";
+import {
+  stoneBlackSvg,
+  stoneWhiteSvg,
+  capturesBlackSvg,
+  capturesWhiteSvg,
+} from "./icons";
 const CHECKMARK = "✓";
 
 // --- Tab title flash ("YOUR MOVE") ---
@@ -73,6 +79,7 @@ export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
 export type LabelOpts = {
   name: string;
   captures: string;
+  stone: "black" | "white";
   clock?: string;
   profileUrl?: string;
   isOnline?: boolean;
@@ -80,11 +87,18 @@ export type LabelOpts = {
 };
 
 export function setLabel(el: HTMLElement, opts: LabelOpts): void {
+  const stoneIconEl = el.querySelector(".stone-icon");
   const nameEl = el.querySelector(".player-name");
+  const capturesIconEl = el.querySelector(".captures-icon");
   const pointsEl = el.querySelector(".player-captures");
   const clockEl = el.querySelector(".player-clock");
   const dotEl = el.querySelector(".presence-dot");
   const turnEl = el.querySelector(".turn-indicator");
+  // Safe: SVG content is hardcoded constants from icons.ts, not user input
+  if (stoneIconEl) {
+    stoneIconEl.innerHTML = opts.stone === "black" ? stoneBlackSvg() : stoneWhiteSvg();
+    stoneIconEl.setAttribute("data-stone", opts.stone);
+  }
   if (nameEl) {
     if (opts.profileUrl) {
       let a = nameEl.querySelector("a");
@@ -98,6 +112,10 @@ export function setLabel(el: HTMLElement, opts: LabelOpts): void {
     } else {
       nameEl.textContent = opts.name;
     }
+  }
+  if (capturesIconEl) {
+    capturesIconEl.innerHTML = opts.stone === "black" ? capturesBlackSvg() : capturesWhiteSvg();
+    capturesIconEl.setAttribute("data-stone", opts.stone);
   }
   if (pointsEl) {
     pointsEl.textContent = opts.captures;
@@ -133,8 +151,8 @@ export function updatePlayerLabels(
   }
 
   const { black, white } = ctx;
-  const bName = `${blackSymbol()} ${black ? black.display_name : "…"}`;
-  const wName = `${whiteSymbol()} ${white ? white.display_name : "…"}`;
+  const bName = black ? black.display_name : "…";
+  const wName = white ? white.display_name : "…";
   const bUrl = black ? `/users/${black.display_name}` : undefined;
   const wUrl = white ? `/users/${white.display_name}` : undefined;
   const bOnline = black ? ctx.onlineUsers.has(black.id) : false;
@@ -164,6 +182,7 @@ export function updatePlayerLabels(
     setLabel(topEl, {
       name: bName,
       captures: bStr,
+      stone: "black",
       profileUrl: bUrl,
       isOnline: bOnline,
       isTurn: bTurn,
@@ -171,6 +190,7 @@ export function updatePlayerLabels(
     setLabel(bottomEl, {
       name: wName,
       captures: wStr,
+      stone: "white",
       profileUrl: wUrl,
       isOnline: wOnline,
       isTurn: wTurn,
@@ -179,6 +199,7 @@ export function updatePlayerLabels(
     setLabel(topEl, {
       name: wName,
       captures: wStr,
+      stone: "white",
       profileUrl: wUrl,
       isOnline: wOnline,
       isTurn: wTurn,
@@ -186,6 +207,7 @@ export function updatePlayerLabels(
     setLabel(bottomEl, {
       name: bName,
       captures: bStr,
+      stone: "black",
       profileUrl: bUrl,
       isOnline: bOnline,
       isTurn: bTurn,
@@ -193,7 +215,11 @@ export function updatePlayerLabels(
   }
 }
 
-export function updateStatus(ctx: GameCtx, statusEl: HTMLElement | null): void {
+export function updateStatus(
+  ctx: GameCtx,
+  statusEl: HTMLElement | null,
+  countdownMs?: number,
+): void {
   if (!statusEl) {
     return;
   }
@@ -202,8 +228,62 @@ export function updateStatus(ctx: GameCtx, statusEl: HTMLElement | null): void {
     const wCheck = ctx.territory.white_approved ? ` ${CHECKMARK}` : "";
     const komi = ctx.initialProps.komi;
     const { bStr, wStr } = formatScoreStr(ctx.territory.score, komi);
-    statusEl.textContent = `B: ${bStr}${bCheck}  |  W: ${wStr}${wCheck}`;
+    let text = `${blackSymbol()} ${bStr}${bCheck}  |  ${whiteSymbol()} ${wStr}${wCheck}`;
+    if (countdownMs != null) {
+      const secs = Math.ceil(countdownMs / 1000);
+      text += `  (${secs}s)`;
+    }
+    statusEl.textContent = text;
   } else {
     statusEl.textContent = "";
   }
+}
+
+export type TerritoryCountdown = {
+  deadline: number | undefined;
+  interval: ReturnType<typeof setInterval> | undefined;
+  flagSent: boolean;
+};
+
+export function syncTerritoryCountdown(
+  countdown: TerritoryCountdown,
+  expiresAt: string | undefined,
+  ctx: GameCtx,
+  statusEl: HTMLElement | null,
+  onFlag: () => void,
+): void {
+  if (countdown.interval) {
+    clearInterval(countdown.interval);
+    countdown.interval = undefined;
+  }
+  countdown.flagSent = false;
+
+  if (expiresAt) {
+    countdown.deadline = new Date(expiresAt).getTime();
+    updateTerritoryCountdown(countdown, ctx, statusEl, onFlag);
+    countdown.interval = setInterval(
+      () => updateTerritoryCountdown(countdown, ctx, statusEl, onFlag),
+      200,
+    );
+  } else {
+    countdown.deadline = undefined;
+    updateStatus(ctx, statusEl);
+  }
+}
+
+function updateTerritoryCountdown(
+  countdown: TerritoryCountdown,
+  ctx: GameCtx,
+  statusEl: HTMLElement | null,
+  onFlag: () => void,
+): void {
+  if (!countdown.deadline) {
+    return;
+  }
+  const remaining = countdown.deadline - Date.now();
+  if (remaining <= 0 && !countdown.flagSent) {
+    countdown.flagSent = true;
+    onFlag();
+  }
+  updateStatus(ctx, statusEl, Math.max(0, remaining));
 }

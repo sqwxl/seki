@@ -4,11 +4,17 @@ import { renderChatHistory, setupChat, type SenderResolver } from "./chat";
 import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
 import { readMoveConfirmation, setupMoveConfirmToggle } from "./move-confirm";
 import { blackSymbol, whiteSymbol } from "./format";
+import {
+  setIcon, setIconAll, asteriskSvg,
+  playbackPrevSvg, playbackRewindSvg, playbackForwardSvg, playbackNextSvg,
+  undoSvg, passSvg, whiteFlagSvg, analysisSvg, fileExportSvg,
+} from "./icons";
 import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
 import { createGameChannel } from "./game-channel";
 import { queryGameDom } from "./game-dom";
 import { updateTitle, updatePlayerLabels, updateStatus, updateTurnFlash } from "./game-ui";
+import type { TerritoryCountdown } from "./game-ui";
 import { updateControls } from "./game-controls";
 import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
@@ -38,6 +44,23 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     interval: undefined,
     timeoutFlagSent: false,
   };
+  const territoryCountdown: TerritoryCountdown = {
+    deadline: undefined,
+    interval: undefined,
+    flagSent: false,
+  };
+
+  // --- Populate SVG icons ---
+  setIcon("start-btn", playbackPrevSvg);
+  setIcon("back-btn", playbackRewindSvg);
+  setIcon("forward-btn", playbackForwardSvg);
+  setIcon("end-btn", playbackNextSvg);
+  setIcon("request-undo-btn", undoSvg);
+  setIcon("pass-btn", passSvg);
+  setIcon("resign-btn", whiteFlagSvg);
+  setIcon("analyze-btn", analysisSvg);
+  setIcon("sgf-export", fileExportSvg);
+  setIconAll(".turn-indicator", asteriskSvg);
 
   // --- Coordinate toggle ---
   const showCoordinates = readShowCoordinates();
@@ -176,7 +199,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
 
   // --- WebSocket ---
   const deps = {
-    ctx, dom, clockState, channel, resolveSender,
+    ctx, dom, clockState, territoryCountdown, channel, resolveSender,
     onNewMove: () => {
       if (ctx.analysisMode) {
         exitAnalysis();

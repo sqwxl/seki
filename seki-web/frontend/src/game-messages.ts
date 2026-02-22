@@ -5,7 +5,8 @@ import type { GameChannel } from "./game-channel";
 import type { ClockState } from "./game-clock";
 import { syncClock } from "./game-clock";
 import { updateControls } from "./game-controls";
-import { updateTitle, updatePlayerLabels, updateStatus, updateTurnFlash } from "./game-ui";
+import { updateTitle, updatePlayerLabels, updateStatus, updateTurnFlash, syncTerritoryCountdown } from "./game-ui";
+import type { TerritoryCountdown } from "./game-ui";
 import { appendToChat, updateChatPresence, type SenderResolver } from "./chat";
 import { playStoneSound, playPassSound } from "./game-sound";
 
@@ -13,6 +14,7 @@ export type GameMessageDeps = {
   ctx: GameCtx;
   dom: GameDomElements;
   clockState: ClockState;
+  territoryCountdown: TerritoryCountdown;
   channel: GameChannel;
   resolveSender: SenderResolver;
   onNewMove?: () => void;
@@ -54,7 +56,7 @@ export function handleGameMessage(
   deps: GameMessageDeps,
 ): void {
   const data = raw as IncomingMessage;
-  const { ctx, dom, clockState, channel, resolveSender, onNewMove } = deps;
+  const { ctx, dom, clockState, territoryCountdown, channel, resolveSender, onNewMove } = deps;
 
   console.debug("Game message:", data);
 
@@ -82,6 +84,13 @@ export function handleGameMessage(
       updateStatus(ctx, dom.status);
       updateTurnFlash(ctx);
       syncClock(clockState, data.clock, ctx, dom, () => channel.timeoutFlag());
+      syncTerritoryCountdown(
+        territoryCountdown,
+        ctx.territory?.expires_at,
+        ctx,
+        dom.status,
+        () => channel.territoryTimeoutFlag(),
+      );
       updateChatPresence(ctx.onlineUsers);
 
       if (!isPlayStage(ctx.gameStage)) {

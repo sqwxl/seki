@@ -89,6 +89,15 @@
   visibility: visible;
 }
 
+.icon,
+.stone-icon,
+.captures-icon {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  line-height: 1;
+}
+
 .player-captures {
 }
 
