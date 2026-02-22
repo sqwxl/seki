@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ profile_username }} - Seki{% endblock %}
+{% block og %}
+<meta property="og:site_name" content="Seki">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ profile_username }} — Seki">
+<meta property="og:description" content="{{ profile_username }}'s Go profile on Seki">
+{% endblock %}
 {% block flash %}
     {% if let Some(msg) = flash %}<div class="flash">{{ msg }}</div>{% endif %}
 {% endblock %}

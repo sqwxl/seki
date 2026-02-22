@@ -32,4 +32,6 @@ pub struct GamesShowTemplate {
     pub is_private: bool,
     pub has_open_slot: bool,
     pub chat_log_json: String,
+    pub og_title: String,
+    pub og_description: String,
 }

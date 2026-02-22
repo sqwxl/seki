@@ -323,14 +323,19 @@ pub async fn settle_territory(
 
     state.registry.clear_territory_review(game_id).await;
 
+    // Re-fetch so broadcast sees the result
+    let gwp = Game::find_with_players(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
     broadcast_system_chat(state, game_id, &format!("Game over. {result}"), Some(engine.moves().len() as i32)).await;
-    broadcast_game_state(state, gwp, &engine).await;
+    broadcast_game_state(state, &gwp, &engine).await;
 
     Ok(())
 }
 
 pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<Engine, AppError> {
-    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
 
     if gwp.game.result.is_some() {
@@ -383,6 +388,8 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
         tx.commit()
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
+
+        gwp.game.result = engine.result().map(String::from);
     }
 
     broadcast_game_state(state, &gwp, &engine).await;
@@ -391,7 +398,7 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
 }
 
 pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(), AppError> {
-    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if gwp.game.result.is_some() {
         return Err(AppError::BadRequest("The game is over".to_string()));
@@ -416,6 +423,8 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
     tx.commit()
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    gwp.game.result = Some("Aborted".to_string());
 
     live::notify_game_removed(state, game_id);
 
@@ -1097,8 +1106,13 @@ pub async fn end_game_on_time(
     let move_number = engine.as_ref().map(|e| e.moves().len() as i32);
     broadcast_system_chat(state, game_id, &format!("Game over. {result}"), move_number).await;
 
+    // Re-fetch so broadcast sees the result
+    let gwp = Game::find_with_players(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
     if let Some(engine) = engine {
-        broadcast_game_state(state, gwp, &engine).await;
+        broadcast_game_state(state, &gwp, &engine).await;
     }
 
     live::notify_game_removed(state, game_id);

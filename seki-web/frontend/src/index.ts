@@ -4,7 +4,15 @@ import { initUserGames } from "./user-games";
 import { initAnalysis } from "./analysis";
 import { initNotificationToggle } from "./game-notifications";
 import { initNewGameForm } from "./game-settings-form";
+import { renderNavStatus } from "./nav-status";
+import { readUserData } from "./game-util";
 import { InitialGameProps } from "./goban/types";
+
+const navStatusEl = document.getElementById("nav-status");
+const userData = readUserData();
+if (navStatusEl && userData) {
+  renderNavStatus(navStatusEl, userData);
+}
 
 initNotificationToggle();
 

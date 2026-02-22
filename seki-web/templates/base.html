@@ -10,6 +10,12 @@
         <meta name="color-scheme" content="light dark">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="mobile-web-app-capable" content="yes">
+        {% block og %}
+        <meta property="og:site_name" content="Seki">
+        <meta property="og:type" content="website">
+        <meta property="og:title" content="Seki — Play Go Online">
+        <meta property="og:description" content="Play Go (Weiqi/Baduk) online with friends">
+        {% endblock %}
         <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
         <link rel="stylesheet" href="/static/css/styles.css">
         <script id="user-data" type="application/json">{{ user_data|safe }}</script>
@@ -24,18 +30,7 @@
                 <a href="/analysis">Analysis</a>
             </div>
             <div>
-                <button id="notification-toggle"
-                        type="button"
-                        title="Enable turn notifications"></button>
-                <a href="/users/{{ user_username }}">{{ user_username }}</a>
-                {% if user_is_registered %}
-                    <form action="/logout" method="post" style="display:inline">
-                        <button type="submit" class="link">Log out</button>
-                    </form>
-                {% else %}
-                    <a href="/login">Log in</a>
-                    <a href="/register">Register</a>
-                {% endif %}
+                <span id="nav-status"></span>
             </div>
         </nav>
         <div class="flash">

@@ -231,6 +231,16 @@ pub async fn show_game(
     })
     .unwrap();
 
+    let black_name = gwp.black.as_ref().map(|u| u.username.as_str()).unwrap_or("Black");
+    let white_name = gwp.white.as_ref().map(|u| u.username.as_str()).unwrap_or("White");
+    let board_size = format!("{}×{}", gwp.game.cols, gwp.game.rows);
+    let og_title = format!("{black_name} vs {white_name} — {board_size}");
+    let og_description = if has_open_slot {
+        format!("Join this {board_size} Go game on Seki")
+    } else {
+        format!("Watch this {board_size} Go game on Seki")
+    };
+
     let tmpl = GamesShowTemplate {
         user_username: current_user.username.clone(),
         user_is_registered: current_user.is_registered(),
@@ -244,6 +254,8 @@ pub async fn show_game(
         is_private: gwp.game.is_private,
         has_open_slot,
         chat_log_json,
+        og_title,
+        og_description,
     };
 
     Ok(Html(

@@ -269,22 +269,30 @@ nav a {
   white-space: nowrap;
 }
 
+#nav-status {
+  display: contents;
+}
+
+.nav-icon,
 #notification-toggle {
+  display: flex;
+  align-items: center;
   background: none;
   border: none;
   padding: 0;
-  display: flex;
-  align-items: center;
+  color: inherit;
+  cursor: pointer;
+}
+
+.nav-icon svg,
+#notification-toggle svg {
+  width: 1.25em;
+  height: 1.25em;
 }
 
 #notification-toggle:disabled {
   opacity: 0.3;
   cursor: default;
-}
-
-#notification-toggle svg {
-  width: 1.25em;
-  height: 1.25em;
 }
 
 @media (min-width: 768px) {
