@@ -147,8 +147,11 @@ function GamesList({ initial }: { initial?: InitMessage }) {
   const isVisible = (g: LiveGameItem) => g.result !== "Aborted";
 
   const userGames = allGames.filter((g) => isMyGame(g) && isVisible(g));
+  const openGames = allGames.filter(
+    (g) => !isMyGame(g) && !g.settings.is_private && isVisible(g) && (!g.black || !g.white),
+  );
   const publicGames = allGames.filter(
-    (g) => !isMyGame(g) && !g.settings.is_private && isVisible(g),
+    (g) => !isMyGame(g) && !g.settings.is_private && isVisible(g) && g.black && g.white,
   );
 
   return (
@@ -166,8 +169,20 @@ function GamesList({ initial }: { initial?: InitMessage }) {
         </ul>
       )}
       <h1>Open games</h1>
-      {publicGames.length === 0 ? (
+      {openGames.length === 0 ? (
         <p>No open games.</p>
+      ) : (
+        <ul>
+          {openGames.map((g) => (
+            <li key={g.id}>
+              <a href={`/games/${g.id}`}>{formatGameDescription(g)}</a>
+            </li>
+          ))}
+        </ul>
+      )}
+      <h1>Public games</h1>
+      {publicGames.length === 0 ? (
+        <p>No public games.</p>
       ) : (
         <ul>
           {publicGames.map((g) => (
