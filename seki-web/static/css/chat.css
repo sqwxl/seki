@@ -1,4 +1,6 @@
 .chat {
+  display: flex;
+  flex-direction: column;
   width: min(90vw, 70vh);
   margin-bottom: 0.5em;
 }
@@ -23,6 +25,7 @@
 }
 .chat form {
   display: flex;
+  max-width: none;
   gap: 0.25em;
   margin-top: 0.35em;
 }
