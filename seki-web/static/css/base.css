@@ -300,10 +300,21 @@ a:visited {
   text-decoration: none;
 }
 
+.user-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+}
+
+.user-label .stone-icon {
+  align-self: center;
+}
+
 .presence-dot {
   display: none;
   width: 0.5em;
   height: 0.5em;
+  margin-right: 0.3em;
   border-radius: 50%;
   background-color: #4caf50;
   vertical-align: middle;

@@ -1,11 +1,11 @@
 import { render } from "preact";
 import {
-  StoneBlack, StoneWhite,
   CapturesBlack, CapturesWhite,
   IconAsterisk,
 } from "./icons";
+import { UserLabel } from "./user-label";
 
-export type PlayerLabelProps = {
+export type PlayerPanelProps = {
   name: string;
   captures: string;
   stone: "black" | "white";
@@ -16,8 +16,7 @@ export type PlayerLabelProps = {
   isTurn?: boolean;
 };
 
-function PlayerLabel(props: PlayerLabelProps) {
-  const StoneIcon = props.stone === "black" ? StoneBlack : StoneWhite;
+function PlayerPanel(props: PlayerPanelProps) {
   const CapturesIcon = props.stone === "black" ? CapturesBlack : CapturesWhite;
 
   return (
@@ -26,15 +25,12 @@ function PlayerLabel(props: PlayerLabelProps) {
         <span class={`turn-indicator${props.isTurn ? " active" : ""}`}>
           <IconAsterisk />
         </span>
-        <span class="stone-icon"><StoneIcon /></span>
-        <span class="player-name">
-          {props.profileUrl
-            ? <a href={props.profileUrl}>{props.name}</a>
-            : props.name}
-        </span>
-        {props.isOnline !== undefined && (
-          <span class={`presence-dot${props.isOnline ? " online" : ""}`} />
-        )}
+        <UserLabel
+          name={props.name}
+          stone={props.stone}
+          profileUrl={props.profileUrl}
+          isOnline={props.isOnline}
+        />
       </span>
       <span class="player-info">
         <span class="captures-icon"><CapturesIcon /></span>
@@ -47,6 +43,6 @@ function PlayerLabel(props: PlayerLabelProps) {
   );
 }
 
-export function renderPlayerLabel(el: HTMLElement, props: PlayerLabelProps): void {
-  render(<PlayerLabel {...props} />, el);
+export function renderPlayerPanel(el: HTMLElement, props: PlayerPanelProps): void {
+  render(<PlayerPanel {...props} />, el);
 }

@@ -1,6 +1,6 @@
-import { StoneBlack, StoneWhite } from "./icons";
 import { formatSize, formatTimeControl } from "./format";
 import type { UserData, GameSettings } from "./format";
+import { UserLabel } from "./user-label";
 
 export type GameUpdate = {
   id: number;
@@ -34,8 +34,8 @@ export function GameDescription(props: LiveGameItem) {
   const creatorIsWhite = props.creator_id != null && props.white?.id === props.creator_id;
   const first = creatorIsWhite ? w : b;
   const second = creatorIsWhite ? b : w;
-  const FirstStone = creatorIsWhite ? StoneWhite : StoneBlack;
-  const SecondStone = creatorIsWhite ? StoneBlack : StoneWhite;
+  const firstStone: "black" | "white" = creatorIsWhite ? "white" : "black";
+  const secondStone: "black" | "white" = creatorIsWhite ? "black" : "white";
 
   const parts: string[] = [
     formatSize(props.settings.cols, props.settings.rows),
@@ -61,7 +61,7 @@ export function GameDescription(props: LiveGameItem) {
 
   return (
     <>
-      {first} <FirstStone /> vs {second} <SecondStone /> - {parts.join(" - ")}
+      <UserLabel name={first} stone={firstStone} /> vs <UserLabel name={second} stone={secondStone} /> - {parts.join(" - ")}
     </>
   );
 }

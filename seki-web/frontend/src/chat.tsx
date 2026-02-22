@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import type { UserData } from "./goban/types";
-import { blackSymbol, whiteSymbol } from "./format";
+import { UserLabel } from "./user-label";
 
 export type ChatEntry = {
   user_id?: number | null;
@@ -19,9 +19,13 @@ type ChatProps = {
   onSend: (text: string) => void;
 };
 
+const timeFmt = new Intl.DateTimeFormat(undefined, {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return timeFmt.format(new Date(iso));
 }
 
 function formatPrefix(entry: ChatEntry): string {
@@ -38,23 +42,44 @@ function formatPrefix(entry: ChatEntry): string {
   return "";
 }
 
-function resolveSender(
-  entry: ChatEntry,
-  black: UserData | undefined,
-  white: UserData | undefined,
-): string {
+function SenderLabel(props: {
+  entry: ChatEntry;
+  black: UserData | undefined;
+  white: UserData | undefined;
+  isOnline: boolean;
+}) {
+  const { entry, black, white, isOnline } = props;
   if (entry.user_id == null) {
-    return "⚑";
+    return <>⚑</>;
   }
-  const isBlack = black?.id === entry.user_id;
-  const isWhite = white?.id === entry.user_id;
-  if (isBlack) {
-    return `${black!.display_name} ${blackSymbol()}`;
+  if (black?.id === entry.user_id) {
+    return (
+      <UserLabel
+        name={black.display_name}
+        stone="black"
+        profileUrl={`/users/${black.display_name}`}
+        isOnline={isOnline}
+      />
+    );
   }
-  if (isWhite) {
-    return `${white!.display_name} ${whiteSymbol()}`;
+  if (white?.id === entry.user_id) {
+    return (
+      <UserLabel
+        name={white.display_name}
+        stone="white"
+        profileUrl={`/users/${white.display_name}`}
+        isOnline={isOnline}
+      />
+    );
   }
-  return entry.display_name ?? "?";
+  const name = entry.display_name ?? "?";
+  return (
+    <UserLabel
+      name={name}
+      profileUrl={`/users/${name}`}
+      isOnline={isOnline}
+    />
+  );
 }
 
 function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
@@ -85,16 +110,14 @@ function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
     <>
       <div class="chat-box" ref={boxRef}>
         {messages.map((entry, i) => {
-          const sender = resolveSender(entry, black, white);
           const prefix = formatPrefix(entry);
+          const isOnline = entry.user_id != null && onlineUsers.has(entry.user_id);
           return (
             <p key={i}>
-              {entry.user_id != null && (
-                <span
-                  class={`presence-dot${onlineUsers.has(entry.user_id) ? " online" : ""}`}
-                />
-              )}
-              {entry.user_id != null ? ` ${prefix}${sender}: ${entry.text}` : `${prefix}${sender}: ${entry.text}`}
+              {prefix}
+              <strong>
+                <SenderLabel entry={entry} black={black} white={white} isOnline={isOnline} />
+              </strong>: {entry.text}
             </p>
           );
         })}

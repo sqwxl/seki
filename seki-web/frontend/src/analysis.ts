@@ -5,7 +5,7 @@ import { createPremove } from "./premove";
 import { renderControls } from "./controls";
 import type { ControlsProps } from "./controls";
 import { formatScoreStr } from "./game-ui";
-import { renderPlayerLabel } from "./player-label";
+import { renderPlayerPanel } from "./player-panel";
 import {
   blackSymbol,
   whiteSymbol,
@@ -267,7 +267,7 @@ export function initAnalysis(_root: HTMLElement) {
         }
 
         if (playerTopEl) {
-          renderPlayerLabel(playerTopEl, {
+          renderPlayerPanel(playerTopEl, {
             name: whiteName,
             captures: wStr,
             stone: "white",
@@ -276,7 +276,7 @@ export function initAnalysis(_root: HTMLElement) {
           });
         }
         if (playerBottomEl) {
-          renderPlayerLabel(playerBottomEl, {
+          renderPlayerPanel(playerBottomEl, {
             name: blackName,
             captures: bStr,
             stone: "black",

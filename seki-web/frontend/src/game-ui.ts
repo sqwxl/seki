@@ -5,7 +5,7 @@ import type { ScoreData } from "./goban/types";
 import type { GameCtx } from "./game-context";
 import { formatGameDescription, blackSymbol, whiteSymbol, formatPoints } from "./format";
 import { GameDescription } from "./game-description";
-import { renderPlayerLabel } from "./player-label";
+import { renderPlayerPanel } from "./player-panel";
 import type { ClockState } from "./game-clock";
 import { computeClockDisplay } from "./game-clock";
 
@@ -85,7 +85,7 @@ export function formatScoreStr(
   return { bStr, wStr };
 }
 
-export function renderPlayerLabels(
+export function renderPlayerPanels(
   ctx: GameCtx,
   topEl: HTMLElement | null,
   bottomEl: HTMLElement | null,
@@ -135,7 +135,7 @@ export function renderPlayerLabels(
   }
 
   if (ctx.playerStone === -1) {
-    renderPlayerLabel(topEl, {
+    renderPlayerPanel(topEl, {
       name: bName,
       captures: bStr,
       stone: "black",
@@ -145,7 +145,7 @@ export function renderPlayerLabels(
       isOnline: bOnline,
       isTurn: bTurn,
     });
-    renderPlayerLabel(bottomEl, {
+    renderPlayerPanel(bottomEl, {
       name: wName,
       captures: wStr,
       stone: "white",
@@ -156,7 +156,7 @@ export function renderPlayerLabels(
       isTurn: wTurn,
     });
   } else {
-    renderPlayerLabel(topEl, {
+    renderPlayerPanel(topEl, {
       name: wName,
       captures: wStr,
       stone: "white",
@@ -166,7 +166,7 @@ export function renderPlayerLabels(
       isOnline: wOnline,
       isTurn: wTurn,
     });
-    renderPlayerLabel(bottomEl, {
+    renderPlayerPanel(bottomEl, {
       name: bName,
       captures: bStr,
       stone: "black",

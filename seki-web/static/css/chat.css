@@ -20,6 +20,9 @@
 .chat-box p {
   margin: 0;
 }
+.chat-box .icon {
+  vertical-align: text-bottom;
+}
 .chat-box p + p {
   margin-top: 0.2em;
 }

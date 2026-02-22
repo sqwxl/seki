@@ -11,7 +11,7 @@ import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
 import { createGameChannel } from "./game-channel";
 import { queryGameDom } from "./game-dom";
-import { updateTitle, renderPlayerLabels, updateStatus, updateTurnFlash, formatScoreStr } from "./game-ui";
+import { updateTitle, renderPlayerPanels, updateStatus, updateTurnFlash, formatScoreStr } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
 import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
@@ -409,7 +409,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   const notificationState = createNotificationState();
 
   // --- Render labels closure ---
-  const renderLabels = () => renderPlayerLabels(ctx, dom.playerTop, dom.playerBottom, clockState);
+  const renderLabels = () => renderPlayerPanels(ctx, dom.playerTop, dom.playerBottom, clockState);
 
   // --- WebSocket ---
   const deps = {
