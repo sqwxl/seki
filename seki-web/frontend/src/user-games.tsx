@@ -29,6 +29,8 @@ function involvesUser(
   return game.black?.id === userId || game.white?.id === userId;
 }
 
+const GAMES_PER_PAGE = 10;
+
 function UserGames({ initial }: { initial?: InitialData }) {
   const [games, setGames] = useState<Map<number, LiveGameItem>>(
     () => {
@@ -41,6 +43,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
       return map;
     },
   );
+  const [visibleCount, setVisibleCount] = useState(GAMES_PER_PAGE);
   const profileUserIdRef = useRef(initial?.profile_user_id);
 
   useEffect(() => {
@@ -103,14 +106,27 @@ function UserGames({ initial }: { initial?: InitialData }) {
     return <p>No games yet.</p>;
   }
 
+  const visibleGames = allGames.slice(0, visibleCount);
+
   return (
-    <ul class="games-list">
-      {allGames.map((g) => (
-        <li key={g.id}>
-          <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul class="games-list">
+        {visibleGames.map((g) => (
+          <li key={g.id}>
+            <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
+          </li>
+        ))}
+      </ul>
+      {visibleCount < allGames.length && (
+        <button
+          type="button"
+          class="btn"
+          onClick={() => setVisibleCount((c) => c + GAMES_PER_PAGE)}
+        >
+          Show more
+        </button>
+      )}
+    </>
   );
 }
 

@@ -13,7 +13,7 @@
                 <h2>Settings</h2>
                 {% if user_is_registered %}
                     <h3>Username</h3>
-                    <form action="/users/{{ profile_username }}" method="post">
+                    <form action="/users/{{ profile_username }}" method="post" class="inline-form">
                         <input type="text"
                                name="username"
                                value="{{ profile_username }}"
@@ -24,15 +24,12 @@
                     <p>
                         Use this token to authenticate with the API via <code>Authorization: Bearer &lt;token&gt;</code>.
                     </p>
-                    <form action="/settings/token" method="post">
+                    <form action="/settings/token" method="post" class="inline-form">
                         {% if let Some(token) = api_token %}
-                            <div>
-                                <input type="text"
-                                       value="{{ token }}"
-                                       readonly
-                                       style="width:24ch;
-                                              font-family:monospace">
-                            </div>
+                            <input type="text"
+                                   value="{{ token }}"
+                                   readonly
+                                   style="font-family:monospace">
                             <button type="submit">Regenerate Token</button>
                         {% else %}
                             <button type="submit">Generate Token</button>
