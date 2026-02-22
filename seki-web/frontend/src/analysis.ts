@@ -68,6 +68,14 @@ export function initAnalysis(_root: HTMLElement) {
     "board-size",
   ) as HTMLSelectElement | null;
 
+  // Create move tree element and insert it after #analysis
+  const moveTreeEl = document.createElement("div");
+  moveTreeEl.className = "move-tree";
+  const analysisEl = document.getElementById("analysis");
+  if (analysisEl) {
+    analysisEl.after(moveTreeEl);
+  }
+
   const savedSize = localStorage.getItem(SIZE_KEY);
   let currentSize = savedSize ? parseInt(savedSize, 10) : 19;
   if (!VALID_SIZES.includes(currentSize)) {
@@ -185,7 +193,7 @@ export function initAnalysis(_root: HTMLElement) {
       showCoordinates,
       gobanEl,
       komi: KOMI,
-      moveTreeEl: document.getElementById("move-tree"),
+      moveTreeEl,
       moveTreeDirection: "responsive",
       storageKey: `seki:analysis:tree:${size}`,
       ghostStone,

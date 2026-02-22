@@ -5,7 +5,6 @@ export type GameDomElements = {
   playerTop: HTMLDivElement | null;
   playerBottom: HTMLDivElement | null;
   controls: HTMLDivElement | null;
-  moveTree: HTMLDivElement | null;
 };
 
 export function queryGameDom(): GameDomElements {
@@ -16,6 +15,5 @@ export function queryGameDom(): GameDomElements {
     playerBottom: document.getElementById("player-bottom") as HTMLDivElement | null,
     goban: document.getElementById("goban")! as HTMLDivElement,
     controls: document.getElementById("controls") as HTMLDivElement | null,
-    moveTree: document.getElementById("move-tree") as HTMLDivElement | null,
   };
 }

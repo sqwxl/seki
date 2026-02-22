@@ -247,6 +247,7 @@ export type Board = {
   updateBaseMoves: (movesJson: string) => void;
   updateNav: () => void;
   setShowCoordinates: (show: boolean) => void;
+  setMoveTreeEl: (el: HTMLElement | null) => void;
   enterTerritoryReview: () => void;
   exitTerritoryReview: () => void;
   finalizeTerritoryReview: () => ScoreData | undefined;
@@ -694,6 +695,12 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     setShowCoordinates: (show: boolean) => {
       showCoordinates = show;
       doRenderBoard();
+    },
+    setMoveTreeEl: (el: HTMLElement | null) => {
+      config.moveTreeEl = el;
+      if (!config.moveTreeDirection) {
+        config.moveTreeDirection = "responsive";
+      }
     },
     enterTerritoryReview: enterTerritory,
     exitTerritoryReview: exitTerritory,
