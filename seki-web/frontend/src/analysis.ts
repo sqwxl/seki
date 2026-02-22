@@ -1,7 +1,9 @@
-import { createBoard, ensureWasm, findNavButtons } from "./board";
+import { createBoard, ensureWasm } from "./board";
 import type { Board } from "./board";
-import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
-import { readMoveConfirmation, setupMoveConfirmToggle } from "./move-confirm";
+import { readShowCoordinates, toggleShowCoordinates } from "./coord-toggle";
+import { createPremove } from "./premove";
+import { renderControls } from "./controls";
+import type { ControlsProps } from "./controls";
 import { formatScoreStr } from "./game-ui";
 import { renderPlayerLabel } from "./player-label";
 import {
@@ -16,12 +18,7 @@ import { queryGameDom } from "./game-dom";
 import { playStoneSound, playPassSound } from "./game-sound";
 import { readFileAsText, downloadSgf } from "./sgf-io";
 import type { SgfMeta } from "./sgf-io";
-import type { Point, Sign } from "./goban/types";
-import {
-  setIcon, checkSvg,
-  playbackPrevSvg, playbackRewindSvg, playbackForwardSvg, playbackNextSvg,
-  passSvg, balanceSvg, fileUploadSvg, fileExportSvg,
-} from "./icons";
+import type { Sign } from "./goban/types";
 
 const SIZE_KEY = "seki:analysis:size";
 const SGF_META_KEY = "seki:analysis:sgfMeta";
@@ -59,9 +56,10 @@ function updateDescription(el: HTMLElement, meta: SgfMeta | undefined) {
   }
 }
 
-export function initAnalysis(root: HTMLElement) {
+export function initAnalysis(_root: HTMLElement) {
   const {
     goban: gobanEl,
+    controls: controlsEl,
     playerTop: playerTopEl,
     playerBottom: playerBottomEl,
   } = queryGameDom();
@@ -69,29 +67,6 @@ export function initAnalysis(root: HTMLElement) {
   const sizeSelect = document.getElementById(
     "board-size",
   ) as HTMLSelectElement | null;
-
-  // --- Populate SVG icons ---
-  setIcon("start-btn", playbackPrevSvg);
-  setIcon("back-btn", playbackRewindSvg);
-  setIcon("forward-btn", playbackForwardSvg);
-  setIcon("end-btn", playbackNextSvg);
-  setIcon("pass-btn", passSvg);
-  setIcon("score-btn", balanceSvg);
-  setIcon("sgf-import-btn", fileUploadSvg);
-  setIcon("sgf-export", fileExportSvg);
-
-  // Territory UI elements
-  const playControls = document.getElementById("play-controls");
-  const territoryControls = document.getElementById("territory-controls");
-  const scoreBtn = document.getElementById(
-    "score-btn",
-  ) as HTMLButtonElement | null;
-  const readyBtn = document.getElementById(
-    "territory-ready-btn",
-  ) as HTMLButtonElement | null;
-  const exitBtn = document.getElementById(
-    "territory-exit-btn",
-  ) as HTMLButtonElement | null;
 
   const savedSize = localStorage.getItem(SIZE_KEY);
   let currentSize = savedSize ? parseInt(savedSize, 10) : 19;
@@ -103,7 +78,6 @@ export function initAnalysis(root: HTMLElement) {
   }
 
   let board: Board | undefined;
-  let territoryAbort: AbortController | undefined;
   let sgfMeta: SgfMeta | undefined;
   let sgfText: string | undefined;
 
@@ -117,79 +91,93 @@ export function initAnalysis(root: HTMLElement) {
   sgfText = localStorage.getItem(SGF_TEXT_KEY) ?? undefined;
   updateDescription(descriptionEl, sgfMeta);
 
-  const showCoordinates = readShowCoordinates();
-  setupCoordToggle(() => board);
+  let showCoordinates = readShowCoordinates();
 
-  // --- Move confirmation ---
-  const confirmMoveBtn = document.getElementById("confirm-move-btn") as HTMLButtonElement | null;
-  if (confirmMoveBtn) {
-    setIcon("confirm-move-btn", checkSvg);
-  }
-  let moveConfirmEnabled = readMoveConfirmation();
-  let premove: Point | undefined;
-  setupMoveConfirmToggle((v) => {
-    moveConfirmEnabled = v;
-    premove = undefined;
-    updateConfirmBtn();
-    board?.render();
+  const pm = createPremove({
+    getSign: () => (board?.engine.current_turn_stone() ?? 1) as Sign,
   });
 
-  function getGhostStone(): { col: number; row: number; sign: Sign } | undefined {
-    if (!premove || !board) {
-      return undefined;
-    }
-    const [col, row] = premove;
-    return { col, row, sign: board.engine.current_turn_stone() as Sign };
+  function ghostStone() {
+    return pm.getGhostStone();
   }
 
-  function updateConfirmBtn() {
-    if (confirmMoveBtn) {
-      confirmMoveBtn.style.display = premove ? "" : "none";
+  // --- Controls rendering ---
+  function doRenderControls() {
+    if (!controlsEl) {
+      return;
     }
-  }
+    const reviewing = board?.isTerritoryReview() ?? false;
+    const finalized = board?.isFinalized() ?? false;
 
-  function updateControls(reviewing: boolean, finalized: boolean) {
-    if (playControls) {
-      playControls.style.display =
-        reviewing ? "none" : "flex";
+    const props: ControlsProps = {
+      layout: "analysis",
+      nav: {
+        atStart: board?.engine.is_at_start() ?? true,
+        atLatest: board?.engine.is_at_latest() ?? true,
+        counter: board
+          ? `${board.engine.view_index()} / ${board.engine.total_moves()}`
+          : "0 / 0",
+        onNavigate: (action) => board?.navigate(action),
+      },
+      coordsToggle: {
+        enabled: showCoordinates,
+        onClick: () => {
+          showCoordinates = toggleShowCoordinates();
+          board?.setShowCoordinates(showCoordinates);
+        },
+      },
+      moveConfirmToggle: {
+        enabled: pm.enabled,
+        onClick: () => {
+          pm.enabled = !pm.enabled;
+          pm.clear();
+          board?.render();
+        },
+      },
+    };
+
+    if (reviewing) {
+      props.territoryReady = {
+        onClick: () => board?.finalizeTerritoryReview(),
+      };
+      props.territoryExit = {
+        onClick: () => board?.exitTerritoryReview(),
+      };
+    } else if (!finalized) {
+      props.pass = { onClick: () => board?.pass() };
+      props.score = { onClick: () => board?.enterTerritoryReview() };
+      props.sgfImport = { onFileChange: handleSgfImport };
+      props.sgfExport = { onClick: handleSgfExport };
+      // Still show territory controls wrapper so component knows this is analysis mode
+      props.territoryReady = undefined;
+      props.territoryExit = undefined;
     }
-    if (territoryControls) {
-      territoryControls.style.display =
-        reviewing ? "flex" : "none";
+
+    if (pm.value) {
+      props.confirmMove = {
+        onClick: () => {
+          if (pm.value && board) {
+            const [col, row] = pm.value;
+            pm.clear();
+            if (board.engine.try_play(col, row)) {
+              playStoneSound();
+              board.save();
+              board.render();
+            }
+          }
+        },
+      };
     }
-    // When finalized, hide action buttons but keep nav and reset visible
-    if (finalized && playControls) {
-      const scoreEl = playControls.querySelector("#score-btn");
-      const passEl = playControls.querySelector("#pass-btn");
-      if (scoreEl) {
-        (scoreEl as HTMLElement).style.display = "none";
-      }
-      if (passEl) {
-        (passEl as HTMLElement).style.display = "none";
-      }
-    } else if (playControls) {
-      const scoreEl = playControls.querySelector("#score-btn");
-      const passEl = playControls.querySelector("#pass-btn");
-      if (scoreEl) {
-        (scoreEl as HTMLElement).style.display = "";
-      }
-      if (passEl) {
-        (passEl as HTMLElement).style.display = "";
-      }
-    }
+
+    renderControls(controlsEl, props);
   }
 
   async function initBoard(size: number) {
     if (board) {
       board.destroy();
     }
-    territoryAbort?.abort();
-    territoryAbort = new AbortController();
-    const tOpts = { signal: territoryAbort.signal };
     gobanEl.style.aspectRatio = `${size}/${size}`;
-
-    premove = undefined;
-    updateConfirmBtn();
+    pm.clear();
 
     board = await createBoard({
       cols: size,
@@ -200,38 +188,32 @@ export function initAnalysis(root: HTMLElement) {
       moveTreeEl: document.getElementById("move-tree"),
       moveTreeDirection: "responsive",
       storageKey: `seki:analysis:tree:${size}`,
-      navButtons: findNavButtons(),
-      buttons: {
-        pass: document.getElementById("pass-btn") as HTMLButtonElement | null,
-      },
-      ghostStone: getGhostStone,
+      ghostStone,
       onVertexClick: (col, row) => {
-        if (!moveConfirmEnabled) {
+        if (!pm.enabled) {
           return false;
         }
-        if (premove && premove[0] === col && premove[1] === row) {
-          premove = undefined;
-          updateConfirmBtn();
+        if (pm.value && pm.value[0] === col && pm.value[1] === row) {
+          pm.clear();
+          doRenderControls();
           return false; // let the board play the move
         }
-        premove = [col, row];
-        updateConfirmBtn();
+        pm.value = [col, row];
+        doRenderControls();
         board?.render();
         return true; // consume the click
       },
       onStonePlay: () => {
-        premove = undefined;
-        updateConfirmBtn();
+        pm.clear();
         playStoneSound();
       },
       onPass: () => {
-        premove = undefined;
-        updateConfirmBtn();
+        pm.clear();
         playPassSound();
       },
       onRender: (engine, territory) => {
         const { reviewing, finalized, score } = territory;
-        updateControls(reviewing, finalized);
+        doRenderControls();
 
         const isBlackTurn = engine.current_turn_stone() === 1;
 
@@ -297,31 +279,6 @@ export function initAnalysis(root: HTMLElement) {
       },
     });
 
-    // Wire territory buttons (re-wired on each initBoard since board changes)
-    scoreBtn?.addEventListener("click", () => {
-      board?.enterTerritoryReview();
-    }, tOpts);
-    readyBtn?.addEventListener("click", () => {
-      board?.finalizeTerritoryReview();
-    }, tOpts);
-    exitBtn?.addEventListener("click", () => {
-      board?.exitTerritoryReview();
-    }, tOpts);
-
-    // Wire confirm-move button (re-wired on each initBoard)
-    confirmMoveBtn?.addEventListener("click", () => {
-      if (premove && board) {
-        const [col, row] = premove;
-        premove = undefined;
-        updateConfirmBtn();
-        if (board.engine.try_play(col, row)) {
-          playStoneSound();
-          board.save();
-          board.render();
-        }
-      }
-    }, tOpts);
-
     // Restore move_times from saved SGF text (tree already restored via storageKey)
     if (sgfText && board) {
       board.engine.load_sgf_move_times(sgfText);
@@ -342,13 +299,9 @@ export function initAnalysis(root: HTMLElement) {
     });
   }
 
-  // --- SGF import ---
-  const sgfImport = document.getElementById("sgf-import") as HTMLInputElement | null;
-  document.getElementById("sgf-import-btn")?.addEventListener("click", () => {
-    sgfImport?.click();
-  });
-  sgfImport?.addEventListener("change", async () => {
-    const file = sgfImport.files?.[0];
+  // --- SGF import handler ---
+  async function handleSgfImport(input: HTMLInputElement) {
+    const file = input.files?.[0];
     if (!file) {
       return;
     }
@@ -358,18 +311,18 @@ export function initAnalysis(root: HTMLElement) {
     const meta: SgfMeta = JSON.parse(metaJson);
     if (meta.error) {
       alert(`SGF error: ${meta.error}`);
-      sgfImport.value = "";
+      input.value = "";
       return;
     }
     if (meta.cols !== meta.rows) {
       alert("Non-square boards are not supported.");
-      sgfImport.value = "";
+      input.value = "";
       return;
     }
     const size = meta.cols;
     if (!VALID_SIZES.includes(size)) {
       alert(`Unsupported board size: ${size}×${size}`);
-      sgfImport.value = "";
+      input.value = "";
       return;
     }
     // Update size selector and current size
@@ -395,12 +348,11 @@ export function initAnalysis(root: HTMLElement) {
       board.save();
       board.render();
     }
-    sgfImport.value = "";
-  });
+    input.value = "";
+  }
 
-  // --- SGF export ---
-  const sgfExport = document.getElementById("sgf-export") as HTMLButtonElement | null;
-  sgfExport?.addEventListener("click", () => {
+  // --- SGF export handler ---
+  function handleSgfExport() {
     if (!board) {
       return;
     }
@@ -422,7 +374,7 @@ export function initAnalysis(root: HTMLElement) {
         ? `${sgfMeta.black_name}-vs-${sgfMeta.white_name}`
         : "analysis");
     downloadSgf(sgf, `${filename}.sgf`);
-  });
+  }
 
   initBoard(currentSize);
 }

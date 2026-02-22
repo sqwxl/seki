@@ -3,7 +3,6 @@ import { Goban } from "./goban/index";
 import type { GhostStoneData, GameTreeData, MarkerData, Point, ScoreData, Sign } from "./goban/types";
 import { MoveTree } from "./move-tree";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
-import { GameDomElements } from "./game-dom";
 import { flashPassEffect } from "./game-messages";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
@@ -217,7 +216,7 @@ export type BoardConfig = {
   rows: number;
   handicap?: number;
   showCoordinates?: boolean;
-  gobanEl: GameDomElements["goban"];
+  gobanEl: HTMLDivElement;
   moveTreeEl?: HTMLElement | null;
   moveTreeDirection?: "horizontal" | "vertical" | "responsive";
   storageKey?: string;
@@ -226,8 +225,8 @@ export type BoardConfig = {
   komi?: number;
   navButtons?: NavButtons;
   buttons?: {
-    undo?: GameDomElements["requestUndoBtn"];
-    pass?: GameDomElements["passBtn"];
+    undo?: HTMLButtonElement | null;
+    pass?: HTMLButtonElement | null;
   };
   ghostStone?: GhostStoneGetter;
   territoryOverlay?: () => TerritoryOverlay | undefined;
@@ -243,6 +242,7 @@ export type Board = {
   restoredWithAnalysis: boolean;
   save: () => void;
   render: () => void;
+  pass: () => boolean;
   navigate: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string) => void;
   updateNav: () => void;
@@ -577,6 +577,29 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     }
   }
 
+  function doPass(): boolean {
+    const stage = engine.stage();
+    if (isCurrentFinalized() || stage === "territory_review" || stage === "done") {
+      return false;
+    }
+    if (territoryState) {
+      territoryState = undefined;
+    }
+    if (engine.pass()) {
+      config.onPass?.();
+      save();
+      flashPassEffect(config.gobanEl);
+      // Auto-enter territory review after two consecutive passes
+      if (engine.stage() === "territory_review") {
+        enterTerritory();
+        return true;
+      }
+      doRender();
+      return true;
+    }
+    return false;
+  }
+
   // --- Wire up button listeners ---
   const abortController = new AbortController();
   const opts = { signal: abortController.signal };
@@ -619,30 +642,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       opts,
     );
 
-    config.buttons.pass?.addEventListener(
-      "click",
-      () => {
-        const stage = engine.stage();
-        if (isCurrentFinalized() || stage === "territory_review" || stage === "done") {
-          return;
-        }
-        if (territoryState) {
-          territoryState = undefined;
-        }
-        if (engine.pass()) {
-          config.onPass?.();
-          save();
-          flashPassEffect(config.gobanEl);
-          // Auto-enter territory review after two consecutive passes
-          if (engine.stage() === "territory_review") {
-            enterTerritory();
-            return;
-          }
-          doRender();
-        }
-      },
-      opts,
-    );
+    config.buttons.pass?.addEventListener("click", () => doPass(), opts);
 
   }
 
@@ -687,6 +687,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     restoredWithAnalysis,
     save,
     render: doRender,
+    pass: doPass,
     navigate: doNavigate,
     updateBaseMoves: doUpdateBaseMoves,
     updateNav: doUpdateNav,

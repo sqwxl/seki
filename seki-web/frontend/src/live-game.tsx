@@ -1,21 +1,18 @@
-import { GameStage, type InitialGameProps, type Point, type Sign } from "./goban/types";
-import { createBoard, findNavButtons, type TerritoryOverlay } from "./board";
+import { GameStage, isPlayStage, type InitialGameProps, type Point, type Sign } from "./goban/types";
+import { createBoard, type TerritoryOverlay } from "./board";
 import { renderChatHistory, setupChat, type SenderResolver } from "./chat";
-import { readShowCoordinates, setupCoordToggle } from "./coord-toggle";
-import { readMoveConfirmation, setupMoveConfirmToggle } from "./move-confirm";
+import { readShowCoordinates, toggleShowCoordinates } from "./coord-toggle";
+import { createPremove } from "./premove";
+import { renderControls } from "./controls";
+import type { ControlsProps } from "./controls";
 import { blackSymbol, whiteSymbol } from "./format";
-import {
-  setIcon, setIconAll, checkSvg, xSvg,
-  playbackPrevSvg, playbackRewindSvg, playbackForwardSvg, playbackNextSvg,
-  undoSvg, passSvg, whiteFlagSvg, analysisSvg, fileExportSvg,
-} from "./icons";
+import { setIcon, checkSvg, xSvg } from "./icons";
 import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
 import { createGameChannel } from "./game-channel";
 import { queryGameDom } from "./game-dom";
 import { updateTitle, renderPlayerLabels, updateStatus, updateTurnFlash } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
-import { updateControls } from "./game-controls";
 import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
 import { readUserData, derivePlayerStone } from "./game-util";
@@ -50,38 +47,18 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     flagSent: false,
   };
 
-  // --- Populate SVG icons ---
-  setIcon("start-btn", playbackPrevSvg);
-  setIcon("back-btn", playbackRewindSvg);
-  setIcon("forward-btn", playbackForwardSvg);
-  setIcon("end-btn", playbackNextSvg);
-  setIcon("request-undo-btn", undoSvg);
-  setIcon("pass-btn", passSvg);
-  setIcon("resign-btn", whiteFlagSvg);
-  setIcon("analyze-btn", analysisSvg);
-  setIcon("sgf-export", fileExportSvg);
-  setIconAll(".confirm-yes", checkSvg);
-  setIconAll(".confirm-no", xSvg);
+  let showCoordinates = readShowCoordinates();
 
-  // --- Coordinate toggle ---
-  const showCoordinates = readShowCoordinates();
-  setupCoordToggle(() => ctx.board);
-
-  // --- Move confirmation toggle ---
-  let moveConfirmEnabled = readMoveConfirmation();
-  setupMoveConfirmToggle((v) => {
-    moveConfirmEnabled = v;
-    ctx.premove = undefined;
-    ctx.board?.render();
+  const pm = createPremove({
+    getSign: () => ctx.playerStone as Sign,
   });
 
-  // --- Ghost stone (premove) getter ---
-  function getGhostStone(): { col: number; row: number; sign: Sign } | undefined {
-    if (!ctx.premove || ctx.analysisMode) {
+  // --- Ghost stone getter ---
+  function ghostStone() {
+    if (ctx.analysisMode) {
       return undefined;
     }
-    const [col, row] = ctx.premove;
-    return { col, row, sign: ctx.playerStone as Sign };
+    return pm.getGhostStone();
   }
 
   // --- Server territory overlay getter ---
@@ -96,6 +73,129 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     return { paintMap, dimmedVertices };
   }
 
+  // --- Controls rendering ---
+  function doRenderControls() {
+    if (!dom.controls) {
+      return;
+    }
+
+    const isPlay = isPlayStage(ctx.gameStage);
+    const isReview = ctx.gameStage === GameStage.TerritoryReview;
+    const isMyTurn = ctx.currentTurn === ctx.playerStone;
+    const isPlayer = ctx.playerStone !== 0;
+
+    const props: ControlsProps = {
+      nav: {
+        atStart: ctx.board?.engine.is_at_start() ?? true,
+        atLatest: ctx.board?.engine.is_at_latest() ?? true,
+        counter: ctx.board
+          ? `${ctx.board.engine.view_index()} / ${ctx.board.engine.total_moves()}`
+          : "0 / 0",
+        onNavigate: (action) => ctx.board?.navigate(action),
+      },
+      coordsToggle: {
+        enabled: showCoordinates,
+        onClick: () => {
+          showCoordinates = toggleShowCoordinates();
+          ctx.board?.setShowCoordinates(showCoordinates);
+        },
+      },
+      moveConfirmToggle: {
+        enabled: pm.enabled,
+        onClick: () => {
+          pm.enabled = !pm.enabled;
+          pm.clear();
+          ctx.board?.render();
+        },
+      },
+      sgfExport: { onClick: handleSgfExport },
+    };
+
+    if (ctx.analysisMode) {
+      // Analysis mode: show pass (local) and exit button
+      props.pass = {
+        onClick: () => { ctx.board?.pass(); },
+      };
+      props.exitAnalysis = { onClick: exitAnalysis };
+    } else {
+      // Live mode
+      if (isPlayer && isPlay) {
+        props.pass = {
+          onClick: () => {},
+          disabled: !isMyTurn,
+        };
+        props.confirmPass = {
+          message: "Pass your turn?",
+          onConfirm: () => channel.pass(),
+        };
+      }
+
+      if (isPlay) {
+        props.resign = {
+          message: "Resign this game?",
+          onConfirm: () => channel.resign(),
+        };
+      }
+
+      if (isPlayer && ctx.allowUndo && isPlay) {
+        const canUndo =
+          ctx.moves.length > 0 &&
+          !isMyTurn &&
+          !ctx.undoRejected;
+        props.requestUndo = {
+          onClick: () => channel.requestUndo(),
+          disabled: !canUndo,
+          title: ctx.undoRejected
+            ? "Undo was rejected for this move"
+            : ctx.moves.length === 0
+              ? "No moves to undo"
+              : isMyTurn
+                ? "Cannot undo on your turn"
+                : "Request to undo your last move",
+        };
+      }
+
+      if (isReview && isPlayer) {
+        const alreadyApproved =
+          (ctx.playerStone === 1 && ctx.territory?.black_approved) ||
+          (ctx.playerStone === -1 && ctx.territory?.white_approved);
+        props.acceptTerritory = {
+          message: "Accept territory?",
+          onConfirm: () => channel.approveTerritory(),
+          disabled: !!alreadyApproved,
+        };
+      }
+
+      const canAbort = isPlayer && ctx.moves.length === 0 && !ctx.result;
+      if (canAbort) {
+        props.abort = {
+          message: "Abort this game?",
+          onConfirm: () => channel.abort(),
+        };
+      }
+
+      if (!isReview) {
+        props.analyze = { onClick: enterAnalysis };
+      }
+    }
+
+    // Confirm move button
+    if (pm.value && isMyTurn && !ctx.analysisMode) {
+      props.confirmMove = {
+        onClick: () => {
+          if (pm.value) {
+            const [col, row] = pm.value;
+            pm.clear();
+            channel.play(col, row);
+            doRenderControls();
+          }
+        },
+      };
+    }
+
+    renderControls(dom.controls, props);
+  }
+
   // --- WASM board (async) ---
   createBoard({
     cols: ctx.gameState.cols,
@@ -103,9 +203,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     handicap: initialProps.settings.handicap,
     showCoordinates,
     gobanEl: dom.goban,
-    navButtons: findNavButtons(),
-    buttons: { pass: dom.passBtn },
-    ghostStone: getGhostStone,
+    ghostStone,
     territoryOverlay: getServerTerritory,
     onVertexClick: (col, row) => handleVertexClick(col, row),
     onStonePlay: playStoneSound,
@@ -118,7 +216,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
       if (ctx.board && !ctx.analysisMode && engine.view_index() < ctx.moves.length) {
         enterAnalysis();
       }
-      updateControls(ctx, dom);
+      doRenderControls();
     },
   }).then((b) => {
     ctx.board = b;
@@ -129,29 +227,29 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     }
     ctx.board.render();
     ctx.board.updateNav();
-    updateControls(ctx, dom);
+    doRenderControls();
   });
 
-  // --- Analysis helpers (stay here — tightly coupled to orchestrator) ---
+  // --- Analysis helpers ---
   function enterAnalysis() {
-    ctx.premove = undefined;
+    pm.clear();
     ctx.analysisMode = true;
     dom.goban.classList.add("goban-analysis");
-    updateControls(ctx, dom);
+    doRenderControls();
     if (ctx.board) {
       ctx.board.render();
     }
   }
 
   function exitAnalysis() {
-    ctx.premove = undefined;
+    pm.clear();
     ctx.analysisMode = false;
     dom.goban.classList.remove("goban-analysis");
     if (ctx.board) {
       ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
       ctx.board.render();
     }
-    updateControls(ctx, dom);
+    doRenderControls();
   }
 
   function handleVertexClick(col: number, row: number): boolean {
@@ -172,20 +270,45 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     }
     const isMyTurn = ctx.currentTurn === ctx.playerStone;
     if (isMyTurn) {
-      if (!moveConfirmEnabled) {
-        ctx.premove = undefined;
+      if (!pm.enabled) {
+        pm.clear();
         channel.play(col, row);
-      } else if (ctx.premove && ctx.premove[0] === col && ctx.premove[1] === row) {
+      } else if (pm.value && pm.value[0] === col && pm.value[1] === row) {
         // Confirm: same position clicked twice
-        ctx.premove = undefined;
+        pm.clear();
         channel.play(col, row);
       } else {
         // Show ghost stone at clicked position
-        ctx.premove = [col, row];
+        pm.value = [col, row];
         ctx.board.render();
+        doRenderControls();
       }
     }
     return true;
+  }
+
+  // --- SGF export ---
+  function handleSgfExport() {
+    if (!ctx.board) {
+      return;
+    }
+    const timeFields = settingsToSgfTime(initialProps.settings);
+    const meta: SgfMeta = {
+      cols: ctx.gameState.cols,
+      rows: ctx.gameState.rows,
+      komi: initialProps.komi,
+      handicap: initialProps.settings.handicap || undefined,
+      black_name: ctx.black?.display_name,
+      white_name: ctx.white?.display_name,
+      result: ctx.result ?? undefined,
+      game_name: undefined,
+      time_limit_secs: timeFields.time_limit_secs,
+      overtime: timeFields.overtime,
+    };
+    const sgf = ctx.board.engine.export_sgf(JSON.stringify(meta));
+    const bName = ctx.black?.display_name ?? "Black";
+    const wName = ctx.white?.display_name ?? "White";
+    downloadSgf(sgf, `${bName}-vs-${wName}.sgf`);
   }
 
   // --- Chat sender resolver ---
@@ -207,6 +330,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   // --- WebSocket ---
   const deps = {
     ctx, dom, clockState, territoryCountdown, channel, resolveSender, renderLabels,
+    premove: pm,
+    renderControls: doRenderControls,
     onNewMove: () => {
       if (ctx.analysisMode) {
         exitAnalysis();
@@ -215,74 +340,9 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   };
   joinGame(gameId, (raw) => handleGameMessage(raw, deps));
 
-  // --- Event listeners ---
-  dom.passBtn?.addEventListener("click", (e) => {
-    if (!ctx.analysisMode) {
-      e.stopImmediatePropagation();
-      document.getElementById("pass-confirm")?.showPopover();
-    }
-  });
-
-  (
-    document.getElementById("confirm-pass-btn") as HTMLButtonElement | null
-  )?.addEventListener("click", () => channel.pass());
-  (
-    document.getElementById("confirm-resign-btn") as HTMLButtonElement | null
-  )?.addEventListener("click", () => channel.resign());
-  (
-    document.getElementById("confirm-abort-btn") as HTMLButtonElement | null
-  )?.addEventListener("click", () => channel.abort());
-
-  dom.acceptTerritoryBtn?.addEventListener("click", () => {
-    document.getElementById("accept-territory-confirm")?.showPopover();
-  });
-  (
-    document.getElementById(
-      "confirm-accept-territory-btn",
-    ) as HTMLButtonElement | null
-  )?.addEventListener("click", () => channel.approveTerritory());
-
-  dom.analyzeBtn?.addEventListener("click", () => enterAnalysis());
-  dom.exitAnalysisBtn?.addEventListener("click", () => exitAnalysis());
-
-  // --- SGF export ---
-  (document.getElementById("sgf-export") as HTMLButtonElement | null)
-    ?.addEventListener("click", () => {
-      if (!ctx.board) {
-        return;
-      }
-      const timeFields = settingsToSgfTime(initialProps.settings);
-      const meta: SgfMeta = {
-        cols: ctx.gameState.cols,
-        rows: ctx.gameState.rows,
-        komi: initialProps.komi,
-        handicap: initialProps.settings.handicap || undefined,
-        black_name: ctx.black?.display_name,
-        white_name: ctx.white?.display_name,
-        result: ctx.result ?? undefined,
-        game_name: undefined,
-        time_limit_secs: timeFields.time_limit_secs,
-        overtime: timeFields.overtime,
-      };
-      const sgf = ctx.board.engine.export_sgf(JSON.stringify(meta));
-      const bName = ctx.black?.display_name ?? "Black";
-      const wName = ctx.white?.display_name ?? "White";
-      downloadSgf(sgf, `${bName}-vs-${wName}.sgf`);
-    });
-
-  dom.confirmMoveBtn?.addEventListener("click", () => {
-    if (ctx.premove) {
-      const [col, row] = ctx.premove;
-      ctx.premove = undefined;
-      channel.play(col, row);
-      updateControls(ctx, dom);
-    }
-  });
-
-  dom.requestUndoBtn?.addEventListener("click", () => {
-    channel.requestUndo();
-    dom.requestUndoBtn!.disabled = true;
-  });
+  // --- Undo response popover (outside Controls — kept in template) ---
+  setIcon("accept-undo-btn", checkSvg);
+  setIcon("reject-undo-btn", xSvg);
   document
     .getElementById("accept-undo-btn")
     ?.addEventListener("click", () => channel.acceptUndo());
@@ -297,7 +357,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   updateTitle(ctx, dom.title);
   renderLabels();
   updateStatus(ctx, dom.status);
-  updateControls(ctx, dom);
+  doRenderControls();
 
   renderChatHistory(resolveSender);
   setupChat((text) => channel.say(text));
