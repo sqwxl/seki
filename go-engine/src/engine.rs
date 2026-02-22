@@ -381,9 +381,10 @@ mod tests {
     }
 
     #[test]
-    fn handicap_non_19x19_ignored() {
+    fn handicap_works_on_9x9() {
         let engine = Engine::with_handicap(9, 9, 4);
-        assert!(engine.goban().is_empty());
+        assert!(!engine.goban().is_empty());
+        assert_eq!(engine.current_turn_stone(), Stone::White);
     }
 
     // -- Turn management --

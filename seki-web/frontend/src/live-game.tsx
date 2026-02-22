@@ -16,6 +16,7 @@ import type { TerritoryCountdown } from "./game-ui";
 import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
 import { readUserData, derivePlayerStone } from "./game-util";
+import { createNotificationState } from "./game-notifications";
 import { playStoneSound, playPassSound } from "./game-sound";
 import { settingsToSgfTime } from "./format";
 import { downloadSgf } from "./sgf-io";
@@ -324,6 +325,9 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     return `${name} ${symbol}`;
   };
 
+  // --- Notifications ---
+  const notificationState = createNotificationState();
+
   // --- Render labels closure ---
   const renderLabels = () => renderPlayerLabels(ctx, dom.playerTop, dom.playerBottom, clockState);
 
@@ -331,6 +335,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   const deps = {
     ctx, dom, clockState, territoryCountdown, channel, resolveSender, renderLabels,
     premove: pm,
+    notificationState,
     renderControls: doRenderControls,
     onNewMove: () => {
       if (ctx.analysisMode) {

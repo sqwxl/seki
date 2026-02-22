@@ -7,6 +7,7 @@ import { syncClock } from "./game-clock";
 import type { PremoveState } from "./premove";
 import { updateTitle, updateStatus, updateTurnFlash, syncTerritoryCountdown } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
+import { notifyTurn, type NotificationState } from "./game-notifications";
 import { appendToChat, updateChatPresence, type SenderResolver } from "./chat";
 import { playStoneSound, playPassSound } from "./game-sound";
 
@@ -17,6 +18,7 @@ export type GameMessageDeps = {
   territoryCountdown: TerritoryCountdown;
   channel: GameChannel;
   premove: PremoveState;
+  notificationState: NotificationState;
   resolveSender: SenderResolver;
   renderLabels: () => void;
   renderControls: () => void;
@@ -59,7 +61,7 @@ export function handleGameMessage(
   deps: GameMessageDeps,
 ): void {
   const data = raw as IncomingMessage;
-  const { ctx, dom, clockState, territoryCountdown, channel, premove, resolveSender, onNewMove } = deps;
+  const { ctx, dom, clockState, territoryCountdown, channel, premove, notificationState, resolveSender, onNewMove } = deps;
 
   console.debug("Game message:", data);
 
@@ -86,6 +88,7 @@ export function handleGameMessage(
       deps.renderLabels();
       updateStatus(ctx, dom.status);
       updateTurnFlash(ctx);
+      notifyTurn(ctx, notificationState);
       syncClock(clockState, data.clock, ctx, () => channel.timeoutFlag(), deps.renderLabels);
       syncTerritoryCountdown(
         territoryCountdown,
