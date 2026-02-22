@@ -27,7 +27,7 @@
   width: min(90vw, 70vh);
   max-height: 150px;
   overflow: hidden;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 4px;
 }
