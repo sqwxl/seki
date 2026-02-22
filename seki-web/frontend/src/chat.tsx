@@ -1,3 +1,8 @@
+import { render } from "preact";
+import { useEffect, useRef } from "preact/hooks";
+import type { UserData } from "./goban/types";
+import { blackSymbol, whiteSymbol } from "./format";
+
 export type ChatEntry = {
   user_id?: number | null;
   text: string;
@@ -5,7 +10,13 @@ export type ChatEntry = {
   sent_at?: string;
 };
 
-export type SenderResolver = (userId: number | null | undefined) => string;
+type ChatProps = {
+  messages: ChatEntry[];
+  onlineUsers: Set<number>;
+  black: UserData | undefined;
+  white: UserData | undefined;
+  onSend: (text: string) => void;
+};
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -26,65 +37,77 @@ function formatPrefix(entry: ChatEntry): string {
   return "";
 }
 
-export function appendToChat(
-  entry: ChatEntry,
-  resolveSender: SenderResolver,
-): void {
-  const box = document.getElementById("chat-box");
-  if (!box) {
-    return;
+function resolveSender(
+  userId: number | null | undefined,
+  black: UserData | undefined,
+  white: UserData | undefined,
+): string {
+  if (userId == null) {
+    return "⚑";
   }
-  const sender = resolveSender(entry.user_id);
-  const p = document.createElement("p");
-  const prefix = formatPrefix(entry);
-  if (entry.user_id != null) {
-    const dot = document.createElement("span");
-    dot.className = "presence-dot";
-    dot.dataset.userId = String(entry.user_id);
-    p.appendChild(dot);
-    p.appendChild(
-      document.createTextNode(` ${prefix}${sender}: ${entry.text}`),
-    );
-  } else {
-    p.textContent = `${prefix}${sender}: ${entry.text}`;
-  }
-  box.appendChild(p);
-  box.scrollTop = box.scrollHeight;
+  const isBlack = black?.id === userId;
+  const isWhite = white?.id === userId;
+  const name = (isBlack ? black : isWhite ? white : undefined)
+    ?.display_name ?? "?";
+  const symbol = isBlack ? blackSymbol() : isWhite ? whiteSymbol() : "?";
+  return `${name} ${symbol}`;
 }
 
-export function updateChatPresence(onlineUsers: Set<number>): void {
-  for (const dot of document.querySelectorAll<HTMLElement>(
-    ".chat-box .presence-dot[data-user-id]",
-  )) {
-    const id = Number(dot.dataset.userId);
-    dot.classList.toggle("online", onlineUsers.has(id));
-  }
-}
+function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-export function renderChatHistory(resolveSender: SenderResolver): void {
-  const box = document.getElementById("chat-box");
-  if (!box) {
-    return;
-  }
-  const rawMessages = box.dataset.chatLog;
-  if (!rawMessages) {
-    return;
-  }
+  useEffect(() => {
+    const box = boxRef.current;
+    if (box) {
+      box.scrollTop = box.scrollHeight;
+    }
+  }, [messages.length]);
 
-  const messages: ChatEntry[] = JSON.parse(rawMessages);
-  for (const msg of messages) {
-    appendToChat(msg, resolveSender);
-  }
-}
-
-export function setupChat(sendMessage: (text: string) => void): void {
-  document.getElementById("chat-form")?.addEventListener("submit", (e) => {
+  function handleSubmit(e: Event) {
     e.preventDefault();
-    const input = document.getElementById("chat-input") as HTMLInputElement;
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
     const text = input.value.trim();
     if (text) {
-      sendMessage(text);
+      onSend(text);
       input.value = "";
     }
-  });
+  }
+
+  return (
+    <>
+      <div class="chat-box" ref={boxRef}>
+        {messages.map((entry, i) => {
+          const sender = resolveSender(entry.user_id, black, white);
+          const prefix = formatPrefix(entry);
+          return (
+            <p key={i}>
+              {entry.user_id != null && (
+                <span
+                  class={`presence-dot${onlineUsers.has(entry.user_id) ? " online" : ""}`}
+                />
+              )}
+              {entry.user_id != null ? ` ${prefix}${sender}: ${entry.text}` : `${prefix}${sender}: ${entry.text}`}
+            </p>
+          );
+        })}
+      </div>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          ref={inputRef}
+          placeholder="Say something..."
+          autocomplete="off"
+        />
+        <button type="submit">Send</button>
+      </form>
+    </>
+  );
+}
+
+export function renderChat(el: HTMLElement, props: ChatProps): void {
+  render(<Chat {...props} />, el);
 }

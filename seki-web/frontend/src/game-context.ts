@@ -8,6 +8,7 @@ import type {
   TurnData,
 } from "./goban/types";
 import type { Board } from "./board";
+import type { ChatEntry } from "./chat";
 
 export type GameCtx = {
   // Immutable config (set once)
@@ -28,9 +29,11 @@ export type GameCtx = {
   onlineUsers: Set<number>;
   undoRejected: boolean;
   allowUndo: boolean;
+  chatMessages: ChatEntry[];
 
   // UI state
   analysisMode: boolean;
+  estimateMode: boolean;
   board: Board | undefined;
   movesJson: string;
 };
@@ -57,8 +60,10 @@ export function createGameContext(
     onlineUsers: new Set(),
     undoRejected: false,
     allowUndo: false,
+    chatMessages: [],
 
     analysisMode: false,
+    estimateMode: false,
     board: undefined,
     movesJson: "[]",
   };

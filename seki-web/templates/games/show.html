@@ -25,17 +25,7 @@
                     </div>
                 {% endif %}
             </div>
-            <div id="move-tree" class="move-tree" style="display:none"></div>
-            <div id="chat" class="chat">
-                <div id="chat-box" class="chat-box" data-chat-log="{{ chat_log_json }}"></div>
-                <form id="chat-form">
-                    <input type="text"
-                           id="chat-input"
-                           placeholder="Say something..."
-                           autocomplete="off" />
-                    <button type="submit">Send</button>
-                </form>
-            </div>
+            <div id="chat" class="chat" data-chat-log="{{ chat_log_json }}"></div>
         </div>
         <div id="game-error"></div>
     </div>

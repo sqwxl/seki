@@ -1,6 +1,6 @@
-import { GameStage, isPlayStage, type InitialGameProps, type Point, type Sign } from "./goban/types";
+import { GameStage, isPlayStage, type InitialGameProps, type Point, type ScoreData, type Sign } from "./goban/types";
 import { createBoard, type TerritoryOverlay } from "./board";
-import { renderChatHistory, setupChat, type SenderResolver } from "./chat";
+import { renderChat, type ChatEntry } from "./chat";
 import { readShowCoordinates, toggleShowCoordinates } from "./coord-toggle";
 import { createPremove } from "./premove";
 import { renderControls } from "./controls";
@@ -11,7 +11,7 @@ import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
 import { createGameChannel } from "./game-channel";
 import { queryGameDom } from "./game-dom";
-import { updateTitle, renderPlayerLabels, updateStatus, updateTurnFlash } from "./game-ui";
+import { updateTitle, renderPlayerLabels, updateStatus, updateTurnFlash, formatScoreStr } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
 import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
@@ -56,7 +56,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
 
   // --- Ghost stone getter ---
   function ghostStone() {
-    if (ctx.analysisMode) {
+    if (ctx.analysisMode || ctx.estimateMode) {
       return undefined;
     }
     return pm.getGhostStone();
@@ -109,15 +109,18 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
           ctx.board?.render();
         },
       },
-      sgfExport: { onClick: handleSgfExport },
     };
 
     if (ctx.analysisMode) {
-      // Analysis mode: show pass (local) and exit button
+      // Analysis mode: show pass (local), exit button, and SGF export
       props.pass = {
         onClick: () => { ctx.board?.pass(); },
       };
       props.exitAnalysis = { onClick: exitAnalysis };
+      props.sgfExport = { onClick: handleSgfExport };
+    } else if (ctx.estimateMode) {
+      // Estimate mode: only show "Back to game"
+      props.exitEstimate = { onClick: exitEstimate };
     } else {
       // Live mode
       if (isPlayer && isPlay) {
@@ -178,6 +181,10 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
       if (!isReview) {
         props.analyze = { onClick: enterAnalysis };
       }
+
+      if (isPlay && !isReview) {
+        props.estimate = { onClick: enterEstimate };
+      }
     }
 
     // Confirm move button
@@ -209,12 +216,29 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     onVertexClick: (col, row) => handleVertexClick(col, row),
     onStonePlay: playStoneSound,
     onPass: playPassSound,
-    onRender: (engine) => {
+    onRender: (engine, territory) => {
+      // Auto-exit estimate when territory review gets cleared (e.g. by navigation)
+      if (ctx.estimateMode && !territory.reviewing) {
+        ctx.estimateMode = false;
+        estimateScore = undefined;
+        updateStatus(ctx, dom.status);
+      }
+
+      // Capture estimate score for status display
+      if (ctx.estimateMode && territory.score) {
+        estimateScore = territory.score;
+        const komi = ctx.initialProps.komi;
+        const { bStr, wStr } = formatScoreStr(estimateScore, komi);
+        if (dom.status) {
+          dom.status.textContent = `${blackSymbol()} ${bStr}  |  ${whiteSymbol()} ${wStr}`;
+        }
+      }
+
       // Auto-enter analysis when navigating away from latest game move.
       // Guard on ctx.board to skip the initial render inside createBoard(),
       // where the engine has no moves yet but ctx.moves may already be
       // populated from a WS message that arrived during WASM loading.
-      if (ctx.board && !ctx.analysisMode && engine.view_index() < ctx.moves.length) {
+      if (ctx.board && !ctx.analysisMode && !ctx.estimateMode && engine.view_index() < ctx.moves.length) {
         enterAnalysis();
       }
       doRenderControls();
@@ -232,25 +256,58 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   });
 
   // --- Analysis helpers ---
+  let moveTreeEl: HTMLDivElement | undefined;
+
   function enterAnalysis() {
     pm.clear();
     ctx.analysisMode = true;
     dom.goban.classList.add("goban-analysis");
-    doRenderControls();
+    if (!moveTreeEl) {
+      moveTreeEl = document.createElement("div");
+      moveTreeEl.className = "move-tree";
+      // Insert after #game, before #chat
+      const gameEl = dom.goban.closest("#game");
+      if (gameEl) {
+        gameEl.after(moveTreeEl);
+      }
+    }
     if (ctx.board) {
+      ctx.board.setMoveTreeEl(moveTreeEl);
       ctx.board.render();
     }
+    doRenderControls();
   }
 
   function exitAnalysis() {
     pm.clear();
     ctx.analysisMode = false;
     dom.goban.classList.remove("goban-analysis");
+    if (moveTreeEl) {
+      moveTreeEl.remove();
+      moveTreeEl = undefined;
+    }
     if (ctx.board) {
+      ctx.board.setMoveTreeEl(null);
       ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
       ctx.board.render();
     }
     doRenderControls();
+  }
+
+  // --- Estimate helpers ---
+  let estimateScore: ScoreData | undefined;
+
+  function enterEstimate() {
+    pm.clear();
+    ctx.estimateMode = true;
+    ctx.board?.enterTerritoryReview();
+  }
+
+  function exitEstimate() {
+    ctx.estimateMode = false;
+    estimateScore = undefined;
+    updateStatus(ctx, dom.status);
+    ctx.board?.exitTerritoryReview();
   }
 
   function handleVertexClick(col: number, row: number): boolean {
@@ -312,18 +369,29 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     downloadSgf(sgf, `${bName}-vs-${wName}.sgf`);
   }
 
-  // --- Chat sender resolver ---
-  const resolveSender: SenderResolver = (userId) => {
-    if (userId == null) {
-      return "⚑";
+  // --- Chat rendering ---
+  const chatEl = document.getElementById("chat");
+
+  function doRenderChat() {
+    if (!chatEl) {
+      return;
     }
-    const isBlack = ctx.black?.id === userId;
-    const isWhite = ctx.white?.id === userId;
-    const name = (isBlack ? ctx.black : isWhite ? ctx.white : undefined)
-      ?.display_name ?? "?";
-    const symbol = isBlack ? blackSymbol() : isWhite ? whiteSymbol() : "?";
-    return `${name} ${symbol}`;
-  };
+    renderChat(chatEl, {
+      messages: ctx.chatMessages,
+      onlineUsers: ctx.onlineUsers,
+      black: ctx.black,
+      white: ctx.white,
+      onSend: (text) => channel.say(text),
+    });
+  }
+
+  // Parse initial chat history from SSR data attribute
+  if (chatEl) {
+    const raw = chatEl.dataset.chatLog;
+    if (raw) {
+      ctx.chatMessages = JSON.parse(raw) as ChatEntry[];
+    }
+  }
 
   // --- Notifications ---
   const notificationState = createNotificationState();
@@ -333,13 +401,17 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
 
   // --- WebSocket ---
   const deps = {
-    ctx, dom, clockState, territoryCountdown, channel, resolveSender, renderLabels,
+    ctx, dom, clockState, territoryCountdown, channel, renderLabels,
     premove: pm,
     notificationState,
     renderControls: doRenderControls,
+    renderChat: doRenderChat,
     onNewMove: () => {
       if (ctx.analysisMode) {
         exitAnalysis();
+      }
+      if (ctx.estimateMode) {
+        exitEstimate();
       }
     },
   };
@@ -364,6 +436,5 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   updateStatus(ctx, dom.status);
   doRenderControls();
 
-  renderChatHistory(resolveSender);
-  setupChat((text) => channel.say(text));
+  doRenderChat();
 }

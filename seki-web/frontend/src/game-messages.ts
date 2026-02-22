@@ -8,7 +8,6 @@ import type { PremoveState } from "./premove";
 import { updateTitle, updateStatus, updateTurnFlash, syncTerritoryCountdown } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
 import { notifyTurn, type NotificationState } from "./game-notifications";
-import { appendToChat, updateChatPresence, type SenderResolver } from "./chat";
 import { playStoneSound, playPassSound } from "./game-sound";
 
 export type GameMessageDeps = {
@@ -19,9 +18,9 @@ export type GameMessageDeps = {
   channel: GameChannel;
   premove: PremoveState;
   notificationState: NotificationState;
-  resolveSender: SenderResolver;
   renderLabels: () => void;
   renderControls: () => void;
+  renderChat: () => void;
   onNewMove?: () => void;
 };
 
@@ -61,7 +60,7 @@ export function handleGameMessage(
   deps: GameMessageDeps,
 ): void {
   const data = raw as IncomingMessage;
-  const { ctx, dom, clockState, territoryCountdown, channel, premove, notificationState, resolveSender, onNewMove } = deps;
+  const { ctx, dom, clockState, territoryCountdown, channel, premove, notificationState, onNewMove } = deps;
 
   console.debug("Game message:", data);
 
@@ -97,7 +96,7 @@ export function handleGameMessage(
         dom.status,
         () => channel.territoryTimeoutFlag(),
       );
-      updateChatPresence(ctx.onlineUsers);
+      deps.renderChat();
 
       if (!isPlayStage(ctx.gameStage)) {
         premove.clear();
@@ -117,16 +116,13 @@ export function handleGameMessage(
       break;
     }
     case "chat": {
-      appendToChat(
-        {
-          user_id: data.player_id,
-          text: data.text,
-          move_number: data.move_number,
-          sent_at: data.sent_at,
-        },
-        resolveSender,
-      );
-      updateChatPresence(ctx.onlineUsers);
+      ctx.chatMessages.push({
+        user_id: data.player_id,
+        text: data.text,
+        move_number: data.move_number,
+        sent_at: data.sent_at,
+      });
+      deps.renderChat();
       break;
     }
     case "error": {
@@ -169,7 +165,7 @@ export function handleGameMessage(
         ctx.onlineUsers.delete(data.player_id);
       }
       deps.renderLabels();
-      updateChatPresence(ctx.onlineUsers);
+      deps.renderChat();
       break;
     }
     default: {
