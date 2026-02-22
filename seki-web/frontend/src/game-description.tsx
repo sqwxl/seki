@@ -43,7 +43,7 @@ export function GameDescription(props: GameDescriptionProps) {
 
   return (
     <>
-      <StoneBlack /> {b} vs <StoneWhite /> {w} - {parts.join(" - ")}
+      {b} <StoneBlack /> vs {w} <StoneWhite /> - {parts.join(" - ")}
     </>
   );
 }

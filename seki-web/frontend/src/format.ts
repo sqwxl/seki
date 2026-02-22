@@ -115,7 +115,7 @@ export function formatGameDescription(g: DescriptionInput): string {
   const w = g.white?.display_name ?? "?";
 
   const parts: string[] = [
-    `${blackSymbol()} ${b} vs ${whiteSymbol()} ${w}`,
+    `${b} ${blackSymbol()} vs ${w} ${whiteSymbol()}`,
     formatSize(g.settings.cols, g.settings.rows),
   ];
 

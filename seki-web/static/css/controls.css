@@ -8,8 +8,7 @@
   max-width: 100%;
 }
 
-.controls button,
-.controls .btn {
+.controls button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -18,8 +17,7 @@
   min-width: 2em;
 }
 
-.controls button > svg,
-.controls .btn > svg {
+.controls button > svg {
   display: block;
 }
 
