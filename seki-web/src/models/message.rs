@@ -13,6 +13,16 @@ pub struct Message {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Message with the sender's display name resolved via JOIN.
+#[derive(Debug, Clone, FromRow)]
+pub struct MessageWithSender {
+    pub user_id: Option<i64>,
+    pub display_name: Option<String>,
+    pub text: String,
+    pub move_number: Option<i32>,
+    pub created_at: DateTime<Utc>,
+}
+
 impl Message {
     pub async fn find_by_game_id(
         executor: impl sqlx::PgExecutor<'_>,
@@ -20,6 +30,20 @@ impl Message {
     ) -> Result<Vec<Message>, sqlx::Error> {
         sqlx::query_as::<_, Message>(
             "SELECT * FROM messages WHERE game_id = $1 ORDER BY created_at ASC",
+        )
+        .bind(game_id)
+        .fetch_all(executor)
+        .await
+    }
+
+    pub async fn find_by_game_id_with_sender(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<Vec<MessageWithSender>, sqlx::Error> {
+        sqlx::query_as::<_, MessageWithSender>(
+            "SELECT m.user_id, u.username AS display_name, m.text, m.move_number, m.created_at \
+             FROM messages m LEFT JOIN users u ON m.user_id = u.id \
+             WHERE m.game_id = $1 ORDER BY m.created_at ASC",
         )
         .bind(game_id)
         .fetch_all(executor)

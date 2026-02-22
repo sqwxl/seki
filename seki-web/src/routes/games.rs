@@ -179,12 +179,13 @@ pub async fn show_game(
     let gwp = Game::find_with_players(&state.db, id).await?;
 
     // Build chat log JSON
-    let messages = Message::find_by_game_id(&state.db, id).await?;
+    let messages = Message::find_by_game_id_with_sender(&state.db, id).await?;
     let chat_log: Vec<serde_json::Value> = messages
         .iter()
         .map(|msg| {
             serde_json::json!({
                 "user_id": msg.user_id,
+                "display_name": msg.display_name,
                 "text": msg.text,
                 "move_number": msg.move_number,
                 "sent_at": msg.created_at

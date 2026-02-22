@@ -163,6 +163,7 @@ export type PresenceMessage = {
 export type ChatMessage = {
   kind: "chat";
   player_id?: number;
+  display_name?: string;
   text: string;
   move_number?: number;
   sent_at?: string;

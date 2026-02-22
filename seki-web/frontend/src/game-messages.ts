@@ -118,6 +118,7 @@ export function handleGameMessage(
     case "chat": {
       ctx.chatMessages.push({
         user_id: data.player_id,
+        display_name: data.display_name,
         text: data.text,
         move_number: data.move_number,
         sent_at: data.sent_at,

@@ -5,6 +5,7 @@ import { blackSymbol, whiteSymbol } from "./format";
 
 export type ChatEntry = {
   user_id?: number | null;
+  display_name?: string | null;
   text: string;
   move_number?: number;
   sent_at?: string;
@@ -38,19 +39,22 @@ function formatPrefix(entry: ChatEntry): string {
 }
 
 function resolveSender(
-  userId: number | null | undefined,
+  entry: ChatEntry,
   black: UserData | undefined,
   white: UserData | undefined,
 ): string {
-  if (userId == null) {
+  if (entry.user_id == null) {
     return "⚑";
   }
-  const isBlack = black?.id === userId;
-  const isWhite = white?.id === userId;
-  const name = (isBlack ? black : isWhite ? white : undefined)
-    ?.display_name ?? "?";
-  const symbol = isBlack ? blackSymbol() : isWhite ? whiteSymbol() : "?";
-  return `${name} ${symbol}`;
+  const isBlack = black?.id === entry.user_id;
+  const isWhite = white?.id === entry.user_id;
+  if (isBlack) {
+    return `${black!.display_name} ${blackSymbol()}`;
+  }
+  if (isWhite) {
+    return `${white!.display_name} ${whiteSymbol()}`;
+  }
+  return entry.display_name ?? "?";
 }
 
 function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
@@ -81,7 +85,7 @@ function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
     <>
       <div class="chat-box" ref={boxRef}>
         {messages.map((entry, i) => {
-          const sender = resolveSender(entry.user_id, black, white);
+          const sender = resolveSender(entry, black, white);
           const prefix = formatPrefix(entry);
           return (
             <p key={i}>

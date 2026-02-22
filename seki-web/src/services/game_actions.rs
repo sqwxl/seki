@@ -6,6 +6,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
 use crate::models::message::Message;
+use crate::models::user::User;
 use crate::models::turn::TurnRow;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
@@ -456,6 +457,10 @@ pub async fn send_chat(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
+    let user = User::find_by_id(&state.db, player_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
     let move_number = current_move_number(state, &game).await;
 
     let msg = Message::create(&state.db, game_id, Some(player_id), text, move_number)
@@ -470,6 +475,7 @@ pub async fn send_chat(
                 "kind": "chat",
                 "game_id": game_id,
                 "player_id": player_id,
+                "display_name": user.display_name(),
                 "text": msg.text,
                 "move_number": msg.move_number,
                 "sent_at": msg.created_at
