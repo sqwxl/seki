@@ -102,7 +102,9 @@ function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
           placeholder="Say something..."
           autocomplete="off"
         />
-        <button type="submit">Send</button>
+        <button type="submit" aria-label="Send">
+          <img src="/static/images/send.svg" alt="" width="20" height="20" />
+        </button>
       </form>
     </>
   );
