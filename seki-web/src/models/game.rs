@@ -54,6 +54,7 @@ pub struct Game {
     pub clock_active_stone: Option<i32>,
     pub clock_last_move_at: Option<DateTime<Utc>>,
     pub clock_expires_at: Option<DateTime<Utc>>,
+    pub territory_review_expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -404,6 +405,47 @@ impl Game {
              WHERE result IS NULL \
              AND clock_expires_at IS NOT NULL \
              AND clock_expires_at < NOW()",
+        )
+        .fetch_all(executor)
+        .await
+    }
+
+    pub async fn set_territory_review_deadline(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+        expires_at: DateTime<Utc>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET territory_review_expires_at = $1, updated_at = NOW() WHERE id = $2",
+        )
+        .bind(expires_at)
+        .bind(game_id)
+        .execute(executor)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn clear_territory_review_deadline(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET territory_review_expires_at = NULL, updated_at = NOW() WHERE id = $1",
+        )
+        .bind(game_id)
+        .execute(executor)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn find_expired_territory_reviews(
+        executor: impl sqlx::PgExecutor<'_>,
+    ) -> Result<Vec<Game>, sqlx::Error> {
+        sqlx::query_as::<_, Game>(
+            "SELECT * FROM games \
+             WHERE result IS NULL \
+             AND territory_review_expires_at IS NOT NULL \
+             AND territory_review_expires_at < NOW()",
         )
         .fetch_all(executor)
         .await

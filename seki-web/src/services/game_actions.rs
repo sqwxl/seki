@@ -192,6 +192,12 @@ pub async fn toggle_chain(
         .await
         .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
 
+    let _ = Game::clear_territory_review_deadline(&state.db, game_id).await;
+
+    // Re-fetch so broadcast sees the cleared deadline
+    let gwp = Game::find_with_players(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
     broadcast_game_state(state, &gwp, &engine).await;
     Ok(())
 }
@@ -224,7 +230,20 @@ pub async fn approve_territory(
         .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
 
     if tr.black_approved && tr.white_approved {
+        Game::clear_territory_review_deadline(&state.db, game_id)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
         settle_territory(state, game_id, &gwp, &engine, &tr.dead_stones).await?;
+    } else if tr.black_approved || tr.white_approved {
+        let deadline = Utc::now() + chrono::Duration::seconds(60);
+        Game::set_territory_review_deadline(&state.db, game_id, deadline)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        // Re-fetch so broadcast sees the new deadline
+        let gwp = Game::find_with_players(&state.db, game_id)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        broadcast_game_state(state, &gwp, &engine).await;
     } else {
         broadcast_game_state(state, &gwp, &engine).await;
     }
@@ -232,7 +251,7 @@ pub async fn approve_territory(
     Ok(())
 }
 
-async fn settle_territory(
+pub async fn settle_territory(
     state: &AppState,
     game_id: i64,
     gwp: &GameWithPlayers,
@@ -258,6 +277,10 @@ async fn settle_territory(
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     pause_clock(state, &mut *tx, game_id, &gwp.game).await?;
+
+    Game::clear_territory_review_deadline(&mut *tx, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     sqlx::query(
         "INSERT INTO territory_reviews \
@@ -715,6 +738,7 @@ async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers, engine: &
                     gwp.game.komi,
                     tr.black_approved,
                     tr.white_approved,
+                    gwp.game.territory_review_expires_at,
                 )
             })
     } else {
@@ -977,6 +1001,49 @@ pub async fn handle_timeout_flag(
     }
 
     end_game_on_time(state, &gwp, active, clock, &tc, now).await
+}
+
+/// Handle a client-initiated territory review timeout flag.
+/// Validates the deadline truly expired before settling the game.
+pub async fn handle_territory_timeout_flag(
+    state: &AppState,
+    game_id: i64,
+    _player_id: i64,
+) -> Result<(), AppError> {
+    let gwp = Game::find_with_players(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    if gwp.game.result.is_some() {
+        return Ok(());
+    }
+
+    let deadline = match gwp.game.territory_review_expires_at {
+        Some(d) => d,
+        None => return Ok(()),
+    };
+
+    if Utc::now() < deadline {
+        return Ok(());
+    }
+
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    if engine.stage() != Stage::TerritoryReview {
+        return Ok(());
+    }
+
+    let tr = state
+        .registry
+        .get_territory_review(game_id)
+        .await
+        .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
+
+    settle_territory(state, game_id, &gwp, &engine, &tr.dead_stones).await
 }
 
 /// End a game due to time expiration. Used by both client flag and server sweep.

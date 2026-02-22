@@ -491,6 +491,7 @@ async fn build_game_response(
                     gwp.game.komi,
                     tr.black_approved,
                     tr.white_approved,
+                    gwp.game.territory_review_expires_at,
                 )
             })
     } else {

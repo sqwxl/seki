@@ -60,6 +60,7 @@ pub async fn send_initial_state(
                     gwp.game.komi,
                     tr.black_approved,
                     tr.white_approved,
+                    gwp.game.territory_review_expires_at,
                 )
             })
     } else {
@@ -176,6 +177,9 @@ pub async fn handle_message(
         "toggle_chain" => handle_toggle_chain(state, game_id, player_id, data).await,
         "approve_territory" => game_actions::approve_territory(state, game_id, player_id).await,
         "timeout_flag" => game_actions::handle_timeout_flag(state, game_id, player_id).await,
+        "territory_timeout_flag" => {
+            game_actions::handle_territory_timeout_flag(state, game_id, player_id).await
+        }
         _ => {
             send_to_client(
                 tx,

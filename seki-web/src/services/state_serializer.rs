@@ -13,6 +13,7 @@ pub struct TerritoryData {
     pub score: go_engine::territory::GameScore,
     pub black_approved: bool,
     pub white_approved: bool,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 pub fn compute_territory_data(
@@ -21,6 +22,7 @@ pub fn compute_territory_data(
     komi: f64,
     black_approved: bool,
     white_approved: bool,
+    expires_at: Option<chrono::DateTime<chrono::Utc>>,
 ) -> TerritoryData {
     let ownership = go_engine::territory::estimate_territory(engine.goban(), dead_stones);
     let score = go_engine::territory::score(engine.goban(), &ownership, dead_stones, komi);
@@ -34,6 +36,7 @@ pub fn compute_territory_data(
         score,
         black_approved,
         white_approved,
+        expires_at,
     }
 }
 
@@ -108,6 +111,7 @@ pub fn serialize_state(
             },
             "black_approved": t.black_approved,
             "white_approved": t.white_approved,
+            "expires_at": t.expires_at.map(|dt| dt.to_rfc3339()),
         });
     }
 
