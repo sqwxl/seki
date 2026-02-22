@@ -145,6 +145,20 @@ impl User {
         .await
     }
 
+    pub async fn update_username(
+        executor: impl sqlx::PgExecutor<'_>,
+        user_id: i64,
+        username: &str,
+    ) -> Result<User, sqlx::Error> {
+        sqlx::query_as::<_, User>(
+            "UPDATE users SET username = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        )
+        .bind(username)
+        .bind(user_id)
+        .fetch_one(executor)
+        .await
+    }
+
     pub async fn find_by_api_token(
         executor: impl sqlx::PgExecutor<'_>,
         token: &str,

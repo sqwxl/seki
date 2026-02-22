@@ -87,6 +87,7 @@ async fn main() {
         .route("/games/{id}/invitation", get(routes::games::invitation))
         // User profile
         .route("/users/{username}", get(routes::users::profile))
+        .route("/users/{username}", post(routes::users::update_username))
         // Auth routes
         .route("/register", get(routes::auth::register_form))
         .route("/register", post(routes::auth::register))

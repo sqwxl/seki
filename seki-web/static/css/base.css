@@ -133,7 +133,7 @@ input[type="email"],
 input[type="text"],
 input[type="password"],
 select {
-  padding: 0.4em 0.5em;
+  padding: 0.5em;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
@@ -155,6 +155,7 @@ button[type="submit"] {
   background: var(--bg-muted);
   color: var(--fg);
   font: inherit;
+  font-size: 0.9em;
   cursor: pointer;
 }
 
@@ -174,6 +175,12 @@ main {
   align-items: center;
   width: 100%;
   padding: 0 0.75em;
+  box-sizing: border-box;
+}
+
+main:not(:has(.game-page)) {
+  max-width: 50em;
+  margin: 0 auto;
 }
 
 nav {
