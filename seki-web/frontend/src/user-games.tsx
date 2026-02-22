@@ -2,26 +2,8 @@ import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "./live";
 import { GameDescription } from "./game-description";
-import type { UserData, GameSettings } from "./format";
-
-type LiveGameItem = {
-  id: number;
-  stage: string;
-  result: string | undefined;
-  black: UserData | undefined;
-  white: UserData | undefined;
-  settings: GameSettings;
-  move_count: number | undefined;
-};
-
-type GameUpdate = {
-  id: number;
-  stage: string;
-  result: string | undefined;
-  black: UserData | undefined;
-  white: UserData | undefined;
-  move_count: number | undefined;
-};
+import type { LiveGameItem, GameUpdate } from "./game-description";
+import type { UserData } from "./format";
 
 type InitialData = {
   profile_user_id: number;
@@ -122,7 +104,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
   }
 
   return (
-    <ul>
+    <ul class="games-list">
       {allGames.map((g) => (
         <li key={g.id}>
           <a href={`/games/${g.id}`}><GameDescription {...g} /></a>

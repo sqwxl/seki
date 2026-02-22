@@ -40,7 +40,6 @@ fieldset {
 form:not(nav form) {
   width: 100%;
   max-width: 28em;
-  padding: 0 1em;
 }
 
 fieldset > div {
@@ -161,7 +160,14 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 0 0.75em;
 }
 
 nav {
@@ -249,7 +255,6 @@ button.link {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
-  padding: 0 0.5em;
 }
 
 .game-page h2 {
@@ -314,13 +319,9 @@ button.link {
 }
 
 .games-list {
-  ul {
-    padding: 0;
-  }
-
-  li {
-  }
-  li::marker {
-    content: "";
-  }
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
 }

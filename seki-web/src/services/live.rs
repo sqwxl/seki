@@ -25,6 +25,7 @@ pub struct GameSettings {
 #[derive(Serialize)]
 pub struct LiveGameItem {
     pub id: i64,
+    pub creator_id: Option<i64>,
     pub stage: String,
     pub result: Option<String>,
     pub black: Option<UserData>,
@@ -37,6 +38,7 @@ impl LiveGameItem {
     pub fn from_gwp(gwp: &GameWithPlayers, move_count: Option<usize>) -> Self {
         Self {
             id: gwp.game.id,
+            creator_id: gwp.game.creator_id,
             stage: gwp.game.stage.clone(),
             result: gwp.game.result.clone(),
             black: gwp.black.as_ref().map(UserData::from),
