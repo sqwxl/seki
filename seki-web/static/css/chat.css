@@ -24,6 +24,7 @@
 .chat form {
   display: flex;
   gap: 0.25em;
+  margin-top: 0.35em;
 }
 .chat form input[type="text"] {
   flex: 1;
