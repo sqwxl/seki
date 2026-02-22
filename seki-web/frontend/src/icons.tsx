@@ -154,6 +154,8 @@ function icon(svg: string) {
 
 export const IconAnalysis = icon(analysisSvg);
 export const IconAsterisk = icon(asteriskSvg);
+export const IconBalance = icon(balanceSvg);
+export const IconCheck = icon(checkSvg);
 export const IconDieFilled = icon(dieFilledSvg);
 export const IconDieNofill = icon(dieNofillSvg);
 export const IconFileExport = icon(fileExportSvg);
@@ -180,6 +182,7 @@ export const IconTouchSingle = icon(touchSingleSvg);
 export const IconTrash = icon(trashSvg);
 export const IconUndo = icon(undoSvg);
 export const IconWhiteFlag = icon(whiteFlagSvg);
+export const IconX = icon(xSvg);
 
 // --- Imperative DOM helpers ---
 // Safe: all SVG content is hardcoded constants from this file, not user input

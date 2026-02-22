@@ -4,7 +4,7 @@ import type { GameDomElements } from "./game-dom";
 import type { GameChannel } from "./game-channel";
 import type { ClockState } from "./game-clock";
 import { syncClock } from "./game-clock";
-import { updateControls } from "./game-controls";
+import type { PremoveState } from "./premove";
 import { updateTitle, updateStatus, updateTurnFlash, syncTerritoryCountdown } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
 import { appendToChat, updateChatPresence, type SenderResolver } from "./chat";
@@ -16,8 +16,10 @@ export type GameMessageDeps = {
   clockState: ClockState;
   territoryCountdown: TerritoryCountdown;
   channel: GameChannel;
+  premove: PremoveState;
   resolveSender: SenderResolver;
   renderLabels: () => void;
+  renderControls: () => void;
   onNewMove?: () => void;
 };
 
@@ -57,7 +59,7 @@ export function handleGameMessage(
   deps: GameMessageDeps,
 ): void {
   const data = raw as IncomingMessage;
-  const { ctx, dom, clockState, territoryCountdown, channel, resolveSender, onNewMove } = deps;
+  const { ctx, dom, clockState, territoryCountdown, channel, premove, resolveSender, onNewMove } = deps;
 
   console.debug("Game message:", data);
 
@@ -79,7 +81,7 @@ export function handleGameMessage(
       }
 
       syncBoardMoves(ctx, true, dom.goban, onNewMove);
-      updateControls(ctx, dom);
+      deps.renderControls();
       updateTitle(ctx, dom.title);
       deps.renderLabels();
       updateStatus(ctx, dom.status);
@@ -95,13 +97,13 @@ export function handleGameMessage(
       updateChatPresence(ctx.onlineUsers);
 
       if (!isPlayStage(ctx.gameStage)) {
-        ctx.premove = undefined;
+        premove.clear();
       } else if (
-        ctx.premove &&
+        premove.value &&
         ctx.currentTurn === ctx.playerStone
       ) {
-        const [col, row] = ctx.premove;
-        ctx.premove = undefined;
+        const [col, row] = premove.value;
+        premove.clear();
         if (ctx.gameState.board[row * ctx.gameState.cols + col] === 0) {
           channel.play(col, row);
         }
@@ -131,7 +133,7 @@ export function handleGameMessage(
     case "undo_accepted":
     case "undo_rejected": {
       hideUndoResponseControls();
-      ctx.premove = undefined;
+      premove.clear();
       if (data.undo_rejected !== undefined) {
         ctx.undoRejected = data.undo_rejected;
       }
@@ -142,16 +144,15 @@ export function handleGameMessage(
           ctx.moves = data.moves;
           syncBoardMoves(ctx, false, dom.goban);
         }
-        updateControls(ctx, dom);
+        deps.renderControls();
         deps.renderLabels();
         updateStatus(ctx, dom.status);
       }
       break;
     }
     case "undo_request_sent": {
-      if (dom.requestUndoBtn) {
-        dom.requestUndoBtn.disabled = true;
-      }
+      // Controls will re-render with updated undo button state
+      deps.renderControls();
       break;
     }
     case "undo_response_needed": {

@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% import "macros/board_controls.html" as controls %}
 {% block title %}Game - Seki{% endblock %}
 {% block content %}
     <div class="game-page">
@@ -16,49 +15,7 @@
                      class="goban-container"
                      style="aspect-ratio: {{ cols }}/{{ rows }}"></div>
                 <div id="player-bottom" class="player-label"></div>
-                <div class="controls">
-                    {{ controls::nav_bar() }}
-                    <div id="action-buttons">
-                        {% if is_player %}
-                            <button id="request-undo-btn" title="Undo"></button>
-                            <div id="pass-confirm" popover>
-                                <p>Pass your turn?</p>
-                                <button id="confirm-pass-btn" class="confirm-yes" popovertarget="pass-confirm"></button>
-                                <button class="confirm-no" popovertarget="pass-confirm"></button>
-                            </div>
-                            <button id="pass-btn" title="Pass"></button>
-                            <button id="resign-btn" popovertarget="resign-confirm" title="Resign"></button>
-                            <div id="resign-confirm" popover>
-                                <p>Resign this game?</p>
-                                <button id="confirm-resign-btn" class="confirm-yes" popovertarget="resign-confirm"></button>
-                                <button class="confirm-no" popovertarget="resign-confirm"></button>
-                            </div>
-                            <button id="abort-btn" popovertarget="abort-confirm" style="display: none">Abort</button>
-                            <div id="abort-confirm" popover>
-                                <p>Abort this game?</p>
-                                <button id="confirm-abort-btn" class="confirm-yes" popovertarget="abort-confirm"></button>
-                                <button class="confirm-no" popovertarget="abort-confirm"></button>
-                            </div>
-                            <button id="accept-territory-btn" style="display: none">Accept</button>
-                            <div id="accept-territory-confirm" popover>
-                                <p>Accept territory?</p>
-                                <button id="confirm-accept-territory-btn" class="confirm-yes"
-                                        popovertarget="accept-territory-confirm"></button>
-                                <button class="confirm-no" popovertarget="accept-territory-confirm"></button>
-                            </div>
-                        {% endif %}
-                        <span class="btn-group">
-                            <button id="analyze-btn" title="Analyze"></button>
-                            <button id="exit-analysis-btn" style="display: none">Back to game</button>
-                            <button id="sgf-export" title="Export SGF"></button>
-                            <button id="toggle-coords-btn" title="Toggle coordinates">A1</button>
-                            <button id="toggle-move-confirm-btn"></button>
-                        </span>
-                    </div>
-                    {% if is_player %}
-                        <button id="confirm-move-btn" title="Confirm move" style="display: none">✓</button>
-                    {% endif %}
-                </div>
+                <div class="controls" id="controls"></div>
                 <div id="status" style="text-align: center; margin-top: 0.5em"></div>
                 {% if is_player %}
                     <div id="undo-response-controls" popover>

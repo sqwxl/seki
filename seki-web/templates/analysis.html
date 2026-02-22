@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% import "macros/board_controls.html" as controls %}
 {% block title %}Analysis Board - Seki{% endblock %}
 {% block content %}
     <div class="game-page">
@@ -18,23 +17,7 @@
                 <div id="player-top" class="player-label"></div>
                 <div id="goban" class="goban-container" style="aspect-ratio: 1/1"></div>
                 <div id="player-bottom" class="player-label"></div>
-                <div class="controls">
-                    <div id="play-controls" class="controls-group">
-                        {{ controls::nav_bar() }}
-                        <button id="pass-btn" title="Pass"></button>
-                        <button id="score-btn" title="Estimate score"></button>
-                        <button id="sgf-import-btn" type="button" title="Import SGF file"></button>
-                        <input type="file" id="sgf-import" accept=".sgf,.SGF" hidden>
-                        <button id="sgf-export" title="Export as SGF file"></button>
-                        <button id="toggle-coords-btn" title="Toggle coordinates">A1</button>
-                        <button id="toggle-move-confirm-btn"></button>
-                    </div>
-                    <div id="territory-controls" class="controls-group" style="display: none">
-                        <button id="territory-ready-btn">Ready</button>
-                        <button id="territory-exit-btn">Exit</button>
-                    </div>
-                    <button id="confirm-move-btn" title="Confirm move" style="display: none">✓</button>
-                </div>
+                <div class="controls" id="controls"></div>
             </div>
             <div id="move-tree" class="move-tree"></div>
         </div>
