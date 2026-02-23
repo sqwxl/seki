@@ -12,6 +12,7 @@ import type {
 import { GameStage as GS, isPlayStage } from "../goban/types";
 import type { Board } from "../goban/create-board";
 import type { ChatEntry } from "../components/chat";
+import { storage, SHOW_MOVE_TREE } from "../utils/storage";
 
 // ---------------------------------------------------------------------------
 // Config signals (set once at page load)
@@ -61,7 +62,9 @@ export const board = signal<Board | undefined>(undefined);
 // ---------------------------------------------------------------------------
 export const navState = signal({ atStart: true, atLatest: true, counter: "0" });
 export const estimateScore = signal<ScoreData | undefined>(undefined);
-export const showMoveTree = signal(false);
+export const showMoveTree = signal(
+  storage.get(SHOW_MOVE_TREE) === "true",
+);
 
 // ---------------------------------------------------------------------------
 // Derived (computed)

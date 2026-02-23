@@ -12,6 +12,7 @@ import type { GameChannel } from "../game/channel";
 import { formatScoreStr } from "../game/ui";
 import { clockDisplay } from "../game/clock";
 import type { PremoveState } from "../utils/premove";
+import { storage, SHOW_MOVE_TREE } from "../utils/storage";
 import { GamePageLayout } from "./game-page-layout";
 import { GameDescription } from "../components/game-description";
 import {
@@ -417,6 +418,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
 
   function setMoveTree(visible: boolean) {
     showMoveTree.value = visible;
+    storage.set(SHOW_MOVE_TREE, String(visible));
     if (visible) {
       board.value?.setMoveTreeEl(moveTreeEl);
     } else {
