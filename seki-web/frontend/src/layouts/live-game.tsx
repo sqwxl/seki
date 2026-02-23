@@ -256,6 +256,9 @@ export function liveGame(
     },
   }).then((b) => {
     board.value = b;
+    if (showMoveTree.value) {
+      board.value.setMoveTreeEl(moveTreeEl);
+    }
     if (moves.value.length > 0) {
       const movesJson = JSON.stringify(moves.value);
       resetMovesTracker(movesJson);
