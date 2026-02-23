@@ -463,6 +463,7 @@ pub async fn accept_challenge(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
+    announce_game_started(state, game_id, start_stage).await;
     broadcast_game_state(state, &gwp, &engine).await;
     live::notify_game_updated(state, &gwp, None);
 
@@ -874,6 +875,22 @@ pub async fn respond_to_undo(
     }
 
     Ok(result)
+}
+
+/// Post a system chat announcing the game has started.
+pub async fn announce_game_started(state: &AppState, game_id: i64, start_stage: &str) {
+    let color = if start_stage == "white_to_play" {
+        "White"
+    } else {
+        "Black"
+    };
+    broadcast_system_chat(
+        state,
+        game_id,
+        &format!("The game has started, {color} to play!"),
+        Some(0),
+    )
+    .await;
 }
 
 // -- Internal helpers --

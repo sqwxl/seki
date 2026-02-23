@@ -321,12 +321,13 @@ pub async fn join_game(
     } else {
         return Err(AppError::BadRequest("Game is full".to_string()));
     }
-    if gwp.game.stage == "unstarted" {
-        let start_stage = if gwp.game.handicap >= 2 {
-            "white_to_play"
-        } else {
-            "black_to_play"
-        };
+    let started = gwp.game.stage == "unstarted";
+    let start_stage = if gwp.game.handicap >= 2 {
+        "white_to_play"
+    } else {
+        "black_to_play"
+    };
+    if started {
         Game::set_stage(&mut *tx, id, start_stage).await?;
     }
     tx.commit().await?;
@@ -335,6 +336,10 @@ pub async fn join_game(
     let game = Game::find_by_id(&state.db, id).await?;
     let engine = engine_builder::build_engine(&state.db, &game).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
+
+    if started {
+        crate::services::game_actions::announce_game_started(&state, id, start_stage).await;
+    }
 
     let tc = TimeControl::from_game(&gwp.game);
     let clock_data = if !tc.is_none() {
