@@ -316,15 +316,16 @@ function LiveControls({
     };
   }
 
-  // --- Board control buttons (controls-end) ---
+  // --- Board control buttons ---
   // Swap analyze/exitAnalysis and estimate/exitEstimate; disable where needed.
 
   if (inAnalysis) {
     props.exitAnalysis = { onClick: exitAnalysis, disabled: inEstimate };
-    props.sgfExport = { onClick: handleSgfExport, disabled: inEstimate };
   } else if (!isReview) {
     props.analyze = { onClick: enterAnalysis, disabled: inEstimate };
   }
+
+  props.sgfExport = { onClick: handleSgfExport, disabled: inEstimate };
 
   if (inEstimate) {
     props.exitEstimate = {

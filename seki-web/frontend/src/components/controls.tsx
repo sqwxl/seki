@@ -293,8 +293,7 @@ function LiveControls(props: ControlsProps) {
           />
         )}
       </span>
-      <NavBar nav={props.nav} />
-      <span class="btn-group controls-end">
+      <span class="btn-group controls-navbar-extra">
         {props.analyze && (
           <button
             title={props.analyze.title ?? "Analyze"}
@@ -313,6 +312,7 @@ function LiveControls(props: ControlsProps) {
             <IconX />
           </button>
         )}
+        <NavBar nav={props.nav} />
         {props.estimate && (
           <button
             title={props.estimate.title ?? "Estimate score"}
@@ -340,6 +340,8 @@ function LiveControls(props: ControlsProps) {
             <IconFileExport />
           </button>
         )}
+      </span>
+      <span class="btn-group controls-end">
         {props.rematch && (
           <>
             <button
