@@ -36,7 +36,10 @@ pub async fn send_initial_state(
         .await?;
 
     // Restore territory review state on reconnect if needed
-    if engine.stage() == Stage::TerritoryReview
+    // Skip if the game is already done (engine doesn't know about DB result)
+    let game_is_done = gwp.game.result.is_some();
+    if !game_is_done
+        && engine.stage() == Stage::TerritoryReview
         && state.registry.get_territory_review(game_id).await.is_none()
     {
         let dead_stones = go_engine::territory::detect_dead_stones(engine.goban());
@@ -48,7 +51,7 @@ pub async fn send_initial_state(
 
     let undo_requested = state.registry.is_undo_requested(game_id).await;
 
-    let territory = if engine.stage() == Stage::TerritoryReview {
+    let territory = if !game_is_done && engine.stage() == Stage::TerritoryReview {
         state
             .registry
             .get_territory_review(game_id)

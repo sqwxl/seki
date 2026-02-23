@@ -479,7 +479,8 @@ async fn build_game_response(
     gwp: &crate::models::game::GameWithPlayers,
     engine: &go_engine::Engine,
 ) -> GameResponse {
-    let territory = if engine.stage() == go_engine::Stage::TerritoryReview {
+    let game_is_done = gwp.game.result.is_some();
+    let territory = if !game_is_done && engine.stage() == go_engine::Stage::TerritoryReview {
         state
             .registry
             .get_territory_review(game_id)
