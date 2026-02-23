@@ -41,7 +41,12 @@ Axum 0.8 web app. Modules follow a clean separation: `models/` (sqlx queries), `
 
 **Request flow:** Axum router → route handler → service layer → model (sqlx) → DB. Templates render server-side HTML. The game board UI is a Preact app (`seki-web/frontend/`) bundled with esbuild, loaded on the game show page.
 
-**Frontend modules** (`seki-web/frontend/src/`): The game page JS is split into focused modules. `go.tsx` is a thin orchestrator that wires everything together. State lives in a `GameCtx` object (`game-context.ts`) passed to pure-ish functions in each module: `game-channel.ts` (WS action wrappers), `game-dom.ts` (DOM element queries), `game-render.tsx` (Preact board rendering), `game-ui.ts` (player labels, title, status), `game-clock.ts` (clock formatting/sync), `game-controls.ts` (button visibility), `game-messages.ts` (WS message handler), `game-util.ts` (user data helpers).
+**Frontend modules** (`seki-web/frontend/src/`): `index.ts` is the entry point. Code is organized into five directories:
+- `game/` — Live game session state: `context.ts` (GameCtx), `messages.ts` (WS message handler), `channel.ts` (WS action wrappers), `clock.ts` (clock formatting/sync), `ui.ts` (title, turn flash, score), `sound.ts`, `notifications.ts`, `util.ts` (user data helpers)
+- `goban/` — Board rendering + WASM bridge: Preact Goban component, `create-board.tsx` (board factory with navigation, territory review, localStorage persistence), `types.ts`
+- `components/` — Reusable Preact UI: `controls.tsx`, `chat.tsx`, `player-panel.tsx`, `move-tree.tsx`, `icons.tsx`, `nav-status.tsx`, `game-description.tsx`, `user-label.tsx`
+- `layouts/` — Page-level orchestrators: `live-game.tsx`, `analysis.tsx`, `games-list.tsx`, `user-games.tsx`, `game-settings-form.tsx`, `game-page-layout.tsx`
+- `utils/` — Stateless helpers: `format.ts`, `sgf.ts`, `premove.ts`, `coord-toggle.ts`, `shared-controls.ts`
 
 **Real-time:** A single WebSocket endpoint (`/ws`) handles all real-time communication. Clients subscribe to game rooms via `join_game`/`leave_game` messages, and receive lobby events (game list updates) via a broadcast channel. `GameRegistry` manages per-game rooms; on join, server sends full game state, and subsequent moves are broadcast to all connected players.
 
