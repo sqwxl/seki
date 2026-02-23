@@ -2,6 +2,42 @@
 
 A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 
+## Tech Stack
+
+- **Backend:** Rust (Axum 0.8, sqlx 0.8, Askama templates, tower-sessions)
+- **Frontend:** Preact 10, TypeScript, esbuild
+- **Game engine:** Pure Rust library (`go-engine`) with WASM bridge (`go-engine-wasm`) for client-side logic
+- **Database:** PostgreSQL
+- **Real-time:** WebSocket (single `/ws` endpoint for game channels and lobby events)
+
+## Architecture
+
+Cargo workspace with three crates:
+
+| Crate | Purpose |
+|---|---|
+| `go-engine` | Pure game logic library (board state, rules, scoring, SGF, game tree) |
+| `go-engine-wasm` | Thin wasm-bindgen shell for browser use |
+| `seki-web` | Axum web app (routes, models, services, WebSocket, templates, Preact frontend) |
+
+## Getting Started
+
+```bash
+# Prerequisites: Rust, Node 24+, pnpm, Docker (for PostgreSQL)
+
+# Start the database
+docker-compose up -d postgres
+
+# Build WASM engine
+wasm-pack build go-engine-wasm --target web --out-dir seki-web/static/wasm
+
+# Build frontend
+cd seki-web/frontend && pnpm install && pnpm run build && cd ../..
+
+# Run the server
+cargo run -p seki-web              # http://localhost:3000
+```
+
 ## Features
 
 ### Gameplay
@@ -21,7 +57,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [ ] Rematch option after game (challenge opponent to new game with same settings)
 - [ ] Multiple rulesets (Japanese, Chinese, AGA)
 - [ ] Conditional moves (pre-plan responses, useful for correspondence)
-- [ ] Score estimator (mid-game score estimate)
+- [x] Score estimator (territory estimate from analysis mode)
 - [ ] Vacation/pause system (for correspondence games)
 - [x] Turn notification (tab title flash when it's your turn)
 - [ ] Turn notifications (email/push)
@@ -40,7 +76,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - [x] Move confirmation toggle (click twice to confirm)
 - [ ] Board annotations in analysis
 - [x] Board coordinates (toggleable)
-- [ ] Import/export SGF
+- [x] Import/export SGF
 - [ ] Zen mode (board only)
 - [ ] Appearance customization (stones, board)
 - [x] Dark mode (basic, follows system preference)
