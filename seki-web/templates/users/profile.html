@@ -13,7 +13,10 @@
     <div style="width:100%">
         <h1>{{ profile_username }}</h1>
         {% if !is_own_profile %}
-            <a href="/?opponent={{ profile_username }}">Challenge</a>
+            <div style="text-align:center;margin:1em 0">
+                <a href="/?opponent={{ profile_username }}" class="btn"
+                   style="display:inline-block;text-decoration:none;border:1px solid var(--border);border-radius:4px;background:var(--bg-muted);color:var(--fg)">Challenge</a>
+            </div>
         {% endif %}
         <h2>Games</h2>
         <div id="user-games" data-initial-games="{{ initial_games }}"></div>
