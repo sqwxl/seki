@@ -213,7 +213,7 @@ export function syncTerritoryCountdown(
   countdown: TerritoryCountdown,
   expiresAt: string | undefined,
   ctx: GameCtx,
-  statusEl: HTMLElement | null,
+  rerender: () => void,
   onFlag: () => void,
 ): void {
   if (countdown.interval) {
@@ -224,21 +224,22 @@ export function syncTerritoryCountdown(
 
   if (expiresAt) {
     countdown.deadline = new Date(expiresAt).getTime();
-    updateTerritoryCountdown(countdown, ctx, statusEl, onFlag);
+    updateTerritoryCountdown(countdown, ctx, rerender, onFlag);
     countdown.interval = setInterval(
-      () => updateTerritoryCountdown(countdown, ctx, statusEl, onFlag),
+      () => updateTerritoryCountdown(countdown, ctx, rerender, onFlag),
       200,
     );
   } else {
     countdown.deadline = undefined;
-    updateStatus(ctx, statusEl);
+    ctx.territoryCountdownMs = undefined;
+    rerender();
   }
 }
 
 function updateTerritoryCountdown(
   countdown: TerritoryCountdown,
   ctx: GameCtx,
-  statusEl: HTMLElement | null,
+  rerender: () => void,
   onFlag: () => void,
 ): void {
   if (!countdown.deadline) {
@@ -249,5 +250,6 @@ function updateTerritoryCountdown(
     countdown.flagSent = true;
     onFlag();
   }
-  updateStatus(ctx, statusEl, Math.max(0, remaining));
+  ctx.territoryCountdownMs = Math.max(0, remaining);
+  rerender();
 }

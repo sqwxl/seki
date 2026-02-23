@@ -1,28 +1,34 @@
+import { render, createRef } from "preact";
 import { GameStage, isPlayStage, type InitialGameProps, type Point, type ScoreData, type Sign } from "./goban/types";
 import { createBoard, type TerritoryOverlay } from "./board";
-import { renderChat, type ChatEntry } from "./chat";
-import { readShowCoordinates, toggleShowCoordinates } from "./coord-toggle";
+import { Chat, type ChatEntry } from "./chat";
+import { readShowCoordinates } from "./coord-toggle";
 import { createPremove } from "./premove";
-import { renderControls } from "./controls";
 import type { ControlsProps } from "./controls";
-import { blackSymbol, whiteSymbol } from "./format";
-import { setIcon, checkSvg, xSvg } from "./icons";
+import { blackSymbol, whiteSymbol, settingsToSgfTime } from "./format";
+import { IconCheck, IconX } from "./icons";
 import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
 import { createGameChannel } from "./game-channel";
-import { queryGameDom } from "./game-dom";
-import { updateTitle, renderPlayerPanels, updateStatus, updateTurnFlash, formatScoreStr } from "./game-ui";
+import { formatScoreStr, updateTurnFlash, updateTitle } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
 import { handleGameMessage } from "./game-messages";
 import type { ClockState } from "./game-clock";
+import { computeClockDisplay } from "./game-clock";
 import { readUserData, derivePlayerStone } from "./game-util";
 import { createNotificationState } from "./game-notifications";
 import { playStoneSound, playPassSound } from "./game-sound";
-import { settingsToSgfTime } from "./format";
 import { downloadSgf } from "./sgf-io";
 import type { SgfMeta } from "./sgf-io";
+import { GamePageLayout } from "./game-page-layout";
+import type { GamePageLayoutProps } from "./game-page-layout";
+import { GameDescription } from "./game-description";
+import { buildNavProps, buildCoordsToggle, buildMoveConfirmToggle } from "./shared-controls";
+import type { CoordsToggleState } from "./shared-controls";
+import type { PlayerPanelProps } from "./player-panel";
+import { formatPoints } from "./format";
 
-export function liveGame(initialProps: InitialGameProps, gameId: number) {
+export function liveGame(initialProps: InitialGameProps, gameId: number, root: HTMLElement) {
   const userData = readUserData();
   const playerStone = derivePlayerStone(
     userData,
@@ -35,7 +41,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
 
   const ctx = createGameContext(gameId, playerStone, initialProps);
   const channel = createGameChannel(gameId);
-  const dom = queryGameDom();
+  const gobanRef = createRef<HTMLDivElement>();
   const clockState: ClockState = {
     data: undefined,
     syncedAt: 0,
@@ -48,7 +54,9 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     flagSent: false,
   };
 
-  let showCoordinates = readShowCoordinates();
+  const coordsState: CoordsToggleState = {
+    showCoordinates: readShowCoordinates(),
+  };
 
   const pm = createPremove({
     getSign: () => ctx.playerStone as Sign,
@@ -74,59 +82,209 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     return { paintMap, dimmedVertices };
   }
 
-  // --- Controls rendering ---
-  function doRenderControls() {
-    if (!dom.controls) {
+  // --- Move tree ---
+  let showMoveTree = false;
+  const moveTreeEl = document.createElement("div");
+  moveTreeEl.className = "move-tree";
+
+  function setMoveTree(visible: boolean) {
+    showMoveTree = visible;
+    if (visible) {
+      ctx.board?.setMoveTreeEl(moveTreeEl);
+    } else {
+      ctx.board?.setMoveTreeEl(null);
+    }
+    ctx.board?.render();
+  }
+
+  // --- Analysis helpers ---
+  function enterAnalysis() {
+    pm.clear();
+    ctx.analysisMode = true;
+    setMoveTree(true);
+    doRender();
+  }
+
+  function exitAnalysis() {
+    pm.clear();
+    ctx.analysisMode = false;
+    setMoveTree(false);
+    if (ctx.board) {
+      ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
+      ctx.board.render();
+    }
+    doRender();
+  }
+
+  // --- Estimate helpers ---
+  let estimateScore: ScoreData | undefined;
+
+  function enterEstimate() {
+    pm.clear();
+    ctx.estimateMode = true;
+    ctx.board?.enterTerritoryReview();
+  }
+
+  function exitEstimate() {
+    ctx.estimateMode = false;
+    estimateScore = undefined;
+    ctx.board?.exitTerritoryReview();
+    doRender();
+  }
+
+  // --- Vertex click handler ---
+  function handleVertexClick(col: number, row: number): boolean {
+    if (ctx.analysisMode) {
+      return false;
+    }
+    if (!ctx.board || !ctx.board.engine.is_at_latest()) {
+      return true;
+    }
+    if (ctx.playerStone === 0) {
+      return true;
+    }
+    if (ctx.gameStage === GameStage.TerritoryReview) {
+      channel.toggleChain(col, row);
+      return true;
+    }
+    const isMyTurn = ctx.currentTurn === ctx.playerStone;
+    if (isMyTurn) {
+      if (!pm.enabled) {
+        pm.clear();
+        channel.play(col, row);
+      } else if (pm.value && pm.value[0] === col && pm.value[1] === row) {
+        pm.clear();
+        channel.play(col, row);
+      } else {
+        pm.value = [col, row];
+        ctx.board.render();
+        doRender();
+      }
+    }
+    return true;
+  }
+
+  // --- SGF export ---
+  function handleSgfExport() {
+    if (!ctx.board) {
       return;
     }
+    const timeFields = settingsToSgfTime(initialProps.settings);
+    const meta: SgfMeta = {
+      cols: ctx.gameState.cols,
+      rows: ctx.gameState.rows,
+      komi: initialProps.komi,
+      handicap: initialProps.settings.handicap || undefined,
+      black_name: ctx.black?.display_name,
+      white_name: ctx.white?.display_name,
+      result: ctx.result ?? undefined,
+      game_name: undefined,
+      time_limit_secs: timeFields.time_limit_secs,
+      overtime: timeFields.overtime,
+    };
+    const sgf = ctx.board.engine.export_sgf(JSON.stringify(meta));
+    const bName = ctx.black?.display_name ?? "Black";
+    const wName = ctx.white?.display_name ?? "White";
+    downloadSgf(sgf, `${bName}-vs-${wName}.sgf`);
+  }
 
+  // --- Parse initial chat history ---
+  const chatLogRaw = root.dataset.chatLog;
+  if (chatLogRaw) {
+    ctx.chatMessages = JSON.parse(chatLogRaw) as ChatEntry[];
+  }
+
+  // --- Build player panel props ---
+  function buildPlayerPanelProps(): { top: PlayerPanelProps; bottom: PlayerPanelProps } {
+    const { black, white } = ctx;
+    const bName = black ? black.display_name : "…";
+    const wName = white ? white.display_name : "…";
+    const bUrl = black ? `/users/${black.display_name}` : undefined;
+    const wUrl = white ? `/users/${white.display_name}` : undefined;
+    const bOnline = black ? ctx.onlineUsers.has(black.id) : false;
+    const wOnline = white ? ctx.onlineUsers.has(white.id) : false;
+    const bTurn = ctx.gameStage === GameStage.BlackToPlay;
+    const wTurn = ctx.gameStage === GameStage.WhiteToPlay;
+
+    const score = ctx.territory?.score ?? ctx.settledScore;
+    const komi = ctx.initialProps.komi;
+
+    let bStr: string;
+    let wStr: string;
+    if (score) {
+      ({ bStr, wStr } = formatScoreStr(score, komi));
+    } else {
+      ({ bStr, wStr } = formatPoints(
+        ctx.gameState.captures.black,
+        ctx.gameState.captures.white,
+        komi,
+      ));
+    }
+
+    let bClock: string | undefined;
+    let wClock: string | undefined;
+    let bClockLow = false;
+    let wClockLow = false;
+    const cd = computeClockDisplay(clockState);
+    bClock = cd.blackText || undefined;
+    wClock = cd.whiteText || undefined;
+    bClockLow = cd.blackLow;
+    wClockLow = cd.whiteLow;
+
+    const blackPanel: PlayerPanelProps = {
+      name: bName,
+      captures: bStr,
+      stone: "black",
+      clock: bClock,
+      clockLowTime: bClockLow,
+      profileUrl: bUrl,
+      isOnline: bOnline,
+      isTurn: bTurn,
+    };
+    const whitePanel: PlayerPanelProps = {
+      name: wName,
+      captures: wStr,
+      stone: "white",
+      clock: wClock,
+      clockLowTime: wClockLow,
+      profileUrl: wUrl,
+      isOnline: wOnline,
+      isTurn: wTurn,
+    };
+
+    if (ctx.playerStone === -1) {
+      return { top: blackPanel, bottom: whitePanel };
+    }
+    return { top: whitePanel, bottom: blackPanel };
+  }
+
+  // --- Build controls props ---
+  function buildControls(): ControlsProps {
     const isPlay = isPlayStage(ctx.gameStage);
     const isReview = ctx.gameStage === GameStage.TerritoryReview;
     const isMyTurn = ctx.currentTurn === ctx.playerStone;
     const isPlayer = ctx.playerStone !== 0;
 
     const props: ControlsProps = {
-      nav: {
-        atStart: ctx.board?.engine.is_at_start() ?? true,
-        atLatest: ctx.board?.engine.is_at_latest() ?? true,
-        counter: ctx.board
-          ? `${ctx.board.engine.view_index()}`
-          : "0",
-        onNavigate: (action) => ctx.board?.navigate(action),
-      },
-      coordsToggle: {
-        enabled: showCoordinates,
-        onClick: () => {
-          showCoordinates = toggleShowCoordinates();
-          ctx.board?.setShowCoordinates(showCoordinates);
-        },
-      },
-      moveConfirmToggle: {
-        enabled: pm.enabled,
-        onClick: () => {
-          pm.enabled = !pm.enabled;
-          pm.clear();
-          ctx.board?.render();
-        },
-      },
+      nav: buildNavProps(ctx.board),
+      coordsToggle: buildCoordsToggle(ctx.board, coordsState),
+      moveConfirmToggle: buildMoveConfirmToggle(pm, ctx.board),
       moveTreeToggle: {
         enabled: showMoveTree,
         onClick: () => {
           setMoveTree(!showMoveTree);
-          doRenderControls();
+          doRender();
         },
       },
     };
 
     if (ctx.analysisMode) {
-      // Analysis mode: show pass (local), exit button, and SGF export
       props.pass = {
         onClick: () => { ctx.board?.pass(); },
       };
       props.exitAnalysis = { onClick: exitAnalysis };
       props.sgfExport = { onClick: handleSgfExport };
     } else if (ctx.estimateMode) {
-      // Estimate mode: only show "Back to game"
       props.exitEstimate = { onClick: exitEstimate };
     } else {
       // Live mode
@@ -202,22 +360,147 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
             const [col, row] = pm.value;
             pm.clear();
             channel.play(col, row);
-            doRenderControls();
+            doRender();
           }
         },
       };
     }
 
-    renderControls(dom.controls, props);
+    return props;
+  }
+
+  // --- Build status ---
+  function buildStatus(): preact.ComponentChildren {
+    const CHECKMARK = "✓";
+
+    if (ctx.estimateMode && estimateScore) {
+      const komi = ctx.initialProps.komi;
+      const { bStr, wStr } = formatScoreStr(estimateScore, komi);
+      return (
+        <div style="text-align: center; margin-top: 0.5em">
+          {`${blackSymbol()} ${bStr}  |  ${whiteSymbol()} ${wStr}`}
+        </div>
+      );
+    }
+
+    if (ctx.gameStage === GameStage.TerritoryReview && ctx.territory) {
+      const bCheck = ctx.territory.black_approved ? ` ${CHECKMARK}` : "";
+      const wCheck = ctx.territory.white_approved ? ` ${CHECKMARK}` : "";
+      const komi = ctx.initialProps.komi;
+      const { bStr, wStr } = formatScoreStr(ctx.territory.score, komi);
+      let text = `${blackSymbol()} ${bStr}${bCheck}  |  ${whiteSymbol()} ${wStr}${wCheck}`;
+      if (ctx.territoryCountdownMs != null) {
+        const secs = Math.ceil(ctx.territoryCountdownMs / 1000);
+        text += `  (${secs}s)`;
+      }
+      return (
+        <div style="text-align: center; margin-top: 0.5em">{text}</div>
+      );
+    }
+
+    return undefined;
+  }
+
+  // --- Build title props ---
+  function buildTitleProps() {
+    return {
+      id: ctx.gameId,
+      creator_id: ctx.initialProps.creator_id,
+      black: ctx.black,
+      white: ctx.white,
+      settings: ctx.initialProps.settings,
+      stage: ctx.gameStage,
+      result: ctx.result ?? undefined,
+      move_count: ctx.moves.length > 0 ? ctx.moves.length : undefined,
+    };
+  }
+
+  // --- Single render function ---
+  function doRender() {
+    const panels = buildPlayerPanelProps();
+    const titleProps = buildTitleProps();
+
+    const header = (
+      <h2><GameDescription {...titleProps} /></h2>
+    );
+
+    const sidebar = (
+      <>
+        <div class="chat">
+          <Chat
+            messages={ctx.chatMessages}
+            onlineUsers={ctx.onlineUsers}
+            black={ctx.black}
+            white={ctx.white}
+            onSend={(text) => channel.say(text)}
+          />
+        </div>
+        {showMoveTree && (
+          <div ref={(el) => {
+            if (el && !el.contains(moveTreeEl)) {
+              el.appendChild(moveTreeEl);
+            }
+          }} />
+        )}
+      </>
+    );
+
+    const extra = (
+      <>
+        {ctx.undoResponseNeeded && ctx.playerStone !== 0 && (
+          <div class="undo-response-controls">
+            <p>Opponent has requested to undo their last move.</p>
+            <button class="confirm-yes" onClick={() => {
+              ctx.undoResponseNeeded = false;
+              channel.acceptUndo();
+              doRender();
+            }}>
+              <IconCheck />
+            </button>
+            <button class="confirm-no" onClick={() => {
+              ctx.undoResponseNeeded = false;
+              channel.rejectUndo();
+              doRender();
+            }}>
+              <IconX />
+            </button>
+          </div>
+        )}
+        {ctx.errorMessage && (
+          <div class="game-error">{ctx.errorMessage}</div>
+        )}
+      </>
+    );
+
+    const props: GamePageLayoutProps = {
+      header,
+      gobanRef,
+      gobanStyle: `aspect-ratio: ${ctx.gameState.cols}/${ctx.gameState.rows}`,
+      gobanClass: ctx.analysisMode ? "goban-analysis" : undefined,
+      playerTop: panels.top,
+      playerBottom: panels.bottom,
+      controls: buildControls(),
+      status: buildStatus(),
+      sidebar,
+      extra,
+    };
+
+    render(<GamePageLayout {...props} />, root);
+
+    // Update document.title (updateTitle with null skips DOM render, only sets title)
+    updateTitle(ctx, null);
   }
 
   // --- WASM board (async) ---
+  // Render layout first so the goban div exists
+  doRender();
+
   createBoard({
     cols: ctx.gameState.cols,
     rows: ctx.gameState.rows,
     handicap: initialProps.settings.handicap,
-    showCoordinates,
-    gobanEl: dom.goban,
+    showCoordinates: coordsState.showCoordinates,
+    gobanEl: gobanRef.current!,
     ghostStone,
     territoryOverlay: getServerTerritory,
     onVertexClick: (col, row) => handleVertexClick(col, row),
@@ -228,27 +511,18 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
       if (ctx.estimateMode && !territory.reviewing) {
         ctx.estimateMode = false;
         estimateScore = undefined;
-        updateStatus(ctx, dom.status);
       }
 
       // Capture estimate score for status display
       if (ctx.estimateMode && territory.score) {
         estimateScore = territory.score;
-        const komi = ctx.initialProps.komi;
-        const { bStr, wStr } = formatScoreStr(estimateScore, komi);
-        if (dom.status) {
-          dom.status.textContent = `${blackSymbol()} ${bStr}  |  ${whiteSymbol()} ${wStr}`;
-        }
       }
 
       // Auto-enter analysis when navigating away from latest game move.
-      // Guard on ctx.board to skip the initial render inside createBoard(),
-      // where the engine has no moves yet but ctx.moves may already be
-      // populated from a WS message that arrived during WASM loading.
       if (ctx.board && !ctx.analysisMode && !ctx.estimateMode && engine.view_index() < ctx.moves.length) {
         enterAnalysis();
       }
-      doRenderControls();
+      doRender();
     },
   }).then((b) => {
     ctx.board = b;
@@ -259,165 +533,22 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
     }
     ctx.board.render();
     ctx.board.updateNav();
-    doRenderControls();
+    doRender();
   });
-
-  // --- Move tree helpers ---
-  let showMoveTree = false;
-  const moveTreeEl = document.createElement("div");
-  moveTreeEl.className = "move-tree";
-
-  function setMoveTree(visible: boolean) {
-    showMoveTree = visible;
-    if (visible) {
-      // Insert after #game, before #chat (if not already in DOM)
-      if (!moveTreeEl.parentElement) {
-        const gameEl = dom.goban.closest("#game");
-        if (gameEl) {
-          gameEl.after(moveTreeEl);
-        }
-      }
-      ctx.board?.setMoveTreeEl(moveTreeEl);
-    } else {
-      moveTreeEl.remove();
-      ctx.board?.setMoveTreeEl(null);
-    }
-    ctx.board?.render();
-  }
-
-  // --- Analysis helpers ---
-  function enterAnalysis() {
-    pm.clear();
-    ctx.analysisMode = true;
-    dom.goban.classList.add("goban-analysis");
-    setMoveTree(true);
-    doRenderControls();
-  }
-
-  function exitAnalysis() {
-    pm.clear();
-    ctx.analysisMode = false;
-    dom.goban.classList.remove("goban-analysis");
-    setMoveTree(false);
-    if (ctx.board) {
-      ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
-      ctx.board.render();
-    }
-    doRenderControls();
-  }
-
-  // --- Estimate helpers ---
-  let estimateScore: ScoreData | undefined;
-
-  function enterEstimate() {
-    pm.clear();
-    ctx.estimateMode = true;
-    ctx.board?.enterTerritoryReview();
-  }
-
-  function exitEstimate() {
-    ctx.estimateMode = false;
-    estimateScore = undefined;
-    updateStatus(ctx, dom.status);
-    ctx.board?.exitTerritoryReview();
-  }
-
-  function handleVertexClick(col: number, row: number): boolean {
-    // In analysis mode, let the board handle clicks (local play)
-    if (ctx.analysisMode) {
-      return false;
-    }
-    // In live mode, always consume clicks — never fall through to local play
-    if (!ctx.board || !ctx.board.engine.is_at_latest()) {
-      return true;
-    }
-    if (ctx.playerStone === 0) {
-      return true;
-    }
-    if (ctx.gameStage === GameStage.TerritoryReview) {
-      channel.toggleChain(col, row);
-      return true;
-    }
-    const isMyTurn = ctx.currentTurn === ctx.playerStone;
-    if (isMyTurn) {
-      if (!pm.enabled) {
-        pm.clear();
-        channel.play(col, row);
-      } else if (pm.value && pm.value[0] === col && pm.value[1] === row) {
-        // Confirm: same position clicked twice
-        pm.clear();
-        channel.play(col, row);
-      } else {
-        // Show ghost stone at clicked position
-        pm.value = [col, row];
-        ctx.board.render();
-        doRenderControls();
-      }
-    }
-    return true;
-  }
-
-  // --- SGF export ---
-  function handleSgfExport() {
-    if (!ctx.board) {
-      return;
-    }
-    const timeFields = settingsToSgfTime(initialProps.settings);
-    const meta: SgfMeta = {
-      cols: ctx.gameState.cols,
-      rows: ctx.gameState.rows,
-      komi: initialProps.komi,
-      handicap: initialProps.settings.handicap || undefined,
-      black_name: ctx.black?.display_name,
-      white_name: ctx.white?.display_name,
-      result: ctx.result ?? undefined,
-      game_name: undefined,
-      time_limit_secs: timeFields.time_limit_secs,
-      overtime: timeFields.overtime,
-    };
-    const sgf = ctx.board.engine.export_sgf(JSON.stringify(meta));
-    const bName = ctx.black?.display_name ?? "Black";
-    const wName = ctx.white?.display_name ?? "White";
-    downloadSgf(sgf, `${bName}-vs-${wName}.sgf`);
-  }
-
-  // --- Chat rendering ---
-  const chatEl = document.getElementById("chat");
-
-  function doRenderChat() {
-    if (!chatEl) {
-      return;
-    }
-    renderChat(chatEl, {
-      messages: ctx.chatMessages,
-      onlineUsers: ctx.onlineUsers,
-      black: ctx.black,
-      white: ctx.white,
-      onSend: (text) => channel.say(text),
-    });
-  }
-
-  // Parse initial chat history from SSR data attribute
-  if (chatEl) {
-    const raw = chatEl.dataset.chatLog;
-    if (raw) {
-      ctx.chatMessages = JSON.parse(raw) as ChatEntry[];
-    }
-  }
 
   // --- Notifications ---
   const notificationState = createNotificationState();
 
-  // --- Render labels closure ---
-  const renderLabels = () => renderPlayerPanels(ctx, dom.playerTop, dom.playerBottom, clockState);
-
   // --- WebSocket ---
   const deps = {
-    ctx, dom, clockState, territoryCountdown, channel, renderLabels,
+    ctx,
+    gobanEl: () => gobanRef.current,
+    clockState,
+    territoryCountdown,
+    channel,
     premove: pm,
     notificationState,
-    renderControls: doRenderControls,
-    renderChat: doRenderChat,
+    rerender: doRender,
     onNewMove: () => {
       if (ctx.analysisMode) {
         exitAnalysis();
@@ -429,24 +560,6 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
   };
   joinGame(gameId, (raw) => handleGameMessage(raw, deps));
 
-  // --- Undo response popover (outside Controls — kept in template) ---
-  setIcon("accept-undo-btn", checkSvg);
-  setIcon("reject-undo-btn", xSvg);
-  document
-    .getElementById("accept-undo-btn")
-    ?.addEventListener("click", () => channel.acceptUndo());
-  document
-    .getElementById("reject-undo-btn")
-    ?.addEventListener("click", () => channel.rejectUndo());
-
   // --- Tab title flash ---
   document.addEventListener("visibilitychange", () => updateTurnFlash(ctx));
-
-  // --- Initial render ---
-  updateTitle(ctx, dom.title);
-  renderLabels();
-  updateStatus(ctx, dom.status);
-  doRenderControls();
-
-  doRenderChat();
 }

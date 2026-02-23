@@ -36,6 +36,9 @@ export type GameCtx = {
   estimateMode: boolean;
   board: Board | undefined;
   movesJson: string;
+  undoResponseNeeded: boolean;
+  errorMessage: string | undefined;
+  territoryCountdownMs: number | undefined;
 };
 
 export function createGameContext(
@@ -66,5 +69,8 @@ export function createGameContext(
     estimateMode: false,
     board: undefined,
     movesJson: "[]",
+    undoResponseNeeded: false,
+    errorMessage: undefined,
+    territoryCountdownMs: undefined,
   };
 }

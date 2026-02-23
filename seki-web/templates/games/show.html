@@ -8,31 +8,15 @@
 {% endblock %}
 {% block content %}
     <div class="game-page">
-        <h2 id="game-title"></h2>
         {% if !is_creator && !is_private && has_open_slot && !is_player %}
             <form action="/games/{{ game_id }}/join" method="post">
                 <button type="submit">Join Game</button>
             </form>
         {% endif %}
-        <div class="game-page-body">
-            <div id="game" data-props="{{ game_props }}" data-game-id="{{ game_id }}">
-                <div id="player-top" class="player-label"></div>
-                <div id="goban"
-                     class="goban-container"
-                     style="aspect-ratio: {{ cols }}/{{ rows }}"></div>
-                <div id="player-bottom" class="player-label"></div>
-                <div class="controls" id="controls"></div>
-                <div id="status" style="text-align: center; margin-top: 0.5em"></div>
-                {% if is_player %}
-                    <div id="undo-response-controls" popover>
-                        <p>Opponent has requested to undo their last move.</p>
-                        <button id="accept-undo-btn" class="confirm-yes" popovertarget="undo-response-controls"></button>
-                        <button id="reject-undo-btn" class="confirm-no" popovertarget="undo-response-controls"></button>
-                    </div>
-                {% endif %}
-            </div>
-            <div id="chat" class="chat" data-chat-log="{{ chat_log_json }}"></div>
-        </div>
+        <div id="game" class="game-page-body"
+             data-props="{{ game_props }}"
+             data-game-id="{{ game_id }}"
+             data-chat-log="{{ chat_log_json }}"></div>
         <div id="game-error"></div>
     </div>
 {% endblock %}

@@ -40,7 +40,7 @@ if (gameRoot) {
   const initialProps: InitialGameProps = JSON.parse(gameRoot.dataset.props!);
   const gameId = Number(gameRoot.dataset.gameId!);
 
-  liveGame(initialProps, gameId);
+  liveGame(initialProps, gameId, gameRoot);
 }
 
 const analysisRoot = document.getElementById("analysis");
