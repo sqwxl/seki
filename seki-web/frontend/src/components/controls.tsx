@@ -130,7 +130,7 @@ function ConfirmButton({
   );
 }
 
-function NavBar({ nav }: { nav: ControlsProps["nav"] }) {
+function NavControls({ nav }: { nav: ControlsProps["nav"] }) {
   return (
     <div class="controls-navbar">
       <button
@@ -166,13 +166,241 @@ function NavBar({ nav }: { nav: ControlsProps["nav"] }) {
   );
 }
 
+function GameControls(props: ControlsProps) {
+  return (
+    <>
+      {props.requestUndo && (
+        <button
+          title={props.requestUndo.title ?? "Undo"}
+          disabled={props.requestUndo.disabled}
+          onClick={props.requestUndo.onClick}
+        >
+          <IconUndo />
+        </button>
+      )}
+      {props.pass && !props.confirmPass && (
+        <button
+          title={props.pass.title ?? "Pass"}
+          disabled={props.pass.disabled}
+          onClick={props.pass.onClick}
+        >
+          <IconPass />
+        </button>
+      )}
+      {props.pass && props.confirmPass && (
+        <ConfirmButton
+          id="pass-btn"
+          icon={IconPass}
+          title={props.pass.title ?? "Pass"}
+          disabled={props.pass.disabled}
+          confirm={props.confirmPass}
+        />
+      )}
+      {props.resign && (
+        <ConfirmButton
+          id="resign-btn"
+          icon={IconWhiteFlag}
+          title="Resign"
+          disabled={props.resign.disabled}
+          confirm={props.resign}
+        />
+      )}
+      {props.abort && (
+        <ConfirmButton
+          id="abort-btn"
+          icon={() => <>Abort</>}
+          title="Abort game"
+          disabled={props.abort.disabled}
+          confirm={props.abort}
+        />
+      )}
+      {props.copyInviteLink && (
+        <CopyInviteLinkButton onClick={props.copyInviteLink.onClick} />
+      )}
+      {props.acceptTerritory && (
+        <ConfirmButton
+          id="accept-territory-btn"
+          icon={() => <>Accept</>}
+          title="Accept territory"
+          disabled={props.acceptTerritory.disabled}
+          confirm={props.acceptTerritory}
+        />
+      )}
+      {props.joinGame && (
+        <button
+          title="Join game"
+          onClick={props.joinGame.onClick}
+        >
+          Join
+        </button>
+      )}
+      {props.acceptChallenge && (
+        <button
+          title="Accept challenge"
+          disabled={props.acceptChallenge.disabled}
+          onClick={props.acceptChallenge.onClick}
+        >
+          Accept
+        </button>
+      )}
+      {props.declineChallenge && (
+        <ConfirmButton
+          id="decline-challenge-btn"
+          icon={() => <>Decline</>}
+          title="Decline challenge"
+          disabled={props.declineChallenge.disabled}
+          confirm={props.declineChallenge}
+        />
+      )}
+      {props.moveConfirmToggle && (
+        <button
+          title={
+            props.moveConfirmToggle.enabled
+              ? "Move confirmation: ON (click to disable)"
+              : "Move confirmation: OFF (click to enable)"
+          }
+          onClick={props.moveConfirmToggle.onClick}
+        >
+          {props.moveConfirmToggle.enabled ? (
+            <IconTouchDouble />
+          ) : (
+            <IconTouchSingle />
+          )}
+        </button>
+      )}
+      {props.rematch && (
+        <>
+          <button
+            id="rematch-btn"
+            popovertarget="rematch-confirm"
+            title="Rematch"
+            disabled={props.rematch.disabled}
+          >
+            <IconRepeat />
+          </button>
+          <div id="rematch-confirm" popover>
+            <p>Rematch?</p>
+            <label>
+              <input type="checkbox" id="rematch-swap" />
+              {" "}Swap colors
+            </label>
+            <button
+              class="confirm-yes"
+              popovertarget="rematch-confirm"
+              onClick={() => {
+                const swap = (
+                  document.getElementById("rematch-swap") as HTMLInputElement
+                ).checked;
+                props.rematch!.onConfirm(swap);
+              }}
+            >
+              <IconCheck />
+            </button>
+            <button class="confirm-no" popovertarget="rematch-confirm">
+              <IconX />
+            </button>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 function AnalysisControls(props: ControlsProps) {
+  return (
+    <>
+      {props.analyze && (
+        <button
+          title={props.analyze.title ?? "Analyze"}
+          disabled={props.analyze.disabled}
+          onClick={props.analyze.onClick}
+        >
+          <IconAnalysis />
+        </button>
+      )}
+      {props.exitAnalysis && (
+        <button
+          title="Back to game"
+          disabled={props.exitAnalysis.disabled}
+          onClick={props.exitAnalysis.onClick}
+        >
+          <IconX />
+        </button>
+      )}
+      {props.sgfImport && (
+        <SgfImportButton onFileChange={props.sgfImport.onFileChange} />
+      )}
+      {props.sgfExport && (
+        <button
+          title={props.sgfExport.title ?? "Export SGF"}
+          disabled={props.sgfExport.disabled}
+          onClick={props.sgfExport.onClick}
+        >
+          <IconFileExport />
+        </button>
+      )}
+      <NavControls nav={props.nav} />
+      {props.estimate && (
+        <button
+          title={props.estimate.title ?? "Estimate score"}
+          disabled={props.estimate.disabled}
+          onClick={props.estimate.onClick}
+        >
+          <IconBalance />
+        </button>
+      )}
+      {props.exitEstimate && (
+        <button
+          title={props.exitEstimate.title ?? "Back to game"}
+          disabled={props.exitEstimate.disabled}
+          onClick={props.exitEstimate.onClick}
+        >
+          <IconX />
+        </button>
+      )}
+      {props.score && (
+        <button
+          title={props.score.title ?? "Estimate score"}
+          disabled={props.score.disabled}
+          onClick={props.score.onClick}
+        >
+          <IconBalance />
+        </button>
+      )}
+    </>
+  );
+}
+
+function UIControls(props: ControlsProps) {
+  return (
+    <>
+      {props.coordsToggle && (
+        <button title="Toggle coordinates" onClick={props.coordsToggle.onClick}>
+          A1
+        </button>
+      )}
+      {props.moveTreeToggle && (
+        <button
+          title={props.moveTreeToggle.enabled ? "Hide move tree" : "Show move tree"}
+          onClick={props.moveTreeToggle.onClick}
+        >
+          <IconGraph />
+        </button>
+      )}
+      {props.sizeSelect && (
+        <SizeSelect {...props.sizeSelect} />
+      )}
+    </>
+  );
+}
+
+function AnalysisBoardControls(props: ControlsProps) {
   const reviewing = !!(props.territoryReady || props.territoryExit);
 
   if (reviewing) {
     return (
       <div class="controls-group">
-        <NavBar nav={props.nav} />
+        <NavControls nav={props.nav} />
         {props.territoryReady && (
           <button
             onClick={props.territoryReady.onClick}
@@ -188,282 +416,30 @@ function AnalysisControls(props: ControlsProps) {
     );
   }
 
-  const hasFileButtons = !!(props.sgfImport || props.sgfExport || props.sizeSelect);
-
   return (
     <div class="controls-nav-row">
-      {hasFileButtons && (
-        <span class="btn-group controls-start">
-          {props.sgfImport && (
-            <SgfImportButton onFileChange={props.sgfImport.onFileChange} />
-          )}
-          {props.sgfExport && (
-            <button
-              title={props.sgfExport.title ?? "Export as SGF file"}
-              onClick={props.sgfExport.onClick}
-            >
-              <IconFileExport />
-            </button>
-          )}
-          {props.sizeSelect && (
-            <SizeSelect {...props.sizeSelect} />
-          )}
-        </span>
-      )}
-      <NavBar nav={props.nav} />
+      <span class="btn-group controls-navbar-extra">
+        <AnalysisControls {...props} />
+      </span>
       <span class="btn-group controls-end">
-        {props.pass && (
-          <button
-            title={props.pass.title ?? "Pass"}
-            disabled={props.pass.disabled}
-            onClick={props.pass.onClick}
-          >
-            <IconPass />
-          </button>
-        )}
-        {props.score && (
-          <button
-            title={props.score.title ?? "Estimate score"}
-            disabled={props.score.disabled}
-            onClick={props.score.onClick}
-          >
-            <IconBalance />
-          </button>
-        )}
-        {props.coordsToggle && (
-          <button title="Toggle coordinates" onClick={props.coordsToggle.onClick}>
-            A1
-          </button>
-        )}
-        {props.moveConfirmToggle && (
-          <button
-            title={
-              props.moveConfirmToggle.enabled
-                ? "Move confirmation: ON (click to disable)"
-                : "Move confirmation: OFF (click to enable)"
-            }
-            onClick={props.moveConfirmToggle.onClick}
-          >
-            {props.moveConfirmToggle.enabled ? (
-              <IconTouchDouble />
-            ) : (
-              <IconTouchSingle />
-            )}
-          </button>
-        )}
-        {props.moveTreeToggle && (
-          <button
-            title={props.moveTreeToggle.enabled ? "Hide move tree" : "Show move tree"}
-            onClick={props.moveTreeToggle.onClick}
-          >
-            <IconGraph />
-          </button>
-        )}
+        <GameControls {...props} />
+        <UIControls {...props} />
       </span>
     </div>
   );
 }
 
-function LiveControls(props: ControlsProps) {
+function LiveGameControls(props: ControlsProps) {
   return (
     <div class="controls-nav-row">
       <span class="btn-group controls-start">
-        {props.requestUndo && (
-          <button
-            title={props.requestUndo.title ?? "Undo"}
-            disabled={props.requestUndo.disabled}
-            onClick={props.requestUndo.onClick}
-          >
-            <IconUndo />
-          </button>
-        )}
-        {props.pass && !props.confirmPass && (
-          <button
-            title={props.pass.title ?? "Pass"}
-            disabled={props.pass.disabled}
-            onClick={props.pass.onClick}
-          >
-            <IconPass />
-          </button>
-        )}
-        {props.pass && props.confirmPass && (
-          <ConfirmButton
-            id="pass-btn"
-            icon={IconPass}
-            title={props.pass.title ?? "Pass"}
-            disabled={props.pass.disabled}
-            confirm={props.confirmPass}
-          />
-        )}
-        {props.resign && (
-          <ConfirmButton
-            id="resign-btn"
-            icon={IconWhiteFlag}
-            title="Resign"
-            disabled={props.resign.disabled}
-            confirm={props.resign}
-          />
-        )}
-        {props.abort && (
-          <ConfirmButton
-            id="abort-btn"
-            icon={() => <>Abort</>}
-            title="Abort game"
-            disabled={props.abort.disabled}
-            confirm={props.abort}
-          />
-        )}
-        {props.copyInviteLink && (
-          <CopyInviteLinkButton onClick={props.copyInviteLink.onClick} />
-        )}
-        {props.acceptTerritory && (
-          <ConfirmButton
-            id="accept-territory-btn"
-            icon={() => <>Accept</>}
-            title="Accept territory"
-            disabled={props.acceptTerritory.disabled}
-            confirm={props.acceptTerritory}
-          />
-        )}
-        {props.joinGame && (
-          <button
-            title="Join game"
-            onClick={props.joinGame.onClick}
-          >
-            Join
-          </button>
-        )}
-        {props.acceptChallenge && (
-          <button
-            title="Accept challenge"
-            disabled={props.acceptChallenge.disabled}
-            onClick={props.acceptChallenge.onClick}
-          >
-            Accept
-          </button>
-        )}
-        {props.declineChallenge && (
-          <ConfirmButton
-            id="decline-challenge-btn"
-            icon={() => <>Decline</>}
-            title="Decline challenge"
-            disabled={props.declineChallenge.disabled}
-            confirm={props.declineChallenge}
-          />
-        )}
-        {props.moveConfirmToggle && (
-          <button
-            title={
-              props.moveConfirmToggle.enabled
-                ? "Move confirmation: ON (click to disable)"
-                : "Move confirmation: OFF (click to enable)"
-            }
-            onClick={props.moveConfirmToggle.onClick}
-          >
-            {props.moveConfirmToggle.enabled ? (
-              <IconTouchDouble />
-            ) : (
-              <IconTouchSingle />
-            )}
-          </button>
-        )}
+        <GameControls {...props} />
       </span>
       <span class="btn-group controls-navbar-extra">
-        {props.analyze && (
-          <button
-            title={props.analyze.title ?? "Analyze"}
-            disabled={props.analyze.disabled}
-            onClick={props.analyze.onClick}
-          >
-            <IconAnalysis />
-          </button>
-        )}
-        {props.exitAnalysis && (
-          <button
-            title="Back to game"
-            disabled={props.exitAnalysis.disabled}
-            onClick={props.exitAnalysis.onClick}
-          >
-            <IconX />
-          </button>
-        )}
-        <NavBar nav={props.nav} />
-        {props.estimate && (
-          <button
-            title={props.estimate.title ?? "Estimate score"}
-            disabled={props.estimate.disabled}
-            onClick={props.estimate.onClick}
-          >
-            <IconBalance />
-          </button>
-        )}
-        {props.exitEstimate && (
-          <button
-            title={props.exitEstimate.title ?? "Back to game"}
-            disabled={props.exitEstimate.disabled}
-            onClick={props.exitEstimate.onClick}
-          >
-            <IconX />
-          </button>
-        )}
-        {props.sgfExport && (
-          <button
-            title={props.sgfExport.title ?? "Export SGF"}
-            disabled={props.sgfExport.disabled}
-            onClick={props.sgfExport.onClick}
-          >
-            <IconFileExport />
-          </button>
-        )}
+        <AnalysisControls {...props} />
       </span>
       <span class="btn-group controls-end">
-        {props.rematch && (
-          <>
-            <button
-              id="rematch-btn"
-              popovertarget="rematch-confirm"
-              title="Rematch"
-              disabled={props.rematch.disabled}
-            >
-              <IconRepeat />
-            </button>
-            <div id="rematch-confirm" popover>
-              <p>Rematch?</p>
-              <label>
-                <input type="checkbox" id="rematch-swap" />
-                {" "}Swap colors
-              </label>
-              <button
-                class="confirm-yes"
-                popovertarget="rematch-confirm"
-                onClick={() => {
-                  const swap = (
-                    document.getElementById("rematch-swap") as HTMLInputElement
-                  ).checked;
-                  props.rematch!.onConfirm(swap);
-                }}
-              >
-                <IconCheck />
-              </button>
-              <button class="confirm-no" popovertarget="rematch-confirm">
-                <IconX />
-              </button>
-            </div>
-          </>
-        )}
-        {props.coordsToggle && (
-          <button title="Toggle coordinates" onClick={props.coordsToggle.onClick}>
-            A1
-          </button>
-        )}
-        {props.moveTreeToggle && (
-          <button
-            title={props.moveTreeToggle.enabled ? "Hide move tree" : "Show move tree"}
-            onClick={props.moveTreeToggle.onClick}
-          >
-            <IconGraph />
-          </button>
-        )}
+        <UIControls {...props} />
       </span>
     </div>
   );
@@ -473,9 +449,9 @@ export function Controls(props: ControlsProps) {
   return (
     <>
       {props.layout === "analysis" ? (
-        <AnalysisControls {...props} />
+        <AnalysisBoardControls {...props} />
       ) : (
-        <LiveControls {...props} />
+        <LiveGameControls {...props} />
       )}
       {props.undoResponse && (
         <div
