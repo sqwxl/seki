@@ -12,7 +12,7 @@ export type ChatEntry = {
   sent_at?: string;
 };
 
-type ChatProps = {
+export type ChatProps = {
   messages: ChatEntry[];
   onlineUsers: Set<number>;
   black: UserData | undefined;
@@ -83,7 +83,7 @@ function SenderLabel(props: {
   );
 }
 
-function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
+export function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 

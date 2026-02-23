@@ -16,7 +16,7 @@ export type PlayerPanelProps = {
   isTurn?: boolean;
 };
 
-function PlayerPanel(props: PlayerPanelProps) {
+export function PlayerPanel(props: PlayerPanelProps) {
   const CapturesIcon = props.stone === "black" ? CapturesBlack : CapturesWhite;
 
   return (

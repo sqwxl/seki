@@ -219,7 +219,7 @@ function LiveControls(props: ControlsProps) {
   );
 }
 
-function Controls(props: ControlsProps) {
+export function Controls(props: ControlsProps) {
   return (
     <>
       {props.layout === "analysis"
