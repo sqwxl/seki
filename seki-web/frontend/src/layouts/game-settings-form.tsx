@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 
-const STORAGE_KEY = "gameSettings";
+const STORAGE_KEY = "seki:game_settings";
 
 type TimeControl = "none" | "fischer" | "byoyomi" | "correspondence";
 

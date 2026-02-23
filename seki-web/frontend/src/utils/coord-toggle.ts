@@ -1,4 +1,4 @@
-const COORDS_KEY = "seki:showCoordinates";
+const COORDS_KEY = "seki:show_coordinates";
 
 export function readShowCoordinates(): boolean {
   return localStorage.getItem(COORDS_KEY) === "true";

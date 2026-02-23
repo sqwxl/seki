@@ -28,8 +28,8 @@ import type { SgfMeta } from "../utils/sgf";
 import type { Sign } from "../goban/types";
 
 const SIZE_KEY = "seki:analysis:size";
-const SGF_META_KEY = "seki:analysis:sgfMeta";
-const SGF_TEXT_KEY = "seki:analysis:sgfText";
+const SGF_META_KEY = "seki:analysis:sgf_meta";
+const SGF_TEXT_KEY = "seki:analysis:sgf_text";
 const VALID_SIZES = [9, 13, 19];
 const KOMI = 6.5;
 
