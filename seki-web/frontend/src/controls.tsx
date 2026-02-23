@@ -96,7 +96,7 @@ function NavBar({ nav }: { nav: ControlsProps["nav"] }) {
         onClick={() => nav.onNavigate("back")}>
         <IconPlaybackRewind />
       </button>
-      <span style="min-width: 3ch; text-align: center; font-family: monospace">{nav.counter}</span>
+      <span class="controls-counter">{nav.counter}</span>
       <button title="Forward (Right)" disabled={nav.atLatest}
         onClick={() => nav.onNavigate("forward")}>
         <IconPlaybackForward />
@@ -203,8 +203,13 @@ function LiveControls(props: ControlsProps) {
               <IconBalance />
             </button>
           )}
-          {(props.exitAnalysis || props.exitEstimate) && (
-            <button onClick={(props.exitAnalysis ?? props.exitEstimate)!.onClick}>Back to game</button>
+          {props.exitAnalysis && (
+            <button onClick={props.exitAnalysis.onClick}>Back to game</button>
+          )}
+          {props.exitEstimate && (
+            <button onClick={props.exitEstimate.onClick}>
+              {props.exitEstimate.title ?? "Back to game"}
+            </button>
           )}
           {props.sgfExport && (
             <button title={props.sgfExport.title ?? "Export SGF"} onClick={props.sgfExport.onClick}>
