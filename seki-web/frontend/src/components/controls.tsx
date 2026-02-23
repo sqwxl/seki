@@ -66,6 +66,9 @@ export type ControlsProps = {
   moveConfirmToggle?: { enabled: boolean; onClick: () => void };
   moveTreeToggle?: { enabled: boolean; onClick: () => void };
 
+  // Undo response popover (auto-shown when present)
+  undoResponse?: { onAccept: () => void; onReject: () => void };
+
   // Confirm move button
   confirmMove?: ButtonDef;
 };
@@ -319,6 +322,37 @@ export function Controls(props: ControlsProps) {
         <AnalysisControls {...props} />
       ) : (
         <LiveControls {...props} />
+      )}
+      {props.undoResponse && (
+        <div
+          id="undo-response"
+          popover="manual"
+          ref={(el) => {
+            if (el && !el.matches(":popover-open")) {
+              el.showPopover();
+            }
+          }}
+        >
+          <p>Opponent requests to undo their last move.</p>
+          <button
+            class="confirm-yes"
+            onClick={() => {
+              document.getElementById("undo-response")?.hidePopover();
+              props.undoResponse!.onAccept();
+            }}
+          >
+            <IconCheck />
+          </button>
+          <button
+            class="confirm-no"
+            onClick={() => {
+              document.getElementById("undo-response")?.hidePopover();
+              props.undoResponse!.onReject();
+            }}
+          >
+            <IconX />
+          </button>
+        </div>
       )}
       {props.confirmMove && (
         <button

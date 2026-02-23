@@ -14,7 +14,6 @@ import { readShowCoordinates } from "../utils/coord-toggle";
 import { createPremove } from "../utils/premove";
 import type { ControlsProps } from "../components/controls";
 import { settingsToSgfTime, formatResult, formatPoints } from "../utils/format";
-import { IconCheck, IconX } from "../components/icons";
 import { joinGame } from "../ws";
 import { createGameContext } from "../game/context";
 import { createGameChannel } from "../game/channel";
@@ -420,6 +419,22 @@ export function liveGame(
       }
     }
 
+    // Undo response popover
+    if (ctx.undoResponseNeeded && isPlayer) {
+      props.undoResponse = {
+        onAccept: () => {
+          ctx.undoResponseNeeded = false;
+          channel.acceptUndo();
+          doRender();
+        },
+        onReject: () => {
+          ctx.undoResponseNeeded = false;
+          channel.rejectUndo();
+          doRender();
+        },
+      };
+    }
+
     // Confirm move button
     if (pm.value && isMyTurn && !ctx.analysisMode) {
       props.confirmMove = {
@@ -485,36 +500,9 @@ export function liveGame(
       </>
     );
 
-    const extra = (
-      <>
-        {ctx.undoResponseNeeded && ctx.playerStone !== 0 && (
-          <div class="undo-response-controls">
-            <p>Opponent has requested to undo their last move.</p>
-            <button
-              class="confirm-yes"
-              onClick={() => {
-                ctx.undoResponseNeeded = false;
-                channel.acceptUndo();
-                doRender();
-              }}
-            >
-              <IconCheck />
-            </button>
-            <button
-              class="confirm-no"
-              onClick={() => {
-                ctx.undoResponseNeeded = false;
-                channel.rejectUndo();
-                doRender();
-              }}
-            >
-              <IconX />
-            </button>
-          </div>
-        )}
-        {ctx.errorMessage && <div class="game-error">{ctx.errorMessage}</div>}
-      </>
-    );
+    const extra = ctx.errorMessage ? (
+      <div class="game-error">{ctx.errorMessage}</div>
+    ) : undefined;
 
     const props: GamePageLayoutProps = {
       header,
