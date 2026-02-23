@@ -576,9 +576,11 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       territoryState = undefined;
     }
     if (navigateEngine(engine, action)) {
-      // Auto-enter territory review if navigating to a two-pass position
+      // Auto-enter territory review if navigating to a two-pass position,
+      // but not at the base tip (settled game endpoint — territory handled externally)
       const stage = engine.stage();
-      if (stage === "territory_review" && !isCurrentFinalized()) {
+      const nodeId = engine.current_node_id();
+      if (stage === "territory_review" && !isCurrentFinalized() && nodeId !== baseTipNodeId) {
         enterTerritory();
         return;
       }

@@ -95,8 +95,8 @@ export function liveGame(
       );
       return { paintMap, dimmedVertices };
     }
-    // Settled territory overlay for finished games
-    if (ctx.estimateMode && ctx.settledTerritory) {
+    // Settled territory overlay for finished games (not in analysis — WASM handles that)
+    if (ctx.estimateMode && ctx.settledTerritory && !ctx.analysisMode) {
       return buildSettledOverlay(ctx.settledTerritory);
     }
     return undefined;
@@ -136,11 +136,10 @@ export function liveGame(
   function exitAnalysis() {
     pm.clear();
     ctx.analysisMode = false;
-    setMoveTree(false);
     if (ctx.board) {
       ctx.board.updateBaseMoves(JSON.stringify(ctx.moves));
-      ctx.board.render();
     }
+    setMoveTree(false);
     doRender();
   }
 
@@ -150,7 +149,7 @@ export function liveGame(
   function enterEstimate() {
     pm.clear();
     ctx.estimateMode = true;
-    if (ctx.settledTerritory) {
+    if (ctx.settledTerritory && !ctx.analysisMode) {
       // Static overlay for finished games — just toggle and re-render
       ctx.board?.render();
       doRender();
@@ -162,7 +161,7 @@ export function liveGame(
   function exitEstimate() {
     ctx.estimateMode = false;
     estimateScore = undefined;
-    if (ctx.settledTerritory) {
+    if (ctx.settledTerritory && !ctx.analysisMode) {
       ctx.board?.render();
       doRender();
     } else {
@@ -555,8 +554,7 @@ export function liveGame(
     onPass: playPassSound,
     onRender: (engine, territory) => {
       // Auto-exit estimate when territory review gets cleared (e.g. by navigation)
-      // Don't auto-exit for settled territory (static overlay, not WASM-driven)
-      if (ctx.estimateMode && !territory.reviewing && !ctx.settledTerritory) {
+      if (ctx.estimateMode && !territory.reviewing) {
         ctx.estimateMode = false;
         estimateScore = undefined;
       }
