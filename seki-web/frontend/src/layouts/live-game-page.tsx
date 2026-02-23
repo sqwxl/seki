@@ -302,7 +302,7 @@ function LiveControls({
     };
   }
 
-  if (isPlay || isChallenge) {
+  if (isPlayerVal && (isPlay || isChallenge)) {
     props.resign = {
       message: "Resign this game?",
       onConfirm: () => channel.resign(),
