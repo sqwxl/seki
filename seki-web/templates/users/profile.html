@@ -11,13 +11,13 @@
 {% endblock %}
 {% block content %}
     <div style="width:100%">
-        <h1>{{ profile_username }}</h1>
-        {% if !is_own_profile %}
-            <div style="text-align:center;margin:1em 0">
+        <h1 style="display:flex;align-items:center;gap:0.5em">
+            {{ profile_username }}
+            {% if !is_own_profile %}
                 <a href="/?opponent={{ profile_username }}" class="btn"
-                   style="display:inline-block;text-decoration:none;border:1px solid var(--border);border-radius:4px;background:var(--bg-muted);color:var(--fg)">Challenge</a>
-            </div>
-        {% endif %}
+                   style="font-size:0.5em;text-decoration:none;border:1px solid var(--border);border-radius:4px;background:var(--bg-muted);color:var(--fg)">Challenge</a>
+            {% endif %}
+        </h1>
         <h2>Games</h2>
         <div id="user-games" data-initial-games="{{ initial_games }}"></div>
         {% if is_own_profile %}
