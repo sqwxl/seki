@@ -2,3 +2,4 @@
 seki-web/static/dist/
 seki-web/frontend/node_modules/
 .env
+docs
