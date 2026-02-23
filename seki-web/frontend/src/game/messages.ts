@@ -5,8 +5,8 @@ import { syncClock } from "./clock";
 import type { PremoveState } from "../utils/premove";
 import { updateTurnFlash, syncTerritoryCountdown } from "./ui";
 import type { TerritoryCountdown } from "./ui";
-import { notifyTurn, type NotificationState } from "./notifications";
-import { playStoneSound, playPassSound, playJoinSound } from "./sound";
+import { notifyGameStarted, notifyTurn, type NotificationState } from "./notifications";
+import { playStoneSound, playPassSound } from "./sound";
 import {
   board,
   moves,
@@ -98,14 +98,16 @@ export function handleGameMessage(
       const isLiveUpdate = initialStateReceived;
       initialStateReceived = true;
 
-      const { prevBlack, prevWhite } = applyGameState(data);
+      const prevStage = gameStage.value;
+      applyGameState(data);
 
-      if (isLiveUpdate && playerStone.value !== 0) {
-        const opponentJoined =
-          (playerStone.value === 1 && !prevWhite && data.white) ||
-          (playerStone.value === -1 && !prevBlack && data.black);
-        if (opponentJoined) {
-          playJoinSound();
+      if (isLiveUpdate) {
+        const gameJustStarted =
+          (prevStage === GameStage.Unstarted || prevStage === GameStage.Challenge) &&
+          isPlayStage(data.stage);
+        if (gameJustStarted) {
+          playPassSound();
+          notifyGameStarted();
         }
       }
 

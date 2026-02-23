@@ -127,10 +127,7 @@ export function applyGameState(data: {
   black: UserData | null;
   white: UserData | null;
   online_users?: number[];
-}): { prevBlack: UserData | undefined; prevWhite: UserData | undefined } {
-  const prevBlack = black.value;
-  const prevWhite = white.value;
-
+}): void {
   const approvalMessages: ChatEntry[] = [];
   if (data.territory) {
     if (data.territory.black_approved && !_prevBlackApproved) {
@@ -162,8 +159,6 @@ export function applyGameState(data: {
       chatMessages.value = [...chatMessages.value, ...approvalMessages];
     }
   });
-
-  return { prevBlack, prevWhite };
 }
 
 /** Called from WS undo_accepted/undo_rejected handlers. */

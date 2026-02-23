@@ -85,6 +85,29 @@ export function initNotificationToggle(): void {
   updateToggleIcon();
 }
 
+export function notifyGameStarted(): void {
+  if (!isEnabled()) {
+    return;
+  }
+  if (!document.hidden) {
+    return;
+  }
+
+  const opponent =
+    playerStone.value === 1
+      ? (white.value?.display_name ?? "White")
+      : (black.value?.display_name ?? "Black");
+
+  const n = new Notification("Game started", {
+    body: `Your game against ${opponent} has begun!`,
+    tag: `seki-start-${gameId.value}`,
+  });
+  n.onclick = () => {
+    window.focus();
+    n.close();
+  };
+}
+
 export function notifyTurn(state: NotificationState): void {
   if (!isEnabled()) {
     return;
