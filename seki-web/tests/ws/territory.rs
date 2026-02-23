@@ -220,6 +220,104 @@ async fn approval_reset_on_toggle() {
     assert_eq!(state_w["stage"], "territory_review");
 }
 
+/// 7.5 — Reconnecting to a settled game includes settled_territory data.
+#[tokio::test]
+async fn reconnect_settled_game_has_settled_territory() {
+    let server = TestServer::start().await;
+    let game_id = server.create_and_join().await;
+
+    let mut black = server.ws_black().await;
+    let mut white = server.ws_white().await;
+
+    let _state = black.join_game(game_id).await;
+    let _state = white.join_game(game_id).await;
+
+    // Enter territory review on an empty board (two passes, no moves)
+    enter_territory_review(game_id, &mut black, &mut white).await;
+
+    // Both approve — game ends
+    black.approve_territory(game_id).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    white.approve_territory(game_id).await;
+    let _ = black.recv_kind("chat").await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("chat").await;
+    let _ = white.recv_kind("state").await;
+
+    // Open fresh WS connections and rejoin the finished game
+    let mut black2 = server.ws_black().await;
+    let state = black2.join_game(game_id).await;
+
+    assert_eq!(state["stage"], "done");
+    assert!(state["result"].as_str().is_some(), "result should be set");
+
+    // settled_territory should be present with ownership, dead_stones, and score
+    let st = &state["settled_territory"];
+    assert!(
+        !st.is_null(),
+        "expected settled_territory in reconnection state"
+    );
+    assert!(
+        st["ownership"].is_array(),
+        "settled_territory should have ownership array"
+    );
+    assert!(
+        st["dead_stones"].is_array(),
+        "settled_territory should have dead_stones array"
+    );
+    assert!(
+        st["score"].is_object(),
+        "settled_territory should have score object"
+    );
+
+    // territory field should NOT be present (game is done, not in active review)
+    assert!(
+        state["territory"].is_null(),
+        "territory should be null for a finished game on reconnect"
+    );
+}
+
+/// 7.6 — Reconnecting to a resigned game has no territory or settled_territory.
+#[tokio::test]
+async fn reconnect_resigned_game_no_territory() {
+    let server = TestServer::start().await;
+    let game_id = server.create_and_join().await;
+
+    let mut black = server.ws_black().await;
+    let mut white = server.ws_white().await;
+
+    let _state = black.join_game(game_id).await;
+    let _state = white.join_game(game_id).await;
+
+    // Play a move and resign
+    black.play(game_id, 0, 0).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    black.resign(game_id).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    // Open a fresh WS connection and rejoin the finished game
+    let mut black2 = server.ws_black().await;
+    let state = black2.join_game(game_id).await;
+
+    assert_eq!(state["stage"], "done");
+    assert_eq!(state["result"], "W+R");
+
+    // No territory or settled_territory for resigned games
+    assert!(
+        state["territory"].is_null(),
+        "territory should be null for a resigned game"
+    );
+    assert!(
+        state["settled_territory"].is_null(),
+        "settled_territory should be null for a resigned game"
+    );
+}
+
 /// 7.7 — Toggle outside territory review: toggling when game is in play stage returns an error.
 #[tokio::test]
 async fn toggle_outside_territory_review() {
