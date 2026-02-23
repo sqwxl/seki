@@ -16,6 +16,7 @@ import {
   IconTouchSingle,
   IconTouchDouble,
   IconGraph,
+  IconRepeat,
 } from "./icons";
 
 type ButtonDef = {
@@ -50,6 +51,7 @@ export type ControlsProps = {
   resign?: ConfirmDef;
   abort?: ConfirmDef;
   acceptTerritory?: ConfirmDef & { disabled?: boolean };
+  rematch?: { onConfirm: (swapColors: boolean) => void };
   analyze?: ButtonDef;
   exitAnalysis?: ButtonDef;
   estimate?: ButtonDef;
@@ -303,6 +305,39 @@ function LiveControls(props: ControlsProps) {
             >
               <IconFileExport />
             </button>
+          )}
+          {props.rematch && (
+            <>
+              <button
+                id="rematch-btn"
+                popovertarget="rematch-confirm"
+                title="Rematch"
+              >
+                <IconRepeat />
+              </button>
+              <div id="rematch-confirm" popover>
+                <p>Rematch?</p>
+                <label>
+                  <input type="checkbox" id="rematch-swap" />
+                  {" "}Swap colors
+                </label>
+                <button
+                  class="confirm-yes"
+                  popovertarget="rematch-confirm"
+                  onClick={() => {
+                    const swap = (
+                      document.getElementById("rematch-swap") as HTMLInputElement
+                    ).checked;
+                    props.rematch!.onConfirm(swap);
+                  }}
+                >
+                  <IconCheck />
+                </button>
+                <button class="confirm-no" popovertarget="rematch-confirm">
+                  <IconX />
+                </button>
+              </div>
+            </>
           )}
           <ToggleButtons
             coordsToggle={props.coordsToggle}
