@@ -9,8 +9,7 @@ import {
   white,
 } from "./state";
 import { setIcon, bellSvg, bellDisabledSvg } from "../components/icons";
-
-const STORAGE_KEY = "seki:notifications";
+import { storage, NOTIFICATIONS } from "../utils/storage";
 const TOGGLE_ID = "notification-toggle";
 
 export type NotificationState = {
@@ -28,7 +27,7 @@ function isSupported(): boolean {
 function isEnabled(): boolean {
   return (
     isSupported() &&
-    localStorage.getItem(STORAGE_KEY) === "on" &&
+    storage.get(NOTIFICATIONS) === "on" &&
     Notification.permission === "granted"
   );
 }
@@ -78,8 +77,8 @@ export function initNotificationToggle(): void {
         return;
       }
     }
-    const next = localStorage.getItem(STORAGE_KEY) === "on" ? "off" : "on";
-    localStorage.setItem(STORAGE_KEY, next);
+    const next = storage.get(NOTIFICATIONS) === "on" ? "off" : "on";
+    storage.set(NOTIFICATIONS, next);
     updateToggleIcon();
   });
 

@@ -4,6 +4,13 @@ import type { Board } from "../goban/create-board";
 import type { ControlsProps } from "../components/controls";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import {
+  storage,
+  ANALYSIS_SIZE,
+  ANALYSIS_SGF_META,
+  ANALYSIS_SGF_TEXT,
+  analysisTreeKey,
+} from "../utils/storage";
+import {
   blackSymbol,
   whiteSymbol,
   formatPoints,
@@ -27,9 +34,6 @@ import { readFileAsText, downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
 import type { Sign } from "../goban/types";
 
-const SIZE_KEY = "seki:analysis:size";
-const SGF_META_KEY = "seki:analysis:sgf_meta";
-const SGF_TEXT_KEY = "seki:analysis:sgf_text";
 const VALID_SIZES = [9, 13, 19];
 const KOMI = 6.5;
 
@@ -60,26 +64,15 @@ export function initAnalysis(root: HTMLElement) {
   const moveTreeEl = document.createElement("div");
   moveTreeEl.className = "move-tree";
 
-  const savedSize = localStorage.getItem(SIZE_KEY);
+  const savedSize = storage.get(ANALYSIS_SIZE);
   let currentSize = savedSize ? parseInt(savedSize, 10) : 19;
   if (!VALID_SIZES.includes(currentSize)) {
     currentSize = 19;
   }
 
   let board: Board | undefined;
-  let sgfMeta: SgfMeta | undefined;
-  let sgfText: string | undefined;
-
-  // Restore saved SGF metadata and text
-  const savedMeta = localStorage.getItem(SGF_META_KEY);
-  if (savedMeta) {
-    try {
-      sgfMeta = JSON.parse(savedMeta);
-    } catch {
-      /* ignore */
-    }
-  }
-  sgfText = localStorage.getItem(SGF_TEXT_KEY) ?? undefined;
+  let sgfMeta: SgfMeta | undefined = storage.getJson(ANALYSIS_SGF_META);
+  let sgfText: string | undefined = storage.get(ANALYSIS_SGF_TEXT) ?? undefined;
 
   const coordsState: CoordsToggleState = {
     showCoordinates: readShowCoordinates(),
@@ -114,9 +107,9 @@ export function initAnalysis(root: HTMLElement) {
           currentSize = size;
           sgfMeta = undefined;
           sgfText = undefined;
-          localStorage.removeItem(SGF_META_KEY);
-          localStorage.removeItem(SGF_TEXT_KEY);
-          localStorage.setItem(SIZE_KEY, String(size));
+          storage.remove(ANALYSIS_SGF_META);
+          storage.remove(ANALYSIS_SGF_TEXT);
+          storage.set(ANALYSIS_SIZE, String(size));
           initBoard(size);
         },
       },
@@ -208,7 +201,7 @@ export function initAnalysis(root: HTMLElement) {
       komi: KOMI,
       moveTreeEl,
       moveTreeDirection: "responsive",
-      storageKey: `seki:analysis:tree:${size}`,
+      storageKey: analysisTreeKey(size),
       ghostStone,
       onVertexClick: (col, row) => {
         if (!pm.enabled) {
@@ -331,16 +324,17 @@ export function initAnalysis(root: HTMLElement) {
     }
     // Update current size
     currentSize = size;
-    localStorage.setItem(SIZE_KEY, String(size));
+    storage.set(ANALYSIS_SIZE, String(size));
     // Clear stored tree for this size so initBoard starts fresh
-    localStorage.removeItem(`seki:analysis:tree:${size}`);
-    localStorage.removeItem(`seki:analysis:tree:${size}:base`);
-    localStorage.removeItem(`seki:analysis:tree:${size}:finalized`);
-    localStorage.removeItem(`seki:analysis:tree:${size}:node`);
+    const treeKey = analysisTreeKey(size);
+    storage.remove(treeKey);
+    storage.remove(`${treeKey}:base`);
+    storage.remove(`${treeKey}:finalized`);
+    storage.remove(`${treeKey}:node`);
     sgfMeta = meta;
     sgfText = text;
-    localStorage.setItem(SGF_META_KEY, JSON.stringify(meta));
-    localStorage.setItem(SGF_TEXT_KEY, text);
+    storage.setJson(ANALYSIS_SGF_META, meta);
+    storage.set(ANALYSIS_SGF_TEXT, text);
     await initBoard(size);
     if (board) {
       board.engine.load_sgf_tree(text);

@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { MoveTree } from "../components/move-tree";
 import { flashPassEffect } from "../game/messages";
+import { storage } from "../utils/storage";
 import { Goban } from "./";
 import {
   MarkerData,
@@ -290,21 +291,21 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   // Initialize from localStorage or baseMoves
   const saved = config.storageKey
-    ? localStorage.getItem(config.storageKey)
+    ? storage.get(config.storageKey)
     : null;
   let restoredWithAnalysis = false;
   if (saved) {
     if (!engine.replace_tree(saved)) {
       engine.replace_moves(saved);
     }
-    const savedBase = localStorage.getItem(`${config.storageKey}:base`);
+    const savedBase = storage.get(`${config.storageKey}:base`);
     if (savedBase) {
       baseMoves = savedBase;
       baseMoveCount = (JSON.parse(savedBase) as unknown[]).length;
     }
     restoredWithAnalysis = engine.tree_node_count() > baseMoveCount;
     // Restore saved cursor position
-    const savedNodeId = localStorage.getItem(`${config.storageKey}:node`);
+    const savedNodeId = storage.get(`${config.storageKey}:node`);
     if (savedNodeId != null) {
       const id = parseInt(savedNodeId, 10);
       if (id >= 0) {
@@ -336,7 +337,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     if (!config.storageKey) {
       return new Map();
     }
-    const raw = localStorage.getItem(`${config.storageKey}:finalized`);
+    const raw = storage.get(`${config.storageKey}:finalized`);
     if (!raw) {
       return new Map();
     }
@@ -357,14 +358,14 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       return;
     }
     if (finalizedNodes.size === 0) {
-      localStorage.removeItem(`${config.storageKey}:finalized`);
+      storage.remove(`${config.storageKey}:finalized`);
       return;
     }
     const data: Record<string, [number, number][]> = {};
     for (const [id, dead] of finalizedNodes) {
       data[String(id)] = dead;
     }
-    localStorage.setItem(
+    storage.set(
       `${config.storageKey}:finalized`,
       JSON.stringify(data),
     );
@@ -427,17 +428,17 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   function save() {
     if (config.storageKey) {
-      localStorage.setItem(config.storageKey, engine.tree_json());
-      localStorage.setItem(`${config.storageKey}:base`, baseMoves);
+      storage.set(config.storageKey, engine.tree_json());
+      storage.set(`${config.storageKey}:base`, baseMoves);
     }
   }
 
   function doReset() {
     if (config.storageKey) {
-      localStorage.removeItem(config.storageKey);
-      localStorage.removeItem(`${config.storageKey}:base`);
-      localStorage.removeItem(`${config.storageKey}:finalized`);
-      localStorage.removeItem(`${config.storageKey}:node`);
+      storage.remove(config.storageKey);
+      storage.remove(`${config.storageKey}:base`);
+      storage.remove(`${config.storageKey}:finalized`);
+      storage.remove(`${config.storageKey}:node`);
     }
     territoryState = undefined;
     finalizedNodes = new Map();
@@ -559,7 +560,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
     // Persist current node for restore on refresh
     if (config.storageKey) {
-      localStorage.setItem(
+      storage.set(
         `${config.storageKey}:node`,
         String(engine.current_node_id()),
       );

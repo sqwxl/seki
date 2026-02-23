@@ -1,7 +1,6 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
-
-const STORAGE_KEY = "seki:game_settings";
+import { storage, GAME_SETTINGS } from "../utils/storage";
 
 type TimeControl = "none" | "fischer" | "byoyomi" | "correspondence";
 
@@ -50,9 +49,8 @@ function maxHandicap(size: number): number {
 
 function loadSettings(): Settings {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw);
+    const saved = storage.getJson<Partial<Settings>>(GAME_SETTINGS);
+    if (saved) {
       return { ...DEFAULTS, ...saved };
     }
   } catch {
@@ -93,7 +91,7 @@ export function GameSettingsForm({
     }
     const handler = () => {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(settingsRef.current));
+        storage.setJson(GAME_SETTINGS, settingsRef.current);
       } catch {
         // ignore
       }

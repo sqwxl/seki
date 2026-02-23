@@ -1,9 +1,8 @@
 import type { Point, Sign } from "../goban/types";
-
-const KEY = "seki:move_confirmation";
+import { storage, MOVE_CONFIRMATION } from "./storage";
 
 function readMoveConfirmation(): boolean {
-  const stored = localStorage.getItem(KEY);
+  const stored = storage.get(MOVE_CONFIRMATION);
   if (stored !== null) {
     return stored === "true";
   }
@@ -31,7 +30,7 @@ export function createPremove(config: PremoveConfig): PremoveState {
     },
     set enabled(v: boolean) {
       enabled = v;
-      localStorage.setItem(KEY, String(v));
+      storage.set(MOVE_CONFIRMATION, String(v));
     },
     getGhostStone() {
       if (!state.value) {

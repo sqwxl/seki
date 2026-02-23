@@ -1,11 +1,11 @@
-const COORDS_KEY = "seki:show_coordinates";
+import { storage, SHOW_COORDINATES } from "./storage";
 
 export function readShowCoordinates(): boolean {
-  return localStorage.getItem(COORDS_KEY) === "true";
+  return storage.get(SHOW_COORDINATES) === "true";
 }
 
 export function toggleShowCoordinates(): boolean {
-  const next = localStorage.getItem(COORDS_KEY) !== "true";
-  localStorage.setItem(COORDS_KEY, String(next));
+  const next = storage.get(SHOW_COORDINATES) !== "true";
+  storage.set(SHOW_COORDINATES, String(next));
   return next;
 }
