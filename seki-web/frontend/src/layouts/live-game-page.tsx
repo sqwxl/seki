@@ -101,19 +101,32 @@ function buildSettledOverlay(st: SettledTerritoryData): TerritoryOverlay {
 // ---------------------------------------------------------------------------
 
 function LiveHeader() {
+  let subtitle: string | undefined;
+  if (gameStage.value === GameStage.Challenge) {
+    const creatorId = initialProps.value.creator_id;
+    const challengee =
+      black.value?.id !== creatorId ? black.value : white.value;
+    if (challengee) {
+      subtitle = `Waiting for ${challengee.display_name} to accept`;
+    }
+  }
+
   return (
-    <h2>
-      <GameDescription
-        id={gameId.value}
-        creator_id={initialProps.value.creator_id}
-        black={black.value}
-        white={white.value}
-        settings={initialProps.value.settings}
-        stage={gameStage.value}
-        result={result.value ?? undefined}
-        move_count={moves.value.length > 0 ? moves.value.length : undefined}
-      />
-    </h2>
+    <>
+      <h2>
+        <GameDescription
+          id={gameId.value}
+          creator_id={initialProps.value.creator_id}
+          black={black.value}
+          white={white.value}
+          settings={initialProps.value.settings}
+          stage={gameStage.value}
+          result={result.value ?? undefined}
+          move_count={moves.value.length > 0 ? moves.value.length : undefined}
+        />
+      </h2>
+      {subtitle && <h3>{subtitle}</h3>}
+    </>
   );
 }
 
@@ -304,6 +317,18 @@ function LiveControls({
       message: "Abort this game?",
       onConfirm: () => channel.abort(),
       disabled: modeActive,
+    };
+  }
+
+  // Copy invite link (creator only, while waiting for opponent)
+  const token = initialProps.value.invite_token;
+  const hasOpenSlot = !black.value || !white.value;
+  if (token && hasOpenSlot && isPlayerVal) {
+    props.copyInviteLink = {
+      onClick: () => {
+        const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
+        navigator.clipboard.writeText(url);
+      },
     };
   }
 

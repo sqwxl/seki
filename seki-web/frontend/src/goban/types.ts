@@ -140,6 +140,7 @@ export type InitialGameProps = {
   current_turn_stone: number;
   result: string | null;
   settled_territory?: SettledTerritoryData;
+  invite_token?: string;
 };
 
 export type ClockData = {

@@ -80,6 +80,9 @@ export type ControlsProps = {
   // Undo response popover (auto-shown when present)
   undoResponse?: { onAccept: () => void; onReject: () => void };
 
+  // Copy invite link
+  copyInviteLink?: ButtonDef;
+
   // Confirm move button
   confirmMove?: ButtonDef;
 };
@@ -284,6 +287,9 @@ function LiveControls(props: ControlsProps) {
             disabled={props.abort.disabled}
             confirm={props.abort}
           />
+        )}
+        {props.copyInviteLink && (
+          <CopyInviteLinkButton onClick={props.copyInviteLink.onClick} />
         )}
         {props.acceptTerritory && (
           <ConfirmButton
@@ -526,6 +532,26 @@ function ToggleButtons({
         </button>
       )}
     </>
+  );
+}
+
+function CopyInviteLinkButton({ onClick }: { onClick: () => void }) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return (
+    <button
+      title="Copy invite link"
+      onClick={(e) => {
+        onClick();
+        const btn = e.currentTarget;
+        btn.textContent = "Copied!";
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          btn.textContent = "Invite";
+        }, 1500);
+      }}
+    >
+      Invite
+    </button>
   );
 }
 

@@ -36,6 +36,9 @@ export type GameMessageDeps = {
 // Track last-seen moves JSON for change detection
 let prevMovesJson = "[]";
 
+// Suppress sound/flash on the first "state" message (initial load)
+let initialStateReceived = false;
+
 function syncBoardMoves(
   playEffects: boolean,
   gobanEl: HTMLElement | null,
@@ -71,6 +74,7 @@ function syncBoardMoves(
 /** Reset the prevMovesJson tracker (call when board loads with initial moves). */
 export function resetMovesTracker(json: string): void {
   prevMovesJson = json;
+  initialStateReceived = false;
 }
 
 export function handleGameMessage(
@@ -91,9 +95,12 @@ export function handleGameMessage(
 
   switch (data.kind) {
     case "state": {
+      const isLiveUpdate = initialStateReceived;
+      initialStateReceived = true;
+
       const { prevBlack, prevWhite } = applyGameState(data);
 
-      if (playerStone.value !== 0) {
+      if (isLiveUpdate && playerStone.value !== 0) {
         const opponentJoined =
           (playerStone.value === 1 && !prevWhite && data.white) ||
           (playerStone.value === -1 && !prevBlack && data.black);
@@ -102,9 +109,11 @@ export function handleGameMessage(
         }
       }
 
-      syncBoardMoves(true, deps.gobanEl(), onNewMove);
-      updateTurnFlash();
-      notifyTurn(notificationState);
+      syncBoardMoves(isLiveUpdate, deps.gobanEl(), onNewMove);
+      if (isLiveUpdate) {
+        updateTurnFlash();
+        notifyTurn(notificationState);
+      }
       syncClock(
         clockState,
         data.clock,

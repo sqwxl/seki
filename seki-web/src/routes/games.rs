@@ -258,6 +258,7 @@ pub async fn show_game(
         current_turn_stone: engine.current_turn_stone().to_int() as i32,
         result: gwp.game.result.clone(),
         settled_territory,
+        invite_token: if is_creator { gwp.game.invite_token.clone() } else { None },
     })
     .unwrap();
 
