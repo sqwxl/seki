@@ -25,8 +25,6 @@ pub struct GamesShowTemplate {
     pub user_data: String,
     pub game_id: i64,
     pub game_props: String,
-    pub cols: i32,
-    pub rows: i32,
     pub is_player: bool,
     pub is_creator: bool,
     pub is_private: bool,

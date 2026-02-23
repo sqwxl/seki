@@ -1,4 +1,3 @@
-import { render } from "preact";
 import type { NavAction } from "./board";
 import {
   IconPlaybackPrev, IconPlaybackRewind, IconPlaybackForward, IconPlaybackNext,
@@ -282,6 +281,3 @@ function ToggleButtons({ coordsToggle, moveConfirmToggle, moveTreeToggle }: {
   );
 }
 
-export function renderControls(el: HTMLElement, props: ControlsProps): void {
-  render(<Controls {...props} />, el);
-}

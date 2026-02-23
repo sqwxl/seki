@@ -1,15 +1,7 @@
-import { render } from "preact";
-import { createElement } from "preact";
-import { GameStage, isPlayStage } from "./goban/types";
+import { isPlayStage } from "./goban/types";
 import type { ScoreData } from "./goban/types";
 import type { GameCtx } from "./game-context";
-import { formatGameDescription, blackSymbol, whiteSymbol, formatPoints } from "./format";
-import { GameDescription } from "./game-description";
-import { renderPlayerPanel } from "./player-panel";
-import type { ClockState } from "./game-clock";
-import { computeClockDisplay } from "./game-clock";
-
-const CHECKMARK = "\u2713";
+import { formatGameDescription, formatPoints } from "./format";
 
 // --- Tab title flash ("YOUR MOVE") ---
 
@@ -53,9 +45,8 @@ export function updateTurnFlash(ctx: GameCtx): void {
   }
 }
 
-export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
-  const props = {
-    id: ctx.gameId,
+export function updateTitle(ctx: GameCtx): void {
+  const desc = formatGameDescription({
     creator_id: ctx.initialProps.creator_id,
     black: ctx.black,
     white: ctx.white,
@@ -63,11 +54,7 @@ export function updateTitle(ctx: GameCtx, titleEl: HTMLElement | null): void {
     stage: ctx.gameStage,
     result: ctx.result ?? undefined,
     move_count: ctx.moves.length > 0 ? ctx.moves.length : undefined,
-  };
-  if (titleEl) {
-    render(createElement(GameDescription, props), titleEl);
-  }
-  const desc = formatGameDescription(props);
+  });
   if (!flashInterval) {
     document.title = desc;
   } else {
@@ -83,124 +70,6 @@ export function formatScoreStr(
   const wTotal = score.white.territory + score.white.captures;
   const { bStr, wStr } = formatPoints(bTotal, wTotal, komi);
   return { bStr, wStr };
-}
-
-export function renderPlayerPanels(
-  ctx: GameCtx,
-  topEl: HTMLElement | null,
-  bottomEl: HTMLElement | null,
-  clockState?: ClockState,
-): void {
-  if (!topEl || !bottomEl) {
-    return;
-  }
-
-  const { black, white } = ctx;
-  const bName = black ? black.display_name : "\u2026";
-  const wName = white ? white.display_name : "\u2026";
-  const bUrl = black ? `/users/${black.display_name}` : undefined;
-  const wUrl = white ? `/users/${white.display_name}` : undefined;
-  const bOnline = black ? ctx.onlineUsers.has(black.id) : false;
-  const wOnline = white ? ctx.onlineUsers.has(white.id) : false;
-  const bTurn = ctx.gameStage === GameStage.BlackToPlay;
-  const wTurn = ctx.gameStage === GameStage.WhiteToPlay;
-
-  const score = ctx.territory?.score ?? ctx.settledScore;
-  const komi = ctx.initialProps.komi;
-
-  let bStr: string;
-  let wStr: string;
-  if (score) {
-    ({ bStr, wStr } = formatScoreStr(score, komi));
-  } else {
-    const fmt = formatPoints(
-      ctx.gameState.captures.black,
-      ctx.gameState.captures.white,
-      komi,
-    );
-    bStr = fmt.bStr;
-    wStr = fmt.wStr;
-  }
-
-  let bClock: string | undefined;
-  let wClock: string | undefined;
-  let bClockLow = false;
-  let wClockLow = false;
-  if (clockState) {
-    const cd = computeClockDisplay(clockState);
-    bClock = cd.blackText || undefined;
-    wClock = cd.whiteText || undefined;
-    bClockLow = cd.blackLow;
-    wClockLow = cd.whiteLow;
-  }
-
-  if (ctx.playerStone === -1) {
-    renderPlayerPanel(topEl, {
-      name: bName,
-      captures: bStr,
-      stone: "black",
-      clock: bClock,
-      clockLowTime: bClockLow,
-      profileUrl: bUrl,
-      isOnline: bOnline,
-      isTurn: bTurn,
-    });
-    renderPlayerPanel(bottomEl, {
-      name: wName,
-      captures: wStr,
-      stone: "white",
-      clock: wClock,
-      clockLowTime: wClockLow,
-      profileUrl: wUrl,
-      isOnline: wOnline,
-      isTurn: wTurn,
-    });
-  } else {
-    renderPlayerPanel(topEl, {
-      name: wName,
-      captures: wStr,
-      stone: "white",
-      clock: wClock,
-      clockLowTime: wClockLow,
-      profileUrl: wUrl,
-      isOnline: wOnline,
-      isTurn: wTurn,
-    });
-    renderPlayerPanel(bottomEl, {
-      name: bName,
-      captures: bStr,
-      stone: "black",
-      clock: bClock,
-      clockLowTime: bClockLow,
-      profileUrl: bUrl,
-      isOnline: bOnline,
-      isTurn: bTurn,
-    });
-  }
-}
-
-export function updateStatus(
-  ctx: GameCtx,
-  statusEl: HTMLElement | null,
-  countdownMs?: number,
-): void {
-  if (!statusEl) {
-    return;
-  }
-  if (ctx.gameStage === GameStage.TerritoryReview && ctx.territory) {
-    const bCheck = ctx.territory.black_approved ? ` ${CHECKMARK}` : "";
-    const wCheck = ctx.territory.white_approved ? ` ${CHECKMARK}` : "";
-    const komi = ctx.initialProps.komi;
-    const { bStr, wStr } = formatScoreStr(ctx.territory.score, komi);
-    let text = `${blackSymbol()} ${bStr}${bCheck}  |  ${whiteSymbol()} ${wStr}${wCheck}`;
-    if (countdownMs != null) {
-      const secs = Math.ceil(countdownMs / 1000);
-      text += `  (${secs}s)`;
-    }
-    statusEl.textContent = text;
-  } else {
-    statusEl.textContent = "";
-  }
 }
 
 export type TerritoryCountdown = {

@@ -487,8 +487,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
 
     render(<GamePageLayout {...props} />, root);
 
-    // Update document.title (updateTitle with null skips DOM render, only sets title)
-    updateTitle(ctx, null);
+    updateTitle(ctx);
   }
 
   // --- WASM board (async) ---

@@ -1,4 +1,3 @@
-import { render } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import type { UserData } from "./goban/types";
 import { IconSend } from "./icons";
@@ -136,8 +135,4 @@ export function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps)
       </form>
     </>
   );
-}
-
-export function renderChat(el: HTMLElement, props: ChatProps): void {
-  render(<Chat {...props} />, el);
 }

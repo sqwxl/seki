@@ -1,4 +1,3 @@
-import { render } from "preact";
 import {
   CapturesBlack, CapturesWhite,
   IconAsterisk,
@@ -43,6 +42,3 @@ export function PlayerPanel(props: PlayerPanelProps) {
   );
 }
 
-export function renderPlayerPanel(el: HTMLElement, props: PlayerPanelProps): void {
-  render(<PlayerPanel {...props} />, el);
-}
