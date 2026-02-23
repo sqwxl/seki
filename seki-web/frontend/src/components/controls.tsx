@@ -31,8 +31,8 @@ type ConfirmDef = {
 };
 
 export type ControlsProps = {
-  // Layout mode: "analysis" groups all buttons in a single controls-group,
-  // "live" uses nav + action-buttons + btn-group structure
+  // Layout mode: "analysis" and "live" both use controls-nav-row grid,
+  // "analysis" has territory review mode that uses a flat controls-group
   layout?: "analysis";
 
   // Nav bar
@@ -187,7 +187,7 @@ function AnalysisControls(props: ControlsProps) {
   return (
     <div class="controls-nav-row">
       {hasFileButtons && (
-        <span class="btn-group controls-board-actions">
+        <span class="btn-group controls-start">
           {props.sgfImport && (
             <SgfImportButton onFileChange={props.sgfImport.onFileChange} />
           )}
@@ -205,7 +205,7 @@ function AnalysisControls(props: ControlsProps) {
         </span>
       )}
       <NavBar nav={props.nav} />
-      <span class="btn-group controls-game-actions">
+      <span class="btn-group controls-end">
         {props.pass && (
           <button
             title={props.pass.title ?? "Pass"}
@@ -236,9 +236,8 @@ function AnalysisControls(props: ControlsProps) {
 
 function LiveControls(props: ControlsProps) {
   return (
-    <>
-      <NavBar nav={props.nav} />
-      <div id="action-buttons">
+    <div class="controls-nav-row">
+      <span class="btn-group controls-start">
         {props.requestUndo && (
           <button
             title={props.requestUndo.title ?? "Undo"}
@@ -291,88 +290,89 @@ function LiveControls(props: ControlsProps) {
             confirm={props.acceptTerritory}
           />
         )}
-        <span class="btn-group">
-          {props.analyze && (
+      </span>
+      <NavBar nav={props.nav} />
+      <span class="btn-group controls-end">
+        {props.analyze && (
+          <button
+            title={props.analyze.title ?? "Analyze"}
+            onClick={props.analyze.onClick}
+          >
+            <IconAnalysis />
+          </button>
+        )}
+        {props.exitAnalysis && (
+          <button
+            title="Back to game"
+            onClick={props.exitAnalysis.onClick}
+          >
+            <IconX />
+          </button>
+        )}
+        {props.estimate && (
+          <button
+            title={props.estimate.title ?? "Estimate score"}
+            onClick={props.estimate.onClick}
+          >
+            <IconBalance />
+          </button>
+        )}
+        {props.exitEstimate && (
+          <button
+            title={props.exitEstimate.title ?? "Back to game"}
+            onClick={props.exitEstimate.onClick}
+          >
+            <IconX />
+          </button>
+        )}
+        {props.sgfExport && (
+          <button
+            title={props.sgfExport.title ?? "Export SGF"}
+            onClick={props.sgfExport.onClick}
+          >
+            <IconFileExport />
+          </button>
+        )}
+        {props.rematch && (
+          <>
             <button
-              title={props.analyze.title ?? "Analyze"}
-              onClick={props.analyze.onClick}
+              id="rematch-btn"
+              popovertarget="rematch-confirm"
+              title="Rematch"
             >
-              <IconAnalysis />
+              <IconRepeat />
             </button>
-          )}
-          {props.exitAnalysis && (
-            <button
-              title="Back to game"
-              onClick={props.exitAnalysis.onClick}
-            >
-              <IconX />
-            </button>
-          )}
-          {props.estimate && (
-            <button
-              title={props.estimate.title ?? "Estimate score"}
-              onClick={props.estimate.onClick}
-            >
-              <IconBalance />
-            </button>
-          )}
-          {props.exitEstimate && (
-            <button
-              title={props.exitEstimate.title ?? "Back to game"}
-              onClick={props.exitEstimate.onClick}
-            >
-              <IconX />
-            </button>
-          )}
-          {props.sgfExport && (
-            <button
-              title={props.sgfExport.title ?? "Export SGF"}
-              onClick={props.sgfExport.onClick}
-            >
-              <IconFileExport />
-            </button>
-          )}
-          {props.rematch && (
-            <>
+            <div id="rematch-confirm" popover>
+              <p>Rematch?</p>
+              <label>
+                <input type="checkbox" id="rematch-swap" />
+                {" "}Swap colors
+              </label>
               <button
-                id="rematch-btn"
+                class="confirm-yes"
                 popovertarget="rematch-confirm"
-                title="Rematch"
+                onClick={() => {
+                  const swap = (
+                    document.getElementById("rematch-swap") as HTMLInputElement
+                  ).checked;
+                  props.rematch!.onConfirm(swap);
+                }}
               >
-                <IconRepeat />
+                <IconCheck />
               </button>
-              <div id="rematch-confirm" popover>
-                <p>Rematch?</p>
-                <label>
-                  <input type="checkbox" id="rematch-swap" />
-                  {" "}Swap colors
-                </label>
-                <button
-                  class="confirm-yes"
-                  popovertarget="rematch-confirm"
-                  onClick={() => {
-                    const swap = (
-                      document.getElementById("rematch-swap") as HTMLInputElement
-                    ).checked;
-                    props.rematch!.onConfirm(swap);
-                  }}
-                >
-                  <IconCheck />
-                </button>
-                <button class="confirm-no" popovertarget="rematch-confirm">
-                  <IconX />
-                </button>
-              </div>
-            </>
-          )}
-          <ToggleButtons
-            coordsToggle={props.coordsToggle}
-            moveConfirmToggle={props.moveConfirmToggle}
-            moveTreeToggle={props.moveTreeToggle}
-          />
-        </span>
-      </div>
-    </>
+              <button class="confirm-no" popovertarget="rematch-confirm">
+                <IconX />
+              </button>
+            </div>
+          </>
+        )}
+        <ToggleButtons
+          coordsToggle={props.coordsToggle}
+          moveConfirmToggle={props.moveConfirmToggle}
+          moveTreeToggle={props.moveTreeToggle}
+        />
+      </span>
+    </div>
   );
 }
 

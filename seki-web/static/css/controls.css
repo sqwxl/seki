@@ -44,7 +44,6 @@
   padding: 0.1em 0.4em;
 }
 
-#action-buttons,
 .controls-group {
   display: flex;
   flex-wrap: wrap;
@@ -68,11 +67,11 @@
   width: 100%;
 }
 
-.controls-nav-row > .controls-navbar {
+.controls-nav-row > .controls-start {
   order: -2;
 }
 
-.controls-nav-row > .controls-game-actions {
+.controls-nav-row > .controls-navbar {
   order: -1;
 }
 
@@ -82,7 +81,7 @@
     grid-template-columns: 1fr auto 1fr;
   }
 
-  .controls-nav-row > .controls-board-actions {
+  .controls-nav-row > .controls-start {
     grid-column: 1;
     justify-self: start;
     order: 0;
@@ -93,7 +92,7 @@
     order: 0;
   }
 
-  .controls-nav-row > .controls-game-actions {
+  .controls-nav-row > .controls-end {
     grid-column: 3;
     justify-self: end;
     order: 0;
