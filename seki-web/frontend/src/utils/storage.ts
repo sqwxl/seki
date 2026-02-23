@@ -14,6 +14,11 @@ export function analysisTreeKey(size: number): string {
 // Game settings form
 export const GAME_SETTINGS = "seki:game_settings";
 
+// Per-game cached WS state
+export function gameStateKey(gameId: number): string {
+  return `seki:game_state:${gameId}`;
+}
+
 // Preferences
 export const MOVE_CONFIRMATION = "seki:move_confirmation";
 export const NOTIFICATIONS = "seki:notifications";

@@ -1,5 +1,6 @@
 import { signal, computed, batch } from "@preact/signals";
 import type {
+  CachedGameState,
   GameState,
   GameStage,
   InitialGameProps,
@@ -12,7 +13,12 @@ import type {
 import { GameStage as GS, isPlayStage } from "../goban/types";
 import type { Board } from "../goban/create-board";
 import type { ChatEntry } from "../components/chat";
-import { storage, SHOW_MOVE_TREE, MOVE_CONFIRMATION } from "../utils/storage";
+import {
+  storage,
+  SHOW_MOVE_TREE,
+  MOVE_CONFIRMATION,
+  gameStateKey,
+} from "../utils/storage";
 
 // ---------------------------------------------------------------------------
 // Config signals (set once at page load)
@@ -156,6 +162,20 @@ export function applyGameState(data: {
     }
   });
 
+  saveGameStateCache(gameId.value, {
+    state: data.state,
+    stage: data.stage,
+    current_turn_stone: data.current_turn_stone,
+    moves: data.moves,
+    black: data.black,
+    white: data.white,
+    result: data.result,
+    undo_rejected: data.undo_rejected,
+    allow_undo: data.allow_undo,
+    territory: data.territory,
+    settled_territory: data.settled_territory,
+  });
+
   return { prevBlack, prevWhite };
 }
 
@@ -196,6 +216,37 @@ export function updateChatEntry(old: ChatEntry, updated: ChatEntry): void {
 /** Remove a chat entry (immutable). */
 export function removeChatEntry(entry: ChatEntry): void {
   chatMessages.value = chatMessages.value.filter((e) => e !== entry);
+}
+
+// ---------------------------------------------------------------------------
+// WS state cache (localStorage)
+// ---------------------------------------------------------------------------
+
+/** Save cacheable fields from the latest WS state message. */
+export function saveGameStateCache(id: number, data: CachedGameState): void {
+  storage.setJson(gameStateKey(id), data);
+}
+
+/** Load cached WS state for a game, if available. */
+export function loadGameStateCache(id: number): CachedGameState | undefined {
+  return storage.getJson<CachedGameState>(gameStateKey(id));
+}
+
+/** Hydrate signals from cached state (no side effects). */
+export function applyCachedState(data: CachedGameState): void {
+  batch(() => {
+    gameState.value = data.state;
+    gameStage.value = data.stage;
+    currentTurn.value = data.current_turn_stone;
+    moves.value = data.moves ?? [];
+    undoRejected.value = data.undo_rejected;
+    allowUndo.value = data.allow_undo ?? false;
+    result.value = data.result;
+    territory.value = data.territory;
+    settledTerritory.value = data.settled_territory;
+    black.value = data.black ?? undefined;
+    white.value = data.white ?? undefined;
+  });
 }
 
 /** Update online user presence. */

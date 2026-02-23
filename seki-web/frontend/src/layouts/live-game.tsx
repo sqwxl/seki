@@ -19,6 +19,8 @@ import type { SgfMeta } from "../utils/sgf";
 import type { CoordsToggleState } from "../utils/shared-controls";
 import {
   initGameState,
+  loadGameStateCache,
+  applyCachedState,
   gameState,
   gameStage,
   currentTurn,
@@ -55,6 +57,11 @@ export function liveGame(
   console.debug("UserData", userData, "playerStone", pStone);
 
   initGameState(gameId, pStone, initialProps);
+
+  const cached = loadGameStateCache(gameId);
+  if (cached) {
+    applyCachedState(cached);
+  }
 
   const channel = createGameChannel(gameId);
   const gobanRef = createRef<HTMLDivElement>();
