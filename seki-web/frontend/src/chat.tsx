@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import type { UserData } from "./goban/types";
+import { IconSend } from "./icons";
 import { UserLabel } from "./user-label";
 
 export type ChatEntry = {
@@ -130,7 +131,7 @@ function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
           autocomplete="off"
         />
         <button type="submit" aria-label="Send">
-          <img src="/static/images/send.svg" alt="" width="20" height="20" />
+          <IconSend />
         </button>
       </form>
     </>

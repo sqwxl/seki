@@ -36,3 +36,6 @@
   flex: 1;
   min-width: 0;
 }
+.chat form button .icon {
+  font-size: 1.25rem;
+}
