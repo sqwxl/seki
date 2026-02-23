@@ -12,7 +12,6 @@ export type GamePageLayoutProps = {
   playerTop?: PlayerPanelProps;
   playerBottom?: PlayerPanelProps;
   controls?: ControlsProps;
-  status?: ComponentChildren;
   sidebar?: ComponentChildren;
   extra?: ComponentChildren;
 };
@@ -40,7 +39,6 @@ export function GamePageLayout(props: GamePageLayoutProps) {
             <Controls {...props.controls} />
           </div>
         )}
-        {props.status}
       </div>
       {props.sidebar}
       {props.extra}

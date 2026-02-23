@@ -1,4 +1,4 @@
-import type { GameSettings, UserData } from "./goban/types";
+import type { GameSettings, ScoreData, UserData } from "./goban/types";
 
 export type { GameSettings, UserData };
 
@@ -22,6 +22,19 @@ export function formatPoints(bTotal: number, wTotal: number, komi: number) {
     ? `${formatN(wTotal)}+${formatN(komi)}`
     : formatN(wTotal);
   return { bStr, wStr };
+}
+
+export function formatResult(score: ScoreData, komi: number): string {
+  const bTotal = score.black.territory + score.black.captures;
+  const wTotal = score.white.territory + score.white.captures + komi;
+  const diff = bTotal - wTotal;
+  if (diff > 0) {
+    return `B+${formatN(diff)}`;
+  }
+  if (diff < 0) {
+    return `W+${formatN(-diff)}`;
+  }
+  return "Draw";
 }
 
 export function formatTime(secs: number): string {

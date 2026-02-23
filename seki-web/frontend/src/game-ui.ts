@@ -1,6 +1,7 @@
 import { isPlayStage } from "./goban/types";
 import type { ScoreData } from "./goban/types";
 import type { GameCtx } from "./game-context";
+import type { ChatEntry } from "./chat";
 import { formatGameDescription, formatPoints } from "./format";
 
 // --- Tab title flash ("YOUR MOVE") ---
@@ -76,6 +77,7 @@ export type TerritoryCountdown = {
   deadline: number | undefined;
   interval: ReturnType<typeof setInterval> | undefined;
   flagSent: boolean;
+  chatEntry: ChatEntry | undefined;
 };
 
 export function syncTerritoryCountdown(
@@ -100,7 +102,13 @@ export function syncTerritoryCountdown(
     );
   } else {
     countdown.deadline = undefined;
-    ctx.territoryCountdownMs = undefined;
+    if (countdown.chatEntry) {
+      const idx = ctx.chatMessages.indexOf(countdown.chatEntry);
+      if (idx >= 0) {
+        ctx.chatMessages.splice(idx, 1);
+      }
+      countdown.chatEntry = undefined;
+    }
     rerender();
   }
 }
@@ -119,6 +127,15 @@ function updateTerritoryCountdown(
     countdown.flagSent = true;
     onFlag();
   }
-  ctx.territoryCountdownMs = Math.max(0, remaining);
+  const secs = Math.ceil(Math.max(0, remaining) / 1000);
+  const text = `Score must be accepted within ${secs}s`;
+
+  if (!countdown.chatEntry) {
+    const entry: ChatEntry = { text };
+    ctx.chatMessages.push(entry);
+    countdown.chatEntry = entry;
+  } else {
+    countdown.chatEntry.text = text;
+  }
   rerender();
 }

@@ -38,7 +38,8 @@ export type GameCtx = {
   movesJson: string;
   undoResponseNeeded: boolean;
   errorMessage: string | undefined;
-  territoryCountdownMs: number | undefined;
+  _prevBlackApproved: boolean;
+  _prevWhiteApproved: boolean;
 };
 
 export function createGameContext(
@@ -71,6 +72,7 @@ export function createGameContext(
     movesJson: "[]",
     undoResponseNeeded: false,
     errorMessage: undefined,
-    territoryCountdownMs: undefined,
+    _prevBlackApproved: false,
+    _prevWhiteApproved: false,
   };
 }

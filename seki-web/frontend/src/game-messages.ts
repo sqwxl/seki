@@ -71,6 +71,16 @@ export function handleGameMessage(
       ctx.allowUndo = data.allow_undo ?? false;
       ctx.result = data.result;
       ctx.territory = data.territory;
+      if (ctx.territory) {
+        if (ctx.territory.black_approved && !ctx._prevBlackApproved) {
+          ctx.chatMessages.push({ text: "Black accepted the score" });
+        }
+        if (ctx.territory.white_approved && !ctx._prevWhiteApproved) {
+          ctx.chatMessages.push({ text: "White accepted the score" });
+        }
+        ctx._prevBlackApproved = ctx.territory.black_approved;
+        ctx._prevWhiteApproved = ctx.territory.white_approved;
+      }
       ctx.settledScore = data.score;
       const prevBlack = ctx.black;
       const prevWhite = ctx.white;

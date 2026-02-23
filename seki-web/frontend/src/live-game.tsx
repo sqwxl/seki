@@ -5,7 +5,7 @@ import { Chat, type ChatEntry } from "./chat";
 import { readShowCoordinates } from "./coord-toggle";
 import { createPremove } from "./premove";
 import type { ControlsProps } from "./controls";
-import { blackSymbol, whiteSymbol, settingsToSgfTime } from "./format";
+import { settingsToSgfTime, formatResult, formatPoints } from "./format";
 import { IconCheck, IconX } from "./icons";
 import { joinGame } from "./live";
 import { createGameContext } from "./game-context";
@@ -26,7 +26,6 @@ import { GameDescription } from "./game-description";
 import { buildNavProps, buildCoordsToggle, buildMoveConfirmToggle } from "./shared-controls";
 import type { CoordsToggleState } from "./shared-controls";
 import type { PlayerPanelProps } from "./player-panel";
-import { formatPoints } from "./format";
 
 export function liveGame(initialProps: InitialGameProps, gameId: number, root: HTMLElement) {
   const userData = readUserData();
@@ -52,6 +51,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
     deadline: undefined,
     interval: undefined,
     flagSent: false,
+    chatEntry: undefined,
   };
 
   const coordsState: CoordsToggleState = {
@@ -206,7 +206,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
     const bTurn = ctx.gameStage === GameStage.BlackToPlay;
     const wTurn = ctx.gameStage === GameStage.WhiteToPlay;
 
-    const score = ctx.territory?.score ?? ctx.settledScore;
+    const score = estimateScore ?? ctx.territory?.score ?? ctx.settledScore;
     const komi = ctx.initialProps.komi;
 
     let bStr: string;
@@ -265,8 +265,23 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
     const isMyTurn = ctx.currentTurn === ctx.playerStone;
     const isPlayer = ctx.playerStone !== 0;
 
+    const nav = buildNavProps(ctx.board);
+
+    // Show result in nav counter when available
+    let resultStr: string | undefined;
+    if (estimateScore) {
+      resultStr = formatResult(estimateScore, ctx.initialProps.komi);
+    } else if (isReview && ctx.territory?.score) {
+      resultStr = formatResult(ctx.territory.score, ctx.initialProps.komi);
+    } else if (ctx.result && ctx.board?.engine.is_at_latest()) {
+      resultStr = ctx.result;
+    }
+    if (resultStr) {
+      nav.counter = `${nav.counter} (${resultStr})`;
+    }
+
     const props: ControlsProps = {
-      nav: buildNavProps(ctx.board),
+      nav,
       coordsToggle: buildCoordsToggle(ctx.board, coordsState),
       moveConfirmToggle: buildMoveConfirmToggle(pm, ctx.board),
       moveTreeToggle: {
@@ -279,11 +294,16 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
     };
 
     if (ctx.analysisMode) {
-      props.pass = {
-        onClick: () => { ctx.board?.pass(); },
-      };
-      props.exitAnalysis = { onClick: exitAnalysis };
-      props.sgfExport = { onClick: handleSgfExport };
+      if (ctx.estimateMode) {
+        props.exitEstimate = { onClick: exitEstimate, title: "Back to analysis" };
+      } else {
+        props.pass = {
+          onClick: () => { ctx.board?.pass(); },
+        };
+        props.exitAnalysis = { onClick: exitAnalysis };
+        props.estimate = { onClick: enterEstimate };
+        props.sgfExport = { onClick: handleSgfExport };
+      }
     } else if (ctx.estimateMode) {
       props.exitEstimate = { onClick: exitEstimate };
     } else {
@@ -369,38 +389,6 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
     return props;
   }
 
-  // --- Build status ---
-  function buildStatus(): preact.ComponentChildren {
-    const CHECKMARK = "✓";
-
-    if (ctx.estimateMode && estimateScore) {
-      const komi = ctx.initialProps.komi;
-      const { bStr, wStr } = formatScoreStr(estimateScore, komi);
-      return (
-        <div style="text-align: center; margin-top: 0.5em">
-          {`${blackSymbol()} ${bStr}  |  ${whiteSymbol()} ${wStr}`}
-        </div>
-      );
-    }
-
-    if (ctx.gameStage === GameStage.TerritoryReview && ctx.territory) {
-      const bCheck = ctx.territory.black_approved ? ` ${CHECKMARK}` : "";
-      const wCheck = ctx.territory.white_approved ? ` ${CHECKMARK}` : "";
-      const komi = ctx.initialProps.komi;
-      const { bStr, wStr } = formatScoreStr(ctx.territory.score, komi);
-      let text = `${blackSymbol()} ${bStr}${bCheck}  |  ${whiteSymbol()} ${wStr}${wCheck}`;
-      if (ctx.territoryCountdownMs != null) {
-        const secs = Math.ceil(ctx.territoryCountdownMs / 1000);
-        text += `  (${secs}s)`;
-      }
-      return (
-        <div style="text-align: center; margin-top: 0.5em">{text}</div>
-      );
-    }
-
-    return undefined;
-  }
-
   // --- Build title props ---
   function buildTitleProps() {
     return {
@@ -480,7 +468,6 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
       playerTop: panels.top,
       playerBottom: panels.bottom,
       controls: buildControls(),
-      status: buildStatus(),
       sidebar,
       extra,
     };
