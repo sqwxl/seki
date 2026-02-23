@@ -417,6 +417,23 @@ export function liveGame(
       } else if (ctx.result && ctx.settledTerritory) {
         props.estimate = { onClick: enterEstimate, title: "Show territory" };
       }
+
+      if (ctx.result && isPlayer) {
+        props.rematch = {
+          onConfirm: (swapColors) => {
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = `/games/${gameId}/rematch`;
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = "swap_colors";
+            input.value = swapColors ? "true" : "false";
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+          },
+        };
+      }
     }
 
     // Undo response popover
