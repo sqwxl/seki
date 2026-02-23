@@ -370,15 +370,14 @@ a:visited {
     align-items: start;
     width: 100%;
   }
-  .game-page-body #game,
-  .game-page-body #analysis {
+  .game-page-body > .game-header {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+  .game-page-body .game-board-area {
     grid-column: 2;
   }
   .game-page-body .move-tree {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: stretch;
-    justify-self: stretch;
     margin-left: 1.5em;
     margin-right: 1.5em;
     width: auto;

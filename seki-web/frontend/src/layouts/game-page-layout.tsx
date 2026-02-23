@@ -23,7 +23,7 @@ export function GamePageLayout(props: GamePageLayoutProps) {
 
   return (
     <>
-      {props.header}
+      {props.header && <div class="game-header">{props.header}</div>}
       <div class="game-board-area">
         {props.playerTop && (
           <div class="player-label">

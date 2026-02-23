@@ -16,13 +16,12 @@
   color: var(--goban-board-foreground-color);
 }
 
-.goban-container {
+.game-board-area {
   width: min(90vw, 70vh);
-  margin: 0 auto;
 }
 
 @media (min-width: 768px) {
-  .goban-container {
+  .game-board-area {
     width: min(70vw, 70vh);
   }
 }

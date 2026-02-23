@@ -107,6 +107,19 @@ export function initAnalysis(root: HTMLElement) {
       nav: buildNavProps(board),
       coordsToggle: buildCoordsToggle(board, coordsState),
       moveConfirmToggle: buildMoveConfirmToggle(pm, board),
+      sizeSelect: {
+        value: currentSize,
+        options: VALID_SIZES,
+        onChange: (size) => {
+          currentSize = size;
+          sgfMeta = undefined;
+          sgfText = undefined;
+          localStorage.removeItem(SGF_META_KEY);
+          localStorage.removeItem(SGF_TEXT_KEY);
+          localStorage.setItem(SIZE_KEY, String(size));
+          initBoard(size);
+        },
+      },
     };
 
     if (reviewing) {
@@ -144,37 +157,12 @@ export function initAnalysis(root: HTMLElement) {
     return props;
   }
 
-  // --- Size change handler ---
-  function handleSizeChange(e: Event) {
-    const select = e.currentTarget as HTMLSelectElement;
-    const size = parseInt(select.value, 10);
-    currentSize = size;
-    sgfMeta = undefined;
-    sgfText = undefined;
-    localStorage.removeItem(SGF_META_KEY);
-    localStorage.removeItem(SGF_TEXT_KEY);
-    localStorage.setItem(SIZE_KEY, String(size));
-    initBoard(size);
-  }
-
   // --- Single render function ---
   function doRender() {
     const header = (
       <>
         <h2>Analysis Board</h2>
         {sgfMeta && <p>{formatSgfDescription(sgfMeta)}</p>}
-        <div style="margin-bottom: 0.5em">
-          <label for="board-size">Board size: </label>
-          <select
-            id="board-size"
-            value={String(currentSize)}
-            onChange={handleSizeChange}
-          >
-            <option value="9">9×9</option>
-            <option value="13">13×13</option>
-            <option value="19">19×19</option>
-          </select>
-        </div>
       </>
     );
 

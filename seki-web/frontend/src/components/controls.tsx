@@ -59,6 +59,13 @@ export type ControlsProps = {
   sgfImport?: { onFileChange: (input: HTMLInputElement) => void };
   sgfExport?: ButtonDef;
 
+  // Board size selector (analysis only)
+  sizeSelect?: {
+    value: number;
+    options: number[];
+    onChange: (size: number) => void;
+  };
+
   // Territory review (analysis only)
   territoryReady?: ButtonDef;
   territoryExit?: ButtonDef;
@@ -175,43 +182,54 @@ function AnalysisControls(props: ControlsProps) {
     );
   }
 
+  const hasFileButtons = !!(props.sgfImport || props.sgfExport || props.sizeSelect);
+
   return (
-    <div class="controls-group">
+    <div class="controls-nav-row">
+      {hasFileButtons && (
+        <span class="btn-group controls-board-actions">
+          {props.sgfImport && (
+            <SgfImportButton onFileChange={props.sgfImport.onFileChange} />
+          )}
+          {props.sgfExport && (
+            <button
+              title={props.sgfExport.title ?? "Export as SGF file"}
+              onClick={props.sgfExport.onClick}
+            >
+              <IconFileExport />
+            </button>
+          )}
+          {props.sizeSelect && (
+            <SizeSelect {...props.sizeSelect} />
+          )}
+        </span>
+      )}
       <NavBar nav={props.nav} />
-      {props.pass && (
-        <button
-          title={props.pass.title ?? "Pass"}
-          disabled={props.pass.disabled}
-          onClick={props.pass.onClick}
-        >
-          <IconPass />
-        </button>
-      )}
-      {props.score && (
-        <button
-          title={props.score.title ?? "Estimate score"}
-          disabled={props.score.disabled}
-          onClick={props.score.onClick}
-        >
-          <IconBalance />
-        </button>
-      )}
-      {props.sgfImport && (
-        <SgfImportButton onFileChange={props.sgfImport.onFileChange} />
-      )}
-      {props.sgfExport && (
-        <button
-          title={props.sgfExport.title ?? "Export as SGF file"}
-          onClick={props.sgfExport.onClick}
-        >
-          <IconFileExport />
-        </button>
-      )}
-      <ToggleButtons
-        coordsToggle={props.coordsToggle}
-        moveConfirmToggle={props.moveConfirmToggle}
-        moveTreeToggle={props.moveTreeToggle}
-      />
+      <span class="btn-group controls-game-actions">
+        {props.pass && (
+          <button
+            title={props.pass.title ?? "Pass"}
+            disabled={props.pass.disabled}
+            onClick={props.pass.onClick}
+          >
+            <IconPass />
+          </button>
+        )}
+        {props.score && (
+          <button
+            title={props.score.title ?? "Estimate score"}
+            disabled={props.score.disabled}
+            onClick={props.score.onClick}
+          >
+            <IconBalance />
+          </button>
+        )}
+        <ToggleButtons
+          coordsToggle={props.coordsToggle}
+          moveConfirmToggle={props.moveConfirmToggle}
+          moveTreeToggle={props.moveTreeToggle}
+        />
+      </span>
     </div>
   );
 }
@@ -282,6 +300,14 @@ function LiveControls(props: ControlsProps) {
               <IconAnalysis />
             </button>
           )}
+          {props.exitAnalysis && (
+            <button
+              title="Back to game"
+              onClick={props.exitAnalysis.onClick}
+            >
+              <IconX />
+            </button>
+          )}
           {props.estimate && (
             <button
               title={props.estimate.title ?? "Estimate score"}
@@ -290,12 +316,12 @@ function LiveControls(props: ControlsProps) {
               <IconBalance />
             </button>
           )}
-          {props.exitAnalysis && (
-            <button onClick={props.exitAnalysis.onClick}>Back to game</button>
-          )}
           {props.exitEstimate && (
-            <button onClick={props.exitEstimate.onClick}>
-              {props.exitEstimate.title ?? "Back to game"}
+            <button
+              title={props.exitEstimate.title ?? "Back to game"}
+              onClick={props.exitEstimate.onClick}
+            >
+              <IconX />
             </button>
           )}
           {props.sgfExport && (
@@ -470,5 +496,29 @@ function ToggleButtons({
         </button>
       )}
     </>
+  );
+}
+
+function SizeSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: number;
+  options: number[];
+  onChange: (size: number) => void;
+}) {
+  return (
+    <select
+      title="Board size"
+      value={String(value)}
+      onChange={(e) => onChange(parseInt((e.target as HTMLSelectElement).value, 10))}
+    >
+      {options.map((s) => (
+        <option key={s} value={String(s)}>
+          {s}×{s}
+        </option>
+      ))}
+    </select>
   );
 }
