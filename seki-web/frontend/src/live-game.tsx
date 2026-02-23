@@ -90,8 +90,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number) {
         atStart: ctx.board?.engine.is_at_start() ?? true,
         atLatest: ctx.board?.engine.is_at_latest() ?? true,
         counter: ctx.board
-          ? `${ctx.board.engine.view_index()} / ${ctx.board.engine.total_moves()}`
-          : "0 / 0",
+          ? `${ctx.board.engine.view_index()}`
+          : "0",
         onNavigate: (action) => ctx.board?.navigate(action),
       },
       coordsToggle: {

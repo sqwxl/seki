@@ -56,7 +56,7 @@ function updateNavButtons(engine: WasmEngine, buttons: NavButtons): void {
     buttons.end.disabled = atLatest;
   }
   if (buttons.counter) {
-    buttons.counter.textContent = `${engine.view_index()} / ${engine.total_moves()}`;
+    buttons.counter.textContent = `${engine.view_index()}`;
   }
 }
 

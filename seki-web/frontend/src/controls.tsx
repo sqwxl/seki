@@ -97,7 +97,7 @@ function NavBar({ nav }: { nav: ControlsProps["nav"] }) {
         onClick={() => nav.onNavigate("back")}>
         <IconPlaybackRewind />
       </button>
-      <span style="min-width: 7ch; text-align: center">{nav.counter}</span>
+      <span style="min-width: 3ch; text-align: center; font-family: monospace">{nav.counter}</span>
       <button title="Forward (Right)" disabled={nav.atLatest}
         onClick={() => nav.onNavigate("forward")}>
         <IconPlaybackForward />

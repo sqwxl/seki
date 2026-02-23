@@ -123,8 +123,8 @@ export function initAnalysis(_root: HTMLElement) {
         atStart: board?.engine.is_at_start() ?? true,
         atLatest: board?.engine.is_at_latest() ?? true,
         counter: board
-          ? `${board.engine.view_index()} / ${board.engine.total_moves()}`
-          : "0 / 0",
+          ? `${board.engine.view_index()}`
+          : "0",
         onNavigate: (action) => board?.navigate(action),
       },
       coordsToggle: {
