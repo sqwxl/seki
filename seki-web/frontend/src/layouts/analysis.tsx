@@ -175,6 +175,7 @@ export function initAnalysis(root: HTMLElement) {
       controls: buildControls(),
       sidebar: (
         <div
+          class="move-tree-slot"
           ref={(el) => {
             if (el && !el.contains(moveTreeEl)) {
               el.appendChild(moveTreeEl);

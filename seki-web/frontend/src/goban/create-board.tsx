@@ -265,7 +265,7 @@ export type Board = {
   destroy: () => void;
 };
 
-const wideQuery = window.matchMedia("(min-width: 1200px)");
+const wideQuery = window.matchMedia("(min-width: 1600px)");
 
 export async function createBoard(config: BoardConfig): Promise<Board> {
   const wasm = await ensureWasm();
@@ -633,9 +633,20 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     return false;
   }
 
-  // --- Wire up button listeners ---
+  // --- Wire up listeners ---
   const abortController = new AbortController();
   const opts = { signal: abortController.signal };
+
+  // Re-render move tree when viewport crosses the responsive breakpoint
+  wideQuery.addEventListener(
+    "change",
+    () => {
+      if (config.moveTreeEl && config.moveTreeDirection === "responsive") {
+        doRender();
+      }
+    },
+    opts,
+  );
 
   if (config.navButtons) {
     config.navButtons.start?.addEventListener(

@@ -385,6 +385,7 @@ function LiveSidebar({
       </div>
       {showMoveTree.value && (
         <div
+          class="move-tree-slot"
           ref={(el) => {
             if (el && !el.contains(moveTreeEl)) {
               el.appendChild(moveTreeEl);

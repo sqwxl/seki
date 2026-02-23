@@ -377,6 +377,10 @@ a:visited {
   .game-page-body .game-board-area {
     grid-column: 2;
   }
+  .game-page-body > .move-tree-slot {
+    grid-column: 1;
+    grid-row: 2;
+  }
   .game-page-body .move-tree {
     margin-left: 1.5em;
     margin-right: 1.5em;
