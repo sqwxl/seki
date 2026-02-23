@@ -71,12 +71,14 @@ type Props = {
   showNotifications?: boolean;
   showPrivate?: boolean;
   submitLabel?: string;
+  opponent?: string;
 };
 
 export function GameSettingsForm({
   showNotifications = true,
   showPrivate = true,
   submitLabel = "Create Game",
+  opponent,
 }: Props) {
   const [s, setS] = useState(loadSettings);
   const settingsRef = useRef(s);
@@ -420,7 +422,17 @@ export function GameSettingsForm({
         </div>
       </fieldset>
 
-      {showNotifications && (
+      {opponent && (
+        <fieldset>
+          <legend>Opponent</legend>
+          <div>
+            <span>{opponent}</span>
+            <input type="hidden" name="invite_username" value={opponent} />
+          </div>
+        </fieldset>
+      )}
+
+      {showNotifications && !opponent && (
         <fieldset>
           <legend>Notifications</legend>
           <div>
@@ -450,11 +462,15 @@ export function GameSettingsForm({
         </fieldset>
       )}
 
-      <button type="submit">{submitLabel}</button>
+      <button type="submit">
+        {opponent ? "Challenge" : submitLabel}
+      </button>
     </div>
   );
 }
 
 export function initNewGameForm(root: HTMLElement) {
-  render(<GameSettingsForm />, root);
+  const opponent =
+    new URLSearchParams(window.location.search).get("opponent") ?? undefined;
+  render(<GameSettingsForm opponent={opponent} />, root);
 }

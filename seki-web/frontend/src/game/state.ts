@@ -54,7 +54,6 @@ export const chatMessages = signal<ChatEntry[]>([]);
 export const analysisMode = signal(false);
 export const estimateMode = signal(false);
 export const undoResponseNeeded = signal(false);
-export const errorMessage = signal<string | undefined>(undefined);
 
 // ---------------------------------------------------------------------------
 // Board reference (async, set after WASM loads)

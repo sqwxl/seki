@@ -11,6 +11,8 @@ export type GameChannel = {
   rejectUndo(): void;
   approveTerritory(): void;
   abort(): void;
+  acceptChallenge(): void;
+  declineChallenge(): void;
   timeoutFlag(): void;
   territoryTimeoutFlag(): void;
 };
@@ -50,6 +52,12 @@ export function createGameChannel(gameId: number): GameChannel {
     },
     abort() {
       gameSend({ action: "abort" });
+    },
+    acceptChallenge() {
+      gameSend({ action: "accept_challenge" });
+    },
+    declineChallenge() {
+      gameSend({ action: "decline_challenge" });
     },
     timeoutFlag() {
       gameSend({ action: "timeout_flag" });

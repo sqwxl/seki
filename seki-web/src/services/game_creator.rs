@@ -15,6 +15,7 @@ pub struct CreateGameParams {
     pub allow_undo: bool,
     pub color: String,
     pub invite_email: Option<String>,
+    pub invite_username: Option<String>,
     pub time_control: TimeControlType,
     pub main_time_secs: Option<i32>,
     pub increment_secs: Option<i32>,
@@ -27,7 +28,17 @@ pub async fn create_game(
     creator: &User,
     params: CreateGameParams,
 ) -> Result<Game, AppError> {
-    let friend = if let Some(ref email) = params.invite_email {
+    let friend = if let Some(ref username) = params.invite_username {
+        if !username.is_empty() {
+            Some(
+                User::find_by_username(pool, username)
+                    .await?
+                    .ok_or_else(|| AppError::BadRequest(format!("User '{username}' not found")))?,
+            )
+        } else {
+            None
+        }
+    } else if let Some(ref email) = params.invite_email {
         if !email.is_empty() {
             Some(User::find_or_create_by_email(pool, email).await?)
         } else {
@@ -87,6 +98,11 @@ pub async fn create_game(
         initial_clock.as_ref().map(|c| c.white_periods),
     )
     .await?;
+
+    // When both slots are filled at creation (invite game), set stage to "challenge"
+    if friend.is_some() {
+        Game::set_stage(pool, game.id, "challenge").await?;
+    }
 
     Ok(game)
 }

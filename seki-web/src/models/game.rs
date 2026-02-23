@@ -65,6 +65,7 @@ impl Game {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games WHERE is_private = false \
              AND result IS DISTINCT FROM 'Aborted' \
+             AND result IS DISTINCT FROM 'Declined' \
              AND (result IS NULL OR updated_at >= now() - interval '5 minutes') \
              ORDER BY updated_at DESC",
         )
@@ -92,6 +93,7 @@ impl Game {
         let games = sqlx::query_as::<_, Game>(
             "SELECT * FROM games WHERE (black_id = $1 OR white_id = $1) \
              AND result IS DISTINCT FROM 'Aborted' \
+             AND result IS DISTINCT FROM 'Declined' \
              AND (result IS NULL OR updated_at >= now() - interval '5 minutes') \
              ORDER BY updated_at DESC",
         )
@@ -329,11 +331,13 @@ impl Game {
         executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
         result: &str,
+        stage: &str,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "UPDATE games SET ended_at = NOW(), result = $1, stage = 'done', updated_at = NOW() WHERE id = $2",
+            "UPDATE games SET ended_at = NOW(), result = $1, stage = $2, updated_at = NOW() WHERE id = $3",
         )
         .bind(result)
+        .bind(stage)
         .bind(game_id)
         .execute(executor)
         .await?;

@@ -38,7 +38,6 @@ import {
   analysisMode,
   estimateMode,
   undoResponseNeeded,
-  errorMessage,
   board,
   playerStone,
   initialProps,
@@ -204,6 +203,7 @@ function LiveControls({
   handleSgfExport: () => void;
   setMoveTree: (visible: boolean) => void;
 }) {
+  const isChallenge = gameStage.value === GameStage.Challenge;
   const isPlay = isPlayStage(gameStage.value);
   const isReview = gameStage.value === GameStage.TerritoryReview;
   const isMyTurn = currentTurn.value === playerStone.value;
@@ -249,7 +249,7 @@ function LiveControls({
   // --- Game action buttons (controls-start) ---
   // Always shown based on game state; disabled in analysis/estimate modes.
 
-  if (isPlayerVal && isPlay) {
+  if (isPlayerVal && (isPlay || isChallenge)) {
     if (inAnalysis && !inEstimate) {
       // Analysis pass — no confirmation needed
       props.pass = {
@@ -260,9 +260,9 @@ function LiveControls({
     } else {
       props.pass = {
         onClick: () => {},
-        disabled: modeActive || !isMyTurn,
+        disabled: modeActive || isChallenge || !isMyTurn,
       };
-      if (!modeActive) {
+      if (!modeActive && !isChallenge) {
         props.confirmPass = {
           message: "Pass your turn?",
           onConfirm: () => channel.pass(),
@@ -271,27 +271,29 @@ function LiveControls({
     }
   }
 
-  if (isPlayerVal && allowUndo.value && isPlay) {
+  if (isPlayerVal && allowUndo.value && (isPlay || isChallenge)) {
     const canUndo =
-      moves.value.length > 0 && !isMyTurn && !undoRejected.value;
+      !isChallenge && moves.value.length > 0 && !isMyTurn && !undoRejected.value;
     props.requestUndo = {
       onClick: () => channel.requestUndo(),
       disabled: modeActive || !canUndo,
-      title: undoRejected.value
-        ? "Undo was rejected for this move"
-        : moves.value.length === 0
-          ? "No moves to undo"
-          : isMyTurn
-            ? "Cannot undo on your turn"
-            : "Request to undo your last move",
+      title: isChallenge
+        ? "Challenge not yet accepted"
+        : undoRejected.value
+          ? "Undo was rejected for this move"
+          : moves.value.length === 0
+            ? "No moves to undo"
+            : isMyTurn
+              ? "Cannot undo on your turn"
+              : "Request to undo your last move",
     };
   }
 
-  if (isPlay) {
+  if (isPlay || isChallenge) {
     props.resign = {
       message: "Resign this game?",
       onConfirm: () => channel.resign(),
-      disabled: modeActive,
+      disabled: modeActive || isChallenge,
     };
   }
 
@@ -303,6 +305,24 @@ function LiveControls({
       onConfirm: () => channel.abort(),
       disabled: modeActive,
     };
+  }
+
+  // Challenge accept/decline (challengee only — not the creator)
+  if (isChallenge && isPlayerVal) {
+    const myId =
+      playerStone.value === 1
+        ? black.value?.id
+        : white.value?.id;
+    const isCreator = myId != null && myId === initialProps.value.creator_id;
+    if (!isCreator) {
+      props.acceptChallenge = {
+        onClick: () => channel.acceptChallenge(),
+      };
+      props.declineChallenge = {
+        message: "Decline this challenge?",
+        onConfirm: () => channel.declineChallenge(),
+      };
+    }
   }
 
   if (isReview && isPlayerVal) {
@@ -470,11 +490,6 @@ export function LiveGamePage(props: LiveGamePageProps) {
       controls={controlsProps}
       sidebar={
         <LiveSidebar channel={channel} moveTreeEl={moveTreeEl} />
-      }
-      extra={
-        errorMessage.value ? (
-          <div class="game-error">{errorMessage.value}</div>
-        ) : undefined
       }
     />
   );

@@ -17,7 +17,7 @@ pub enum Stage {
     BlackToPlay,
     WhiteToPlay,
     TerritoryReview,
-    Done,
+    Completed,
 }
 
 impl Stage {
@@ -33,7 +33,7 @@ impl fmt::Display for Stage {
             Stage::BlackToPlay => write!(f, "black_to_play"),
             Stage::WhiteToPlay => write!(f, "white_to_play"),
             Stage::TerritoryReview => write!(f, "territory_review"),
-            Stage::Done => write!(f, "done"),
+            Stage::Completed => write!(f, "completed"),
         }
     }
 }
@@ -47,7 +47,7 @@ impl std::str::FromStr for Stage {
             "black_to_play" => Ok(Stage::BlackToPlay),
             "white_to_play" => Ok(Stage::WhiteToPlay),
             "territory_review" => Ok(Stage::TerritoryReview),
-            "done" => Ok(Stage::Done),
+            "completed" => Ok(Stage::Completed),
             _ => Err(format!("unknown stage: {s}")),
         }
     }
@@ -215,7 +215,7 @@ impl Engine {
         if self.moves.is_empty() {
             Stage::Unstarted
         } else if self.result.is_some() {
-            Stage::Done
+            Stage::Completed
         } else if matches!(
             self.moves.as_slice(),
             [.., a, b] if a.is_pass() && b.is_pass()
@@ -464,7 +464,7 @@ mod tests {
         let mut engine = Engine::new(4, 4);
         engine.try_play(Stone::Black, (0, 0)).unwrap();
         engine.try_resign(Stone::White);
-        assert_eq!(engine.stage(), Stage::Done);
+        assert_eq!(engine.stage(), Stage::Completed);
     }
 
     #[test]

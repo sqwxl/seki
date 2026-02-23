@@ -16,7 +16,6 @@ import {
   analysisMode,
   currentTurn,
   undoResponseNeeded,
-  errorMessage,
   territory,
   applyGameState,
   applyUndo,
@@ -49,7 +48,7 @@ function syncBoardMoves(
   const currentMoves = moves.value;
   const newMovesJson = JSON.stringify(currentMoves);
   if (newMovesJson !== prevMovesJson) {
-    if (gameStage.value !== GameStage.Done && playEffects) {
+    if (gameStage.value !== GameStage.Completed && playEffects) {
       const lastMove = currentMoves[currentMoves.length - 1];
       if (lastMove?.kind === "play") {
         playStoneSound();
@@ -144,7 +143,7 @@ export function handleGameMessage(
       break;
     }
     case "error": {
-      errorMessage.value = data.message;
+      console.warn("Game error:", data.message);
       break;
     }
     case "undo_accepted":

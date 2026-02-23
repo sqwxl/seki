@@ -164,6 +164,12 @@ export function liveGame(
     if (playerStone.value === 0) {
       return true;
     }
+    if (result.value) {
+      return true;
+    }
+    if (gameStage.value === GameStage.Challenge) {
+      return true;
+    }
     if (gameStage.value === GameStage.TerritoryReview) {
       channel.toggleChain(col, row);
       return true;

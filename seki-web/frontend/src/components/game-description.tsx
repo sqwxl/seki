@@ -53,6 +53,8 @@ export function GameDescription(props: LiveGameItem) {
 
   if (props.result) {
     parts.push(props.result);
+  } else if (props.stage === "challenge") {
+    parts.push("Challenge");
   } else if (
     (isPlayStage(props.stage) || props.stage === "territory_review") &&
     props.move_count != null

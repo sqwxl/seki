@@ -46,13 +46,13 @@ async fn abort_before_first_move() {
     // Black aborts the game before any moves are played.
     black.abort(game_id).await;
 
-    // Both players should receive state with stage "done" and result "Aborted".
+    // Both players should receive state with stage "aborted" and result "Aborted".
     let state_b = black.recv_kind("state").await;
-    assert_eq!(state_b["stage"], "done");
+    assert_eq!(state_b["stage"], "aborted");
     assert_eq!(state_b["result"], "Aborted");
 
     let state_w = white.recv_kind("state").await;
-    assert_eq!(state_w["stage"], "done");
+    assert_eq!(state_w["stage"], "aborted");
     assert_eq!(state_w["result"], "Aborted");
 }
 

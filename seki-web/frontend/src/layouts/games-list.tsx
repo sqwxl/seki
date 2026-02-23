@@ -113,9 +113,18 @@ function GamesList({ initial }: { initial?: InitMessage }) {
     playerId !== undefined &&
     (g.black?.id === playerId || g.white?.id === playerId);
 
-  const isVisible = (g: LiveGameItem) => g.result !== "Aborted";
+  const isVisible = (g: LiveGameItem) =>
+    g.result !== "Aborted" && g.result !== "Declined";
 
-  const userGames = allGames.filter((g) => isMyGame(g) && isVisible(g));
+  const isIncomingChallenge = (g: LiveGameItem) =>
+    g.stage === "challenge" && g.creator_id !== playerId;
+
+  const challenges = allGames.filter(
+    (g) => isMyGame(g) && isVisible(g) && isIncomingChallenge(g),
+  );
+  const userGames = allGames.filter(
+    (g) => isMyGame(g) && isVisible(g) && !isIncomingChallenge(g),
+  );
   const openGames = allGames.filter(
     (g) =>
       !isMyGame(g) &&
@@ -134,6 +143,20 @@ function GamesList({ initial }: { initial?: InitMessage }) {
 
   return (
     <>
+      {challenges.length > 0 && (
+        <>
+          <h1>Challenges</h1>
+          <ul class="games-list">
+            {challenges.map((g) => (
+              <li key={g.id}>
+                <a href={`/games/${g.id}`}>
+                  <GameDescription {...g} />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <h1>Your games</h1>
       {userGames.length === 0 ? (
         <p>No games yet.</p>

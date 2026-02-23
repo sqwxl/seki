@@ -4,15 +4,10 @@ import { initUserGames } from "./layouts/user-games";
 import { initAnalysis } from "./layouts/analysis";
 import { initNotificationToggle } from "./game/notifications";
 import { initNewGameForm } from "./layouts/game-settings-form";
-import { renderNavStatus } from "./components/nav-status";
 import { readUserData } from "./game/util";
 import { InitialGameProps } from "./goban/types";
 
-const navStatusEl = document.getElementById("nav-status");
 const userData = readUserData();
-if (navStatusEl && userData) {
-  renderNavStatus(navStatusEl, userData);
-}
 
 initNotificationToggle();
 

@@ -612,7 +612,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     if (
       isCurrentFinalized() ||
       stage === "territory_review" ||
-      stage === "done"
+      stage === "completed"
     ) {
       return false;
     }

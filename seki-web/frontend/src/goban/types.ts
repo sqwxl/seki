@@ -34,10 +34,13 @@ export enum Stone {
 // Keep in sync with go-engine Stage enum (go-engine/src/engine.rs)
 export enum GameStage {
   Unstarted = "unstarted",
+  Challenge = "challenge",
   BlackToPlay = "black_to_play",
   WhiteToPlay = "white_to_play",
   TerritoryReview = "territory_review",
-  Done = "done",
+  Completed = "completed",
+  Aborted = "aborted",
+  Declined = "declined",
 }
 
 export function isPlayStage(stage: GameStage): boolean {

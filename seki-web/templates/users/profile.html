@@ -12,6 +12,9 @@
 {% block content %}
     <div style="width:100%">
         <h1>{{ profile_username }}</h1>
+        {% if !is_own_profile %}
+            <a href="/?opponent={{ profile_username }}">Challenge</a>
+        {% endif %}
         <h2>Games</h2>
         <div id="user-games" data-initial-games="{{ initial_games }}"></div>
         {% if is_own_profile %}

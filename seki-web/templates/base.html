@@ -30,7 +30,14 @@
                 <a href="/analysis">Analysis</a>
             </div>
             <div>
-                <span id="nav-status"></span>
+                <button id="notification-toggle" type="button" title="Enable turn notifications"></button>
+                <a href="/users/{{ user_username }}">{{ user_username }}</a>
+                {% if user_is_registered %}
+                <button type="button" class="nav-icon" title="Log out" onclick="fetch('/logout',{method:'POST'}).then(()=>location.replace('/'))"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg></button>
+                {% else %}
+                <a href="/login" class="nav-icon" title="Log in"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor"><path d="M480-120v-80h280v-560H480v-80h280q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H480Zm-80-160-55-58 102-102H120v-80h327L345-622l55-58 200 200-200 200Z"/></svg></a>
+                <a href="/register">Register</a>
+                {% endif %}
             </div>
         </nav>
         <div class="flash">

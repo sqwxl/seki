@@ -269,10 +269,6 @@ nav a {
   white-space: nowrap;
 }
 
-#nav-status {
-  display: contents;
-}
-
 .nav-icon,
 #notification-toggle {
   display: flex;
@@ -363,6 +359,12 @@ a:visited {
   max-width: 100%;
 }
 
+/* Mobile: push sidebar after board elements */
+.game-page-body > .chat,
+.game-page-body > .move-tree-slot {
+  order: 1;
+}
+
 @media (min-width: 1600px) {
   .game-page-body {
     display: grid;
@@ -372,34 +374,53 @@ a:visited {
   }
   .game-page-body > .game-header {
     grid-column: 1 / -1;
+    grid-row: 1;
     text-align: center;
   }
-  .game-page-body .game-board-area {
+  .game-page-body > .player-top {
     grid-column: 2;
+    grid-row: 2;
+  }
+  .game-page-body > .game-board-area {
+    grid-column: 2;
+    grid-row: 3;
   }
   .game-page-body > .move-tree-slot {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 3;
+    align-self: stretch;
+    contain: size;
+    overflow: hidden;
+    order: 0;
   }
   .game-page-body .move-tree {
-    margin-left: 1.5em;
-    margin-right: 1.5em;
+    margin: 0 1.5em;
     width: auto;
-    max-height: 80vh;
-    overflow: hidden;
+    max-height: 100%;
+    overflow: auto;
   }
-  .game-page-body .chat {
+  .game-page-body > .chat {
     grid-column: 3;
+    grid-row: 3;
     align-self: stretch;
+    contain: size;
     width: auto;
-    margin-left: 1.5em;
-    margin-right: 1.5em;
+    margin: 0 1.5em;
     display: flex;
     flex-direction: column;
+    order: 0;
   }
   .game-page-body .chat .chat-box {
     flex: 1;
-    height: auto;
+    overflow: auto;
+  }
+  .game-page-body > .player-bottom {
+    grid-column: 2;
+    grid-row: 4;
+  }
+  .game-page-body > .controls {
+    grid-column: 2;
+    grid-row: 5;
   }
 }
 

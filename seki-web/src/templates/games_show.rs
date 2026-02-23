@@ -1,5 +1,5 @@
 use askama::Template;
-use go_engine::{GameState, Stage, Turn};
+use go_engine::{GameState, Turn};
 use serde::Serialize;
 
 use crate::services::live::GameSettings;
@@ -14,7 +14,7 @@ pub struct InitialGameProps {
     pub black: Option<UserData>,
     pub white: Option<UserData>,
     pub komi: f64,
-    pub stage: Stage,
+    pub stage: String,
     pub settings: GameSettings,
     pub moves: Vec<Turn>,
     pub current_turn_stone: i32,

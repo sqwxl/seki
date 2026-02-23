@@ -51,6 +51,8 @@ export type ControlsProps = {
   resign?: ConfirmDef & { disabled?: boolean };
   abort?: ConfirmDef & { disabled?: boolean };
   acceptTerritory?: ConfirmDef & { disabled?: boolean };
+  acceptChallenge?: ButtonDef;
+  declineChallenge?: ConfirmDef & { disabled?: boolean };
   rematch?: { onConfirm: (swapColors: boolean) => void; disabled?: boolean };
   analyze?: ButtonDef;
   exitAnalysis?: ButtonDef;
@@ -290,6 +292,24 @@ function LiveControls(props: ControlsProps) {
             title="Accept territory"
             disabled={props.acceptTerritory.disabled}
             confirm={props.acceptTerritory}
+          />
+        )}
+        {props.acceptChallenge && (
+          <button
+            title="Accept challenge"
+            disabled={props.acceptChallenge.disabled}
+            onClick={props.acceptChallenge.onClick}
+          >
+            Accept
+          </button>
+        )}
+        {props.declineChallenge && (
+          <ConfirmButton
+            id="decline-challenge-btn"
+            icon={() => <>Decline</>}
+            title="Decline challenge"
+            disabled={props.declineChallenge.disabled}
+            confirm={props.declineChallenge}
           />
         )}
       </span>

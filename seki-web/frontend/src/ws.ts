@@ -17,7 +17,6 @@ const gameHandlers = new Map<number, Handler>();
 let ws: WebSocket | undefined;
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSends: string[] = [];
-let statusListener: ((connected: boolean) => void) | undefined;
 
 function ensureConnected() {
   if (!ws && !reconnectTimer) {
@@ -31,7 +30,6 @@ function connect() {
   ws = new WebSocket(url);
 
   ws.onopen = () => {
-    statusListener?.(true);
     // Re-join any game rooms after reconnect
     for (const gameId of gameHandlers.keys()) {
       ws!.send(JSON.stringify({ action: "join_game", game_id: gameId }));
@@ -68,7 +66,6 @@ function connect() {
 
   ws.onclose = () => {
     ws = undefined;
-    statusListener?.(false);
     reconnectTimer = setTimeout(() => {
       reconnectTimer = undefined;
       connect();
@@ -136,8 +133,4 @@ function joinGame(gameId: number, handler: Handler): () => void {
   };
 }
 
-function onStatusChange(listener: (connected: boolean) => void): void {
-  statusListener = listener;
-}
-
-export { subscribe, send, joinGame, onStatusChange };
+export { subscribe, send, joinGame };

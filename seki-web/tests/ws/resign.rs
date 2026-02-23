@@ -1,6 +1,6 @@
 use crate::common::TestServer;
 
-/// 5.1 -- Black resigns: both receive stage "done", result "W+R".
+/// 5.1 -- Black resigns: both receive stage "completed", result "W+R".
 #[tokio::test]
 async fn black_resigns() {
     let server = TestServer::start().await;
@@ -21,15 +21,15 @@ async fn black_resigns() {
     black.resign(game_id).await;
 
     let state_b = black.recv_kind("state").await;
-    assert_eq!(state_b["stage"], "done");
+    assert_eq!(state_b["stage"], "completed");
     assert_eq!(state_b["result"], "W+R");
 
     let state_w = white.recv_kind("state").await;
-    assert_eq!(state_w["stage"], "done");
+    assert_eq!(state_w["stage"], "completed");
     assert_eq!(state_w["result"], "W+R");
 }
 
-/// 5.2 -- White resigns: both receive stage "done", result "B+R".
+/// 5.2 -- White resigns: both receive stage "completed", result "B+R".
 #[tokio::test]
 async fn white_resigns() {
     let server = TestServer::start().await;
@@ -49,11 +49,11 @@ async fn white_resigns() {
     white.resign(game_id).await;
 
     let state_b = black.recv_kind("state").await;
-    assert_eq!(state_b["stage"], "done");
+    assert_eq!(state_b["stage"], "completed");
     assert_eq!(state_b["result"], "B+R");
 
     let state_w = white.recv_kind("state").await;
-    assert_eq!(state_w["stage"], "done");
+    assert_eq!(state_w["stage"], "completed");
     assert_eq!(state_w["result"], "B+R");
 }
 
@@ -84,11 +84,11 @@ async fn resign_on_opponents_turn() {
     white.resign(game_id).await;
 
     let state_b = black.recv_kind("state").await;
-    assert_eq!(state_b["stage"], "done");
+    assert_eq!(state_b["stage"], "completed");
     assert_eq!(state_b["result"], "B+R");
 
     let state_w = white.recv_kind("state").await;
-    assert_eq!(state_w["stage"], "done");
+    assert_eq!(state_w["stage"], "completed");
     assert_eq!(state_w["result"], "B+R");
 }
 
@@ -113,10 +113,10 @@ async fn resign_already_ended_game() {
     black.resign(game_id).await;
 
     let state_b = black.recv_kind("state").await;
-    assert_eq!(state_b["stage"], "done");
+    assert_eq!(state_b["stage"], "completed");
 
     let state_w = white.recv_kind("state").await;
-    assert_eq!(state_w["stage"], "done");
+    assert_eq!(state_w["stage"], "completed");
 
     // White tries to resign the already-ended game.
     white.resign(game_id).await;

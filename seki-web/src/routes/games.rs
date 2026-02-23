@@ -86,6 +86,7 @@ pub struct CreateGameForm {
     pub allow_undo: Option<String>,
     pub color: Option<String>,
     pub invite_email: Option<String>,
+    pub invite_username: Option<String>,
     #[allow(dead_code)]
     pub creator_email: Option<String>,
     pub time_control: Option<String>,
@@ -139,6 +140,7 @@ pub async fn create_game(
         allow_undo: form.allow_undo.as_deref() == Some("true"),
         color: form.color.unwrap_or_else(|| "black".to_string()),
         invite_email: form.invite_email,
+        invite_username: form.invite_username,
         time_control,
         main_time_secs,
         increment_secs,
@@ -203,11 +205,24 @@ pub async fn show_game(
         .get_or_init_engine(&state.db, &gwp.game)
         .await?;
 
-    // The engine derives stage from moves, but the DB is authoritative for done games.
-    let stage = if gwp.game.result.is_none() {
-        engine.stage()
+    // The engine derives stage from moves, but the DB is authoritative for
+    // terminal states, challenges, and games that started but have no moves yet.
+    let stage = if gwp.game.result.is_some() {
+        gwp.game.stage.clone()
+    } else if gwp.game.stage == "challenge" {
+        "challenge".to_string()
+    } else if engine.stage() == go_engine::Stage::Unstarted
+        && gwp.game.stage != "unstarted"
+        && gwp.game.stage != "challenge"
+    {
+        // DB says game started but engine has no moves yet
+        if gwp.game.handicap >= 2 {
+            "white_to_play".to_string()
+        } else {
+            "black_to_play".to_string()
+        }
     } else {
-        go_engine::Stage::Done
+        engine.stage().to_string()
     };
 
     // Load settled territory for finished games
@@ -227,7 +242,7 @@ pub async fn show_game(
         black: gwp.black.as_ref().map(UserData::from),
         white: gwp.white.as_ref().map(UserData::from),
         komi: gwp.game.komi,
-        stage,
+        stage: stage.clone(),
         settings: crate::services::live::GameSettings {
             cols: gwp.game.cols,
             rows: gwp.game.rows,
@@ -307,7 +322,12 @@ pub async fn join_game(
         return Err(AppError::BadRequest("Game is full".to_string()));
     }
     if gwp.game.stage == "unstarted" {
-        Game::set_stage(&mut *tx, id, "black_to_play").await?;
+        let start_stage = if gwp.game.handicap >= 2 {
+            "white_to_play"
+        } else {
+            "black_to_play"
+        };
+        Game::set_stage(&mut *tx, id, start_stage).await?;
     }
     tx.commit().await?;
 
@@ -390,7 +410,7 @@ pub async fn invitation(
         Game::set_white(&mut *tx, id, guest.id).await?;
     }
     if gwp.game.stage == "unstarted" {
-        Game::set_stage(&mut *tx, id, "black_to_play").await?;
+        Game::set_stage(&mut *tx, id, "challenge").await?;
     }
     tx.commit().await?;
 
@@ -437,6 +457,7 @@ pub async fn rematch_game(
         allow_undo: gwp.game.allow_undo,
         color: color.to_string(),
         invite_email: None,
+        invite_username: None,
         time_control: gwp.game.time_control,
         main_time_secs: gwp.game.main_time_secs,
         increment_secs: gwp.game.increment_secs,
@@ -454,7 +475,7 @@ pub async fn rematch_game(
             Game::set_white(&mut *tx, game.id, opp_id).await?;
         }
         if game.stage == "unstarted" {
-            Game::set_stage(&mut *tx, game.id, "black_to_play").await?;
+            Game::set_stage(&mut *tx, game.id, "challenge").await?;
         }
         tx.commit().await?;
     }

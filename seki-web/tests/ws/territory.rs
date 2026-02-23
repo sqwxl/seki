@@ -128,10 +128,10 @@ async fn both_approve_game_ends() {
     let state_w = white.recv_kind("state").await;
 
     assert_eq!(
-        state_b["stage"], "done",
+        state_b["stage"], "completed",
         "game should be done after both approve"
     );
-    assert_eq!(state_w["stage"], "done");
+    assert_eq!(state_w["stage"], "completed");
 
     // Result should be a score string. With empty board and komi 0.5, white wins.
     let result_b = state_b["result"]
@@ -250,7 +250,7 @@ async fn reconnect_settled_game_has_settled_territory() {
     let mut black2 = server.ws_black().await;
     let state = black2.join_game(game_id).await;
 
-    assert_eq!(state["stage"], "done");
+    assert_eq!(state["stage"], "completed");
     assert!(state["result"].as_str().is_some(), "result should be set");
 
     // settled_territory should be present with ownership, dead_stones, and score
@@ -304,7 +304,7 @@ async fn reconnect_resigned_game_no_territory() {
     let mut black2 = server.ws_black().await;
     let state = black2.join_game(game_id).await;
 
-    assert_eq!(state["stage"], "done");
+    assert_eq!(state["stage"], "completed");
     assert_eq!(state["result"], "W+R");
 
     // No territory or settled_territory for resigned games

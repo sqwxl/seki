@@ -163,6 +163,12 @@ pub async fn handle_message(
         "resign" => game_actions::resign(state, game_id, player_id)
             .await
             .map(|_| ()),
+        "accept_challenge" => {
+            game_actions::accept_challenge(state, game_id, player_id).await
+        }
+        "decline_challenge" => {
+            game_actions::decline_challenge(state, game_id, player_id).await
+        }
         "abort" => game_actions::abort(state, game_id, player_id).await,
         "chat" => handle_chat(state, game_id, player_id, data).await,
         "request_undo" => game_actions::request_undo(state, game_id, player_id).await,

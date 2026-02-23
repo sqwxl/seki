@@ -92,17 +92,23 @@ pub fn serialize_state(
     online_users: &[i64],
 ) -> serde_json::Value {
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
-    // for terminal states (done) and waiting states (unstarted with both users).
-    let stage = if gwp.game.result.is_some() {
-        go_engine::Stage::Done
-    } else if engine.stage() == go_engine::Stage::Unstarted && !gwp.is_open() {
+    // for terminal states (done), challenges, and started-but-no-moves games.
+    let stage_str = if gwp.game.result.is_some() {
+        gwp.game.stage.clone()
+    } else if gwp.game.stage == "challenge" {
+        "challenge".to_string()
+    } else if engine.stage() == go_engine::Stage::Unstarted
+        && gwp.game.stage != "unstarted"
+        && gwp.game.stage != "challenge"
+    {
+        // DB says game started but engine has no moves yet
         if gwp.game.handicap >= 2 {
-            go_engine::Stage::WhiteToPlay
+            "white_to_play".to_string()
         } else {
-            go_engine::Stage::BlackToPlay
+            "black_to_play".to_string()
         }
     } else {
-        engine.stage()
+        engine.stage().to_string()
     };
     let current_turn_stone = current_turn_stone(engine);
 
@@ -123,7 +129,7 @@ pub fn serialize_state(
     let mut val = json!({
         "kind": "state",
         "game_id": gwp.game.id,
-        "stage": stage.to_string(),
+        "stage": stage_str,
         "state": game_state,
         "negotiations": negotiations,
         "current_turn_stone": current_turn_stone,
@@ -163,7 +169,7 @@ pub fn serialize_state(
     }
 
     if let Some((clock_state, time_control)) = clock {
-        let active_stone = clock::active_stone_from_stage(&stage.to_string());
+        let active_stone = clock::active_stone_from_stage(&stage_str);
         val["clock"] = clock_state.to_json(time_control, active_stone);
     }
 

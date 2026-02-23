@@ -152,6 +152,8 @@ pub fn router() -> Router<AppState> {
         .route("/games/{id}/undo/respond", post(respond_to_undo))
         .route("/games/{id}/territory/toggle", post(toggle_chain))
         .route("/games/{id}/territory/approve", post(approve_territory))
+        .route("/games/{id}/accept", post(accept_challenge))
+        .route("/games/{id}/decline", post(decline_challenge))
         .route("/games/{id}/rematch", post(rematch_game))
         // Messages
         .route("/games/{id}/messages", get(get_messages).post(send_message))
@@ -197,6 +199,7 @@ async fn create_game(
         allow_undo: body.allow_undo.unwrap_or(false),
         color: body.color.unwrap_or_else(|| "black".to_string()),
         invite_email: body.invite_email,
+        invite_username: None,
         time_control: body.time_control.unwrap_or_default(),
         main_time_secs: body.main_time_secs,
         increment_secs: body.increment_secs,
@@ -279,7 +282,12 @@ async fn join_game(
         return Err(AppError::BadRequest("Game is full".to_string()).into());
     }
     if gwp.game.stage == "unstarted" {
-        Game::set_stage(&mut *tx, id, "black_to_play").await?;
+        let start_stage = if gwp.game.handicap >= 2 {
+            "white_to_play"
+        } else {
+            "black_to_play"
+        };
+        Game::set_stage(&mut *tx, id, start_stage).await?;
     }
     tx.commit()
         .await
@@ -337,6 +345,24 @@ async fn abort(
 ) -> Result<Json<serde_json::Value>, ApiError> {
     game_actions::abort(&state, id, api_user.id).await?;
     Ok(Json(serde_json::json!({ "status": "aborted" })))
+}
+
+async fn accept_challenge(
+    State(state): State<AppState>,
+    api_user: ApiUser,
+    Path(id): Path<i64>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    game_actions::accept_challenge(&state, id, api_user.id).await?;
+    Ok(Json(serde_json::json!({ "status": "accepted" })))
+}
+
+async fn decline_challenge(
+    State(state): State<AppState>,
+    api_user: ApiUser,
+    Path(id): Path<i64>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    game_actions::decline_challenge(&state, id, api_user.id).await?;
+    Ok(Json(serde_json::json!({ "status": "declined" })))
 }
 
 async fn request_undo(
@@ -444,6 +470,7 @@ async fn rematch_game(
         allow_undo: gwp.game.allow_undo,
         color: color.to_string(),
         invite_email: None,
+        invite_username: None,
         time_control: gwp.game.time_control,
         main_time_secs: gwp.game.main_time_secs,
         increment_secs: gwp.game.increment_secs,
@@ -465,7 +492,7 @@ async fn rematch_game(
             Game::set_white(&mut *tx, game.id, opp_id).await?;
         }
         if game.stage == "unstarted" {
-            Game::set_stage(&mut *tx, game.id, "black_to_play").await?;
+            Game::set_stage(&mut *tx, game.id, "challenge").await?;
         }
         tx.commit()
             .await

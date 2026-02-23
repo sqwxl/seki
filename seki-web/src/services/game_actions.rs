@@ -40,6 +40,12 @@ pub async fn play_move(
 
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
+    require_not_challenge(&gwp)?;
+
+    if gwp.game.result.is_some() {
+        return Err(AppError::BadRequest("The game is over".to_string()));
+    }
+
     let stone = player_stone(&gwp, player_id)?;
 
     let engine = apply_engine_mutation(state, game_id, &gwp.game, |engine| {
@@ -101,6 +107,12 @@ pub async fn play_move(
 pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engine, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
+    require_not_challenge(&gwp)?;
+
+    if gwp.game.result.is_some() {
+        return Err(AppError::BadRequest("The game is over".to_string()));
+    }
+
     let stone = player_stone(&gwp, player_id)?;
 
     let engine = apply_engine_mutation(state, game_id, &gwp.game, |engine| {
@@ -182,6 +194,7 @@ pub async fn toggle_chain(
 ) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
+    require_not_challenge(&gwp)?;
 
     let engine = state
         .registry
@@ -216,6 +229,7 @@ pub async fn approve_territory(
 ) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
+    require_not_challenge(&gwp)?;
     let stone = player_stone(&gwp, player_id)?;
 
     let engine = state
@@ -304,7 +318,7 @@ pub async fn settle_territory(
     .await
     .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Game::set_ended(&mut *tx, game_id, &result)
+    Game::set_ended(&mut *tx, game_id, &result, "completed")
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
@@ -349,6 +363,7 @@ pub async fn settle_territory(
 pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<Engine, AppError> {
     let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
+    require_not_challenge(&gwp)?;
 
     if gwp.game.result.is_some() {
         return Err(AppError::BadRequest("The game is over".to_string()));
@@ -362,7 +377,7 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
     })
     .await?;
 
-    if engine.stage() == Stage::Done {
+    if engine.stage() == Stage::Completed {
         let mut tx = state
             .db
             .begin()
@@ -389,7 +404,7 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
         }
 
         if let Some(result) = engine.result() {
-            Game::set_ended(&mut *tx, game_id, result)
+            Game::set_ended(&mut *tx, game_id, result, "completed")
                 .await
                 .map_err(|e| {
                     // tx will rollback on drop
@@ -402,11 +417,98 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
             .map_err(|e| AppError::Internal(e.to_string()))?;
 
         gwp.game.result = engine.result().map(String::from);
+        gwp.game.stage = "completed".to_string();
     }
 
     broadcast_game_state(state, &gwp, &engine).await;
 
     Ok(engine)
+}
+
+pub async fn accept_challenge(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+) -> Result<(), AppError> {
+    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+
+    if gwp.game.result.is_some() {
+        return Err(AppError::BadRequest("The game is over".to_string()));
+    }
+    if gwp.game.stage != "challenge" {
+        return Err(AppError::BadRequest(
+            "Game is not in challenge state".to_string(),
+        ));
+    }
+    if gwp.game.creator_id == Some(player_id) {
+        return Err(AppError::BadRequest(
+            "Only the challenged player can accept".to_string(),
+        ));
+    }
+
+    let start_stage = if gwp.game.handicap >= 2 {
+        "white_to_play"
+    } else {
+        "black_to_play"
+    };
+    Game::set_stage(&state.db, game_id, start_stage).await?;
+
+    // Reload and broadcast
+    let gwp = Game::find_with_players(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    broadcast_game_state(state, &gwp, &engine).await;
+    live::notify_game_updated(state, &gwp, None);
+
+    Ok(())
+}
+
+pub async fn decline_challenge(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+) -> Result<(), AppError> {
+    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+
+    if gwp.game.result.is_some() {
+        return Err(AppError::BadRequest("The game is over".to_string()));
+    }
+    if gwp.game.stage != "challenge" {
+        return Err(AppError::BadRequest(
+            "Game is not in challenge state".to_string(),
+        ));
+    }
+    if gwp.game.creator_id == Some(player_id) {
+        return Err(AppError::BadRequest(
+            "Only the challenged player can decline".to_string(),
+        ));
+    }
+
+    Game::set_ended(&state.db, game_id, "Declined", "declined")
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    live::notify_game_removed(state, game_id);
+
+    // Broadcast updated state to anyone watching
+    let gwp = Game::find_with_players(&state.db, game_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    if let Ok(engine) = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+    {
+        broadcast_game_state(state, &gwp, &engine).await;
+    }
+
+    Ok(())
 }
 
 pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(), AppError> {
@@ -416,7 +518,12 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
         return Err(AppError::BadRequest("The game is over".to_string()));
     }
 
-    if gwp.game.started_at.is_some() {
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    if !engine.moves().is_empty() {
         return Err(AppError::BadRequest(
             "Cannot abort after the first move".to_string(),
         ));
@@ -429,7 +536,7 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
     pause_clock(state, &mut *tx, game_id, &gwp.game).await?;
-    Game::set_ended(&mut *tx, game_id, "Aborted")
+    Game::set_ended(&mut *tx, game_id, "Aborted", "aborted")
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
     tx.commit()
@@ -437,6 +544,7 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     gwp.game.result = Some("Aborted".to_string());
+    gwp.game.stage = "aborted".to_string();
 
     live::notify_game_removed(state, game_id);
 
@@ -451,8 +559,13 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
 
     broadcast_system_chat(state, game_id, "Game aborted", None).await;
 
-    if let Some(engine) = state.registry.get_engine(game_id).await {
-        broadcast_game_state(state, &gwp, &engine).await;
+    match state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+    {
+        Ok(engine) => broadcast_game_state(state, &gwp, &engine).await,
+        Err(e) => tracing::warn!("abort: failed to init engine for broadcast: {e}"),
     }
 
     Ok(())
@@ -510,6 +623,11 @@ pub async fn send_chat(
 
 pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    require_not_challenge(&gwp)?;
+
+    if gwp.game.result.is_some() {
+        return Err(AppError::BadRequest("The game is over".to_string()));
+    }
 
     if !gwp.game.allow_undo {
         return Err(AppError::BadRequest(
@@ -865,6 +983,15 @@ fn require_both_players(gwp: &GameWithPlayers) -> Result<(), AppError> {
     Ok(())
 }
 
+fn require_not_challenge(gwp: &GameWithPlayers) -> Result<(), AppError> {
+    if gwp.game.stage == "challenge" {
+        return Err(AppError::BadRequest(
+            "Challenge must be accepted before playing".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 fn player_stone(gwp: &GameWithPlayers, player_id: i64) -> Result<Stone, AppError> {
     Stone::from_int(gwp.player_stone(player_id) as i8)
         .ok_or_else(|| AppError::BadRequest("You are not a user in this game".to_string()))
@@ -1108,7 +1235,7 @@ pub async fn end_game_on_time(
         .begin()
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
-    Game::set_ended(&mut *tx, game_id, result)
+    Game::set_ended(&mut *tx, game_id, result, "completed")
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
     persist_clock(state, &mut *tx, game_id, &clock, tc, None).await?;
