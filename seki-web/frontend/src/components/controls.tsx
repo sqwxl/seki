@@ -48,10 +48,10 @@ export type ControlsProps = {
   confirmPass?: ConfirmDef;
   score?: ButtonDef;
   requestUndo?: ButtonDef;
-  resign?: ConfirmDef;
-  abort?: ConfirmDef;
+  resign?: ConfirmDef & { disabled?: boolean };
+  abort?: ConfirmDef & { disabled?: boolean };
   acceptTerritory?: ConfirmDef & { disabled?: boolean };
-  rematch?: { onConfirm: (swapColors: boolean) => void };
+  rematch?: { onConfirm: (swapColors: boolean) => void; disabled?: boolean };
   analyze?: ButtonDef;
   exitAnalysis?: ButtonDef;
   estimate?: ButtonDef;
@@ -270,6 +270,7 @@ function LiveControls(props: ControlsProps) {
             id="resign-btn"
             icon={IconWhiteFlag}
             title="Resign"
+            disabled={props.resign.disabled}
             confirm={props.resign}
           />
         )}
@@ -278,6 +279,7 @@ function LiveControls(props: ControlsProps) {
             id="abort-btn"
             icon={() => <>Abort</>}
             title="Abort game"
+            disabled={props.abort.disabled}
             confirm={props.abort}
           />
         )}
@@ -296,6 +298,7 @@ function LiveControls(props: ControlsProps) {
         {props.analyze && (
           <button
             title={props.analyze.title ?? "Analyze"}
+            disabled={props.analyze.disabled}
             onClick={props.analyze.onClick}
           >
             <IconAnalysis />
@@ -304,6 +307,7 @@ function LiveControls(props: ControlsProps) {
         {props.exitAnalysis && (
           <button
             title="Back to game"
+            disabled={props.exitAnalysis.disabled}
             onClick={props.exitAnalysis.onClick}
           >
             <IconX />
@@ -312,6 +316,7 @@ function LiveControls(props: ControlsProps) {
         {props.estimate && (
           <button
             title={props.estimate.title ?? "Estimate score"}
+            disabled={props.estimate.disabled}
             onClick={props.estimate.onClick}
           >
             <IconBalance />
@@ -320,6 +325,7 @@ function LiveControls(props: ControlsProps) {
         {props.exitEstimate && (
           <button
             title={props.exitEstimate.title ?? "Back to game"}
+            disabled={props.exitEstimate.disabled}
             onClick={props.exitEstimate.onClick}
           >
             <IconX />
@@ -328,6 +334,7 @@ function LiveControls(props: ControlsProps) {
         {props.sgfExport && (
           <button
             title={props.sgfExport.title ?? "Export SGF"}
+            disabled={props.sgfExport.disabled}
             onClick={props.sgfExport.onClick}
           >
             <IconFileExport />
@@ -339,6 +346,7 @@ function LiveControls(props: ControlsProps) {
               id="rematch-btn"
               popovertarget="rematch-confirm"
               title="Rematch"
+              disabled={props.rematch.disabled}
             >
               <IconRepeat />
             </button>

@@ -209,6 +209,10 @@ function LiveControls({
   const isMyTurn = currentTurn.value === playerStone.value;
   const isPlayerVal = playerStone.value !== 0;
 
+  const inAnalysis = analysisMode.value;
+  const inEstimate = estimateMode.value;
+  const modeActive = inAnalysis || inEstimate;
+
   const nav = buildNavProps(board.value);
 
   // Show result in nav counter when available
@@ -242,106 +246,113 @@ function LiveControls({
     },
   };
 
-  if (analysisMode.value) {
-    if (estimateMode.value) {
-      props.exitEstimate = {
-        onClick: exitEstimate,
-        title: "Back to analysis",
-      };
-    } else {
+  // --- Game action buttons (controls-start) ---
+  // Always shown based on game state; disabled in analysis/estimate modes.
+
+  if (isPlayerVal && isPlay) {
+    if (inAnalysis && !inEstimate) {
+      // Analysis pass — no confirmation needed
       props.pass = {
         onClick: () => {
           board.value?.pass();
         },
       };
-      props.exitAnalysis = { onClick: exitAnalysis };
-      props.estimate = { onClick: enterEstimate };
-      props.sgfExport = { onClick: handleSgfExport };
-    }
-  } else if (estimateMode.value) {
-    props.exitEstimate = { onClick: exitEstimate };
-  } else {
-    // Live mode
-    if (isPlayerVal && isPlay) {
+    } else {
       props.pass = {
         onClick: () => {},
-        disabled: !isMyTurn,
+        disabled: modeActive || !isMyTurn,
       };
-      props.confirmPass = {
-        message: "Pass your turn?",
-        onConfirm: () => channel.pass(),
-      };
+      if (!modeActive) {
+        props.confirmPass = {
+          message: "Pass your turn?",
+          onConfirm: () => channel.pass(),
+        };
+      }
     }
+  }
 
-    if (isPlay) {
-      props.resign = {
-        message: "Resign this game?",
-        onConfirm: () => channel.resign(),
-      };
-    }
+  if (isPlayerVal && allowUndo.value && isPlay) {
+    const canUndo =
+      moves.value.length > 0 && !isMyTurn && !undoRejected.value;
+    props.requestUndo = {
+      onClick: () => channel.requestUndo(),
+      disabled: modeActive || !canUndo,
+      title: undoRejected.value
+        ? "Undo was rejected for this move"
+        : moves.value.length === 0
+          ? "No moves to undo"
+          : isMyTurn
+            ? "Cannot undo on your turn"
+            : "Request to undo your last move",
+    };
+  }
 
-    if (isPlayerVal && allowUndo.value && isPlay) {
-      const canUndo =
-        moves.value.length > 0 && !isMyTurn && !undoRejected.value;
-      props.requestUndo = {
-        onClick: () => channel.requestUndo(),
-        disabled: !canUndo,
-        title: undoRejected.value
-          ? "Undo was rejected for this move"
-          : moves.value.length === 0
-            ? "No moves to undo"
-            : isMyTurn
-              ? "Cannot undo on your turn"
-              : "Request to undo your last move",
-      };
-    }
+  if (isPlay) {
+    props.resign = {
+      message: "Resign this game?",
+      onConfirm: () => channel.resign(),
+      disabled: modeActive,
+    };
+  }
 
-    if (isReview && isPlayerVal) {
-      const alreadyApproved =
-        (playerStone.value === 1 && territory.value?.black_approved) ||
-        (playerStone.value === -1 && territory.value?.white_approved);
-      props.acceptTerritory = {
-        message: "Accept territory?",
-        onConfirm: () => channel.approveTerritory(),
-        disabled: !!alreadyApproved,
-      };
-    }
+  const canAbort =
+    isPlayerVal && moves.value.length === 0 && !result.value;
+  if (canAbort) {
+    props.abort = {
+      message: "Abort this game?",
+      onConfirm: () => channel.abort(),
+      disabled: modeActive,
+    };
+  }
 
-    const canAbort =
-      isPlayerVal && moves.value.length === 0 && !result.value;
-    if (canAbort) {
-      props.abort = {
-        message: "Abort this game?",
-        onConfirm: () => channel.abort(),
-      };
-    }
+  if (isReview && isPlayerVal) {
+    const alreadyApproved =
+      (playerStone.value === 1 && territory.value?.black_approved) ||
+      (playerStone.value === -1 && territory.value?.white_approved);
+    props.acceptTerritory = {
+      message: "Accept territory?",
+      onConfirm: () => channel.approveTerritory(),
+      disabled: !!alreadyApproved,
+    };
+  }
 
-    if (!isReview) {
-      props.analyze = { onClick: enterAnalysis };
-    }
+  // --- Board control buttons (controls-end) ---
+  // Swap analyze/exitAnalysis and estimate/exitEstimate; disable where needed.
 
-    if (isPlay && !isReview) {
-      props.estimate = { onClick: enterEstimate };
-    } else if (result.value && settledTerritory.value) {
-      props.estimate = { onClick: enterEstimate, title: "Show territory" };
-    }
+  if (inAnalysis) {
+    props.exitAnalysis = { onClick: exitAnalysis, disabled: inEstimate };
+    props.sgfExport = { onClick: handleSgfExport, disabled: inEstimate };
+  } else if (!isReview) {
+    props.analyze = { onClick: enterAnalysis, disabled: inEstimate };
+  }
 
-    if (result.value && isPlayerVal) {
-      props.rematch = {
-        onConfirm: (swapColors) => {
-          const form = document.createElement("form");
-          form.method = "POST";
-          form.action = `/games/${gameId.value}/rematch`;
-          const input = document.createElement("input");
-          input.type = "hidden";
-          input.name = "swap_colors";
-          input.value = swapColors ? "true" : "false";
-          form.appendChild(input);
-          document.body.appendChild(form);
-          form.submit();
-        },
-      };
-    }
+  if (inEstimate) {
+    props.exitEstimate = {
+      onClick: exitEstimate,
+      title: inAnalysis ? "Back to analysis" : undefined,
+    };
+  } else if (isPlay && !isReview) {
+    props.estimate = { onClick: enterEstimate };
+  } else if (result.value && settledTerritory.value) {
+    props.estimate = { onClick: enterEstimate, title: "Show territory" };
+  }
+
+  if (result.value && isPlayerVal) {
+    props.rematch = {
+      onConfirm: (swapColors) => {
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = `/games/${gameId.value}/rematch`;
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "swap_colors";
+        input.value = swapColors ? "true" : "false";
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+      },
+      disabled: modeActive,
+    };
   }
 
   // Undo response popover
