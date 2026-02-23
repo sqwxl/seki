@@ -1,5 +1,4 @@
 import { GameStage, isPlayStage, type IncomingMessage } from "../goban/types";
-import type { GameCtx } from "./context";
 import type { GameChannel } from "./channel";
 import type { ClockState } from "./clock";
 import { syncClock } from "./clock";
@@ -8,32 +7,50 @@ import { updateTurnFlash, syncTerritoryCountdown } from "./ui";
 import type { TerritoryCountdown } from "./ui";
 import { notifyTurn, type NotificationState } from "./notifications";
 import { playStoneSound, playPassSound, playJoinSound } from "./sound";
+import {
+  board,
+  moves,
+  gameStage,
+  gameState,
+  playerStone,
+  analysisMode,
+  currentTurn,
+  undoResponseNeeded,
+  errorMessage,
+  territory,
+  applyGameState,
+  applyUndo,
+  addChatMessage,
+  setPresence,
+} from "./state";
 
 export type GameMessageDeps = {
-  ctx: GameCtx;
   gobanEl: () => HTMLElement | null;
   clockState: ClockState;
   territoryCountdown: TerritoryCountdown;
   channel: GameChannel;
   premove: PremoveState;
   notificationState: NotificationState;
-  rerender: () => void;
   onNewMove?: () => void;
 };
 
+// Track last-seen moves JSON for change detection
+let prevMovesJson = "[]";
+
 function syncBoardMoves(
-  ctx: GameCtx,
   playEffects: boolean,
   gobanEl: HTMLElement | null,
   onNewMove?: () => void,
 ): void {
-  if (!ctx.board) {
+  const b = board.value;
+  if (!b) {
     return;
   }
-  const newMovesJson = JSON.stringify(ctx.moves);
-  if (newMovesJson !== ctx.movesJson) {
-    if (ctx.gameStage !== GameStage.Done && playEffects) {
-      const lastMove = ctx.moves[ctx.moves.length - 1];
+  const currentMoves = moves.value;
+  const newMovesJson = JSON.stringify(currentMoves);
+  if (newMovesJson !== prevMovesJson) {
+    if (gameStage.value !== GameStage.Done && playEffects) {
+      const lastMove = currentMoves[currentMoves.length - 1];
       if (lastMove?.kind === "play") {
         playStoneSound();
       } else if (lastMove?.kind === "pass" && gobanEl) {
@@ -41,15 +58,20 @@ function syncBoardMoves(
         flashPassEffect(gobanEl);
       }
     }
-    ctx.movesJson = newMovesJson;
-    ctx.board.updateBaseMoves(ctx.movesJson);
-    ctx.board.save();
+    prevMovesJson = newMovesJson;
+    b.updateBaseMoves(prevMovesJson);
+    b.save();
     onNewMove?.();
   }
-  if (!ctx.analysisMode) {
-    ctx.board.render();
+  if (!analysisMode.value) {
+    b.render();
   }
-  ctx.board.updateNav();
+  b.updateNav();
+}
+
+/** Reset the prevMovesJson tracker (call when board loads with initial moves). */
+export function resetMovesTracker(json: string): void {
+  prevMovesJson = json;
 }
 
 export function handleGameMessage(
@@ -58,7 +80,6 @@ export function handleGameMessage(
 ): void {
   const data = raw as IncomingMessage;
   const {
-    ctx,
     clockState,
     territoryCountdown,
     channel,
@@ -71,124 +92,80 @@ export function handleGameMessage(
 
   switch (data.kind) {
     case "state": {
-      ctx.gameState = data.state;
-      ctx.gameStage = data.stage;
-      ctx.currentTurn = data.current_turn_stone;
-      ctx.moves = data.moves ?? [];
-      ctx.undoRejected = data.undo_rejected;
-      ctx.allowUndo = data.allow_undo ?? false;
-      ctx.result = data.result;
-      ctx.territory = data.territory;
-      if (ctx.territory) {
-        if (ctx.territory.black_approved && !ctx._prevBlackApproved) {
-          ctx.chatMessages.push({ text: "Black accepted the score" });
-        }
-        if (ctx.territory.white_approved && !ctx._prevWhiteApproved) {
-          ctx.chatMessages.push({ text: "White accepted the score" });
-        }
-        ctx._prevBlackApproved = ctx.territory.black_approved;
-        ctx._prevWhiteApproved = ctx.territory.white_approved;
-      }
-      ctx.settledTerritory = data.settled_territory;
-      const prevBlack = ctx.black;
-      const prevWhite = ctx.white;
-      ctx.black = data.black ?? undefined;
-      ctx.white = data.white ?? undefined;
-      if (ctx.playerStone !== 0) {
+      const { prevBlack, prevWhite } = applyGameState(data);
+
+      if (playerStone.value !== 0) {
         const opponentJoined =
-          (ctx.playerStone === 1 && !prevWhite && ctx.white) ||
-          (ctx.playerStone === -1 && !prevBlack && ctx.black);
+          (playerStone.value === 1 && !prevWhite && data.white) ||
+          (playerStone.value === -1 && !prevBlack && data.black);
         if (opponentJoined) {
           playJoinSound();
         }
       }
-      if (data.online_users) {
-        ctx.onlineUsers = new Set(data.online_users);
-      }
 
-      syncBoardMoves(ctx, true, deps.gobanEl(), onNewMove);
-      updateTurnFlash(ctx);
-      notifyTurn(ctx, notificationState);
+      syncBoardMoves(true, deps.gobanEl(), onNewMove);
+      updateTurnFlash();
+      notifyTurn(notificationState);
       syncClock(
         clockState,
         data.clock,
-        ctx,
         () => channel.timeoutFlag(),
-        deps.rerender,
       );
       syncTerritoryCountdown(
         territoryCountdown,
-        ctx.territory?.expires_at,
-        ctx,
-        deps.rerender,
+        territory.value?.expires_at,
         () => channel.territoryTimeoutFlag(),
       );
-      deps.rerender();
 
-      if (!isPlayStage(ctx.gameStage)) {
+      if (!isPlayStage(gameStage.value)) {
         premove.clear();
-      } else if (premove.value && ctx.currentTurn === ctx.playerStone) {
+      } else if (premove.value && currentTurn.value === playerStone.value) {
         const [col, row] = premove.value;
         premove.clear();
-        if (ctx.gameState.board[row * ctx.gameState.cols + col] === 0) {
+        const gs = gameState.value;
+        if (gs.board[row * gs.cols + col] === 0) {
           channel.play(col, row);
         }
-        if (ctx.board && !ctx.analysisMode && ctx.board.engine.is_at_latest()) {
-          ctx.board?.render();
+        const b = board.value;
+        if (b && !analysisMode.value && b.engine.is_at_latest()) {
+          b.render();
         }
       }
       break;
     }
     case "chat": {
-      ctx.chatMessages.push({
+      addChatMessage({
         user_id: data.player_id,
         display_name: data.display_name,
         text: data.text,
         move_number: data.move_number,
         sent_at: data.sent_at,
       });
-      deps.rerender();
       break;
     }
     case "error": {
-      ctx.errorMessage = data.message;
-      deps.rerender();
+      errorMessage.value = data.message;
       break;
     }
     case "undo_accepted":
     case "undo_rejected": {
-      ctx.undoResponseNeeded = false;
       premove.clear();
-      if (data.undo_rejected !== undefined) {
-        ctx.undoRejected = data.undo_rejected;
-      }
-      if (data.state) {
-        ctx.gameState = data.state;
-        ctx.currentTurn = data.current_turn_stone ?? null;
-        if (data.moves) {
-          ctx.moves = data.moves;
-          syncBoardMoves(ctx, false, deps.gobanEl());
-        }
-        deps.rerender();
+      applyUndo(data);
+      if (data.state && data.moves) {
+        syncBoardMoves(false, deps.gobanEl());
       }
       break;
     }
     case "undo_request_sent": {
-      deps.rerender();
+      // No state change needed — signals auto-propagate
       break;
     }
     case "undo_response_needed": {
-      ctx.undoResponseNeeded = true;
-      deps.rerender();
+      undoResponseNeeded.value = true;
       break;
     }
     case "presence": {
-      if (data.online) {
-        ctx.onlineUsers.add(data.player_id);
-      } else {
-        ctx.onlineUsers.delete(data.player_id);
-      }
-      deps.rerender();
+      setPresence(data.player_id, data.online);
       break;
     }
     default: {

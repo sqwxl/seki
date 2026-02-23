@@ -1,5 +1,6 @@
+import { signal } from "@preact/signals";
 import type { ClockData, GameSettings } from "../goban/types";
-import type { GameCtx } from "./context";
+import { initialProps } from "./state";
 
 export type ClockState = {
   data: ClockData | undefined;
@@ -14,6 +15,13 @@ export type ClockDisplay = {
   blackLow: boolean;
   whiteLow: boolean;
 };
+
+export const clockDisplay = signal<ClockDisplay>({
+  blackText: "",
+  whiteText: "",
+  blackLow: false,
+  whiteLow: false,
+});
 
 export function formatClock(ms: number, isCorrespondence: boolean): string {
   if (isCorrespondence) {
@@ -114,12 +122,14 @@ export function checkClockTimeout(
   }
 }
 
+function updateClockSignal(clockState: ClockState): void {
+  clockDisplay.value = computeClockDisplay(clockState);
+}
+
 export function syncClock(
   clockState: ClockState,
   clockData: ClockData | undefined,
-  ctx: GameCtx,
-  onFlag: (() => void) | undefined,
-  renderLabels: () => void,
+  onFlag?: () => void,
 ): void {
   clockState.data = clockData;
   clockState.syncedAt = performance.now();
@@ -128,19 +138,19 @@ export function syncClock(
     clearInterval(clockState.interval);
     clockState.interval = undefined;
   }
-  const settings = ctx.initialProps.settings;
+  const settings = initialProps.value.settings;
   if (clockState.data && clockState.data.active_stone) {
     if (onFlag) {
       checkClockTimeout(clockState, settings, onFlag);
     }
-    renderLabels();
+    updateClockSignal(clockState);
     clockState.interval = setInterval(() => {
       if (onFlag) {
         checkClockTimeout(clockState, settings, onFlag);
       }
-      renderLabels();
+      updateClockSignal(clockState);
     }, 100);
   } else {
-    renderLabels();
+    updateClockSignal(clockState);
   }
 }

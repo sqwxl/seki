@@ -1,8 +1,20 @@
 import { isPlayStage } from "../goban/types";
 import type { ScoreData } from "../goban/types";
-import type { GameCtx } from "./context";
 import type { ChatEntry } from "../components/chat";
 import { formatGameDescription, formatPoints } from "../utils/format";
+import {
+  playerStone,
+  currentTurn,
+  gameStage,
+  initialProps,
+  black,
+  white,
+  result,
+  moves,
+  addChatMessage,
+  updateChatEntry,
+  removeChatEntry,
+} from "./state";
 
 // --- Tab title flash ("YOUR MOVE") ---
 
@@ -34,11 +46,11 @@ function stopFlashing() {
   }
 }
 
-export function updateTurnFlash(ctx: GameCtx): void {
+export function updateTurnFlash(): void {
   const isMyTurn =
-    ctx.playerStone !== 0 &&
-    ctx.currentTurn === ctx.playerStone &&
-    isPlayStage(ctx.gameStage);
+    playerStone.value !== 0 &&
+    currentTurn.value === playerStone.value &&
+    isPlayStage(gameStage.value);
   if (isMyTurn && document.hidden) {
     startFlashing();
   } else {
@@ -46,15 +58,15 @@ export function updateTurnFlash(ctx: GameCtx): void {
   }
 }
 
-export function updateTitle(ctx: GameCtx): void {
+export function updateTitle(): void {
   const desc = formatGameDescription({
-    creator_id: ctx.initialProps.creator_id,
-    black: ctx.black,
-    white: ctx.white,
-    settings: ctx.initialProps.settings,
-    stage: ctx.gameStage,
-    result: ctx.result ?? undefined,
-    move_count: ctx.moves.length > 0 ? ctx.moves.length : undefined,
+    creator_id: initialProps.value.creator_id,
+    black: black.value,
+    white: white.value,
+    settings: initialProps.value.settings,
+    stage: gameStage.value,
+    result: result.value ?? undefined,
+    move_count: moves.value.length > 0 ? moves.value.length : undefined,
   });
   if (!flashInterval) {
     document.title = desc;
@@ -83,8 +95,6 @@ export type TerritoryCountdown = {
 export function syncTerritoryCountdown(
   countdown: TerritoryCountdown,
   expiresAt: string | undefined,
-  ctx: GameCtx,
-  rerender: () => void,
   onFlag: () => void,
 ): void {
   if (countdown.interval) {
@@ -95,28 +105,22 @@ export function syncTerritoryCountdown(
 
   if (expiresAt) {
     countdown.deadline = new Date(expiresAt).getTime();
-    updateTerritoryCountdown(countdown, ctx, rerender, onFlag);
+    updateTerritoryCountdown(countdown, onFlag);
     countdown.interval = setInterval(
-      () => updateTerritoryCountdown(countdown, ctx, rerender, onFlag),
+      () => updateTerritoryCountdown(countdown, onFlag),
       200,
     );
   } else {
     countdown.deadline = undefined;
     if (countdown.chatEntry) {
-      const idx = ctx.chatMessages.indexOf(countdown.chatEntry);
-      if (idx >= 0) {
-        ctx.chatMessages.splice(idx, 1);
-      }
+      removeChatEntry(countdown.chatEntry);
       countdown.chatEntry = undefined;
     }
-    rerender();
   }
 }
 
 function updateTerritoryCountdown(
   countdown: TerritoryCountdown,
-  ctx: GameCtx,
-  rerender: () => void,
   onFlag: () => void,
 ): void {
   if (!countdown.deadline) {
@@ -132,10 +136,11 @@ function updateTerritoryCountdown(
 
   if (!countdown.chatEntry) {
     const entry: ChatEntry = { text };
-    ctx.chatMessages.push(entry);
+    addChatMessage(entry);
     countdown.chatEntry = entry;
   } else {
-    countdown.chatEntry.text = text;
+    const updated = { ...countdown.chatEntry, text };
+    updateChatEntry(countdown.chatEntry, updated);
+    countdown.chatEntry = updated;
   }
-  rerender();
 }

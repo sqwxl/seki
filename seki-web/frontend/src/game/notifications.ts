@@ -1,5 +1,13 @@
 import { isPlayStage } from "../goban/types";
-import type { GameCtx } from "./context";
+import {
+  playerStone,
+  currentTurn,
+  gameStage,
+  gameId,
+  moves,
+  black,
+  white,
+} from "./state";
 import { setIcon, bellSvg, bellDisabledSvg } from "../components/icons";
 
 const STORAGE_KEY = "seki:notifications";
@@ -78,37 +86,37 @@ export function initNotificationToggle(): void {
   updateToggleIcon();
 }
 
-export function notifyTurn(ctx: GameCtx, state: NotificationState): void {
+export function notifyTurn(state: NotificationState): void {
   if (!isEnabled()) {
     return;
   }
   if (!document.hidden) {
     return;
   }
-  if (ctx.playerStone === 0) {
+  if (playerStone.value === 0) {
     return;
   }
-  if (ctx.currentTurn !== ctx.playerStone) {
+  if (currentTurn.value !== playerStone.value) {
     return;
   }
-  if (!isPlayStage(ctx.gameStage)) {
+  if (!isPlayStage(gameStage.value)) {
     return;
   }
 
-  const moveCount = ctx.moves.length;
+  const moveCount = moves.value.length;
   if (moveCount <= state.lastNotifiedMoveCount) {
     return;
   }
   state.lastNotifiedMoveCount = moveCount;
 
   const opponent =
-    ctx.playerStone === 1
-      ? (ctx.white?.display_name ?? "White")
-      : (ctx.black?.display_name ?? "Black");
+    playerStone.value === 1
+      ? (white.value?.display_name ?? "White")
+      : (black.value?.display_name ?? "Black");
 
   const n = new Notification("Your turn", {
     body: `${opponent} has played. It's your move!`,
-    tag: `seki-turn-${ctx.gameId}`,
+    tag: `seki-turn-${gameId.value}`,
   });
   n.onclick = () => {
     window.focus();
