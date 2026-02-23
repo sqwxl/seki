@@ -380,13 +380,16 @@ impl Game {
         Ok(())
     }
 
-    /// Load settled territory scores for a finished game.
-    pub async fn load_settled_scores(
+    /// Load settled territory data (dead stones + scores) for a finished game.
+    pub async fn load_settled_territory(
         executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
-    ) -> Result<Option<(i32, i32, i32, i32)>, sqlx::Error> {
-        sqlx::query_as::<_, (i32, i32, i32, i32)>(
-            "SELECT black_territory, black_captures, white_territory, white_captures \
+    ) -> Result<
+        Option<(Option<serde_json::Value>, i32, i32, i32, i32)>,
+        sqlx::Error,
+    > {
+        sqlx::query_as::<_, (Option<serde_json::Value>, i32, i32, i32, i32)>(
+            "SELECT dead_stones, black_territory, black_captures, white_territory, white_captures \
              FROM territory_reviews \
              WHERE game_id = $1 AND settled = TRUE \
              AND black_territory IS NOT NULL \

@@ -16,6 +16,12 @@ pub struct TerritoryData {
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+pub struct SettledTerritoryData {
+    pub ownership: Vec<i8>,
+    pub dead_stones: Vec<(u8, u8)>,
+    pub score: go_engine::territory::GameScore,
+}
+
 pub fn compute_territory_data(
     engine: &Engine,
     dead_stones: &HashSet<Point>,
@@ -46,7 +52,7 @@ pub fn serialize_state(
     engine: &Engine,
     undo_requested: bool,
     territory: Option<&TerritoryData>,
-    settled_score: Option<&go_engine::territory::GameScore>,
+    settled_territory: Option<&SettledTerritoryData>,
     clock: Option<(&ClockState, &TimeControl)>,
     online_users: &[i64],
 ) -> serde_json::Value {
@@ -116,16 +122,21 @@ pub fn serialize_state(
     }
 
     if territory.is_none()
-        && let Some(gs) = settled_score
+        && let Some(st) = settled_territory
     {
-        val["score"] = json!({
-            "black": {
-                "territory": gs.black.territory,
-                "captures": gs.black.captures,
-            },
-            "white": {
-                "territory": gs.white.territory,
-                "captures": gs.white.captures,
+        let dead: Vec<_> = st.dead_stones.iter().map(|&(c, r)| json!([c, r])).collect();
+        val["settled_territory"] = json!({
+            "ownership": st.ownership,
+            "dead_stones": dead,
+            "score": {
+                "black": {
+                    "territory": st.score.black.territory,
+                    "captures": st.score.black.captures,
+                },
+                "white": {
+                    "territory": st.score.white.territory,
+                    "captures": st.score.white.captures,
+                },
             },
         });
     }

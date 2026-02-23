@@ -1,6 +1,6 @@
 use crate::common::TestServer;
 
-/// 5.1 -- Black resigns: both receive stage "done", result "White+R".
+/// 5.1 -- Black resigns: both receive stage "done", result "W+R".
 #[tokio::test]
 async fn black_resigns() {
     let server = TestServer::start().await;
@@ -22,14 +22,14 @@ async fn black_resigns() {
 
     let state_b = black.recv_kind("state").await;
     assert_eq!(state_b["stage"], "done");
-    assert_eq!(state_b["result"], "White+R");
+    assert_eq!(state_b["result"], "W+R");
 
     let state_w = white.recv_kind("state").await;
     assert_eq!(state_w["stage"], "done");
-    assert_eq!(state_w["result"], "White+R");
+    assert_eq!(state_w["result"], "W+R");
 }
 
-/// 5.2 -- White resigns: both receive stage "done", result "Black+R".
+/// 5.2 -- White resigns: both receive stage "done", result "B+R".
 #[tokio::test]
 async fn white_resigns() {
     let server = TestServer::start().await;
@@ -50,11 +50,11 @@ async fn white_resigns() {
 
     let state_b = black.recv_kind("state").await;
     assert_eq!(state_b["stage"], "done");
-    assert_eq!(state_b["result"], "Black+R");
+    assert_eq!(state_b["result"], "B+R");
 
     let state_w = white.recv_kind("state").await;
     assert_eq!(state_w["stage"], "done");
-    assert_eq!(state_w["result"], "Black+R");
+    assert_eq!(state_w["result"], "B+R");
 }
 
 /// 5.3 -- Resign on opponent's turn: White resigns while it's Black's turn.
@@ -85,11 +85,11 @@ async fn resign_on_opponents_turn() {
 
     let state_b = black.recv_kind("state").await;
     assert_eq!(state_b["stage"], "done");
-    assert_eq!(state_b["result"], "Black+R");
+    assert_eq!(state_b["result"], "B+R");
 
     let state_w = white.recv_kind("state").await;
     assert_eq!(state_w["stage"], "done");
-    assert_eq!(state_w["result"], "Black+R");
+    assert_eq!(state_w["result"], "B+R");
 }
 
 /// 5.4 -- Resign an already-ended game: second resign gets an error.

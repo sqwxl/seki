@@ -106,6 +106,12 @@ export type TerritoryData = {
   expires_at?: string;
 };
 
+export type SettledTerritoryData = {
+  ownership: number[];
+  dead_stones: [number, number][];
+  score: ScoreData;
+};
+
 export type GameSettings = {
   cols: number;
   rows: number;
@@ -149,7 +155,7 @@ export type StateMessage = {
   undo_rejected: boolean;
   allow_undo?: boolean;
   territory?: TerritoryData;
-  score?: ScoreData;
+  settled_territory?: SettledTerritoryData;
   clock?: ClockData;
   online_users?: number[];
 };

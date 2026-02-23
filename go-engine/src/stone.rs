@@ -28,6 +28,13 @@ impl Stone {
             Stone::White => Stone::Black,
         }
     }
+
+    pub fn letter(self) -> &'static str {
+        match self {
+            Stone::Black => "B",
+            Stone::White => "W",
+        }
+    }
 }
 
 impl Neg for Stone {

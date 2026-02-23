@@ -113,7 +113,7 @@ impl Engine {
     fn result_from_moves(moves: &[Turn]) -> Option<String> {
         moves.last().and_then(|t| {
             if t.is_resign() {
-                Some(format!("{}+R", t.stone.opp()))
+                Some(format!("{}+R", t.stone.opp().letter()))
             } else {
                 None
             }
@@ -202,7 +202,7 @@ impl Engine {
 
     pub fn try_resign(&mut self, stone: Stone) -> Stage {
         if self.result.is_none() {
-            self.result = Some(format!("{}+R", stone.opp()));
+            self.result = Some(format!("{}+R", stone.opp().letter()));
         }
         self.stage()
     }

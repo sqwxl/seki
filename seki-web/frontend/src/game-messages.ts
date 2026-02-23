@@ -81,7 +81,7 @@ export function handleGameMessage(
         ctx._prevBlackApproved = ctx.territory.black_approved;
         ctx._prevWhiteApproved = ctx.territory.white_approved;
       }
-      ctx.settledScore = data.score;
+      ctx.settledTerritory = data.settled_territory;
       const prevBlack = ctx.black;
       const prevWhite = ctx.white;
       ctx.black = data.black ?? undefined;

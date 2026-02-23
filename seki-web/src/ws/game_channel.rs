@@ -89,22 +89,39 @@ pub async fn send_initial_state(
 
     let clock_ref = clock_data.as_ref().map(|(clock, tc)| (clock, tc));
 
-    // Load settled scores for finished games
-    let settled_score = if gwp.game.result.is_some() && territory.is_none() {
-        Game::load_settled_scores(&state.db, game_id)
+    // Load settled territory for finished games
+    let settled_territory = if gwp.game.result.is_some() && territory.is_none() {
+        Game::load_settled_territory(&state.db, game_id)
             .await
             .ok()
             .flatten()
-            .map(|(bt, bc, wt, wc)| go_engine::territory::GameScore {
-                black: go_engine::territory::PlayerPoints {
-                    territory: bt as u32,
-                    captures: bc as u32,
-                },
-                white: go_engine::territory::PlayerPoints {
-                    territory: wt as u32,
-                    captures: wc as u32,
-                },
-                komi: gwp.game.komi,
+            .map(|(dead_json, bt, bc, wt, wc)| {
+                let dead_stones_set: std::collections::HashSet<go_engine::Point> = dead_json
+                    .as_ref()
+                    .and_then(|v| serde_json::from_value::<Vec<(u8, u8)>>(v.clone()).ok())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .collect();
+                let ownership =
+                    go_engine::territory::estimate_territory(engine.goban(), &dead_stones_set);
+                let mut dead_list: Vec<(u8, u8)> =
+                    dead_stones_set.into_iter().collect();
+                dead_list.sort();
+                state_serializer::SettledTerritoryData {
+                    ownership,
+                    dead_stones: dead_list,
+                    score: go_engine::territory::GameScore {
+                        black: go_engine::territory::PlayerPoints {
+                            territory: bt as u32,
+                            captures: bc as u32,
+                        },
+                        white: go_engine::territory::PlayerPoints {
+                            territory: wt as u32,
+                            captures: wc as u32,
+                        },
+                        komi: gwp.game.komi,
+                    },
+                }
             })
     } else {
         None
@@ -116,7 +133,7 @@ pub async fn send_initial_state(
         &engine,
         undo_requested,
         territory.as_ref(),
-        settled_score.as_ref(),
+        settled_territory.as_ref(),
         clock_ref,
         &online_users,
     );
