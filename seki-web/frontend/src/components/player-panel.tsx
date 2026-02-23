@@ -18,23 +18,23 @@ export function PlayerPanel(props: PlayerPanelProps) {
   return (
     <>
       <span class="player-name-group">
-        <span class={`turn-indicator${props.isTurn ? " active" : ""}`}>
-          <IconAsterisk />
-        </span>
         <UserLabel
           name={props.name}
           stone={props.stone}
           profileUrl={props.profileUrl}
           isOnline={props.isOnline}
         />
+        <span class={`turn-indicator${props.isTurn ? " active" : ""}`}>
+          <IconAsterisk />
+        </span>
       </span>
-      <span class="player-info">
+      <span class={`player-clock${props.clockLowTime ? " low-time" : ""}`}>
+        {props.clock ?? ""}
+      </span>
+      <span class="player-captures">
+        {props.captures}
         <span class="captures-icon">
           <CapturesIcon />
-        </span>
-        <span class="player-captures">{props.captures}</span>
-        <span class={`player-clock${props.clockLowTime ? " low-time" : ""}`}>
-          {props.clock ?? ""}
         </span>
       </span>
     </>
