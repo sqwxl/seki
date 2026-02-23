@@ -18,7 +18,6 @@ import { GameDescription } from "../components/game-description";
 import {
   buildNavProps,
   buildCoordsToggle,
-  buildMoveConfirmToggle,
 } from "../utils/shared-controls";
 import type { CoordsToggleState } from "../utils/shared-controls";
 import type { PlayerPanelProps } from "../components/player-panel";
@@ -46,6 +45,7 @@ import {
   gameId,
   estimateScore,
   showMoveTree,
+  moveConfirmEnabled,
 } from "../game/state";
 
 // ---------------------------------------------------------------------------
@@ -227,7 +227,15 @@ function LiveControls({
   const props: ControlsProps = {
     nav,
     coordsToggle: buildCoordsToggle(board.value, coordsState),
-    moveConfirmToggle: buildMoveConfirmToggle(pm, board.value),
+    moveConfirmToggle: {
+      enabled: moveConfirmEnabled.value,
+      onClick: () => {
+        pm.enabled = !pm.enabled;
+        moveConfirmEnabled.value = pm.enabled;
+        pm.clear();
+        board.value?.render();
+      },
+    },
     moveTreeToggle: {
       enabled: showMoveTree.value,
       onClick: () => setMoveTree(!showMoveTree.value),

@@ -35,6 +35,7 @@ import {
   initialProps as initialPropsSignal,
   estimateScore,
   showMoveTree,
+  moveConfirmEnabled,
 } from "../game/state";
 import { LiveGamePage, getServerTerritory } from "./live-game-page";
 
@@ -75,6 +76,7 @@ export function liveGame(
   const pm = createPremove({
     getSign: () => playerStone.value as Sign,
   });
+  moveConfirmEnabled.value = pm.enabled;
 
   // --- Move tree element ---
   const moveTreeEl = document.createElement("div");
