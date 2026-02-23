@@ -1,6 +1,7 @@
 import { render, createRef } from "preact";
 import { GameStage, type InitialGameProps, type Sign } from "../goban/types";
-import { createBoard } from "../goban/create-board";
+import { createBoard, computeVertexSize } from "../goban/create-board";
+import { Goban } from "../goban";
 import type { ChatEntry } from "../components/chat";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { createPremove } from "../utils/premove";
@@ -19,8 +20,6 @@ import type { SgfMeta } from "../utils/sgf";
 import type { CoordsToggleState } from "../utils/shared-controls";
 import {
   initGameState,
-  loadGameStateCache,
-  applyCachedState,
   gameState,
   gameStage,
   currentTurn,
@@ -57,11 +56,6 @@ export function liveGame(
   console.debug("UserData", userData, "playerStone", pStone);
 
   initGameState(gameId, pStone, initialProps);
-
-  const cached = loadGameStateCache(gameId);
-  if (cached) {
-    applyCachedState(cached);
-  }
 
   const channel = createGameChannel(gameId);
   const gobanRef = createRef<HTMLDivElement>();
@@ -219,6 +213,27 @@ export function liveGame(
 
   // Initial render (before board loads)
   doRender();
+
+  // Static board preview while WASM loads
+  if (gobanRef.current) {
+    const gs = gameState.value;
+    render(
+      <Goban
+        cols={gs.cols}
+        rows={gs.rows}
+        vertexSize={computeVertexSize(
+          gobanRef.current,
+          gs.cols,
+          gs.rows,
+          coordsState.showCoordinates,
+        )}
+        signMap={gs.board}
+        showCoordinates={coordsState.showCoordinates}
+        fuzzyStonePlacement
+      />,
+      gobanRef.current,
+    );
+  }
 
   // --- Ghost stone getter ---
   function ghostStone() {

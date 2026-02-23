@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use go_engine::{Engine, Point};
+use serde::Serialize;
 use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
@@ -16,10 +17,44 @@ pub struct TerritoryData {
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[derive(Serialize)]
 pub struct SettledTerritoryData {
     pub ownership: Vec<i8>,
     pub dead_stones: Vec<(u8, u8)>,
     pub score: go_engine::territory::GameScore,
+}
+
+/// Build a `SettledTerritoryData` from raw DB tuple (dead_stones JSON, bt, bc, wt, wc).
+pub fn build_settled_territory(
+    engine: &Engine,
+    komi: f64,
+    raw: (Option<serde_json::Value>, i32, i32, i32, i32),
+) -> SettledTerritoryData {
+    let (dead_json, bt, bc, wt, wc) = raw;
+    let dead_stones_set: HashSet<Point> = dead_json
+        .as_ref()
+        .and_then(|v| serde_json::from_value::<Vec<(u8, u8)>>(v.clone()).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+    let ownership = go_engine::territory::estimate_territory(engine.goban(), &dead_stones_set);
+    let mut dead_list: Vec<(u8, u8)> = dead_stones_set.into_iter().collect();
+    dead_list.sort();
+    SettledTerritoryData {
+        ownership,
+        dead_stones: dead_list,
+        score: go_engine::territory::GameScore {
+            black: go_engine::territory::PlayerPoints {
+                territory: bt as u32,
+                captures: bc as u32,
+            },
+            white: go_engine::territory::PlayerPoints {
+                territory: wt as u32,
+                captures: wc as u32,
+            },
+            komi,
+        },
+    }
 }
 
 pub fn compute_territory_data(
@@ -124,21 +159,7 @@ pub fn serialize_state(
     if territory.is_none()
         && let Some(st) = settled_territory
     {
-        let dead: Vec<_> = st.dead_stones.iter().map(|&(c, r)| json!([c, r])).collect();
-        val["settled_territory"] = json!({
-            "ownership": st.ownership,
-            "dead_stones": dead,
-            "score": {
-                "black": {
-                    "territory": st.score.black.territory,
-                    "captures": st.score.black.captures,
-                },
-                "white": {
-                    "territory": st.score.white.territory,
-                    "captures": st.score.white.captures,
-                },
-            },
-        });
+        val["settled_territory"] = serde_json::to_value(st).unwrap_or_default();
     }
 
     if let Some((clock_state, time_control)) = clock {

@@ -68,7 +68,7 @@ function updateNavButtons(engine: WasmEngine, buttons: NavButtons): void {
   }
 }
 
-function computeVertexSize(
+export function computeVertexSize(
   gobanEl: HTMLElement,
   cols: number,
   rows: number,

@@ -210,6 +210,17 @@ pub async fn show_game(
         go_engine::Stage::Done
     };
 
+    // Load settled territory for finished games
+    let settled_territory = if gwp.game.result.is_some() {
+        Game::load_settled_territory(&state.db, id)
+            .await
+            .ok()
+            .flatten()
+            .map(|raw| state_serializer::build_settled_territory(&engine, gwp.game.komi, raw))
+    } else {
+        None
+    };
+
     let game_props = serde_json::to_string(&InitialGameProps {
         state: engine.game_state(),
         creator_id: gwp.game.creator_id,
@@ -228,6 +239,10 @@ pub async fn show_game(
             byoyomi_periods: gwp.game.byoyomi_periods,
             is_private: gwp.game.is_private,
         },
+        moves: engine.moves().to_vec(),
+        current_turn_stone: engine.current_turn_stone().to_int() as i32,
+        result: gwp.game.result.clone(),
+        settled_territory,
     })
     .unwrap();
 

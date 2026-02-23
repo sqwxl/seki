@@ -124,20 +124,6 @@ export type GameSettings = {
   is_private: boolean;
 };
 
-export type CachedGameState = {
-  state: GameState;
-  stage: GameStage;
-  current_turn_stone: number | null;
-  moves: TurnData[];
-  black: UserData | null;
-  white: UserData | null;
-  result: string | null;
-  undo_rejected: boolean;
-  allow_undo?: boolean;
-  territory?: TerritoryData;
-  settled_territory?: SettledTerritoryData;
-};
-
 // Baked into the #game element dataset as JSON on initial render
 export type InitialGameProps = {
   state: GameState;
@@ -147,6 +133,10 @@ export type InitialGameProps = {
   komi: number;
   stage: GameStage;
   settings: GameSettings;
+  moves: TurnData[];
+  current_turn_stone: number;
+  result: string | null;
+  settled_territory?: SettledTerritoryData;
 };
 
 export type ClockData = {

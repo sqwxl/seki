@@ -1,8 +1,9 @@
 use askama::Template;
-use go_engine::{GameState, Stage};
+use go_engine::{GameState, Stage, Turn};
 use serde::Serialize;
 
 use crate::services::live::GameSettings;
+use crate::services::state_serializer::SettledTerritoryData;
 
 use super::UserData;
 
@@ -15,6 +16,10 @@ pub struct InitialGameProps {
     pub komi: f64,
     pub stage: Stage,
     pub settings: GameSettings,
+    pub moves: Vec<Turn>,
+    pub current_turn_stone: i32,
+    pub result: Option<String>,
+    pub settled_territory: Option<SettledTerritoryData>,
 }
 
 #[derive(Template)]

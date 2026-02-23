@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use serde::Serialize;
+
 use crate::goban::Goban;
 use crate::stone::Stone;
 use crate::{GameState, Point};
@@ -338,7 +340,7 @@ pub fn toggle_dead_chain(goban: &Goban, dead_stones: &mut HashSet<Point>, point:
 }
 
 /// Per-color score breakdown: territory (empty points) and captures (prisoners + dead stones).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct PlayerPoints {
     pub territory: u32,
     pub captures: u32,
@@ -351,7 +353,7 @@ impl PlayerPoints {
 }
 
 /// Full score breakdown for both players.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct GameScore {
     pub black: PlayerPoints,
     pub white: PlayerPoints,

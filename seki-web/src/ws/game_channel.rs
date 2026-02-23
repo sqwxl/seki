@@ -98,33 +98,7 @@ pub async fn send_initial_state(
             .await
             .ok()
             .flatten()
-            .map(|(dead_json, bt, bc, wt, wc)| {
-                let dead_stones_set: std::collections::HashSet<go_engine::Point> = dead_json
-                    .as_ref()
-                    .and_then(|v| serde_json::from_value::<Vec<(u8, u8)>>(v.clone()).ok())
-                    .unwrap_or_default()
-                    .into_iter()
-                    .collect();
-                let ownership =
-                    go_engine::territory::estimate_territory(engine.goban(), &dead_stones_set);
-                let mut dead_list: Vec<(u8, u8)> = dead_stones_set.into_iter().collect();
-                dead_list.sort();
-                state_serializer::SettledTerritoryData {
-                    ownership,
-                    dead_stones: dead_list,
-                    score: go_engine::territory::GameScore {
-                        black: go_engine::territory::PlayerPoints {
-                            territory: bt as u32,
-                            captures: bc as u32,
-                        },
-                        white: go_engine::territory::PlayerPoints {
-                            territory: wt as u32,
-                            captures: wc as u32,
-                        },
-                        komi: gwp.game.komi,
-                    },
-                }
-            })
+            .map(|raw| state_serializer::build_settled_territory(&engine, gwp.game.komi, raw))
     } else {
         None
     };
