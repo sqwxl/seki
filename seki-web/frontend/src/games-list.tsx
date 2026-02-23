@@ -51,11 +51,13 @@ function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
 }
 
 function GamesList({ initial }: { initial?: InitMessage }) {
-  const [games, setGames] = useState<Map<number, LiveGameItem>>(
-    () => initial ? buildGamesMap(initial) : new Map(),
+  const [games, setGames] = useState<Map<number, LiveGameItem>>(() =>
+    initial ? buildGamesMap(initial) : new Map(),
   );
   const playerIdRef = useRef<number | undefined>(initial?.player_id);
-  const [playerId, setPlayerId] = useState<number | undefined>(initial?.player_id);
+  const [playerId, setPlayerId] = useState<number | undefined>(
+    initial?.player_id,
+  );
 
   useEffect(() => {
     const unsubs = [
@@ -115,10 +117,19 @@ function GamesList({ initial }: { initial?: InitMessage }) {
 
   const userGames = allGames.filter((g) => isMyGame(g) && isVisible(g));
   const openGames = allGames.filter(
-    (g) => !isMyGame(g) && !g.settings.is_private && isVisible(g) && (!g.black || !g.white),
+    (g) =>
+      !isMyGame(g) &&
+      !g.settings.is_private &&
+      isVisible(g) &&
+      (!g.black || !g.white),
   );
   const publicGames = allGames.filter(
-    (g) => !isMyGame(g) && !g.settings.is_private && isVisible(g) && g.black && g.white,
+    (g) =>
+      !isMyGame(g) &&
+      !g.settings.is_private &&
+      isVisible(g) &&
+      g.black &&
+      g.white,
   );
 
   return (
@@ -130,7 +141,9 @@ function GamesList({ initial }: { initial?: InitMessage }) {
         <ul class="games-list">
           {userGames.map((g) => (
             <li key={g.id}>
-              <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
+              <a href={`/games/${g.id}`}>
+                <GameDescription {...g} />
+              </a>
             </li>
           ))}
         </ul>
@@ -142,7 +155,9 @@ function GamesList({ initial }: { initial?: InitMessage }) {
         <ul class="games-list">
           {openGames.map((g) => (
             <li key={g.id}>
-              <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
+              <a href={`/games/${g.id}`}>
+                <GameDescription {...g} />
+              </a>
             </li>
           ))}
         </ul>
@@ -154,7 +169,9 @@ function GamesList({ initial }: { initial?: InitMessage }) {
         <ul class="games-list">
           {publicGames.map((g) => (
             <li key={g.id}>
-              <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
+              <a href={`/games/${g.id}`}>
+                <GameDescription {...g} />
+              </a>
             </li>
           ))}
         </ul>

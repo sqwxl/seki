@@ -85,9 +85,12 @@ impl TestServer {
             use tower_http::normalize_path::NormalizePathLayer;
 
             let app = NormalizePathLayer::trim_trailing_slash().layer(router);
-            axum::serve(listener, axum::ServiceExt::<Request>::into_make_service(app))
-                .await
-                .unwrap();
+            axum::serve(
+                listener,
+                axum::ServiceExt::<Request>::into_make_service(app),
+            )
+            .await
+            .unwrap();
         });
 
         // Build reqwest clients with cookie stores and log them in
@@ -204,7 +207,11 @@ impl TestServer {
             .send()
             .await
             .unwrap();
-        assert!(resp.status().is_success(), "create_game failed: {}", resp.status());
+        assert!(
+            resp.status().is_success(),
+            "create_game failed: {}",
+            resp.status()
+        );
         let body: Value = resp.json().await.unwrap();
         body["id"].as_i64().expect("game id missing from response")
     }

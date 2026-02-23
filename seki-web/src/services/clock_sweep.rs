@@ -61,9 +61,7 @@ async fn sweep(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             }
         };
-        if let Err(e) =
-            game_actions::end_game_on_time(state, &gwp, active, clock, &tc, now).await
-        {
+        if let Err(e) = game_actions::end_game_on_time(state, &gwp, active, clock, &tc, now).await {
             tracing::error!("Clock sweep: failed to end game {}: {e}", game.id);
         }
     }
@@ -103,12 +101,7 @@ async fn sweep(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Ensure territory review state exists (may have been lost on restart)
-        if state
-            .registry
-            .get_territory_review(game.id)
-            .await
-            .is_none()
-        {
+        if state.registry.get_territory_review(game.id).await.is_none() {
             let dead_stones = go_engine::territory::detect_dead_stones(engine.goban());
             state
                 .registry
@@ -121,10 +114,7 @@ async fn sweep(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
             None => continue,
         };
 
-        tracing::info!(
-            "Territory review sweep: settling game {}",
-            game.id
-        );
+        tracing::info!("Territory review sweep: settling game {}", game.id);
         if let Err(e) =
             game_actions::settle_territory(state, game.id, &gwp, &engine, &tr.dead_stones).await
         {

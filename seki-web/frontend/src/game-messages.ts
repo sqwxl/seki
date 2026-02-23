@@ -57,7 +57,15 @@ export function handleGameMessage(
   deps: GameMessageDeps,
 ): void {
   const data = raw as IncomingMessage;
-  const { ctx, clockState, territoryCountdown, channel, premove, notificationState, onNewMove } = deps;
+  const {
+    ctx,
+    clockState,
+    territoryCountdown,
+    channel,
+    premove,
+    notificationState,
+    onNewMove,
+  } = deps;
 
   console.debug("Game message:", data);
 
@@ -101,7 +109,13 @@ export function handleGameMessage(
       syncBoardMoves(ctx, true, deps.gobanEl(), onNewMove);
       updateTurnFlash(ctx);
       notifyTurn(ctx, notificationState);
-      syncClock(clockState, data.clock, ctx, () => channel.timeoutFlag(), deps.rerender);
+      syncClock(
+        clockState,
+        data.clock,
+        ctx,
+        () => channel.timeoutFlag(),
+        deps.rerender,
+      );
       syncTerritoryCountdown(
         territoryCountdown,
         ctx.territory?.expires_at,
@@ -113,10 +127,7 @@ export function handleGameMessage(
 
       if (!isPlayStage(ctx.gameStage)) {
         premove.clear();
-      } else if (
-        premove.value &&
-        ctx.currentTurn === ctx.playerStone
-      ) {
+      } else if (premove.value && ctx.currentTurn === ctx.playerStone) {
         const [col, row] = premove.value;
         premove.clear();
         if (ctx.gameState.board[row * ctx.gameState.cols + col] === 0) {
@@ -192,7 +203,11 @@ export function flashPassEffect(goban: HTMLElement): void {
   // Force reflow so re-adding the class restarts the animation
   void goban.offsetWidth;
   goban.classList.add("goban-pass-flash");
-  goban.addEventListener("animationend", () => {
-    goban.classList.remove("goban-pass-flash");
-  }, { once: true });
+  goban.addEventListener(
+    "animationend",
+    () => {
+      goban.classList.remove("goban-pass-flash");
+    },
+    { once: true },
+  );
 }

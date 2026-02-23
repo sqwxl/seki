@@ -109,7 +109,10 @@ impl WasmEngine {
     /// Returns the tip node ID of the merged line, or -1 on error/empty.
     pub fn merge_base_moves(&mut self, json: &str) -> i32 {
         match serde_json::from_str(json) {
-            Ok(moves) => self.inner.merge_base_moves(moves).map_or(-1, |id| id as i32),
+            Ok(moves) => self
+                .inner
+                .merge_base_moves(moves)
+                .map_or(-1, |id| id as i32),
             Err(_) => -1,
         }
     }
@@ -198,13 +201,11 @@ impl WasmEngine {
     /// Export the current tree as an SGF string.
     /// `meta_json` should be a JSON string with SgfMetadata fields.
     pub fn export_sgf(&self, meta_json: &str) -> String {
-        let meta: go_engine::sgf::convert::SgfMetadata =
-            serde_json::from_str(meta_json).unwrap_or_else(|_| {
-                go_engine::sgf::convert::SgfMetadata {
-                    cols: self.inner.cols(),
-                    rows: self.inner.rows(),
-                    ..Default::default()
-                }
+        let meta: go_engine::sgf::convert::SgfMetadata = serde_json::from_str(meta_json)
+            .unwrap_or_else(|_| go_engine::sgf::convert::SgfMetadata {
+                cols: self.inner.cols(),
+                rows: self.inner.rows(),
+                ..Default::default()
             });
         go_engine::sgf::convert::game_tree_to_sgf(self.inner.tree(), &meta)
     }
@@ -298,11 +299,7 @@ impl WasmEngine {
     /// Takes and returns JSON arrays of [col, row] pairs.
     pub fn toggle_dead_chain(&self, col: u8, row: u8, dead_stones_json: &str) -> String {
         let mut dead = parse_dead_stones(dead_stones_json);
-        go_engine::territory::toggle_dead_chain(
-            self.inner.engine().goban(),
-            &mut dead,
-            (col, row),
-        );
+        go_engine::territory::toggle_dead_chain(self.inner.engine().goban(), &mut dead, (col, row));
         serialize_dead_stones(&dead)
     }
 
@@ -324,9 +321,7 @@ impl WasmEngine {
         let result = gs.result();
         format!(
             r#"{{"black":{{"territory":{},"captures":{}}},"white":{{"territory":{},"captures":{}}},"result":"{}"}}"#,
-            gs.black.territory, gs.black.captures,
-            gs.white.territory, gs.white.captures,
-            result,
+            gs.black.territory, gs.black.captures, gs.white.territory, gs.white.captures, result,
         )
     }
 }

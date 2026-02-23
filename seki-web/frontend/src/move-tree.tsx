@@ -13,7 +13,10 @@ type LayoutNode = {
   row: number;
 };
 
-function layoutTree(tree: GameTreeData, branchAfterNodeId?: number): LayoutNode[] {
+function layoutTree(
+  tree: GameTreeData,
+  branchAfterNodeId?: number,
+): LayoutNode[] {
   if (tree.nodes.length === 0) {
     return [];
   }
@@ -178,9 +181,7 @@ export function MoveTree({
           );
         } else {
           // L-shaped: horizontal = down then across, vertical = across then down
-          const mid = vertical
-            ? `${x2},${y1}`
-            : `${x1},${y2}`;
+          const mid = vertical ? `${x2},${y1}` : `${x1},${y2}`;
           edges.push(
             <polyline
               key={`e-${treeNode.parent}-${node.id}`}
@@ -335,8 +336,13 @@ export function MoveTree({
           scrollBehavior: "smooth",
         }}
       >
-        <svg style={vertical ? { display: "block", marginLeft: "auto" } : undefined}
-          width={svgWidth} height={svgHeight}>
+        <svg
+          style={
+            vertical ? { display: "block", marginLeft: "auto" } : undefined
+          }
+          width={svgWidth}
+          height={svgHeight}
+        >
           {edges}
           {nodes}
         </svg>

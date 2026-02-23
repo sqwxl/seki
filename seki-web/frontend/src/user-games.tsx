@@ -32,17 +32,15 @@ function involvesUser(
 const GAMES_PER_PAGE = 10;
 
 function UserGames({ initial }: { initial?: InitialData }) {
-  const [games, setGames] = useState<Map<number, LiveGameItem>>(
-    () => {
-      const map = new Map<number, LiveGameItem>();
-      if (initial) {
-        for (const g of initial.games) {
-          map.set(g.id, g);
-        }
+  const [games, setGames] = useState<Map<number, LiveGameItem>>(() => {
+    const map = new Map<number, LiveGameItem>();
+    if (initial) {
+      for (const g of initial.games) {
+        map.set(g.id, g);
       }
-      return map;
-    },
-  );
+    }
+    return map;
+  });
   const [visibleCount, setVisibleCount] = useState(GAMES_PER_PAGE);
   const profileUserIdRef = useRef(initial?.profile_user_id);
 
@@ -113,7 +111,9 @@ function UserGames({ initial }: { initial?: InitialData }) {
       <ul class="games-list">
         {visibleGames.map((g) => (
           <li key={g.id}>
-            <a href={`/games/${g.id}`}><GameDescription {...g} /></a>
+            <a href={`/games/${g.id}`}>
+              <GameDescription {...g} />
+            </a>
           </li>
         ))}
       </ul>

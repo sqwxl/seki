@@ -7,11 +7,7 @@ use crate::common::{TestServer, WsClient};
 ///
 /// Before calling, both clients must have already joined the game room.
 /// After returning, both streams are drained of pass-related messages.
-async fn enter_territory_review(
-    game_id: i64,
-    black: &mut WsClient,
-    white: &mut WsClient,
-) -> Value {
+async fn enter_territory_review(game_id: i64, black: &mut WsClient, white: &mut WsClient) -> Value {
     // Black passes
     black.pass(game_id).await;
     let _ = black.recv_kind("state").await;
@@ -131,20 +127,33 @@ async fn both_approve_game_ends() {
     let _ = white.recv_kind("chat").await;
     let state_w = white.recv_kind("state").await;
 
-    assert_eq!(state_b["stage"], "done", "game should be done after both approve");
+    assert_eq!(
+        state_b["stage"], "done",
+        "game should be done after both approve"
+    );
     assert_eq!(state_w["stage"], "done");
 
     // Result should be a score string. With empty board and komi 0.5, white wins.
-    let result_b = state_b["result"].as_str().expect("result should be a string");
+    let result_b = state_b["result"]
+        .as_str()
+        .expect("result should be a string");
     assert!(
         result_b.contains('+'),
         "result should be a score like 'W+0.5', got: {result_b}"
     );
     // Default komi is 0.5, empty board → W+0.5
-    assert_eq!(result_b, "W+0.5", "empty board with 0.5 komi should be W+0.5");
+    assert_eq!(
+        result_b, "W+0.5",
+        "empty board with 0.5 komi should be W+0.5"
+    );
 
-    let result_w = state_w["result"].as_str().expect("result should be a string");
-    assert_eq!(result_w, result_b, "both players should see the same result");
+    let result_w = state_w["result"]
+        .as_str()
+        .expect("result should be a string");
+    assert_eq!(
+        result_w, result_b,
+        "both players should see the same result"
+    );
 }
 
 /// 7.4 — Approval reset on toggle: after one player approves, a toggle resets both approvals.

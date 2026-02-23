@@ -134,7 +134,11 @@ pub fn sgf_to_game_tree(sgf_tree: &sgf::GameTree) -> SgfConversion {
 
     walk_sgf_sequence(sgf_tree, &mut tree, None, &mut move_times);
 
-    SgfConversion { tree, metadata, move_times }
+    SgfConversion {
+        tree,
+        metadata,
+        move_times,
+    }
 }
 
 /// Walk an SGF GameTree's node sequence, adding turns to the engine tree.
@@ -382,7 +386,11 @@ mod tests {
         assert!(moves[2].is_pass());
 
         // Export and verify passes survive
-        let meta = SgfMetadata { cols: 19, rows: 19, ..Default::default() };
+        let meta = SgfMetadata {
+            cols: 19,
+            rows: 19,
+            ..Default::default()
+        };
         let output = game_tree_to_sgf(&conv.tree, &meta);
         assert!(output.contains("W[]"));
         assert!(output.contains("B[]"));
@@ -401,7 +409,11 @@ mod tests {
     #[test]
     fn empty_tree_export() {
         let tree = GameTree::new();
-        let meta = SgfMetadata { cols: 9, rows: 9, ..Default::default() };
+        let meta = SgfMetadata {
+            cols: 9,
+            rows: 9,
+            ..Default::default()
+        };
         let output = game_tree_to_sgf(&tree, &meta);
 
         assert!(output.contains("SZ[9]"));

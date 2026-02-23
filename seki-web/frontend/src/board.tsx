@@ -1,6 +1,13 @@
 import { render } from "preact";
 import { Goban } from "./goban/index";
-import type { GhostStoneData, GameTreeData, MarkerData, Point, ScoreData, Sign } from "./goban/types";
+import type {
+  GhostStoneData,
+  GameTreeData,
+  MarkerData,
+  Point,
+  ScoreData,
+  Sign,
+} from "./goban/types";
 import { MoveTree } from "./move-tree";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 import { flashPassEffect } from "./game-messages";
@@ -80,7 +87,9 @@ export type TerritoryOverlay = {
   dimmedVertices: Point[];
 };
 
-type GhostStoneGetter = () => { col: number; row: number; sign: Sign } | undefined;
+type GhostStoneGetter = () =>
+  | { col: number; row: number; sign: Sign }
+  | undefined;
 
 function renderFromEngine(
   engine: WasmEngine,
@@ -468,7 +477,11 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         overlay = serverOverlay;
         territoryInfo = { reviewing: true, finalized: false, score: undefined };
       } else {
-        territoryInfo = { reviewing: false, finalized: false, score: undefined };
+        territoryInfo = {
+          reviewing: false,
+          finalized: false,
+          score: undefined,
+        };
       }
     } else {
       territoryInfo = { reviewing: false, finalized: false, score: undefined };
@@ -504,7 +517,14 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       }
     };
 
-    renderFromEngine(engine, config.gobanEl, onVertexClick, overlay, showCoordinates, config.ghostStone);
+    renderFromEngine(
+      engine,
+      config.gobanEl,
+      onVertexClick,
+      overlay,
+      showCoordinates,
+      config.ghostStone,
+    );
 
     return territoryInfo;
   }
@@ -514,17 +534,23 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
     if (config.moveTreeEl) {
       const fIds =
-        finalizedNodes.size > 0
-          ? new Set(finalizedNodes.keys())
+        finalizedNodes.size > 0 ? new Set(finalizedNodes.keys()) : undefined;
+      const branchId =
+        config.branchAtBaseTip && baseTipNodeId >= 0
+          ? baseTipNodeId
           : undefined;
-      const branchId = config.branchAtBaseTip && baseTipNodeId >= 0
-        ? baseTipNodeId
-        : undefined;
       const treeSize = engine.tree_node_count();
-      const hasAnalysis = branchId != null
-        ? treeSize > baseMoveCount
-        : treeSize > 0;
-      renderMoveTree(engine, config.moveTreeEl, doRender, fIds, resolveTreeDirection(), branchId, hasAnalysis ? doReset : undefined);
+      const hasAnalysis =
+        branchId != null ? treeSize > baseMoveCount : treeSize > 0;
+      renderMoveTree(
+        engine,
+        config.moveTreeEl,
+        doRender,
+        fIds,
+        resolveTreeDirection(),
+        branchId,
+        hasAnalysis ? doReset : undefined,
+      );
     }
 
     if (config.navButtons) {
@@ -580,7 +606,11 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   function doPass(): boolean {
     const stage = engine.stage();
-    if (isCurrentFinalized() || stage === "territory_review" || stage === "done") {
+    if (
+      isCurrentFinalized() ||
+      stage === "territory_review" ||
+      stage === "done"
+    ) {
       return false;
     }
     if (territoryState) {
@@ -644,7 +674,6 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     );
 
     config.buttons.pass?.addEventListener("click", () => doPass(), opts);
-
   }
 
   // Keyboard navigation
@@ -684,7 +713,9 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   return {
     engine,
-    get baseTipNodeId() { return baseTipNodeId; },
+    get baseTipNodeId() {
+      return baseTipNodeId;
+    },
     restoredWithAnalysis,
     save,
     render: doRender,

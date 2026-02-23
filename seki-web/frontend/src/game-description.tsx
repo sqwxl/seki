@@ -31,7 +31,8 @@ export function GameDescription(props: LiveGameItem) {
   const w = props.white?.display_name ?? "?";
 
   // Show creator first; fall back to black vs white (e.g. SGF imports)
-  const creatorIsWhite = props.creator_id != null && props.white?.id === props.creator_id;
+  const creatorIsWhite =
+    props.creator_id != null && props.white?.id === props.creator_id;
   const first = creatorIsWhite ? w : b;
   const second = creatorIsWhite ? b : w;
   const firstStone: "black" | "white" = creatorIsWhite ? "white" : "black";
@@ -61,7 +62,8 @@ export function GameDescription(props: LiveGameItem) {
 
   return (
     <>
-      <UserLabel name={first} stone={firstStone} /> vs <UserLabel name={second} stone={secondStone} /> - {parts.join(" - ")}
+      <UserLabel name={first} stone={firstStone} /> vs{" "}
+      <UserLabel name={second} stone={secondStone} /> - {parts.join(" - ")}
     </>
   );
 }

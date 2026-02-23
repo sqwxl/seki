@@ -1,5 +1,13 @@
 import { render, createRef } from "preact";
-import { GameStage, isPlayStage, type InitialGameProps, type Point, type ScoreData, type Sign } from "./goban/types";
+import {
+  GameStage,
+  isPlayStage,
+  type InitialGameProps,
+  type Point,
+  type ScoreData,
+  type Sign,
+  type SettledTerritoryData,
+} from "./goban/types";
 import { createBoard, type TerritoryOverlay } from "./board";
 import { Chat, type ChatEntry } from "./chat";
 import { readShowCoordinates } from "./coord-toggle";
@@ -23,11 +31,19 @@ import type { SgfMeta } from "./sgf-io";
 import { GamePageLayout } from "./game-page-layout";
 import type { GamePageLayoutProps } from "./game-page-layout";
 import { GameDescription } from "./game-description";
-import { buildNavProps, buildCoordsToggle, buildMoveConfirmToggle } from "./shared-controls";
+import {
+  buildNavProps,
+  buildCoordsToggle,
+  buildMoveConfirmToggle,
+} from "./shared-controls";
 import type { CoordsToggleState } from "./shared-controls";
 import type { PlayerPanelProps } from "./player-panel";
 
-export function liveGame(initialProps: InitialGameProps, gameId: number, root: HTMLElement) {
+export function liveGame(
+  initialProps: InitialGameProps,
+  gameId: number,
+  root: HTMLElement,
+) {
   const userData = readUserData();
   const playerStone = derivePlayerStone(
     userData,
@@ -72,11 +88,24 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
 
   // --- Server territory overlay getter ---
   function getServerTerritory(): TerritoryOverlay | undefined {
-    if (ctx.gameStage !== GameStage.TerritoryReview || !ctx.territory) {
-      return undefined;
+    // Active territory review
+    if (ctx.gameStage === GameStage.TerritoryReview && ctx.territory) {
+      const paintMap = ctx.territory.ownership.map((v) => (v === 0 ? null : v));
+      const dimmedVertices: Point[] = ctx.territory.dead_stones.map(
+        ([c, r]) => [c, r] as Point,
+      );
+      return { paintMap, dimmedVertices };
     }
-    const paintMap = ctx.territory.ownership.map((v) => (v === 0 ? null : v));
-    const dimmedVertices: Point[] = ctx.territory.dead_stones.map(
+    // Settled territory overlay for finished games
+    if (ctx.estimateMode && ctx.settledTerritory) {
+      return buildSettledOverlay(ctx.settledTerritory);
+    }
+    return undefined;
+  }
+
+  function buildSettledOverlay(st: SettledTerritoryData): TerritoryOverlay {
+    const paintMap = st.ownership.map((v) => (v === 0 ? null : v));
+    const dimmedVertices: Point[] = st.dead_stones.map(
       ([c, r]) => [c, r] as Point,
     );
     return { paintMap, dimmedVertices };
@@ -122,14 +151,25 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
   function enterEstimate() {
     pm.clear();
     ctx.estimateMode = true;
-    ctx.board?.enterTerritoryReview();
+    if (ctx.settledTerritory) {
+      // Static overlay for finished games — just toggle and re-render
+      ctx.board?.render();
+      doRender();
+    } else {
+      ctx.board?.enterTerritoryReview();
+    }
   }
 
   function exitEstimate() {
     ctx.estimateMode = false;
     estimateScore = undefined;
-    ctx.board?.exitTerritoryReview();
-    doRender();
+    if (ctx.settledTerritory) {
+      ctx.board?.render();
+      doRender();
+    } else {
+      ctx.board?.exitTerritoryReview();
+      doRender();
+    }
   }
 
   // --- Vertex click handler ---
@@ -195,7 +235,10 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
   }
 
   // --- Build player panel props ---
-  function buildPlayerPanelProps(): { top: PlayerPanelProps; bottom: PlayerPanelProps } {
+  function buildPlayerPanelProps(): {
+    top: PlayerPanelProps;
+    bottom: PlayerPanelProps;
+  } {
     const { black, white } = ctx;
     const bName = black ? black.display_name : "…";
     const wName = white ? white.display_name : "…";
@@ -206,7 +249,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
     const bTurn = ctx.gameStage === GameStage.BlackToPlay;
     const wTurn = ctx.gameStage === GameStage.WhiteToPlay;
 
-    const score = estimateScore ?? ctx.territory?.score ?? ctx.settledScore;
+    const score =
+      estimateScore ?? ctx.territory?.score ?? ctx.settledTerritory?.score;
     const komi = ctx.initialProps.komi;
 
     let bStr: string;
@@ -295,10 +339,15 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
 
     if (ctx.analysisMode) {
       if (ctx.estimateMode) {
-        props.exitEstimate = { onClick: exitEstimate, title: "Back to analysis" };
+        props.exitEstimate = {
+          onClick: exitEstimate,
+          title: "Back to analysis",
+        };
       } else {
         props.pass = {
-          onClick: () => { ctx.board?.pass(); },
+          onClick: () => {
+            ctx.board?.pass();
+          },
         };
         props.exitAnalysis = { onClick: exitAnalysis };
         props.estimate = { onClick: enterEstimate };
@@ -327,10 +376,7 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
       }
 
       if (isPlayer && ctx.allowUndo && isPlay) {
-        const canUndo =
-          ctx.moves.length > 0 &&
-          !isMyTurn &&
-          !ctx.undoRejected;
+        const canUndo = ctx.moves.length > 0 && !isMyTurn && !ctx.undoRejected;
         props.requestUndo = {
           onClick: () => channel.requestUndo(),
           disabled: !canUndo,
@@ -369,6 +415,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
 
       if (isPlay && !isReview) {
         props.estimate = { onClick: enterEstimate };
+      } else if (ctx.result && ctx.settledTerritory) {
+        props.estimate = { onClick: enterEstimate, title: "Show territory" };
       }
     }
 
@@ -409,7 +457,9 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
     const titleProps = buildTitleProps();
 
     const header = (
-      <h2><GameDescription {...titleProps} /></h2>
+      <h2>
+        <GameDescription {...titleProps} />
+      </h2>
     );
 
     const sidebar = (
@@ -424,11 +474,13 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
           />
         </div>
         {showMoveTree && (
-          <div ref={(el) => {
-            if (el && !el.contains(moveTreeEl)) {
-              el.appendChild(moveTreeEl);
-            }
-          }} />
+          <div
+            ref={(el) => {
+              if (el && !el.contains(moveTreeEl)) {
+                el.appendChild(moveTreeEl);
+              }
+            }}
+          />
         )}
       </>
     );
@@ -438,25 +490,29 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
         {ctx.undoResponseNeeded && ctx.playerStone !== 0 && (
           <div class="undo-response-controls">
             <p>Opponent has requested to undo their last move.</p>
-            <button class="confirm-yes" onClick={() => {
-              ctx.undoResponseNeeded = false;
-              channel.acceptUndo();
-              doRender();
-            }}>
+            <button
+              class="confirm-yes"
+              onClick={() => {
+                ctx.undoResponseNeeded = false;
+                channel.acceptUndo();
+                doRender();
+              }}
+            >
               <IconCheck />
             </button>
-            <button class="confirm-no" onClick={() => {
-              ctx.undoResponseNeeded = false;
-              channel.rejectUndo();
-              doRender();
-            }}>
+            <button
+              class="confirm-no"
+              onClick={() => {
+                ctx.undoResponseNeeded = false;
+                channel.rejectUndo();
+                doRender();
+              }}
+            >
               <IconX />
             </button>
           </div>
         )}
-        {ctx.errorMessage && (
-          <div class="game-error">{ctx.errorMessage}</div>
-        )}
+        {ctx.errorMessage && <div class="game-error">{ctx.errorMessage}</div>}
       </>
     );
 
@@ -494,7 +550,8 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
     onPass: playPassSound,
     onRender: (engine, territory) => {
       // Auto-exit estimate when territory review gets cleared (e.g. by navigation)
-      if (ctx.estimateMode && !territory.reviewing) {
+      // Don't auto-exit for settled territory (static overlay, not WASM-driven)
+      if (ctx.estimateMode && !territory.reviewing && !ctx.settledTerritory) {
         ctx.estimateMode = false;
         estimateScore = undefined;
       }
@@ -505,7 +562,12 @@ export function liveGame(initialProps: InitialGameProps, gameId: number, root: H
       }
 
       // Auto-enter analysis when navigating away from latest game move.
-      if (ctx.board && !ctx.analysisMode && !ctx.estimateMode && engine.view_index() < ctx.moves.length) {
+      if (
+        ctx.board &&
+        !ctx.analysisMode &&
+        !ctx.estimateMode &&
+        engine.view_index() < ctx.moves.length
+      ) {
         enterAnalysis();
       }
       doRender();

@@ -8,7 +8,9 @@ use serde_json::json;
 #[tokio::test]
 async fn request_undo_accept_rollback() {
     let server = TestServer::start().await;
-    let game_id = server.create_and_join_with(json!({"allow_undo": true})).await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": true}))
+        .await;
 
     let mut black = server.ws_black().await;
     let mut white = server.ws_white().await;
@@ -50,17 +52,25 @@ async fn request_undo_accept_rollback() {
 
     // Board should no longer have the stone at (3,3)
     let board_b = accepted_b["state"]["board"].as_array().unwrap();
-    assert_eq!(board_b[30], 0, "stone at (3,3) should be removed after undo");
+    assert_eq!(
+        board_b[30], 0,
+        "stone at (3,3) should be removed after undo"
+    );
 
     let board_w = accepted_w["state"]["board"].as_array().unwrap();
-    assert_eq!(board_w[30], 0, "stone at (3,3) should be removed after undo");
+    assert_eq!(
+        board_w[30], 0,
+        "stone at (3,3) should be removed after undo"
+    );
 }
 
 /// 6.3 -- Reject undo: board retains the stone.
 #[tokio::test]
 async fn reject_undo() {
     let server = TestServer::start().await;
-    let game_id = server.create_and_join_with(json!({"allow_undo": true})).await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": true}))
+        .await;
 
     let mut black = server.ws_black().await;
     let mut white = server.ws_white().await;
@@ -90,10 +100,16 @@ async fn reject_undo() {
 
     // Board still has the stone at (3,3)
     let board_b = rejected_b["state"]["board"].as_array().unwrap();
-    assert_eq!(board_b[30], 1, "stone at (3,3) should still be present after rejection");
+    assert_eq!(
+        board_b[30], 1,
+        "stone at (3,3) should still be present after rejection"
+    );
 
     let board_w = rejected_w["state"]["board"].as_array().unwrap();
-    assert_eq!(board_w[30], 1, "stone at (3,3) should still be present after rejection");
+    assert_eq!(
+        board_w[30], 1,
+        "stone at (3,3) should still be present after rejection"
+    );
 }
 
 /// 6.4 -- Undo disabled: requesting undo on a game without allow_undo yields an error.
@@ -124,7 +140,9 @@ async fn undo_disabled() {
 #[tokio::test]
 async fn double_undo_request() {
     let server = TestServer::start().await;
-    let game_id = server.create_and_join_with(json!({"allow_undo": true})).await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": true}))
+        .await;
 
     let mut black = server.ws_black().await;
     let mut white = server.ws_white().await;
@@ -152,7 +170,9 @@ async fn double_undo_request() {
 #[tokio::test]
 async fn undo_blocked_after_rejection() {
     let server = TestServer::start().await;
-    let game_id = server.create_and_join_with(json!({"allow_undo": true})).await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": true}))
+        .await;
 
     let mut black = server.ws_black().await;
     let mut white = server.ws_white().await;
@@ -185,7 +205,9 @@ async fn undo_blocked_after_rejection() {
 #[tokio::test]
 async fn undo_allowed_after_rejection_and_new_moves() {
     let server = TestServer::start().await;
-    let game_id = server.create_and_join_with(json!({"allow_undo": true})).await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": true}))
+        .await;
 
     let mut black = server.ws_black().await;
     let mut white = server.ws_white().await;
@@ -231,7 +253,9 @@ async fn undo_allowed_after_rejection_and_new_moves() {
 #[tokio::test]
 async fn cannot_undo_pass() {
     let server = TestServer::start().await;
-    let game_id = server.create_and_join_with(json!({"allow_undo": true})).await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": true}))
+        .await;
 
     let mut black = server.ws_black().await;
     let mut white = server.ws_white().await;
@@ -254,7 +278,9 @@ async fn cannot_undo_pass() {
 #[tokio::test]
 async fn cannot_undo_opponents_move() {
     let server = TestServer::start().await;
-    let game_id = server.create_and_join_with(json!({"allow_undo": true})).await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": true}))
+        .await;
 
     let mut black = server.ws_black().await;
     let mut white = server.ws_white().await;

@@ -8,9 +8,11 @@ type UserLabelProps = {
 };
 
 export function UserLabel(props: UserLabelProps) {
-  const nameContent = props.profileUrl
-    ? <a href={props.profileUrl}>{props.name}</a>
-    : props.name;
+  const nameContent = props.profileUrl ? (
+    <a href={props.profileUrl}>{props.name}</a>
+  ) : (
+    props.name
+  );
 
   return (
     <span class="user-label">

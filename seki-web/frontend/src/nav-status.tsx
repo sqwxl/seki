@@ -29,10 +29,22 @@ function NavStatus({ user }: NavStatusProps) {
           <IconOffline />
         </span>
       )}
-      <button id="notification-toggle" type="button" title="Enable turn notifications" />
-      <UserLabel name={user.display_name} profileUrl={`/users/${user.display_name}`} />
+      <button
+        id="notification-toggle"
+        type="button"
+        title="Enable turn notifications"
+      />
+      <UserLabel
+        name={user.display_name}
+        profileUrl={`/users/${user.display_name}`}
+      />
       {user.is_registered ? (
-        <button type="button" class="nav-icon" title="Log out" onClick={handleLogout}>
+        <button
+          type="button"
+          class="nav-icon"
+          title="Log out"
+          onClick={handleLogout}
+        >
           <IconLogout />
         </button>
       ) : (

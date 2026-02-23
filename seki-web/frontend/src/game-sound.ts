@@ -13,7 +13,10 @@ function ensureContext(): AudioContext {
   return audioCtx;
 }
 
-async function loadBuffer(ctx: AudioContext, url: string): Promise<AudioBuffer> {
+async function loadBuffer(
+  ctx: AudioContext,
+  url: string,
+): Promise<AudioBuffer> {
   const cached = buffers[url];
   if (cached) {
     return cached;

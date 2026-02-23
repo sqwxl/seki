@@ -64,8 +64,7 @@ impl Replay {
             Some(id) => self.tree.moves_to(id),
             None => Vec::new(),
         };
-        self.engine =
-            Engine::with_handicap_and_moves(self.cols, self.rows, self.handicap, moves);
+        self.engine = Engine::with_handicap_and_moves(self.cols, self.rows, self.handicap, moves);
         self.history.clear();
     }
 

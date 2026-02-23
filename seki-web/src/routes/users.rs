@@ -53,7 +53,11 @@ pub async fn profile(
         profile_username: profile_user.username.clone(),
         initial_games,
         is_own_profile,
-        api_token: if is_own_profile { current_user.api_token.clone() } else { None },
+        api_token: if is_own_profile {
+            current_user.api_token.clone()
+        } else {
+            None
+        },
         flash: None,
     };
 

@@ -74,7 +74,11 @@ async fn game_removed_event_on_delete() {
         .send()
         .await
         .unwrap();
-    assert!(resp.status().is_success(), "delete failed: {}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "delete failed: {}",
+        resp.status()
+    );
 
     // Observer receives game_removed
     let msg = observer.recv_kind("game_removed").await;
@@ -104,7 +108,11 @@ async fn game_removed_event_on_abort() {
         .send()
         .await
         .unwrap();
-    assert!(resp.status().is_success(), "abort failed: {}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "abort failed: {}",
+        resp.status()
+    );
 
     // Observer receives game_removed
     let msg = observer.recv_kind("game_removed").await;

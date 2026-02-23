@@ -98,8 +98,15 @@ mod tests {
     fn nineteen_hoshi_positions() {
         let pts = handicap_points(19, 19, 9).unwrap();
         let expected = vec![
-            (3, 3), (15, 3), (3, 9), (15, 9),
-            (3, 15), (15, 15), (9, 3), (9, 15), (9, 9),
+            (3, 3),
+            (15, 3),
+            (3, 9),
+            (15, 9),
+            (3, 15),
+            (15, 15),
+            (9, 3),
+            (9, 15),
+            (9, 9),
         ];
         for p in &expected {
             assert!(pts.contains(p), "19x19: missing hoshi {p:?}");
@@ -110,8 +117,15 @@ mod tests {
     fn thirteen_hoshi_positions() {
         let pts = handicap_points(13, 13, 9).unwrap();
         let expected = vec![
-            (3, 3), (9, 3), (3, 6), (9, 6),
-            (3, 9), (9, 9), (6, 3), (6, 9), (6, 6),
+            (3, 3),
+            (9, 3),
+            (3, 6),
+            (9, 6),
+            (3, 9),
+            (9, 9),
+            (6, 3),
+            (6, 9),
+            (6, 6),
         ];
         for p in &expected {
             assert!(pts.contains(p), "13x13: missing hoshi {p:?}");

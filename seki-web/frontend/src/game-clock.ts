@@ -97,7 +97,11 @@ export function checkClockTimeout(
   settings: GameSettings,
   onFlag: () => void,
 ): void {
-  if (!clockState.data || !clockState.data.active_stone || clockState.timeoutFlagSent) {
+  if (
+    !clockState.data ||
+    !clockState.data.active_stone ||
+    clockState.timeoutFlagSent
+  ) {
     return;
   }
   const cd = clockState.data;

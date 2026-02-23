@@ -60,10 +60,7 @@ impl LiveGameItem {
 }
 
 /// Build `LiveGameItem`s from a batch of games, fetching move counts in one query.
-pub async fn build_live_items(
-    pool: &DbPool,
-    games: &[GameWithPlayers],
-) -> Vec<LiveGameItem> {
+pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<LiveGameItem> {
     let game_ids: Vec<i64> = games.iter().map(|g| g.game.id).collect();
     let counts = TurnRow::count_by_game_ids(pool, &game_ids)
         .await

@@ -7,9 +7,7 @@ export type CoordsToggleState = {
   showCoordinates: boolean;
 };
 
-export function buildNavProps(
-  board: Board | undefined,
-): ControlsProps["nav"] {
+export function buildNavProps(board: Board | undefined): ControlsProps["nav"] {
   return {
     atStart: board?.engine.is_at_start() ?? true,
     atLatest: board?.engine.is_at_latest() ?? true,

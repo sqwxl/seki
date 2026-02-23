@@ -136,7 +136,9 @@ export function GameSettingsForm({
             max={19}
             step={2}
             value={s.cols}
-            onChange={(e) => set("cols", parseInt(e.currentTarget.value, 10) || 19)}
+            onChange={(e) =>
+              set("cols", parseInt(e.currentTarget.value, 10) || 19)
+            }
           />
         </div>
         <div>
@@ -149,7 +151,9 @@ export function GameSettingsForm({
             max={10.5}
             step={0.5}
             value={s.komi}
-            onChange={(e) => set("komi", parseFloat(e.currentTarget.value) || 0.5)}
+            onChange={(e) =>
+              set("komi", parseFloat(e.currentTarget.value) || 0.5)
+            }
           />
         </div>
         <div>
@@ -162,7 +166,9 @@ export function GameSettingsForm({
             max={effectiveMax}
             step={1}
             value={s.handicap}
-            onChange={(e) => set("handicap", parseInt(e.currentTarget.value, 10) || 1)}
+            onChange={(e) =>
+              set("handicap", parseInt(e.currentTarget.value, 10) || 1)
+            }
           />
         </div>
         <div>
@@ -297,7 +303,10 @@ export function GameSettingsForm({
             Correspondence
           </label>
         </div>
-        <div id="tc-fischer" style={{ display: tcActive("fischer") ? "" : "none" }}>
+        <div
+          id="tc-fischer"
+          style={{ display: tcActive("fischer") ? "" : "none" }}
+        >
           <div>
             <label for="main_time_minutes">Main time (minutes)</label>
             <input
@@ -308,7 +317,12 @@ export function GameSettingsForm({
               max={180}
               value={s.mainTimeMinutes}
               disabled={!tcActive("fischer")}
-              onChange={(e) => set("mainTimeMinutes", parseInt(e.currentTarget.value, 10) || 10)}
+              onChange={(e) =>
+                set(
+                  "mainTimeMinutes",
+                  parseInt(e.currentTarget.value, 10) || 10,
+                )
+              }
             />
           </div>
           <div>
@@ -321,11 +335,16 @@ export function GameSettingsForm({
               max={60}
               value={s.incrementSecs}
               disabled={!tcActive("fischer")}
-              onChange={(e) => set("incrementSecs", parseInt(e.currentTarget.value, 10) || 5)}
+              onChange={(e) =>
+                set("incrementSecs", parseInt(e.currentTarget.value, 10) || 5)
+              }
             />
           </div>
         </div>
-        <div id="tc-byoyomi" style={{ display: tcActive("byoyomi") ? "" : "none" }}>
+        <div
+          id="tc-byoyomi"
+          style={{ display: tcActive("byoyomi") ? "" : "none" }}
+        >
           <div>
             <label for="byo_main_time_minutes">Main time (minutes)</label>
             <input
@@ -336,7 +355,12 @@ export function GameSettingsForm({
               max={180}
               value={s.byoMainTimeMinutes}
               disabled={!tcActive("byoyomi")}
-              onChange={(e) => set("byoMainTimeMinutes", parseInt(e.currentTarget.value, 10) || 20)}
+              onChange={(e) =>
+                set(
+                  "byoMainTimeMinutes",
+                  parseInt(e.currentTarget.value, 10) || 20,
+                )
+              }
             />
           </div>
           <div>
@@ -349,7 +373,12 @@ export function GameSettingsForm({
               max={120}
               value={s.byoyomiTimeSecs}
               disabled={!tcActive("byoyomi")}
-              onChange={(e) => set("byoyomiTimeSecs", parseInt(e.currentTarget.value, 10) || 30)}
+              onChange={(e) =>
+                set(
+                  "byoyomiTimeSecs",
+                  parseInt(e.currentTarget.value, 10) || 30,
+                )
+              }
             />
           </div>
           <div>
@@ -362,11 +391,16 @@ export function GameSettingsForm({
               max={10}
               value={s.byoyomiPeriods}
               disabled={!tcActive("byoyomi")}
-              onChange={(e) => set("byoyomiPeriods", parseInt(e.currentTarget.value, 10) || 3)}
+              onChange={(e) =>
+                set("byoyomiPeriods", parseInt(e.currentTarget.value, 10) || 3)
+              }
             />
           </div>
         </div>
-        <div id="tc-correspondence" style={{ display: tcActive("correspondence") ? "" : "none" }}>
+        <div
+          id="tc-correspondence"
+          style={{ display: tcActive("correspondence") ? "" : "none" }}
+        >
           <div>
             <label for="correspondence_days">Days per move</label>
             <input
@@ -377,7 +411,12 @@ export function GameSettingsForm({
               max={14}
               value={s.correspondenceDays}
               disabled={!tcActive("correspondence")}
-              onChange={(e) => set("correspondenceDays", parseInt(e.currentTarget.value, 10) || 3)}
+              onChange={(e) =>
+                set(
+                  "correspondenceDays",
+                  parseInt(e.currentTarget.value, 10) || 3,
+                )
+              }
             />
           </div>
         </div>

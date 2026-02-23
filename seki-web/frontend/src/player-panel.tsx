@@ -1,7 +1,4 @@
-import {
-  CapturesBlack, CapturesWhite,
-  IconAsterisk,
-} from "./icons";
+import { CapturesBlack, CapturesWhite, IconAsterisk } from "./icons";
 import { UserLabel } from "./user-label";
 
 export type PlayerPanelProps = {
@@ -32,7 +29,9 @@ export function PlayerPanel(props: PlayerPanelProps) {
         />
       </span>
       <span class="player-info">
-        <span class="captures-icon"><CapturesIcon /></span>
+        <span class="captures-icon">
+          <CapturesIcon />
+        </span>
         <span class="player-captures">{props.captures}</span>
         <span class={`player-clock${props.clockLowTime ? " low-time" : ""}`}>
           {props.clock ?? ""}
@@ -41,4 +40,3 @@ export function PlayerPanel(props: PlayerPanelProps) {
     </>
   );
 }
-

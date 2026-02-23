@@ -154,4 +154,3 @@ pub fn serialize_state(
 fn current_turn_stone(engine: &Engine) -> i32 {
     engine.current_turn_stone().to_int() as i32
 }
-

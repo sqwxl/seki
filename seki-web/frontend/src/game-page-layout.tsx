@@ -17,7 +17,9 @@ export type GamePageLayoutProps = {
 };
 
 export function GamePageLayout(props: GamePageLayoutProps) {
-  const gobanClass = ["goban-container", props.gobanClass].filter(Boolean).join(" ");
+  const gobanClass = ["goban-container", props.gobanClass]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <>

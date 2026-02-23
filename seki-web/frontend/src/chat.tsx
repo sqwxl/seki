@@ -74,15 +74,17 @@ function SenderLabel(props: {
   }
   const name = entry.display_name ?? "?";
   return (
-    <UserLabel
-      name={name}
-      profileUrl={`/users/${name}`}
-      isOnline={isOnline}
-    />
+    <UserLabel name={name} profileUrl={`/users/${name}`} isOnline={isOnline} />
   );
 }
 
-export function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps) {
+export function Chat({
+  messages,
+  onlineUsers,
+  black,
+  white,
+  onSend,
+}: ChatProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -111,13 +113,20 @@ export function Chat({ messages, onlineUsers, black, white, onSend }: ChatProps)
       <div class="chat-box" ref={boxRef}>
         {messages.map((entry, i) => {
           const prefix = formatPrefix(entry);
-          const isOnline = entry.user_id != null && onlineUsers.has(entry.user_id);
+          const isOnline =
+            entry.user_id != null && onlineUsers.has(entry.user_id);
           return (
             <p key={i}>
               {prefix}
               <strong>
-                <SenderLabel entry={entry} black={black} white={white} isOnline={isOnline} />
-              </strong>: {entry.text}
+                <SenderLabel
+                  entry={entry}
+                  black={black}
+                  white={white}
+                  isOnline={isOnline}
+                />
+              </strong>
+              : {entry.text}
             </p>
           );
         })}

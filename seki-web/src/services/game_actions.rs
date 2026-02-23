@@ -6,8 +6,8 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
 use crate::models::message::Message;
-use crate::models::user::User;
 use crate::models::turn::TurnRow;
+use crate::models::user::User;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
 
@@ -159,7 +159,13 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
             .registry
             .init_territory_review(game_id, dead_stones)
             .await;
-        broadcast_system_chat(state, game_id, "Territory review has begun", Some(engine.moves().len() as i32)).await;
+        broadcast_system_chat(
+            state,
+            game_id,
+            "Territory review has begun",
+            Some(engine.moves().len() as i32),
+        )
+        .await;
     }
 
     broadcast_game_state(state, &gwp, &engine).await;
@@ -328,7 +334,13 @@ pub async fn settle_territory(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    broadcast_system_chat(state, game_id, &format!("Game over. {result}"), Some(engine.moves().len() as i32)).await;
+    broadcast_system_chat(
+        state,
+        game_id,
+        &format!("Game over. {result}"),
+        Some(engine.moves().len() as i32),
+    )
+    .await;
     broadcast_game_state(state, &gwp, &engine).await;
 
     Ok(())
@@ -636,7 +648,12 @@ pub async fn respond_to_undo(
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
         let turns = engine_builder::convert_turns(&db_turns);
-        let engine = Engine::with_handicap_and_moves(game.cols as u8, game.rows as u8, game.handicap as u8, turns);
+        let engine = Engine::with_handicap_and_moves(
+            game.cols as u8,
+            game.rows as u8,
+            game.handicap as u8,
+            turns,
+        );
 
         persist_stage(&mut *tx, game_id, &engine).await?;
         engine_builder::cache_engine_state(&mut *tx, game_id, &engine, db_turns.len() as i64, None)
@@ -686,7 +703,13 @@ pub async fn respond_to_undo(
     } else {
         format!("{responding_name} rejected the undo request")
     };
-    broadcast_system_chat(state, game_id, &message, Some(result.engine.moves().len() as i32)).await;
+    broadcast_system_chat(
+        state,
+        game_id,
+        &message,
+        Some(result.engine.moves().len() as i32),
+    )
+    .await;
 
     // Notify both users with updated state
     let kind = if result.accepted {

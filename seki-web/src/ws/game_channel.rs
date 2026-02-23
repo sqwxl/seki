@@ -104,8 +104,7 @@ pub async fn send_initial_state(
                     .collect();
                 let ownership =
                     go_engine::territory::estimate_territory(engine.goban(), &dead_stones_set);
-                let mut dead_list: Vec<(u8, u8)> =
-                    dead_stones_set.into_iter().collect();
+                let mut dead_list: Vec<(u8, u8)> = dead_stones_set.into_iter().collect();
                 dead_list.sort();
                 state_serializer::SettledTerritoryData {
                     ownership,

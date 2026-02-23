@@ -18,9 +18,7 @@ function formatN(n: number): string {
 
 export function formatPoints(bTotal: number, wTotal: number, komi: number) {
   const bStr = formatN(bTotal);
-  const wStr = komi
-    ? `${formatN(wTotal)}+${formatN(komi)}`
-    : formatN(wTotal);
+  const wStr = komi ? `${formatN(wTotal)}+${formatN(komi)}` : formatN(wTotal);
   return { bStr, wStr };
 }
 
@@ -66,7 +64,10 @@ export function formatTimeControl(s: GameSettings): string | undefined {
 }
 
 /** Format SGF time metadata (TM + OT) into a readable string. */
-export function formatSgfTime(timeLimitSecs?: number, overtime?: string): string | undefined {
+export function formatSgfTime(
+  timeLimitSecs?: number,
+  overtime?: string,
+): string | undefined {
   if (timeLimitSecs == null && !overtime) {
     return undefined;
   }
@@ -81,7 +82,10 @@ export function formatSgfTime(timeLimitSecs?: number, overtime?: string): string
 }
 
 /** Convert GameSettings time control to SGF TM/OT fields. */
-export function settingsToSgfTime(s: GameSettings): { time_limit_secs?: number; overtime?: string } {
+export function settingsToSgfTime(s: GameSettings): {
+  time_limit_secs?: number;
+  overtime?: string;
+} {
   switch (s.time_control) {
     case "none":
       return {};
@@ -129,8 +133,12 @@ export function formatGameDescription(g: DescriptionInput): string {
   const w = g.white?.display_name ?? "?";
 
   const creatorIsWhite = g.creator_id != null && g.white?.id === g.creator_id;
-  const first = creatorIsWhite ? `${w} ${whiteSymbol()}` : `${b} ${blackSymbol()}`;
-  const second = creatorIsWhite ? `${b} ${blackSymbol()}` : `${w} ${whiteSymbol()}`;
+  const first = creatorIsWhite
+    ? `${w} ${whiteSymbol()}`
+    : `${b} ${blackSymbol()}`;
+  const second = creatorIsWhite
+    ? `${b} ${blackSymbol()}`
+    : `${w} ${whiteSymbol()}`;
 
   const parts: string[] = [
     `${first} vs ${second}`,

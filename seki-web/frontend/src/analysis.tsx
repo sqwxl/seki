@@ -17,7 +17,11 @@ import { playStoneSound, playPassSound } from "./game-sound";
 import { formatScoreStr } from "./game-ui";
 import type { PlayerPanelProps } from "./player-panel";
 import { createPremove } from "./premove";
-import { buildNavProps, buildCoordsToggle, buildMoveConfirmToggle } from "./shared-controls";
+import {
+  buildNavProps,
+  buildCoordsToggle,
+  buildMoveConfirmToggle,
+} from "./shared-controls";
 import type { CoordsToggleState } from "./shared-controls";
 import { readFileAsText, downloadSgf } from "./sgf-io";
 import type { SgfMeta } from "./sgf-io";
@@ -71,7 +75,9 @@ export function initAnalysis(root: HTMLElement) {
   if (savedMeta) {
     try {
       sgfMeta = JSON.parse(savedMeta);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   sgfText = localStorage.getItem(SGF_TEXT_KEY) ?? undefined;
 
@@ -159,7 +165,11 @@ export function initAnalysis(root: HTMLElement) {
         {sgfMeta && <p>{formatSgfDescription(sgfMeta)}</p>}
         <div style="margin-bottom: 0.5em">
           <label for="board-size">Board size: </label>
-          <select id="board-size" value={String(currentSize)} onChange={handleSizeChange}>
+          <select
+            id="board-size"
+            value={String(currentSize)}
+            onChange={handleSizeChange}
+          >
             <option value="9">9×9</option>
             <option value="13">13×13</option>
             <option value="19">19×19</option>
@@ -175,11 +185,15 @@ export function initAnalysis(root: HTMLElement) {
       playerTop: playerTopProps,
       playerBottom: playerBottomProps,
       controls: buildControls(),
-      sidebar: <div ref={(el) => {
-        if (el && !el.contains(moveTreeEl)) {
-          el.appendChild(moveTreeEl);
-        }
-      }} />,
+      sidebar: (
+        <div
+          ref={(el) => {
+            if (el && !el.contains(moveTreeEl)) {
+              el.appendChild(moveTreeEl);
+            }
+          }}
+        />
+      ),
     };
 
     render(<GamePageLayout {...props} />, root);
@@ -269,7 +283,8 @@ export function initAnalysis(root: HTMLElement) {
           }
         }
         if (!bClock && !wClock) {
-          const fallback = formatSgfTime(sgfMeta?.time_limit_secs, sgfMeta?.overtime) ?? "";
+          const fallback =
+            formatSgfTime(sgfMeta?.time_limit_secs, sgfMeta?.overtime) ?? "";
           bClock = fallback;
           wClock = fallback;
         }
@@ -365,8 +380,9 @@ export function initAnalysis(root: HTMLElement) {
       overtime: sgfMeta?.overtime,
     };
     const sgf = board.engine.export_sgf(JSON.stringify(meta));
-    const filename = sgfMeta?.game_name
-      ?? (sgfMeta?.black_name && sgfMeta?.white_name
+    const filename =
+      sgfMeta?.game_name ??
+      (sgfMeta?.black_name && sgfMeta?.white_name
         ? `${sgfMeta.black_name}-vs-${sgfMeta.white_name}`
         : "analysis");
     downloadSgf(sgf, `${filename}.sgf`);

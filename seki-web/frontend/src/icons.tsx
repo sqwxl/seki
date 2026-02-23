@@ -14,38 +14,71 @@ export function useDarkMode(): boolean {
 
 // Raw SVG markup strings (no dark-mode logic)
 
-export const circleFilledSvg = '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>';
+export const circleFilledSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"/></svg>';
 
-export const circleNofillSvg = '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
+export const circleNofillSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"/></svg>';
 
-export const nigiriSvg = '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM520-163q119-15 199.5-104.5T800-480q0-123-80.5-212.5T520-797v634Z"/></svg>';
+export const nigiriSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM520-163q119-15 199.5-104.5T800-480q0-123-80.5-212.5T520-797v634Z"/></svg>';
 
-export const capturesFilledSvg = '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M567-167q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47ZM167-287q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Zm160-320q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Z"/></svg>';
+export const capturesFilledSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M567-167q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47ZM167-287q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Zm160-320q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Z"/></svg>';
 
-export const capturesNofillSvg = '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M567-167q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Zm169.5-56.5Q760-247 760-280t-23.5-56.5Q713-360 680-360t-56.5 23.5Q600-313 600-280t23.5 56.5Q647-200 680-200t56.5-23.5ZM167-287q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Zm169.5-56.5Q360-367 360-400t-23.5-56.5Q313-480 280-480t-56.5 23.5Q200-433 200-400t23.5 56.5Q247-320 280-320t56.5-23.5ZM327-607q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Zm169.5-56.5Q520-687 520-720t-23.5-56.5Q473-800 440-800t-56.5 23.5Q360-753 360-720t23.5 56.5Q407-640 440-640t56.5-23.5ZM680-280ZM280-400Zm160-320Z"/></svg>';
+export const capturesNofillSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor"><path d="M567-167q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Zm169.5-56.5Q760-247 760-280t-23.5-56.5Q713-360 680-360t-56.5 23.5Q600-313 600-280t23.5 56.5Q647-200 680-200t56.5-23.5ZM167-287q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Zm169.5-56.5Q360-367 360-400t-23.5-56.5Q313-480 280-480t-56.5 23.5Q200-433 200-400t23.5 56.5Q247-320 280-320t56.5-23.5ZM327-607q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47Zm169.5-56.5Q520-687 520-720t-23.5-56.5Q473-800 440-800t-56.5 23.5Q360-753 360-720t23.5 56.5Q407-640 440-640t56.5-23.5ZM680-280ZM280-400Zm160-320Z"/></svg>';
 
 // Dark-mode-aware Preact components
 // NOTE: dangerouslySetInnerHTML is safe here - SVG content is hardcoded constants, not user input
 
 export function StoneBlack() {
   const dark = useDarkMode();
-  return <span class="icon" dangerouslySetInnerHTML={{ __html: dark ? circleNofillSvg : circleFilledSvg }} />;
+  return (
+    <span
+      class="icon"
+      dangerouslySetInnerHTML={{
+        __html: dark ? circleNofillSvg : circleFilledSvg,
+      }}
+    />
+  );
 }
 
 export function StoneWhite() {
   const dark = useDarkMode();
-  return <span class="icon" dangerouslySetInnerHTML={{ __html: dark ? circleFilledSvg : circleNofillSvg }} />;
+  return (
+    <span
+      class="icon"
+      dangerouslySetInnerHTML={{
+        __html: dark ? circleFilledSvg : circleNofillSvg,
+      }}
+    />
+  );
 }
 
 // Captures show opponent's color (black captures white stones, white captures black stones)
 export function CapturesBlack() {
   const dark = useDarkMode();
-  return <span class="icon" dangerouslySetInnerHTML={{ __html: dark ? capturesFilledSvg : capturesNofillSvg }} />;
+  return (
+    <span
+      class="icon"
+      dangerouslySetInnerHTML={{
+        __html: dark ? capturesFilledSvg : capturesNofillSvg,
+      }}
+    />
+  );
 }
 
 export function CapturesWhite() {
   const dark = useDarkMode();
-  return <span class="icon" dangerouslySetInnerHTML={{ __html: dark ? capturesNofillSvg : capturesFilledSvg }} />;
+  return (
+    <span
+      class="icon"
+      dangerouslySetInnerHTML={{
+        __html: dark ? capturesNofillSvg : capturesFilledSvg,
+      }}
+    />
+  );
 }
 
 // Imperative helpers (for DOM contexts that can't use Preact components)
@@ -68,11 +101,15 @@ export function capturesWhiteSvg(): string {
 
 // Re-render stone/captures icons when system theme changes
 darkQuery.addEventListener("change", () => {
-  for (const el of document.querySelectorAll<HTMLElement>(".stone-icon[data-stone]")) {
+  for (const el of document.querySelectorAll<HTMLElement>(
+    ".stone-icon[data-stone]",
+  )) {
     const stone = el.dataset.stone;
     el.innerHTML = stone === "black" ? stoneBlackSvg() : stoneWhiteSvg(); // safe: hardcoded SVG constants
   }
-  for (const el of document.querySelectorAll<HTMLElement>(".captures-icon[data-stone]")) {
+  for (const el of document.querySelectorAll<HTMLElement>(
+    ".captures-icon[data-stone]",
+  )) {
     const stone = el.dataset.stone;
     el.innerHTML = stone === "black" ? capturesBlackSvg() : capturesWhiteSvg(); // safe: hardcoded SVG constants
   }
@@ -81,7 +118,8 @@ darkQuery.addEventListener("change", () => {
 // --- Control icon SVG strings ---
 // All use fill="currentColor" to inherit text color, no dark-mode swapping needed
 
-const svgOpen = '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">';
+const svgOpen =
+  '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">';
 
 export const analysisSvg = `${svgOpen}<path d="M240-120q-17 0-28.5-11.5T200-160q0-17 11.5-28.5T240-200h160v-80q-83 0-141.5-58.5T200-480q0-57 29-105t80-73q-4 22 1.5 43t17.5 40q-23 16-35.5 41T280-480q0 50 35 85t85 35h280q17 0 28.5 11.5T720-320q0 17-11.5 28.5T680-280H520v80h200q17 0 28.5 11.5T760-160q0 17-11.5 28.5T720-120H240Zm308-394h-1q-16 6-30.5-.5T496-537l-6-16q20-16 31-38.5t11-48.5q0-47-33-79.5T418-752l-5-13q-5-16 1.5-30.5T437-816h1q-6-15 1-29.5t24-20.5q15-5 29.5 1.5T512-842q16-6 31 1t21 23l82 225q6 16-.5 30.5T623-542h-1q6 16-1 31t-24 21q-15 5-29.5-1.5T548-514Zm-179-75q-21-21-21-51t21-51q21-21 51-21t51 21q21 21 21 51t-21 51q-21 21-51 21t-51-21Z"/></svg>`;
 

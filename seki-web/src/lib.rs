@@ -70,11 +70,9 @@ pub async fn build_router(pool: db::DbPool, session_secure: bool) -> (Router, Ap
                     axum::http::header::CACHE_CONTROL,
                     axum::http::HeaderValue::from_static("no-cache"),
                 ))
-                .service(ServeDir::new(
-                    std::env::var("STATIC_DIR").unwrap_or_else(|_| {
-                        concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()
-                    }),
-                )),
+                .service(ServeDir::new(std::env::var("STATIC_DIR").unwrap_or_else(
+                    |_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string(),
+                ))),
         )
         .layer(session_layer)
         .with_state(state.clone());

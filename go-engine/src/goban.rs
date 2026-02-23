@@ -269,9 +269,11 @@ impl Goban {
 
     /// Check whether a chain has at least one liberty, without allocating.
     fn chain_has_any_liberty(&self, chain: &[Point]) -> bool {
-        chain
-            .iter()
-            .any(|&p| self.neighbors(p).iter().any(|&n| self.stone_at(n).is_none()))
+        chain.iter().any(|&p| {
+            self.neighbors(p)
+                .iter()
+                .any(|&n| self.stone_at(n).is_none())
+        })
     }
 
     /// Single flood-fill that returns both chain members and liberty positions.
