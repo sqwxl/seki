@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "preact/hooks";
-import type { UserData } from "./goban/types";
+import { UserData } from "../utils/format";
 import { IconSend } from "./icons";
 import { UserLabel } from "./user-label";
 

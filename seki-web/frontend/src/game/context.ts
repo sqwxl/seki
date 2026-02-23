@@ -6,9 +6,9 @@ import type {
   SettledTerritoryData,
   TerritoryData,
   TurnData,
-} from "./goban/types";
-import type { Board } from "./board";
-import type { ChatEntry } from "./chat";
+} from "../goban/types";
+import type { Board } from "../goban/create-board";
+import type { ChatEntry } from "../components/chat";
 
 export type GameCtx = {
   // Immutable config (set once)

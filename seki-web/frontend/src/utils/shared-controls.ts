@@ -1,5 +1,5 @@
-import type { Board, NavAction } from "./board";
-import type { ControlsProps } from "./controls";
+import type { Board, NavAction } from "../goban/create-board";
+import type { ControlsProps } from "../components/controls";
 import { toggleShowCoordinates } from "./coord-toggle";
 import type { PremoveState } from "./premove";
 

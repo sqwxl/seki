@@ -1,4 +1,4 @@
-import type { GameSettings, ScoreData, UserData } from "./goban/types";
+import type { GameSettings, ScoreData, UserData } from "../goban/types";
 
 export type { GameSettings, UserData };
 

@@ -1,8 +1,8 @@
 import type { ComponentChildren, Ref } from "preact";
-import { PlayerPanel } from "./player-panel";
-import type { PlayerPanelProps } from "./player-panel";
-import { Controls } from "./controls";
-import type { ControlsProps } from "./controls";
+import { PlayerPanel } from "../components/player-panel";
+import type { PlayerPanelProps } from "../components/player-panel";
+import { Controls } from "../components/controls";
+import type { ControlsProps } from "../components/controls";
 
 export type GamePageLayoutProps = {
   header?: ComponentChildren;

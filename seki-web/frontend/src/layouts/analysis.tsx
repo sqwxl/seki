@@ -1,8 +1,8 @@
 import { render, createRef } from "preact";
-import { createBoard, ensureWasm } from "./board";
-import type { Board } from "./board";
-import type { ControlsProps } from "./controls";
-import { readShowCoordinates } from "./coord-toggle";
+import { createBoard, ensureWasm } from "../goban/create-board";
+import type { Board } from "../goban/create-board";
+import type { ControlsProps } from "../components/controls";
+import { readShowCoordinates } from "../utils/coord-toggle";
 import {
   blackSymbol,
   whiteSymbol,
@@ -10,22 +10,22 @@ import {
   formatSize,
   formatSgfTime,
   formatTime,
-} from "./format";
+} from "../utils/format";
 import { GamePageLayout } from "./game-page-layout";
 import type { GamePageLayoutProps } from "./game-page-layout";
-import { playStoneSound, playPassSound } from "./game-sound";
-import { formatScoreStr } from "./game-ui";
-import type { PlayerPanelProps } from "./player-panel";
-import { createPremove } from "./premove";
+import { playStoneSound, playPassSound } from "../game/sound";
+import { formatScoreStr } from "../game/ui";
+import type { PlayerPanelProps } from "../components/player-panel";
+import { createPremove } from "../utils/premove";
 import {
   buildNavProps,
   buildCoordsToggle,
   buildMoveConfirmToggle,
-} from "./shared-controls";
-import type { CoordsToggleState } from "./shared-controls";
-import { readFileAsText, downloadSgf } from "./sgf-io";
-import type { SgfMeta } from "./sgf-io";
-import type { Sign } from "./goban/types";
+} from "../utils/shared-controls";
+import type { CoordsToggleState } from "../utils/shared-controls";
+import { readFileAsText, downloadSgf } from "../utils/sgf";
+import type { SgfMeta } from "../utils/sgf";
+import type { Sign } from "../goban/types";
 
 const SIZE_KEY = "seki:analysis:size";
 const SGF_META_KEY = "seki:analysis:sgfMeta";

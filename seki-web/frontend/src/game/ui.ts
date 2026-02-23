@@ -1,8 +1,8 @@
-import { isPlayStage } from "./goban/types";
-import type { ScoreData } from "./goban/types";
-import type { GameCtx } from "./game-context";
-import type { ChatEntry } from "./chat";
-import { formatGameDescription, formatPoints } from "./format";
+import { isPlayStage } from "../goban/types";
+import type { ScoreData } from "../goban/types";
+import type { GameCtx } from "./context";
+import type { ChatEntry } from "../components/chat";
+import { formatGameDescription, formatPoints } from "../utils/format";
 
 // --- Tab title flash ("YOUR MOVE") ---
 

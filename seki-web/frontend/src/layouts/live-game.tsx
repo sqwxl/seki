@@ -7,37 +7,37 @@ import {
   type ScoreData,
   type Sign,
   type SettledTerritoryData,
-} from "./goban/types";
-import { createBoard, type TerritoryOverlay } from "./board";
-import { Chat, type ChatEntry } from "./chat";
-import { readShowCoordinates } from "./coord-toggle";
-import { createPremove } from "./premove";
-import type { ControlsProps } from "./controls";
-import { settingsToSgfTime, formatResult, formatPoints } from "./format";
-import { IconCheck, IconX } from "./icons";
-import { joinGame } from "./live";
-import { createGameContext } from "./game-context";
-import { createGameChannel } from "./game-channel";
-import { formatScoreStr, updateTurnFlash, updateTitle } from "./game-ui";
-import type { TerritoryCountdown } from "./game-ui";
-import { handleGameMessage } from "./game-messages";
-import type { ClockState } from "./game-clock";
-import { computeClockDisplay } from "./game-clock";
-import { readUserData, derivePlayerStone } from "./game-util";
-import { createNotificationState } from "./game-notifications";
-import { playStoneSound, playPassSound } from "./game-sound";
-import { downloadSgf } from "./sgf-io";
-import type { SgfMeta } from "./sgf-io";
+} from "../goban/types";
+import { createBoard, type TerritoryOverlay } from "../goban/create-board";
+import { Chat, type ChatEntry } from "../components/chat";
+import { readShowCoordinates } from "../utils/coord-toggle";
+import { createPremove } from "../utils/premove";
+import type { ControlsProps } from "../components/controls";
+import { settingsToSgfTime, formatResult, formatPoints } from "../utils/format";
+import { IconCheck, IconX } from "../components/icons";
+import { joinGame } from "../ws";
+import { createGameContext } from "../game/context";
+import { createGameChannel } from "../game/channel";
+import { formatScoreStr, updateTurnFlash, updateTitle } from "../game/ui";
+import type { TerritoryCountdown } from "../game/ui";
+import { handleGameMessage } from "../game/messages";
+import type { ClockState } from "../game/clock";
+import { computeClockDisplay } from "../game/clock";
+import { readUserData, derivePlayerStone } from "../game/util";
+import { createNotificationState } from "../game/notifications";
+import { playStoneSound, playPassSound } from "../game/sound";
+import { downloadSgf } from "../utils/sgf";
+import type { SgfMeta } from "../utils/sgf";
 import { GamePageLayout } from "./game-page-layout";
 import type { GamePageLayoutProps } from "./game-page-layout";
-import { GameDescription } from "./game-description";
+import { GameDescription } from "../components/game-description";
 import {
   buildNavProps,
   buildCoordsToggle,
   buildMoveConfirmToggle,
-} from "./shared-controls";
-import type { CoordsToggleState } from "./shared-controls";
-import type { PlayerPanelProps } from "./player-panel";
+} from "../utils/shared-controls";
+import type { CoordsToggleState } from "../utils/shared-controls";
+import type { PlayerPanelProps } from "../components/player-panel";
 
 export function liveGame(
   initialProps: InitialGameProps,

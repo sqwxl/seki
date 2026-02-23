@@ -1,5 +1,5 @@
-import type { ClockData, GameSettings } from "./goban/types";
-import type { GameCtx } from "./game-context";
+import type { ClockData, GameSettings } from "../goban/types";
+import type { GameCtx } from "./context";
 
 export type ClockState = {
   data: ClockData | undefined;

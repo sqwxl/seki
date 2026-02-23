@@ -2,8 +2,8 @@ import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { IconLogin, IconLogout, IconOffline } from "./icons";
 import { UserLabel } from "./user-label";
-import { onStatusChange } from "./live";
-import type { UserData } from "./goban/types";
+import { onStatusChange } from "../ws";
+import type { UserData } from "../goban/types";
 
 type NavStatusProps = {
   user: UserData;

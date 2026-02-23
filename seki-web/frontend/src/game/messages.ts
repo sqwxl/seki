@@ -1,13 +1,13 @@
-import { GameStage, isPlayStage, type IncomingMessage } from "./goban/types";
-import type { GameCtx } from "./game-context";
-import type { GameChannel } from "./game-channel";
-import type { ClockState } from "./game-clock";
-import { syncClock } from "./game-clock";
-import type { PremoveState } from "./premove";
-import { updateTurnFlash, syncTerritoryCountdown } from "./game-ui";
-import type { TerritoryCountdown } from "./game-ui";
-import { notifyTurn, type NotificationState } from "./game-notifications";
-import { playStoneSound, playPassSound, playJoinSound } from "./game-sound";
+import { GameStage, isPlayStage, type IncomingMessage } from "../goban/types";
+import type { GameCtx } from "./context";
+import type { GameChannel } from "./channel";
+import type { ClockState } from "./clock";
+import { syncClock } from "./clock";
+import type { PremoveState } from "../utils/premove";
+import { updateTurnFlash, syncTerritoryCountdown } from "./ui";
+import type { TerritoryCountdown } from "./ui";
+import { notifyTurn, type NotificationState } from "./notifications";
+import { playStoneSound, playPassSound, playJoinSound } from "./sound";
 
 export type GameMessageDeps = {
   ctx: GameCtx;

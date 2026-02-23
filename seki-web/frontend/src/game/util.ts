@@ -1,4 +1,4 @@
-import type { UserData } from "./goban/types";
+import type { UserData } from "../goban/types";
 
 export function readUserData(): UserData | undefined {
   const el = document.getElementById("user-data");

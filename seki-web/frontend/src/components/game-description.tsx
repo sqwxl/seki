@@ -1,6 +1,6 @@
-import { formatSize, formatTimeControl } from "./format";
-import type { UserData, GameSettings } from "./format";
+import { UserData, GameSettings } from "../goban/types";
 import { UserLabel } from "./user-label";
+import { formatSize, formatTimeControl } from "../utils/format";
 
 export type GameUpdate = {
   id: number;

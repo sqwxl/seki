@@ -1,6 +1,6 @@
-import { isPlayStage } from "./goban/types";
-import type { GameCtx } from "./game-context";
-import { setIcon, bellSvg, bellDisabledSvg } from "./icons";
+import { isPlayStage } from "../goban/types";
+import type { GameCtx } from "./context";
+import { setIcon, bellSvg, bellDisabledSvg } from "../components/icons";
 
 const STORAGE_KEY = "seki:notifications";
 const TOGGLE_ID = "notification-toggle";

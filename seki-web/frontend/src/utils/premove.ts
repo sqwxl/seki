@@ -1,7 +1,14 @@
-import type { Point, Sign } from "./goban/types";
-import { readMoveConfirmation } from "./move-confirm";
+import type { Point, Sign } from "../goban/types";
 
-const KEY = "seki:moveConfirmation";
+const KEY = "seki:move_confirmation";
+
+function readMoveConfirmation(): boolean {
+  const stored = localStorage.getItem(KEY);
+  if (stored !== null) {
+    return stored === "true";
+  }
+  return window.matchMedia("(max-width: 1024px)").matches;
+}
 
 export type PremoveState = {
   value: Point | undefined;

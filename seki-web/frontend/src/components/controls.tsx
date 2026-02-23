@@ -1,4 +1,4 @@
-import type { NavAction } from "./board";
+import type { NavAction } from "../goban/create-board";
 import {
   IconPlaybackPrev,
   IconPlaybackRewind,

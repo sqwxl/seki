@@ -2,9 +2,8 @@ let audioCtx: AudioContext | undefined;
 
 const buffers: Record<string, AudioBuffer | undefined> = {};
 
-// First click in clicks.webm: starts at ~1.021s, lasts ~28ms
-const STONE_OFFSET = 1.021;
-const STONE_DURATION = 0.028;
+const OFFSET = 1.021;
+const DURATION = 0.028;
 
 function ensureContext(): AudioContext {
   if (!audioCtx) {
@@ -34,7 +33,7 @@ export function playStoneSound(): void {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(ctx.destination);
-    src.start(0, STONE_OFFSET, STONE_DURATION);
+    src.start(0, OFFSET, DURATION);
   });
 }
 

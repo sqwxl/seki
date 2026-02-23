@@ -1,16 +1,16 @@
 import { render } from "preact";
-import { Goban } from "./goban/index";
-import type {
-  GhostStoneData,
-  GameTreeData,
+import { MoveTree } from "../components/move-tree";
+import { flashPassEffect } from "../game/messages";
+import { Goban } from "./";
+import {
   MarkerData,
   Point,
-  ScoreData,
   Sign,
-} from "./goban/types";
-import { MoveTree } from "./move-tree";
-import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
-import { flashPassEffect } from "./game-messages";
+  GhostStoneData,
+  GameTreeData,
+  ScoreData,
+} from "./types";
+import { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
 

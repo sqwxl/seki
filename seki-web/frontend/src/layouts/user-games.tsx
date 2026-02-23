@@ -1,9 +1,9 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
-import { subscribe } from "./live";
-import { GameDescription } from "./game-description";
-import type { LiveGameItem, GameUpdate } from "./game-description";
-import type { UserData } from "./format";
+import { subscribe } from "../ws";
+import { GameDescription } from "../components/game-description";
+import type { LiveGameItem, GameUpdate } from "../components/game-description";
+import type { UserData } from "../utils/format";
 
 type InitialData = {
   profile_user_id: number;

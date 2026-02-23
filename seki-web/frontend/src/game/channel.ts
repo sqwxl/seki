@@ -1,4 +1,4 @@
-import { send } from "./live";
+import { send } from "../ws";
 
 export type GameChannel = {
   play(col: number, row: number): void;
