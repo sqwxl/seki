@@ -327,6 +327,22 @@ function LiveControls(props: ControlsProps) {
             confirm={props.declineChallenge}
           />
         )}
+        {props.moveConfirmToggle && (
+          <button
+            title={
+              props.moveConfirmToggle.enabled
+                ? "Move confirmation: ON (click to disable)"
+                : "Move confirmation: OFF (click to enable)"
+            }
+            onClick={props.moveConfirmToggle.onClick}
+          >
+            {props.moveConfirmToggle.enabled ? (
+              <IconTouchDouble />
+            ) : (
+              <IconTouchSingle />
+            )}
+          </button>
+        )}
       </span>
       <span class="btn-group controls-navbar-extra">
         {props.analyze && (
@@ -413,7 +429,6 @@ function LiveControls(props: ControlsProps) {
         )}
         <ToggleButtons
           coordsToggle={props.coordsToggle}
-          moveConfirmToggle={props.moveConfirmToggle}
           moveTreeToggle={props.moveTreeToggle}
         />
       </span>

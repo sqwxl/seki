@@ -244,7 +244,7 @@ function LiveControls({
   const props: ControlsProps = {
     nav,
     coordsToggle: buildCoordsToggle(board.value, coordsState),
-    moveConfirmToggle: {
+    moveConfirmToggle: isPlayerVal && isPlay ? {
       enabled: moveConfirmEnabled.value,
       onClick: () => {
         pm.enabled = !pm.enabled;
@@ -252,7 +252,7 @@ function LiveControls({
         pm.clear();
         board.value?.render();
       },
-    },
+    } : undefined,
     moveTreeToggle: {
       enabled: showMoveTree.value,
       onClick: () => setMoveTree(!showMoveTree.value),
