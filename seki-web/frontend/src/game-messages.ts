@@ -1,4 +1,4 @@
-import { isPlayStage, type IncomingMessage } from "./goban/types";
+import { GameStage, isPlayStage, type IncomingMessage } from "./goban/types";
 import type { GameCtx } from "./game-context";
 import type { GameChannel } from "./game-channel";
 import type { ClockState } from "./game-clock";
@@ -32,7 +32,7 @@ function syncBoardMoves(
   }
   const newMovesJson = JSON.stringify(ctx.moves);
   if (newMovesJson !== ctx.movesJson) {
-    if (playEffects) {
+    if (ctx.gameStage !== GameStage.Done && playEffects) {
       const lastMove = ctx.moves[ctx.moves.length - 1];
       if (lastMove?.kind === "play") {
         playStoneSound();
