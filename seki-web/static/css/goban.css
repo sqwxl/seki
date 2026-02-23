@@ -16,13 +16,12 @@
   color: var(--goban-board-foreground-color);
 }
 
-.goban-container {
+.game-board-area {
   width: min(90vw, 70vh);
-  margin: 0 auto;
 }
 
 @media (min-width: 768px) {
-  .goban-container {
+  .game-board-area {
     width: min(70vw, 70vh);
   }
 }
@@ -34,11 +33,8 @@
 }
 
 .goban-analysis .goban.goban-image {
-  background:
-    linear-gradient(rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.35)),
-    url("/static/images/board.png") var(--goban-board-background-color);
-  --goban-board-foreground-color: #c8b090;
-  --goban-board-border-color: #d8c8a8;
+  --goban-board-foreground-color: #9a7050;
+  --goban-board-border-color: #d4b070;
 }
 
 .goban-analysis .goban::after {

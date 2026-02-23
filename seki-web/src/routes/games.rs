@@ -327,6 +327,11 @@ pub async fn join_game(
 }
 
 #[derive(Deserialize)]
+pub struct RematchForm {
+    pub swap_colors: Option<String>,
+}
+
+#[derive(Deserialize)]
 pub struct InvitationQuery {
     pub token: String,
     pub email: String,
@@ -375,4 +380,70 @@ pub async fn invitation(
     tx.commit().await?;
 
     Ok(Redirect::to(&format!("/games/{id}")).into_response())
+}
+
+// POST /games/:id/rematch
+pub async fn rematch_game(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Path(id): Path<i64>,
+    Form(form): Form<RematchForm>,
+) -> Result<Response, AppError> {
+    let gwp = Game::find_with_players(&state.db, id).await?;
+
+    if gwp.game.result.is_none() {
+        return Err(AppError::BadRequest("Game is not finished".to_string()));
+    }
+    if !gwp.has_player(current_user.id) {
+        return Err(AppError::BadRequest(
+            "You are not a player in this game".to_string(),
+        ));
+    }
+
+    let swap = form.swap_colors.as_deref() == Some("true");
+    let was_black = gwp.game.black_id == Some(current_user.id);
+    let color = match (was_black, swap) {
+        (true, false) | (false, true) => "black",
+        (true, true) | (false, false) => "white",
+    };
+
+    let opponent_id = if was_black {
+        gwp.game.white_id
+    } else {
+        gwp.game.black_id
+    };
+
+    let params = CreateGameParams {
+        cols: gwp.game.cols,
+        rows: gwp.game.rows,
+        komi: gwp.game.komi,
+        handicap: gwp.game.handicap,
+        is_private: gwp.game.is_private,
+        allow_undo: gwp.game.allow_undo,
+        color: color.to_string(),
+        invite_email: None,
+        time_control: gwp.game.time_control,
+        main_time_secs: gwp.game.main_time_secs,
+        increment_secs: gwp.game.increment_secs,
+        byoyomi_time_secs: gwp.game.byoyomi_time_secs,
+        byoyomi_periods: gwp.game.byoyomi_periods,
+    };
+
+    let game = game_creator::create_game(&state.db, &current_user, params).await?;
+
+    if let Some(opp_id) = opponent_id {
+        let mut tx = state.db.begin().await?;
+        if game.black_id.is_none() {
+            Game::set_black(&mut *tx, game.id, opp_id).await?;
+        } else if game.white_id.is_none() {
+            Game::set_white(&mut *tx, game.id, opp_id).await?;
+        }
+        if game.stage == "unstarted" {
+            Game::set_stage(&mut *tx, game.id, "black_to_play").await?;
+        }
+        tx.commit().await?;
+    }
+
+    crate::services::live::notify_game_created(&state, game.id).await;
+    Ok(Redirect::to(&format!("/games/{}", game.id)).into_response())
 }

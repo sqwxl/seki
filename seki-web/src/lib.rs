@@ -51,6 +51,7 @@ pub async fn build_router(pool: db::DbPool, session_secure: bool) -> (Router, Ap
         .route("/games/{id}", get(routes::games::show_game))
         .route("/games/{id}/join", post(routes::games::join_game))
         .route("/games/{id}/invitation", get(routes::games::invitation))
+        .route("/games/{id}/rematch", post(routes::games::rematch_game))
         .route("/users/{username}", get(routes::users::profile))
         .route("/users/{username}", post(routes::users::update_username))
         .route("/register", get(routes::auth::register_form))

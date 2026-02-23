@@ -7,6 +7,7 @@ mod lobby;
 mod moves;
 mod pass;
 mod presence;
+mod rematch;
 mod resign;
 mod smoke;
 mod territory;

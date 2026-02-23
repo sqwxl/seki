@@ -81,7 +81,8 @@ export function getServerTerritory(): TerritoryOverlay | undefined {
     );
     return { paintMap, dimmedVertices };
   }
-  if (estimateMode.value && settledTerritory.value) {
+  // Settled territory overlay for finished games (not in analysis — WASM handles that)
+  if (estimateMode.value && settledTerritory.value && !analysisMode.value) {
     return buildSettledOverlay(settledTerritory.value);
   }
   return undefined;
@@ -314,6 +315,23 @@ function LiveControls({
       props.estimate = { onClick: enterEstimate };
     } else if (result.value && settledTerritory.value) {
       props.estimate = { onClick: enterEstimate, title: "Show territory" };
+    }
+
+    if (result.value && isPlayerVal) {
+      props.rematch = {
+        onConfirm: (swapColors) => {
+          const form = document.createElement("form");
+          form.method = "POST";
+          form.action = `/games/${gameId.value}/rematch`;
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "swap_colors";
+          input.value = swapColors ? "true" : "false";
+          form.appendChild(input);
+          document.body.appendChild(form);
+          form.submit();
+        },
+      };
     }
   }
 

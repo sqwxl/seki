@@ -93,19 +93,20 @@ export function liveGame(
   function exitAnalysis() {
     pm.clear();
     analysisMode.value = false;
-    showMoveTree.value = false;
-    board.value?.setMoveTreeEl(null);
     if (board.value) {
       board.value.updateBaseMoves(JSON.stringify(moves.value));
-      board.value.render();
     }
+    showMoveTree.value = false;
+    board.value?.setMoveTreeEl(null);
+    board.value?.render();
     doRender();
   }
 
   function enterEstimate() {
     pm.clear();
     estimateMode.value = true;
-    if (settledTerritory.value) {
+    if (settledTerritory.value && !analysisMode.value) {
+      // Static overlay for finished games — just toggle and re-render
       board.value?.render();
       doRender();
     } else {
@@ -116,7 +117,7 @@ export function liveGame(
   function exitEstimate() {
     estimateMode.value = false;
     estimateScore.value = undefined;
-    if (settledTerritory.value) {
+    if (settledTerritory.value && !analysisMode.value) {
       board.value?.render();
       doRender();
     } else {
@@ -231,16 +232,12 @@ export function liveGame(
     onStonePlay: playStoneSound,
     onPass: playPassSound,
     onRender: (engine, territoryInfo) => {
-      // Auto-exit estimate when territory review gets cleared
-      // Don't auto-exit for settled territory (static overlay, not WASM-driven)
-      if (
-        estimateMode.value &&
-        !territoryInfo.reviewing &&
-        !settledTerritory.value
-      ) {
+      // Auto-exit estimate when territory review gets cleared (e.g. by navigation)
+      if (estimateMode.value && !territoryInfo.reviewing) {
         estimateMode.value = false;
         estimateScore.value = undefined;
       }
+      // Capture estimate score for status display
       if (estimateMode.value && territoryInfo.score) {
         estimateScore.value = territoryInfo.score;
       }
