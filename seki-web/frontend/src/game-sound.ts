@@ -44,3 +44,16 @@ export function playPassSound(): void {
     src.start();
   });
 }
+
+export function playJoinSound(): void {
+  const ctx = ensureContext();
+  loadBuffer(ctx, "/static/sounds/ding.mp3").then((buf) => {
+    const gain = ctx.createGain();
+    gain.gain.value = 0.5;
+    gain.connect(ctx.destination);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(gain);
+    src.start();
+  });
+}

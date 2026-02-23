@@ -8,7 +8,7 @@ import type { PremoveState } from "./premove";
 import { updateTitle, updateStatus, updateTurnFlash, syncTerritoryCountdown } from "./game-ui";
 import type { TerritoryCountdown } from "./game-ui";
 import { notifyTurn, type NotificationState } from "./game-notifications";
-import { playStoneSound, playPassSound } from "./game-sound";
+import { playStoneSound, playPassSound, playJoinSound } from "./game-sound";
 
 export type GameMessageDeps = {
   ctx: GameCtx;
@@ -75,8 +75,18 @@ export function handleGameMessage(
       ctx.result = data.result;
       ctx.territory = data.territory;
       ctx.settledScore = data.score;
+      const prevBlack = ctx.black;
+      const prevWhite = ctx.white;
       ctx.black = data.black ?? undefined;
       ctx.white = data.white ?? undefined;
+      if (ctx.playerStone !== 0) {
+        const opponentJoined =
+          (ctx.playerStone === 1 && !prevWhite && ctx.white) ||
+          (ctx.playerStone === -1 && !prevBlack && ctx.black);
+        if (opponentJoined) {
+          playJoinSound();
+        }
+      }
       if (data.online_users) {
         ctx.onlineUsers = new Set(data.online_users);
       }
