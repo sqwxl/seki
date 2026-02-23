@@ -196,7 +196,6 @@ pub async fn show_game(
         .collect();
     let chat_log_json = serde_json::to_string(&chat_log).unwrap_or_else(|_| "[]".to_string());
 
-    let is_player = gwp.has_player(current_user.id);
     let is_creator = gwp.game.creator_id == Some(current_user.id);
     let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
 
@@ -286,10 +285,6 @@ pub async fn show_game(
         user_data: serialize_user_data(&current_user),
         game_id: gwp.game.id,
         game_props,
-        is_player,
-        is_creator,
-        is_private: gwp.game.is_private,
-        has_open_slot,
         chat_log_json,
         og_title,
         og_description,

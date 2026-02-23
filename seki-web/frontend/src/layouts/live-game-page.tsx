@@ -332,6 +332,19 @@ function LiveControls({
     };
   }
 
+  // Join game (spectator on a non-private game with an open slot)
+  if (!isPlayerVal && hasOpenSlot && !initialProps.value.settings.is_private) {
+    props.joinGame = {
+      onClick: () => {
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = `/games/${gameId.value}/join`;
+        document.body.appendChild(form);
+        form.submit();
+      },
+    };
+  }
+
   // Challenge accept/decline (challengee only — not the creator)
   if (isChallenge && isPlayerVal) {
     const myId =

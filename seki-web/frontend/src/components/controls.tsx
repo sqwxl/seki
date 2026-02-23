@@ -51,6 +51,7 @@ export type ControlsProps = {
   resign?: ConfirmDef & { disabled?: boolean };
   abort?: ConfirmDef & { disabled?: boolean };
   acceptTerritory?: ConfirmDef & { disabled?: boolean };
+  joinGame?: ButtonDef;
   acceptChallenge?: ButtonDef;
   declineChallenge?: ConfirmDef & { disabled?: boolean };
   rematch?: { onConfirm: (swapColors: boolean) => void; disabled?: boolean };
@@ -299,6 +300,14 @@ function LiveControls(props: ControlsProps) {
             disabled={props.acceptTerritory.disabled}
             confirm={props.acceptTerritory}
           />
+        )}
+        {props.joinGame && (
+          <button
+            title="Join game"
+            onClick={props.joinGame.onClick}
+          >
+            Join
+          </button>
         )}
         {props.acceptChallenge && (
           <button

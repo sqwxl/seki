@@ -8,11 +8,6 @@
 {% endblock %}
 {% block content %}
     <div class="game-page">
-        {% if !is_creator && !is_private && has_open_slot && !is_player %}
-            <form action="/games/{{ game_id }}/join" method="post">
-                <button type="submit">Join Game</button>
-            </form>
-        {% endif %}
         <div id="game" class="game-page-body"
              data-props="{{ game_props }}"
              data-game-id="{{ game_id }}"
