@@ -1,11 +1,8 @@
+import { render, createRef } from "preact";
 import { createBoard, ensureWasm } from "./board";
 import type { Board } from "./board";
-import { readShowCoordinates, toggleShowCoordinates } from "./coord-toggle";
-import { createPremove } from "./premove";
-import { renderControls } from "./controls";
 import type { ControlsProps } from "./controls";
-import { formatScoreStr } from "./game-ui";
-import { renderPlayerPanel } from "./player-panel";
+import { readShowCoordinates } from "./coord-toggle";
 import {
   blackSymbol,
   whiteSymbol,
@@ -14,8 +11,14 @@ import {
   formatSgfTime,
   formatTime,
 } from "./format";
-import { queryGameDom } from "./game-dom";
+import { GamePageLayout } from "./game-page-layout";
+import type { GamePageLayoutProps } from "./game-page-layout";
 import { playStoneSound, playPassSound } from "./game-sound";
+import { formatScoreStr } from "./game-ui";
+import type { PlayerPanelProps } from "./player-panel";
+import { createPremove } from "./premove";
+import { buildNavProps, buildCoordsToggle, buildMoveConfirmToggle } from "./shared-controls";
+import type { CoordsToggleState } from "./shared-controls";
 import { readFileAsText, downloadSgf } from "./sgf-io";
 import type { SgfMeta } from "./sgf-io";
 import type { Sign } from "./goban/types";
@@ -46,43 +49,17 @@ function formatSgfDescription(meta: SgfMeta): string {
   return parts.join(" - ");
 }
 
-function updateDescription(el: HTMLElement, meta: SgfMeta | undefined) {
-  if (meta) {
-    el.textContent = formatSgfDescription(meta);
-    el.style.display = "";
-  } else {
-    el.textContent = "";
-    el.style.display = "none";
-  }
-}
+export function initAnalysis(root: HTMLElement) {
+  const gobanRef = createRef<HTMLDivElement>();
 
-export function initAnalysis(_root: HTMLElement) {
-  const {
-    goban: gobanEl,
-    controls: controlsEl,
-    playerTop: playerTopEl,
-    playerBottom: playerBottomEl,
-  } = queryGameDom();
-  const descriptionEl = document.getElementById("game-description")!;
-  const sizeSelect = document.getElementById(
-    "board-size",
-  ) as HTMLSelectElement | null;
-
-  // Create move tree element and insert it after #analysis
+  // Create move tree element for the sidebar slot
   const moveTreeEl = document.createElement("div");
   moveTreeEl.className = "move-tree";
-  const analysisEl = document.getElementById("analysis");
-  if (analysisEl) {
-    analysisEl.after(moveTreeEl);
-  }
 
   const savedSize = localStorage.getItem(SIZE_KEY);
   let currentSize = savedSize ? parseInt(savedSize, 10) : 19;
   if (!VALID_SIZES.includes(currentSize)) {
     currentSize = 19;
-  }
-  if (sizeSelect) {
-    sizeSelect.value = String(currentSize);
   }
 
   let board: Board | undefined;
@@ -97,9 +74,10 @@ export function initAnalysis(_root: HTMLElement) {
     } catch { /* ignore */ }
   }
   sgfText = localStorage.getItem(SGF_TEXT_KEY) ?? undefined;
-  updateDescription(descriptionEl, sgfMeta);
 
-  let showCoordinates = readShowCoordinates();
+  const coordsState: CoordsToggleState = {
+    showCoordinates: readShowCoordinates(),
+  };
 
   const pm = createPremove({
     getSign: () => (board?.engine.current_turn_stone() ?? 1) as Sign,
@@ -109,39 +87,20 @@ export function initAnalysis(_root: HTMLElement) {
     return pm.getGhostStone();
   }
 
-  // --- Controls rendering ---
-  function doRenderControls() {
-    if (!controlsEl) {
-      return;
-    }
+  // Cached player panel props (updated in onRender)
+  let playerTopProps: PlayerPanelProps | undefined;
+  let playerBottomProps: PlayerPanelProps | undefined;
+
+  // --- Build controls props ---
+  function buildControls(): ControlsProps {
     const reviewing = board?.isTerritoryReview() ?? false;
     const finalized = board?.isFinalized() ?? false;
 
     const props: ControlsProps = {
       layout: "analysis",
-      nav: {
-        atStart: board?.engine.is_at_start() ?? true,
-        atLatest: board?.engine.is_at_latest() ?? true,
-        counter: board
-          ? `${board.engine.view_index()}`
-          : "0",
-        onNavigate: (action) => board?.navigate(action),
-      },
-      coordsToggle: {
-        enabled: showCoordinates,
-        onClick: () => {
-          showCoordinates = toggleShowCoordinates();
-          board?.setShowCoordinates(showCoordinates);
-        },
-      },
-      moveConfirmToggle: {
-        enabled: pm.enabled,
-        onClick: () => {
-          pm.enabled = !pm.enabled;
-          pm.clear();
-          board?.render();
-        },
-      },
+      nav: buildNavProps(board),
+      coordsToggle: buildCoordsToggle(board, coordsState),
+      moveConfirmToggle: buildMoveConfirmToggle(pm, board),
     };
 
     if (reviewing) {
@@ -156,7 +115,6 @@ export function initAnalysis(_root: HTMLElement) {
       props.score = { onClick: () => board?.enterTerritoryReview() };
       props.sgfImport = { onFileChange: handleSgfImport };
       props.sgfExport = { onClick: handleSgfExport };
-      // Still show territory controls wrapper so component knows this is analysis mode
       props.territoryReady = undefined;
       props.territoryExit = undefined;
     }
@@ -177,21 +135,73 @@ export function initAnalysis(_root: HTMLElement) {
       };
     }
 
-    renderControls(controlsEl, props);
+    return props;
   }
 
+  // --- Size change handler ---
+  function handleSizeChange(e: Event) {
+    const select = e.currentTarget as HTMLSelectElement;
+    const size = parseInt(select.value, 10);
+    currentSize = size;
+    sgfMeta = undefined;
+    sgfText = undefined;
+    localStorage.removeItem(SGF_META_KEY);
+    localStorage.removeItem(SGF_TEXT_KEY);
+    localStorage.setItem(SIZE_KEY, String(size));
+    initBoard(size);
+  }
+
+  // --- Single render function ---
+  function doRender() {
+    const header = (
+      <>
+        <h2>Analysis Board</h2>
+        {sgfMeta && <p>{formatSgfDescription(sgfMeta)}</p>}
+        <div style="margin-bottom: 0.5em">
+          <label for="board-size">Board size: </label>
+          <select id="board-size" value={String(currentSize)} onChange={handleSizeChange}>
+            <option value="9">9×9</option>
+            <option value="13">13×13</option>
+            <option value="19">19×19</option>
+          </select>
+        </div>
+      </>
+    );
+
+    const props: GamePageLayoutProps = {
+      header,
+      gobanRef,
+      gobanStyle: `aspect-ratio: ${currentSize}/${currentSize}`,
+      playerTop: playerTopProps,
+      playerBottom: playerBottomProps,
+      controls: buildControls(),
+      sidebar: <div ref={(el) => {
+        if (el && !el.contains(moveTreeEl)) {
+          el.appendChild(moveTreeEl);
+        }
+      }} />,
+    };
+
+    render(<GamePageLayout {...props} />, root);
+  }
+
+  // --- Board initialization ---
   async function initBoard(size: number) {
     if (board) {
       board.destroy();
     }
-    gobanEl.style.aspectRatio = `${size}/${size}`;
     pm.clear();
+    playerTopProps = undefined;
+    playerBottomProps = undefined;
+
+    // Render the layout first so the goban div exists
+    doRender();
 
     board = await createBoard({
       cols: size,
       rows: size,
-      showCoordinates,
-      gobanEl,
+      showCoordinates: coordsState.showCoordinates,
+      gobanEl: gobanRef.current!,
       komi: KOMI,
       moveTreeEl,
       moveTreeDirection: "responsive",
@@ -203,11 +213,11 @@ export function initAnalysis(_root: HTMLElement) {
         }
         if (pm.value && pm.value[0] === col && pm.value[1] === row) {
           pm.clear();
-          doRenderControls();
+          doRender();
           return false; // let the board play the move
         }
         pm.value = [col, row];
-        doRenderControls();
+        doRender();
         board?.render();
         return true; // consume the click
       },
@@ -221,8 +231,6 @@ export function initAnalysis(_root: HTMLElement) {
       },
       onRender: (engine, territory) => {
         const { reviewing, finalized, score } = territory;
-        doRenderControls();
-
         const isBlackTurn = engine.current_turn_stone() === 1;
 
         let bStr: string;
@@ -266,24 +274,22 @@ export function initAnalysis(_root: HTMLElement) {
           wClock = fallback;
         }
 
-        if (playerTopEl) {
-          renderPlayerPanel(playerTopEl, {
-            name: whiteName,
-            captures: wStr,
-            stone: "white",
-            clock: wClock,
-            isTurn: !reviewing && !finalized && !isBlackTurn,
-          });
-        }
-        if (playerBottomEl) {
-          renderPlayerPanel(playerBottomEl, {
-            name: blackName,
-            captures: bStr,
-            stone: "black",
-            clock: bClock,
-            isTurn: !reviewing && !finalized && isBlackTurn,
-          });
-        }
+        playerTopProps = {
+          name: whiteName,
+          captures: wStr,
+          stone: "white",
+          clock: wClock,
+          isTurn: !reviewing && !finalized && !isBlackTurn,
+        };
+        playerBottomProps = {
+          name: blackName,
+          captures: bStr,
+          stone: "black",
+          clock: bClock,
+          isTurn: !reviewing && !finalized && isBlackTurn,
+        };
+
+        doRender();
       },
     });
 
@@ -291,20 +297,6 @@ export function initAnalysis(_root: HTMLElement) {
     if (sgfText && board) {
       board.engine.load_sgf_move_times(sgfText);
     }
-  }
-
-  if (sizeSelect) {
-    sizeSelect.addEventListener("change", () => {
-      const size = parseInt(sizeSelect.value, 10);
-      currentSize = size;
-      sgfMeta = undefined;
-      sgfText = undefined;
-      localStorage.removeItem(SGF_META_KEY);
-      localStorage.removeItem(SGF_TEXT_KEY);
-      localStorage.setItem(SIZE_KEY, String(size));
-      updateDescription(descriptionEl, undefined);
-      initBoard(size);
-    });
   }
 
   // --- SGF import handler ---
@@ -333,12 +325,9 @@ export function initAnalysis(_root: HTMLElement) {
       input.value = "";
       return;
     }
-    // Update size selector and current size
+    // Update current size
     currentSize = size;
     localStorage.setItem(SIZE_KEY, String(size));
-    if (sizeSelect) {
-      sizeSelect.value = String(size);
-    }
     // Clear stored tree for this size so initBoard starts fresh
     localStorage.removeItem(`seki:analysis:tree:${size}`);
     localStorage.removeItem(`seki:analysis:tree:${size}:base`);
@@ -348,7 +337,6 @@ export function initAnalysis(_root: HTMLElement) {
     sgfText = text;
     localStorage.setItem(SGF_META_KEY, JSON.stringify(meta));
     localStorage.setItem(SGF_TEXT_KEY, text);
-    updateDescription(descriptionEl, sgfMeta);
     await initBoard(size);
     if (board) {
       board.engine.load_sgf_tree(text);
