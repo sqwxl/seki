@@ -1,9 +1,8 @@
 .controls {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.5em;
   align-items: center;
-  justify-content: center;
   margin-top: 0.5em;
   max-width: 100%;
 }
