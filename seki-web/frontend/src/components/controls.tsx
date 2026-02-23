@@ -230,11 +230,35 @@ function AnalysisControls(props: ControlsProps) {
             <IconBalance />
           </button>
         )}
-        <ToggleButtons
-          coordsToggle={props.coordsToggle}
-          moveConfirmToggle={props.moveConfirmToggle}
-          moveTreeToggle={props.moveTreeToggle}
-        />
+        {props.coordsToggle && (
+          <button title="Toggle coordinates" onClick={props.coordsToggle.onClick}>
+            A1
+          </button>
+        )}
+        {props.moveConfirmToggle && (
+          <button
+            title={
+              props.moveConfirmToggle.enabled
+                ? "Move confirmation: ON (click to disable)"
+                : "Move confirmation: OFF (click to enable)"
+            }
+            onClick={props.moveConfirmToggle.onClick}
+          >
+            {props.moveConfirmToggle.enabled ? (
+              <IconTouchDouble />
+            ) : (
+              <IconTouchSingle />
+            )}
+          </button>
+        )}
+        {props.moveTreeToggle && (
+          <button
+            title={props.moveTreeToggle.enabled ? "Hide move tree" : "Show move tree"}
+            onClick={props.moveTreeToggle.onClick}
+          >
+            <IconGraph />
+          </button>
+        )}
       </span>
     </div>
   );
@@ -427,10 +451,19 @@ function LiveControls(props: ControlsProps) {
             </div>
           </>
         )}
-        <ToggleButtons
-          coordsToggle={props.coordsToggle}
-          moveTreeToggle={props.moveTreeToggle}
-        />
+        {props.coordsToggle && (
+          <button title="Toggle coordinates" onClick={props.coordsToggle.onClick}>
+            A1
+          </button>
+        )}
+        {props.moveTreeToggle && (
+          <button
+            title={props.moveTreeToggle.enabled ? "Hide move tree" : "Show move tree"}
+            onClick={props.moveTreeToggle.onClick}
+          >
+            <IconGraph />
+          </button>
+        )}
       </span>
     </div>
   );
@@ -511,50 +544,6 @@ function SgfImportButton({
         hidden
         onChange={(e) => onFileChange(e.currentTarget as HTMLInputElement)}
       />
-    </>
-  );
-}
-
-function ToggleButtons({
-  coordsToggle,
-  moveConfirmToggle,
-  moveTreeToggle,
-}: {
-  coordsToggle?: ControlsProps["coordsToggle"];
-  moveConfirmToggle?: ControlsProps["moveConfirmToggle"];
-  moveTreeToggle?: ControlsProps["moveTreeToggle"];
-}) {
-  return (
-    <>
-      {coordsToggle && (
-        <button title="Toggle coordinates" onClick={coordsToggle.onClick}>
-          A1
-        </button>
-      )}
-      {moveConfirmToggle && (
-        <button
-          title={
-            moveConfirmToggle.enabled
-              ? "Move confirmation: ON (click to disable)"
-              : "Move confirmation: OFF (click to enable)"
-          }
-          onClick={moveConfirmToggle.onClick}
-        >
-          {moveConfirmToggle.enabled ? (
-            <IconTouchDouble />
-          ) : (
-            <IconTouchSingle />
-          )}
-        </button>
-      )}
-      {moveTreeToggle && (
-        <button
-          title={moveTreeToggle.enabled ? "Hide move tree" : "Show move tree"}
-          onClick={moveTreeToggle.onClick}
-        >
-          <IconGraph />
-        </button>
-      )}
     </>
   );
 }
