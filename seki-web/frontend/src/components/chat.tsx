@@ -16,6 +16,7 @@ export type ChatProps = {
   onlineUsers: Set<number>;
   black: UserData | undefined;
   white: UserData | undefined;
+  showPrefix: boolean;
   onSend: (text: string) => void;
 };
 
@@ -84,6 +85,7 @@ export function Chat({
   black,
   white,
   onSend,
+  showPrefix,
 }: ChatProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -112,12 +114,11 @@ export function Chat({
     <>
       <div class="chat-box" ref={boxRef}>
         {messages.map((entry, i) => {
-          const prefix = formatPrefix(entry);
           const isOnline =
             entry.user_id != null && onlineUsers.has(entry.user_id);
           return (
             <p key={i}>
-              {prefix}
+              {showPrefix && formatPrefix(entry)}
               <strong>
                 <SenderLabel
                   entry={entry}

@@ -213,11 +213,23 @@ function buildGameActions(
   ctx: GameCtx,
 ): Partial<ControlsProps> {
   const out: Partial<ControlsProps> = {};
-  const { isPlayer, isChallenge, isPlay, isMyTurn, inAnalysis, inEstimate, modeActive } = ctx;
+  const {
+    isPlayer,
+    isChallenge,
+    isPlay,
+    isMyTurn,
+    inAnalysis,
+    inEstimate,
+    modeActive,
+  } = ctx;
 
   if (isPlayer && (isPlay || isChallenge)) {
     if (inAnalysis && !inEstimate) {
-      out.pass = { onClick: () => { board.value?.pass(); } };
+      out.pass = {
+        onClick: () => {
+          board.value?.pass();
+        },
+      };
     } else {
       out.pass = {
         onClick: () => {},
@@ -362,7 +374,10 @@ function buildModeControls(
   const { isPlay, isReview, inAnalysis, inEstimate } = ctx;
 
   if (inAnalysis) {
-    out.exitAnalysis = { onClick: callbacks.exitAnalysis, disabled: inEstimate };
+    out.exitAnalysis = {
+      onClick: callbacks.exitAnalysis,
+      disabled: inEstimate,
+    };
   } else if (!isReview) {
     out.analyze = { onClick: callbacks.enterAnalysis, disabled: inEstimate };
   }
@@ -377,7 +392,10 @@ function buildModeControls(
   } else if (isPlay && !isReview) {
     out.estimate = { onClick: callbacks.enterEstimate };
   } else if (result.value && settledTerritory.value) {
-    out.estimate = { onClick: callbacks.enterEstimate, title: "Show territory" };
+    out.estimate = {
+      onClick: callbacks.enterEstimate,
+      title: "Show territory",
+    };
   }
 
   return out;
@@ -501,6 +519,7 @@ function LiveSidebar({
           black={black.value}
           white={white.value}
           onSend={(text) => channel.say(text)}
+          showPrefix={false} // TODO: Make this configurable
         />
       </div>
       {showMoveTree.value && (
