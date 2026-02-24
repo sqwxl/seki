@@ -12,23 +12,46 @@ import type {
 import { GameStage as GS, isPlayStage } from "../goban/types";
 import type { Board } from "../goban/create-board";
 import type { ChatEntry } from "../components/chat";
-import {
-  storage,
-  SHOW_MOVE_TREE,
-  MOVE_CONFIRMATION,
-} from "../utils/storage";
+import { storage, SHOW_MOVE_TREE } from "../utils/storage";
+import { readMoveConfirmation } from "../utils/premove";
 
 // ---------------------------------------------------------------------------
 // Config signals (set once at page load)
 // ---------------------------------------------------------------------------
 export const gameId = signal(0);
 export const playerStone = signal(0);
-export const initialProps = signal<InitialGameProps>(undefined!);
+export const initialProps = signal<InitialGameProps>({
+  state: { board: [], cols: 0, rows: 0, captures: { black: 0, white: 0 } },
+  creator_id: undefined,
+  black: null,
+  white: null,
+  komi: 6.5,
+  stage: GS.Unstarted,
+  settings: {
+    cols: 19,
+    rows: 19,
+    handicap: 0,
+    time_control: "none",
+    main_time_secs: undefined,
+    increment_secs: undefined,
+    byoyomi_time_secs: undefined,
+    byoyomi_periods: undefined,
+    is_private: false,
+  },
+  moves: [],
+  current_turn_stone: 0,
+  result: null,
+});
 
 // ---------------------------------------------------------------------------
 // Core game state (updated by WS messages)
 // ---------------------------------------------------------------------------
-export const gameState = signal<GameState>(undefined!);
+export const gameState = signal<GameState>({
+  board: [],
+  cols: 0,
+  rows: 0,
+  captures: { black: 0, white: 0 },
+});
 export const gameStage = signal<GameStage>(GS.Unstarted);
 export const currentTurn = signal<number | null>(null);
 export const moves = signal<TurnData[]>([]);
@@ -68,9 +91,7 @@ export const estimateScore = signal<ScoreData | undefined>(undefined);
 export const showMoveTree = signal(
   storage.get(SHOW_MOVE_TREE) === "true",
 );
-export const moveConfirmEnabled = signal(
-  storage.get(MOVE_CONFIRMATION) === "true",
-);
+export const moveConfirmEnabled = signal(readMoveConfirmation());
 
 // ---------------------------------------------------------------------------
 // Derived (computed)

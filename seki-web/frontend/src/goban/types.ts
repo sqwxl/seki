@@ -63,7 +63,7 @@ export type GameState = {
   cols: number;
   rows: number;
   captures: Captures;
-  ko?: { pos: [number, number]; stone: number } | null;
+  ko?: { pos: [number, number]; illegal: number } | null;
 };
 
 export type TurnData = {

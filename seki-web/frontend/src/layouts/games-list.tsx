@@ -7,24 +7,24 @@ import { GameStage } from "../goban/types";
 import { parseDatasetJson } from "../utils/format";
 import type { UserData } from "../utils/format";
 
-type InitMessage = {
+export type InitMessage = {
   kind: "init";
   player_id: number;
   player_games: LiveGameItem[];
   public_games: LiveGameItem[];
 };
 
-type GameCreatedMessage = {
+export type GameCreatedMessage = {
   kind: "game_created";
   game: LiveGameItem;
 };
 
-type GameUpdatedMessage = {
+export type GameUpdatedMessage = {
   kind: "game_updated";
   game: GameUpdate;
 };
 
-type GameRemovedMessage = {
+export type GameRemovedMessage = {
   kind: "game_removed";
   game_id: number;
 };
@@ -83,15 +83,13 @@ function GamesList({ initial }: { initial?: InitMessage }) {
 
   useEffect(() => {
     const unsubs = [
-      subscribe("init", (data) => {
-        const msg = data as unknown as InitMessage;
+      subscribe<InitMessage>("init", (msg) => {
         playerIdRef.current = msg.player_id;
         setPlayerId(msg.player_id);
         setGames(buildGamesMap(msg));
       }),
 
-      subscribe("game_created", (data) => {
-        const msg = data as unknown as GameCreatedMessage;
+      subscribe<GameCreatedMessage>("game_created", (msg) => {
         setGames((prev) => {
           const next = new Map(prev);
           next.set(msg.game.id, msg.game);
@@ -99,8 +97,7 @@ function GamesList({ initial }: { initial?: InitMessage }) {
         });
       }),
 
-      subscribe("game_updated", (data) => {
-        const msg = data as unknown as GameUpdatedMessage;
+      subscribe<GameUpdatedMessage>("game_updated", (msg) => {
         setGames((prev) => {
           const existing = prev.get(msg.game.id);
           if (!existing) {
@@ -112,8 +109,7 @@ function GamesList({ initial }: { initial?: InitMessage }) {
         });
       }),
 
-      subscribe("game_removed", (data) => {
-        const msg = data as unknown as GameRemovedMessage;
+      subscribe<GameRemovedMessage>("game_removed", (msg) => {
         setGames((prev) => {
           const next = new Map(prev);
           next.delete(msg.game_id);

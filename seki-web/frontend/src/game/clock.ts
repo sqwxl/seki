@@ -68,6 +68,7 @@ export function computeClockDisplay(clockState: ClockState): ClockDisplay {
   }
 
   const cd = clockState.data;
+  const settings = initialProps.value.settings;
   const isCorr = cd.type === "correspondence";
   const elapsed = performance.now() - clockState.syncedAt;
 
@@ -80,23 +81,44 @@ export function computeClockDisplay(clockState: ClockState): ClockDisplay {
     whiteMs -= elapsed;
   }
 
+  // For byoyomi, simulate period transitions so the display doesn't
+  // show 0/negative while periods remain (server will sync the real state).
+  let blackPeriodCount = cd.black.periods;
+  let whitePeriodCount = cd.white.periods;
+
+  if (cd.type === "byoyomi") {
+    const periodMs = (settings.byoyomi_time_secs ?? 30) * 1000;
+    while (blackMs <= 0 && blackPeriodCount > 0) {
+      blackMs += periodMs;
+      blackPeriodCount--;
+    }
+    while (whiteMs <= 0 && whitePeriodCount > 0) {
+      whiteMs += periodMs;
+      whitePeriodCount--;
+    }
+  }
+
   const blackText = formatClock(blackMs, isCorr);
   const whiteText = formatClock(whiteMs, isCorr);
 
   const blackPeriods =
-    cd.type === "byoyomi" && cd.black.periods > 0
-      ? ` (${cd.black.periods})`
+    cd.type === "byoyomi" && blackPeriodCount > 0
+      ? ` (${blackPeriodCount})`
       : "";
   const whitePeriods =
-    cd.type === "byoyomi" && cd.white.periods > 0
-      ? ` (${cd.white.periods})`
+    cd.type === "byoyomi" && whitePeriodCount > 0
+      ? ` (${whitePeriodCount})`
       : "";
+
+  // Use total remaining (including all periods) for low-time detection
+  const blackTotal = totalRemainingMs(cd, 1, elapsed, settings);
+  const whiteTotal = totalRemainingMs(cd, -1, elapsed, settings);
 
   return {
     blackText: blackText + blackPeriods,
     whiteText: whiteText + whitePeriods,
-    blackLow: blackMs < 10000,
-    whiteLow: whiteMs < 10000,
+    blackLow: blackTotal < 10000,
+    whiteLow: whiteTotal < 10000,
   };
 }
 

@@ -4,10 +4,8 @@ import { initUserGames } from "./layouts/user-games";
 import { initAnalysis } from "./layouts/analysis";
 import { initNotificationToggle } from "./game/notifications";
 import { initNewGameForm } from "./layouts/game-settings-form";
-import { readUserData } from "./game/util";
-import { InitialGameProps } from "./goban/types";
-
-const userData = readUserData();
+import type { InitialGameProps } from "./goban/types";
+import { parseDatasetJson } from "./utils/format";
 
 initNotificationToggle();
 
@@ -32,10 +30,12 @@ if (userGamesRoot) {
 const gameRoot = document.getElementById("game");
 
 if (gameRoot) {
-  const initialProps: InitialGameProps = JSON.parse(gameRoot.dataset.props!);
-  const gameId = Number(gameRoot.dataset.gameId!);
+  const initialProps = parseDatasetJson<InitialGameProps>(gameRoot, "props");
+  const gameId = Number(gameRoot.dataset.gameId);
 
-  liveGame(initialProps, gameId, gameRoot);
+  if (initialProps && !isNaN(gameId)) {
+    liveGame(initialProps, gameId, gameRoot);
+  }
 }
 
 const analysisRoot = document.getElementById("analysis");

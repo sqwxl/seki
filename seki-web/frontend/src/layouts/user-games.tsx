@@ -2,7 +2,12 @@ import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "../ws";
 import { GameDescription } from "../components/game-description";
-import type { LiveGameItem, GameUpdate } from "../components/game-description";
+import type { LiveGameItem } from "../components/game-description";
+import type {
+  GameCreatedMessage,
+  GameUpdatedMessage,
+  GameRemovedMessage,
+} from "./games-list";
 import { parseDatasetJson } from "../utils/format";
 import type { UserData } from "../utils/format";
 
@@ -35,8 +40,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
 
   useEffect(() => {
     const unsubs = [
-      subscribe("game_created", (data) => {
-        const msg = data as unknown as { game: LiveGameItem };
+      subscribe<GameCreatedMessage>("game_created", (msg) => {
         const userId = profileUserIdRef.current;
         if (userId != null && involvesUser(msg.game, userId)) {
           setGames((prev) => {
@@ -47,8 +51,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
         }
       }),
 
-      subscribe("game_updated", (data) => {
-        const msg = data as unknown as { game: GameUpdate };
+      subscribe<GameUpdatedMessage>("game_updated", (msg) => {
         setGames((prev) => {
           const existing = prev.get(msg.game.id);
           if (!existing) {
@@ -67,8 +70,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
         });
       }),
 
-      subscribe("game_removed", (data) => {
-        const msg = data as unknown as { game_id: number };
+      subscribe<GameRemovedMessage>("game_removed", (msg) => {
         setGames((prev) => {
           if (!prev.has(msg.game_id)) {
             return prev;

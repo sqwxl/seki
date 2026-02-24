@@ -7,6 +7,7 @@
  */
 
 type Handler = (data: Record<string, unknown>) => void;
+type TypedHandler<T> = (data: T) => void;
 
 // Global "kind" handlers (lobby events like init, game_updated, game_removed)
 const handlers = new Map<string, Set<Handler>>();
@@ -94,19 +95,27 @@ function send(data: Record<string, unknown>): void {
 /**
  * Subscribe to a specific event kind (lobby-level). Returns an unsubscribe function.
  * Lazily connects the WebSocket on first subscription.
+ *
+ * The generic parameter lets callers specify the expected message shape,
+ * avoiding `as unknown as` casts at the call site. The boundary is still
+ * untyped at runtime (messages arrive as JSON), so the type parameter is
+ * trusted by convention.
  */
-function subscribe(kind: string, handler: Handler): () => void {
+function subscribe<T extends Record<string, unknown> = Record<string, unknown>>(
+  kind: string,
+  handler: TypedHandler<T>,
+): () => void {
   let kindHandlers = handlers.get(kind);
   if (!kindHandlers) {
     kindHandlers = new Set();
     handlers.set(kind, kindHandlers);
   }
-  kindHandlers.add(handler);
+  kindHandlers.add(handler as Handler);
 
   ensureConnected();
 
   return () => {
-    kindHandlers!.delete(handler);
+    kindHandlers!.delete(handler as Handler);
     if (kindHandlers!.size === 0) {
       handlers.delete(kind);
     }

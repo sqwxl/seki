@@ -116,12 +116,13 @@ export default class SVGGoban extends Component<GobanProps, GobanState> {
       !this.state.clearAnimatedVerticesHandler &&
       this.state.animatedVertices.length > 0
     ) {
+      const shiftMap = [...this.state.shiftMap];
       for (const i of this.state.animatedVertices) {
-        this.state.shiftMap[i] = random(7) + 1;
-        readjustShifts(this.state.shiftMap, this.props.cols, i);
+        shiftMap[i] = random(7) + 1;
+        readjustShifts(shiftMap, this.props.cols, i);
       }
 
-      this.setState({ shiftMap: this.state.shiftMap });
+      this.setState({ shiftMap });
 
       this.setState({
         clearAnimatedVerticesHandler: setTimeout(() => {

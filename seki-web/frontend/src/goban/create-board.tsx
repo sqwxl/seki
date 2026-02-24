@@ -157,7 +157,13 @@ function renderMoveTree(
   onReset?: () => void,
 ): void {
   const treeJson = engine.tree_json();
-  const tree: GameTreeData = JSON.parse(treeJson);
+  let tree: GameTreeData;
+  try {
+    tree = JSON.parse(treeJson);
+  } catch {
+    console.warn("Failed to parse move tree JSON");
+    return;
+  }
   let currentNodeId = engine.current_node_id();
 
   // Inject synthetic root node for the empty board
@@ -386,21 +392,33 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
   function computeTerritoryState(
     deadStones: [number, number][],
-  ): TerritoryState {
-    const deadJson = JSON.stringify(deadStones);
-    const ownership: number[] = JSON.parse(engine.estimate_territory(deadJson));
-    const scoreJson = engine.score(deadJson, komi);
-    const parsed = JSON.parse(scoreJson);
-    const score: ScoreData = {
-      black: parsed.black,
-      white: parsed.white,
-    };
-    return { deadStones, ownership, score };
+  ): TerritoryState | undefined {
+    try {
+      const deadJson = JSON.stringify(deadStones);
+      const ownership: number[] = JSON.parse(
+        engine.estimate_territory(deadJson),
+      );
+      const scoreJson = engine.score(deadJson, komi);
+      const parsed = JSON.parse(scoreJson);
+      const score: ScoreData = {
+        black: parsed.black,
+        white: parsed.white,
+      };
+      return { deadStones, ownership, score };
+    } catch {
+      console.warn("Failed to compute territory state");
+      return undefined;
+    }
   }
 
   function enterTerritory() {
-    const deadJson = engine.detect_dead_stones();
-    const deadStones: [number, number][] = JSON.parse(deadJson);
+    let deadStones: [number, number][];
+    try {
+      deadStones = JSON.parse(engine.detect_dead_stones());
+    } catch {
+      console.warn("Failed to parse dead stones");
+      return;
+    }
     territoryState = computeTerritoryState(deadStones);
     doRender();
   }
@@ -458,8 +476,16 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       // Read-only territory display for finalized node
       const deadStones = finalizedNodes.get(nodeId)!;
       const ts = computeTerritoryState(deadStones);
-      overlay = buildOverlay(ts.deadStones, ts.ownership);
-      territoryInfo = { reviewing: false, finalized: true, score: ts.score };
+      if (ts) {
+        overlay = buildOverlay(ts.deadStones, ts.ownership);
+        territoryInfo = { reviewing: false, finalized: true, score: ts.score };
+      } else {
+        territoryInfo = {
+          reviewing: false,
+          finalized: false,
+          score: undefined,
+        };
+      }
     } else if (territoryState) {
       // Active territory review
       overlay = buildOverlay(
@@ -496,12 +522,18 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
 
       // Territory review: toggle dead stones
       if (territoryState) {
-        const deadJson = engine.toggle_dead_chain(
-          col,
-          row,
-          JSON.stringify(territoryState.deadStones),
-        );
-        const newDead: [number, number][] = JSON.parse(deadJson);
+        let newDead: [number, number][];
+        try {
+          const deadJson = engine.toggle_dead_chain(
+            col,
+            row,
+            JSON.stringify(territoryState.deadStones),
+          );
+          newDead = JSON.parse(deadJson);
+        } catch {
+          console.warn("Failed to toggle dead chain");
+          return;
+        }
         territoryState = computeTerritoryState(newDead);
         doRender();
         return;
