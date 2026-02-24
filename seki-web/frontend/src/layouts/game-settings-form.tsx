@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { storage, GAME_SETTINGS } from "../utils/storage";
+import { IconNigiri, StoneBlack, StoneWhite } from "../components/icons";
 
 type TimeControl = "none" | "fischer" | "byoyomi" | "correspondence";
 
@@ -194,15 +195,7 @@ export function GameSettingsForm({
               onChange={() => set("color", "black")}
             />
             <label for="color_black">
-              <svg
-                class="icon-stone-black"
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 -960 960 960"
-              >
-                <path d={filledCirclePath} />
-              </svg>
+              <StoneBlack />
             </label>
             <input
               type="radio"
@@ -213,15 +206,7 @@ export function GameSettingsForm({
               onChange={() => set("color", "white")}
             />
             <label for="color_white">
-              <svg
-                class="icon-stone-white"
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 -960 960 960"
-              >
-                <path d={outlineCirclePath} />
-              </svg>
+              <StoneWhite />
             </label>
             <input
               type="radio"
@@ -232,15 +217,7 @@ export function GameSettingsForm({
               onChange={() => set("color", "nigiri")}
             />
             <label for="color_nigiri">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 -960 960 960"
-                fill="currentColor"
-              >
-                <path d={nigiriPath} />
-              </svg>
+              <IconNigiri />
             </label>
           </div>
         </div>
@@ -462,9 +439,7 @@ export function GameSettingsForm({
         </fieldset>
       )}
 
-      <button type="submit">
-        {opponent ? "Challenge" : submitLabel}
-      </button>
+      <button type="submit">{opponent ? "Challenge" : submitLabel}</button>
     </div>
   );
 }

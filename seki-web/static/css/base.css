@@ -92,6 +92,10 @@ legend {
 }
 
 /* Color picker: hide radios, outline the selected icon */
+.color-picker {
+  font-size: 2em;
+}
+
 .color-picker input[type="radio"] {
   position: absolute;
   opacity: 0;
@@ -102,8 +106,6 @@ legend {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2em;
-  height: 2em;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
