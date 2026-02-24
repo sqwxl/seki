@@ -3,6 +3,15 @@ import { GameStage, isPlayStage } from "../goban/types";
 
 export type { GameSettings, UserData };
 
+// Default time-control values used when GameSettings fields are undefined.
+// Keep in sync with server defaults and game-settings-form.tsx UI defaults.
+export const DEFAULT_FISCHER_MAIN_SECS = 600;
+export const DEFAULT_FISCHER_INCREMENT_SECS = 5;
+export const DEFAULT_BYOYOMI_MAIN_SECS = 1200;
+export const DEFAULT_BYOYOMI_PERIODS = 3;
+export const DEFAULT_BYOYOMI_PERIOD_SECS = 30;
+export const DEFAULT_CORRESPONDENCE_SECS = 259200; // 3 days
+
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
 export function blackSymbol(): string {
@@ -47,18 +56,20 @@ export function formatTimeControl(s: GameSettings): string | undefined {
     case "none":
       return undefined;
     case "fischer": {
-      const main = formatTime(s.main_time_secs ?? 600);
-      const inc = s.increment_secs ?? 5;
+      const main = formatTime(s.main_time_secs ?? DEFAULT_FISCHER_MAIN_SECS);
+      const inc = s.increment_secs ?? DEFAULT_FISCHER_INCREMENT_SECS;
       return `${main}+${inc}s`;
     }
     case "byoyomi": {
-      const main = formatTime(s.main_time_secs ?? 1200);
-      const periods = s.byoyomi_periods ?? 3;
-      const periodTime = s.byoyomi_time_secs ?? 30;
+      const main = formatTime(s.main_time_secs ?? DEFAULT_BYOYOMI_MAIN_SECS);
+      const periods = s.byoyomi_periods ?? DEFAULT_BYOYOMI_PERIODS;
+      const periodTime = s.byoyomi_time_secs ?? DEFAULT_BYOYOMI_PERIOD_SECS;
       return `${main} (${periods}×${periodTime}s)`;
     }
     case "correspondence": {
-      const days = Math.floor((s.main_time_secs ?? 259200) / 86400);
+      const days = Math.floor(
+        (s.main_time_secs ?? DEFAULT_CORRESPONDENCE_SECS) / 86400,
+      );
       return `${days}d`;
     }
   }
@@ -92,17 +103,17 @@ export function settingsToSgfTime(s: GameSettings): {
       return {};
     case "fischer":
       return {
-        time_limit_secs: s.main_time_secs ?? 600,
-        overtime: `Fischer ${s.increment_secs ?? 5}s increment`,
+        time_limit_secs: s.main_time_secs ?? DEFAULT_FISCHER_MAIN_SECS,
+        overtime: `Fischer ${s.increment_secs ?? DEFAULT_FISCHER_INCREMENT_SECS}s increment`,
       };
     case "byoyomi":
       return {
-        time_limit_secs: s.main_time_secs ?? 1200,
-        overtime: `${s.byoyomi_periods ?? 3}x${s.byoyomi_time_secs ?? 30} byo-yomi`,
+        time_limit_secs: s.main_time_secs ?? DEFAULT_BYOYOMI_MAIN_SECS,
+        overtime: `${s.byoyomi_periods ?? DEFAULT_BYOYOMI_PERIODS}x${s.byoyomi_time_secs ?? DEFAULT_BYOYOMI_PERIOD_SECS} byo-yomi`,
       };
     case "correspondence":
       return {
-        time_limit_secs: s.main_time_secs ?? 259200,
+        time_limit_secs: s.main_time_secs ?? DEFAULT_CORRESPONDENCE_SECS,
         overtime: "Correspondence",
       };
   }
@@ -115,7 +126,7 @@ export function formatSize(cols: number, rows: number): string {
   return `${cols}×${rows}`;
 }
 
-type DescriptionInput = {
+export type DescriptionInput = {
   creator_id: number | undefined;
   black: UserData | undefined;
   white: UserData | undefined;
@@ -125,20 +136,9 @@ type DescriptionInput = {
   move_count: number | undefined;
 };
 
-export function formatGameDescription(g: DescriptionInput): string {
-  const b = g.black?.display_name ?? "?";
-  const w = g.white?.display_name ?? "?";
-
-  const creatorIsWhite = g.creator_id != null && g.white?.id === g.creator_id;
-  const first = creatorIsWhite
-    ? `${w} ${whiteSymbol()}`
-    : `${b} ${blackSymbol()}`;
-  const second = creatorIsWhite
-    ? `${b} ${blackSymbol()}`
-    : `${w} ${whiteSymbol()}`;
-
+/** Build the "size - handicap - time control - result/move" parts array. */
+export function buildDescriptionParts(g: DescriptionInput): string[] {
   const parts: string[] = [
-    `${first} vs ${second}`,
     formatSize(g.settings.cols, g.settings.rows),
   ];
 
@@ -160,7 +160,22 @@ export function formatGameDescription(g: DescriptionInput): string {
     parts.push(`Move ${g.move_count}`);
   }
 
-  return parts.join(" - ");
+  return parts;
+}
+
+export function formatGameDescription(g: DescriptionInput): string {
+  const b = g.black?.display_name ?? "?";
+  const w = g.white?.display_name ?? "?";
+
+  const creatorIsWhite = g.creator_id != null && g.white?.id === g.creator_id;
+  const first = creatorIsWhite
+    ? `${w} ${whiteSymbol()}`
+    : `${b} ${blackSymbol()}`;
+  const second = creatorIsWhite
+    ? `${b} ${blackSymbol()}`
+    : `${w} ${whiteSymbol()}`;
+
+  return [`${first} vs ${second}`, ...buildDescriptionParts(g)].join(" - ");
 }
 
 export function parseDatasetJson<T>(

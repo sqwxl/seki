@@ -2,7 +2,7 @@ import { GameStage, isPlayStage, type Point } from "../goban/types";
 import type { TerritoryOverlay } from "../goban/create-board";
 import { Chat } from "../components/chat";
 import type { ControlsProps } from "../components/controls";
-import { formatResult, formatPoints } from "../utils/format";
+import { formatResult } from "../utils/format";
 import type { GameChannel } from "../game/channel";
 import { formatScoreStr } from "../game/ui";
 import { clockDisplay } from "../game/clock";
@@ -135,17 +135,12 @@ function LivePlayerPanel({ position }: { position: "top" | "bottom" }) {
     settledTerritory.value?.score;
   const komi = initialProps.value.komi;
 
-  let bStr: string;
-  let wStr: string;
-  if (score) {
-    ({ bStr, wStr } = formatScoreStr(score, komi));
-  } else {
-    ({ bStr, wStr } = formatPoints(
-      gameState.value.captures.black,
-      gameState.value.captures.white,
-      komi,
-    ));
-  }
+  const { bStr, wStr } = formatScoreStr(
+    komi,
+    score,
+    gameState.value.captures.black,
+    gameState.value.captures.white,
+  );
 
   const cd = clockDisplay.value;
 

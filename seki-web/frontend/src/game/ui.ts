@@ -69,14 +69,23 @@ export function updateTitle(): void {
   }
 }
 
+/**
+ * Format score strings for player panels.
+ * If `score` is provided, uses territory + captures totals.
+ * Otherwise, falls back to raw `blackCaptures` / `whiteCaptures`.
+ */
 export function formatScoreStr(
-  score: ScoreData,
   komi: number,
+  score?: ScoreData,
+  blackCaptures?: number,
+  whiteCaptures?: number,
 ): { bStr: string; wStr: string } {
-  const bTotal = score.black.territory + score.black.captures;
-  const wTotal = score.white.territory + score.white.captures;
-  const { bStr, wStr } = formatPoints(bTotal, wTotal, komi);
-  return { bStr, wStr };
+  if (score) {
+    const bTotal = score.black.territory + score.black.captures;
+    const wTotal = score.white.territory + score.white.captures;
+    return formatPoints(bTotal, wTotal, komi);
+  }
+  return formatPoints(blackCaptures ?? 0, whiteCaptures ?? 0, komi);
 }
 
 export type TerritoryCountdown = {

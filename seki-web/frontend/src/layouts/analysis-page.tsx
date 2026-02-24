@@ -3,7 +3,6 @@ import type { PlayerPanelProps } from "../components/player-panel";
 import {
   blackSymbol,
   whiteSymbol,
-  formatPoints,
   formatSize,
   formatSgfTime,
   formatTime,
@@ -78,17 +77,12 @@ function AnalysisPlayerPanel({ position }: { position: "top" | "bottom" }) {
   const { reviewing, finalized, score } = analysisTerritoryInfo.value;
   const isBlackTurn = engine.current_turn_stone() === 1;
 
-  let bStr: string;
-  let wStr: string;
-  if (score) {
-    ({ bStr, wStr } = formatScoreStr(score, KOMI));
-  } else {
-    ({ bStr, wStr } = formatPoints(
-      engine.captures_black(),
-      engine.captures_white(),
-      KOMI,
-    ));
-  }
+  const { bStr, wStr } = formatScoreStr(
+    KOMI,
+    score,
+    engine.captures_black(),
+    engine.captures_white(),
+  );
 
   const whiteName = meta?.white_name ?? "White";
   const blackName = meta?.black_name ?? "Black";

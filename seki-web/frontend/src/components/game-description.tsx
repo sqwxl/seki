@@ -1,6 +1,6 @@
-import { UserData, GameSettings, GameStage, isPlayStage } from "../goban/types";
+import type { UserData, GameSettings, GameStage } from "../goban/types";
 import { UserLabel } from "./user-label";
-import { formatSize, formatTimeControl } from "../utils/format";
+import { buildDescriptionParts } from "../utils/format";
 
 export type GameUpdate = {
   id: number;
@@ -34,27 +34,7 @@ export function GameDescription(props: LiveGameItem) {
   const firstStone: "black" | "white" = creatorIsWhite ? "white" : "black";
   const secondStone: "black" | "white" = creatorIsWhite ? "black" : "white";
 
-  const parts: string[] = [
-    formatSize(props.settings.cols, props.settings.rows),
-  ];
-
-  if (props.settings.handicap >= 2) {
-    parts.push(`H${props.settings.handicap}`);
-  }
-
-  const tc = formatTimeControl(props.settings);
-  if (tc) {
-    parts.push(tc);
-  }
-
-  if (props.result) {
-    parts.push(props.result);
-  } else if (
-    (isPlayStage(props.stage) || props.stage === GameStage.TerritoryReview) &&
-    props.move_count != null
-  ) {
-    parts.push(`Move ${props.move_count}`);
-  }
+  const parts = buildDescriptionParts(props);
 
   return (
     <>

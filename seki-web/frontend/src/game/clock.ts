@@ -1,5 +1,6 @@
 import { signal } from "@preact/signals";
 import type { ClockData, GameSettings } from "../goban/types";
+import { DEFAULT_BYOYOMI_PERIOD_SECS } from "../utils/format";
 import { initialProps } from "./state";
 
 export type ClockState = {
@@ -56,7 +57,7 @@ function totalRemainingMs(
     remaining -= elapsed;
   }
   if (cd.type === "byoyomi" && side.periods > 0 && remaining <= 0) {
-    const periodMs = (settings.byoyomi_time_secs ?? 30) * 1000;
+    const periodMs = (settings.byoyomi_time_secs ?? DEFAULT_BYOYOMI_PERIOD_SECS) * 1000;
     return side.periods * periodMs + remaining;
   }
   return remaining;
@@ -87,7 +88,7 @@ export function computeClockDisplay(clockState: ClockState): ClockDisplay {
   let whitePeriodCount = cd.white.periods;
 
   if (cd.type === "byoyomi") {
-    const periodMs = (settings.byoyomi_time_secs ?? 30) * 1000;
+    const periodMs = (settings.byoyomi_time_secs ?? DEFAULT_BYOYOMI_PERIOD_SECS) * 1000;
     while (blackMs <= 0 && blackPeriodCount > 0) {
       blackMs += periodMs;
       blackPeriodCount--;
