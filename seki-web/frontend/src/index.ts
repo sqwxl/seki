@@ -6,7 +6,9 @@ import { initNotificationToggle } from "./game/notifications";
 import { initNewGameForm } from "./layouts/game-settings-form";
 import type { InitialGameProps } from "./game/types";
 import { parseDatasetJson } from "./utils/format";
+import { initThemeToggle } from "./utils/theme";
 
+initThemeToggle();
 initNotificationToggle();
 
 const newGameRoot = document.getElementById("new-game-form");

@@ -17,6 +17,13 @@
         <meta property="og:description" content="Play Go (Weiqi/Baduk) online with friends">
         {% endblock %}
         <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+        <script>
+            (function() {
+                var m = localStorage.getItem("seki:theme") || "auto";
+                var d = m === "dark" || (m === "auto" && matchMedia("(prefers-color-scheme:dark)").matches);
+                document.documentElement.dataset.theme = d ? "dark" : "light";
+            })();
+        </script>
         <link rel="stylesheet" href="/static/css/styles.css">
         <script id="user-data" type="application/json">{{ user_data|safe }}</script>
         <script src="/static/dist/bundle.js" type="module" defer></script>
@@ -30,6 +37,7 @@
                 <a href="/analysis">Analysis</a>
             </div>
             <div>
+                <button id="theme-toggle" type="button" class="nav-icon" title="Switch to light theme"></button>
                 <button id="notification-toggle" type="button" title="Enable turn notifications"></button>
                 <a href="/users/{{ user_username }}">{{ user_username }}</a>
                 {% if user_is_registered %}

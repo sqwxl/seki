@@ -1,13 +1,16 @@
 import { useState, useEffect } from "preact/hooks";
 
-const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+function isDark(): boolean {
+  return document.documentElement.dataset.theme === "dark";
+}
 
 function useDarkMode(): boolean {
-  const [dark, setDark] = useState(darkQuery.matches);
+  const [dark, setDark] = useState(isDark);
   useEffect(() => {
-    const handler = (e: MediaQueryListEvent) => setDark(e.matches);
-    darkQuery.addEventListener("change", handler);
-    return () => darkQuery.removeEventListener("change", handler);
+    const handler = () => setDark(isDark());
+    document.documentElement.addEventListener("themechange", handler);
+    return () =>
+      document.documentElement.removeEventListener("themechange", handler);
   }, []);
   return dark;
 }
@@ -50,34 +53,34 @@ export const CapturesWhite = darkModeIcon(capturesFilledSvg, capturesNofillSvg);
 // Imperative helpers (for DOM contexts that can't use Preact components)
 
 export function stoneBlackSvg(): string {
-  return darkQuery.matches ? circleNofillSvg : circleFilledSvg;
+  return isDark() ? circleNofillSvg : circleFilledSvg;
 }
 
 export function stoneWhiteSvg(): string {
-  return darkQuery.matches ? circleFilledSvg : circleNofillSvg;
+  return isDark() ? circleFilledSvg : circleNofillSvg;
 }
 
 export function capturesBlackSvg(): string {
-  return darkQuery.matches ? capturesFilledSvg : capturesNofillSvg;
+  return isDark() ? capturesFilledSvg : capturesNofillSvg;
 }
 
 export function capturesWhiteSvg(): string {
-  return darkQuery.matches ? capturesNofillSvg : capturesFilledSvg;
+  return isDark() ? capturesNofillSvg : capturesFilledSvg;
 }
 
-// Re-render stone/captures icons when system theme changes
-darkQuery.addEventListener("change", () => {
+// Re-render stone/captures icons when theme changes
+document.documentElement.addEventListener("themechange", () => {
   for (const el of document.querySelectorAll<HTMLElement>(
     ".stone-icon[data-stone]",
   )) {
     const stone = el.dataset.stone;
-    el.innerHTML = stone === "black" ? stoneBlackSvg() : stoneWhiteSvg(); // safe: hardcoded SVG constants
+    el.innerHTML = stone === "black" ? stoneBlackSvg() : stoneWhiteSvg(); // safe: hardcoded SVG constants, not user input
   }
   for (const el of document.querySelectorAll<HTMLElement>(
     ".captures-icon[data-stone]",
   )) {
     const stone = el.dataset.stone;
-    el.innerHTML = stone === "black" ? capturesBlackSvg() : capturesWhiteSvg(); // safe: hardcoded SVG constants
+    el.innerHTML = stone === "black" ? capturesBlackSvg() : capturesWhiteSvg(); // safe: hardcoded SVG constants, not user input
   }
 });
 
@@ -88,6 +91,12 @@ const svgOpen =
   '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 -960 960 960" width="1em" fill="currentColor">';
 
 export const nigiriSvg = `${svgOpen}<path d="M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM520-163q119-15 199.5-104.5T800-480q0-123-80.5-212.5T520-797v634Z"/></svg>`;
+
+export const themeLightSvg = `${svgOpen}<path d="M565-395q35-35 35-85t-35-85q-35-35-85-35t-85 35q-35 35-35 85t35 85q35 35 85 35t85-35Zm-226.5 56.5Q280-397 280-480t58.5-141.5Q397-680 480-680t141.5 58.5Q680-563 680-480t-58.5 141.5Q563-280 480-280t-141.5-58.5ZM200-440H40v-80h160v80Zm720 0H760v-80h160v80ZM440-760v-160h80v160h-80Zm0 720v-160h80v160h-80ZM256-650l-101-97 57-59 96 100-52 56Zm492 496-97-101 53-55 101 97-57 59Zm-98-550 97-101 59 57-100 96-56-52ZM154-212l101-97 55 53-97 101-59-57Zm326-268Z"/></svg>`;
+
+export const themeDarkSvg = `${svgOpen}<path d="M480-120q-150 0-255-105T120-480q0-150 105-255t255-105q14 0 27.5 1t26.5 3q-41 29-65.5 75.5T444-660q0 90 63 153t153 63q55 0 101-24.5t75-65.5q2 13 3 26.5t1 27.5q0 150-105 255T480-120Zm0-80q88 0 158-48.5T740-375q-20 5-40 8t-40 3q-123 0-209.5-86.5T364-660q0-20 3-40t8-40q-78 32-126.5 102T200-480q0 116 82 198t198 82Zm-10-270Z"/></svg>`;
+
+export const themeAutoSvg = `${svgOpen}<path d="M337.5-463Q311-498 289-537q-5 14-6.5 28.5T281-480q0 83 58 141t141 58q14 0 28.5-2t28.5-6q-39-22-74-48.5T396-396q-32-32-58.5-67ZM567-364.5Q630-328 702-308q-40 51-98 79.5T481-200q-117 0-198.5-81.5T201-480q0-65 28.5-123t79.5-98q20 72 56.5 135T453-452q51 51 114 87.5ZM743-380q-20-5-39.5-11T665-405q8-18 11.5-36.5T680-480q0-83-58.5-141.5T480-680q-20 0-38.5 3.5T405-665q-8-19-13.5-38T381-742q24-9 49-13.5t51-4.5q117 0 198.5 81.5T761-480q0 26-4.5 51T743-380ZM440-840v-120h80v120h-80Zm0 840v-120h80V0h-80Zm323-706-57-57 85-84 57 56-85 85ZM169-113l-57-56 85-85 57 57-85 84Zm671-327v-80h120v80H840ZM0-440v-80h120v80H0Zm791 328-85-85 57-57 84 85-56 57ZM197-706l-84-85 56-57 85 85-57 57Zm199 310Z"/></svg>`;
 
 export const analysisSvg = `${svgOpen}<path d="M240-120q-17 0-28.5-11.5T200-160q0-17 11.5-28.5T240-200h160v-80q-83 0-141.5-58.5T200-480q0-57 29-105t80-73q-4 22 1.5 43t17.5 40q-23 16-35.5 41T280-480q0 50 35 85t85 35h280q17 0 28.5 11.5T720-320q0 17-11.5 28.5T680-280H520v80h200q17 0 28.5 11.5T760-160q0 17-11.5 28.5T720-120H240Zm308-394h-1q-16 6-30.5-.5T496-537l-6-16q20-16 31-38.5t11-48.5q0-47-33-79.5T418-752l-5-13q-5-16 1.5-30.5T437-816h1q-6-15 1-29.5t24-20.5q15-5 29.5 1.5T512-842q16-6 31 1t21 23l82 225q6 16-.5 30.5T623-542h-1q6 16-1 31t-24 21q-15 5-29.5-1.5T548-514Zm-179-75q-21-21-21-51t21-51q21-21 51-21t51 21q21 21 21 51t-21 51q-21 21-51 21t-51-21Z"/></svg>`;
 
