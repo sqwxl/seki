@@ -85,34 +85,34 @@ export function initNotificationToggle(): void {
   updateToggleIcon();
 }
 
-export function notifyGameStarted(): void {
-  if (!isEnabled()) {
-    return;
-  }
-  if (!document.hidden) {
-    return;
-  }
+function getOpponentName(): string {
+  return playerStone.value === 1
+    ? (white.value?.display_name ?? "White")
+    : (black.value?.display_name ?? "Black");
+}
 
-  const opponent =
-    playerStone.value === 1
-      ? (white.value?.display_name ?? "White")
-      : (black.value?.display_name ?? "Black");
-
-  const n = new Notification("Game started", {
-    body: `Your game against ${opponent} has begun!`,
-    tag: `seki-start-${gameId.value}`,
-  });
+function sendNotification(title: string, body: string, tag: string): void {
+  const n = new Notification(title, { body, tag });
   n.onclick = () => {
     window.focus();
     n.close();
   };
 }
 
-export function notifyTurn(state: NotificationState): void {
-  if (!isEnabled()) {
+export function notifyGameStarted(): void {
+  if (!isEnabled() || !document.hidden) {
     return;
   }
-  if (!document.hidden) {
+
+  sendNotification(
+    "Game started",
+    `Your game against ${getOpponentName()} has begun!`,
+    `seki-start-${gameId.value}`,
+  );
+}
+
+export function notifyTurn(state: NotificationState): void {
+  if (!isEnabled() || !document.hidden) {
     return;
   }
   if (playerStone.value === 0) {
@@ -131,17 +131,9 @@ export function notifyTurn(state: NotificationState): void {
   }
   state.lastNotifiedMoveCount = moveCount;
 
-  const opponent =
-    playerStone.value === 1
-      ? (white.value?.display_name ?? "White")
-      : (black.value?.display_name ?? "Black");
-
-  const n = new Notification("Your turn", {
-    body: `${opponent} has played. It's your move!`,
-    tag: `seki-turn-${gameId.value}`,
-  });
-  n.onclick = () => {
-    window.focus();
-    n.close();
-  };
+  sendNotification(
+    "Your turn",
+    `${getOpponentName()} has played. It's your move!`,
+    `seki-turn-${gameId.value}`,
+  );
 }

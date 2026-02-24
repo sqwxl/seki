@@ -4,6 +4,7 @@ import { subscribe } from "../ws";
 import { GameDescription } from "../components/game-description";
 import type { LiveGameItem, GameUpdate } from "../components/game-description";
 import { GameStage } from "../goban/types";
+import { parseDatasetJson } from "../utils/format";
 import type { UserData } from "../utils/format";
 
 type InitMessage = {
@@ -27,18 +28,6 @@ type GameRemovedMessage = {
   kind: "game_removed";
   game_id: number;
 };
-
-function parseInitialGames(root: HTMLElement): InitMessage | undefined {
-  const json = root.dataset.initialGames;
-  if (!json) {
-    return undefined;
-  }
-  try {
-    return JSON.parse(json) as InitMessage;
-  } catch {
-    return undefined;
-  }
-}
 
 function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
   const map = new Map<number, LiveGameItem>();
@@ -185,7 +174,7 @@ function GamesList({ initial }: { initial?: InitMessage }) {
 }
 
 function initGamesList(root: HTMLElement) {
-  const initial = parseInitialGames(root);
+  const initial = parseDatasetJson<InitMessage>(root, "initialGames");
   render(<GamesList initial={initial} />, root);
 }
 

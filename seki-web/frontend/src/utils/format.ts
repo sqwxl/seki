@@ -162,3 +162,18 @@ export function formatGameDescription(g: DescriptionInput): string {
 
   return parts.join(" - ");
 }
+
+export function parseDatasetJson<T>(
+  root: HTMLElement,
+  key: string,
+): T | undefined {
+  const json = root.dataset[key];
+  if (!json) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return undefined;
+  }
+}

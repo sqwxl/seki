@@ -3,24 +3,13 @@ import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "../ws";
 import { GameDescription } from "../components/game-description";
 import type { LiveGameItem, GameUpdate } from "../components/game-description";
+import { parseDatasetJson } from "../utils/format";
 import type { UserData } from "../utils/format";
 
 type InitialData = {
   profile_user_id: number;
   games: LiveGameItem[];
 };
-
-function parseInitialData(root: HTMLElement): InitialData | undefined {
-  const json = root.dataset.initialGames;
-  if (!json) {
-    return undefined;
-  }
-  try {
-    return JSON.parse(json) as InitialData;
-  } catch {
-    return undefined;
-  }
-}
 
 function involvesUser(
   game: { black: UserData | undefined; white: UserData | undefined },
@@ -131,7 +120,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
 }
 
 function initUserGames(root: HTMLElement) {
-  const initial = parseInitialData(root);
+  const initial = parseDatasetJson<InitialData>(root, "initialGames");
   render(<UserGames initial={initial} />, root);
 }
 

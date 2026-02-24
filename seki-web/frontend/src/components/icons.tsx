@@ -32,54 +32,23 @@ export const capturesNofillSvg =
 // Dark-mode-aware Preact components
 // NOTE: dangerouslySetInnerHTML is safe here - SVG content is hardcoded constants, not user input
 
-export function StoneBlack() {
-  const dark = useDarkMode();
-  return (
-    <span
-      class="icon"
-      dangerouslySetInnerHTML={{
-        __html: dark ? circleNofillSvg : circleFilledSvg,
-      }}
-    />
-  );
+function darkModeIcon(lightSvg: string, darkSvg: string) {
+  return function DarkModeIconComponent() {
+    const dark = useDarkMode();
+    return (
+      <span
+        class="icon"
+        dangerouslySetInnerHTML={{ __html: dark ? darkSvg : lightSvg }}
+      />
+    );
+  };
 }
 
-export function StoneWhite() {
-  const dark = useDarkMode();
-  return (
-    <span
-      class="icon"
-      dangerouslySetInnerHTML={{
-        __html: dark ? circleFilledSvg : circleNofillSvg,
-      }}
-    />
-  );
-}
-
+export const StoneBlack = darkModeIcon(circleFilledSvg, circleNofillSvg);
+export const StoneWhite = darkModeIcon(circleNofillSvg, circleFilledSvg);
 // Captures show opponent's color (black captures white stones, white captures black stones)
-export function CapturesBlack() {
-  const dark = useDarkMode();
-  return (
-    <span
-      class="icon"
-      dangerouslySetInnerHTML={{
-        __html: dark ? capturesFilledSvg : capturesNofillSvg,
-      }}
-    />
-  );
-}
-
-export function CapturesWhite() {
-  const dark = useDarkMode();
-  return (
-    <span
-      class="icon"
-      dangerouslySetInnerHTML={{
-        __html: dark ? capturesNofillSvg : capturesFilledSvg,
-      }}
-    />
-  );
-}
+export const CapturesBlack = darkModeIcon(capturesNofillSvg, capturesFilledSvg);
+export const CapturesWhite = darkModeIcon(capturesFilledSvg, capturesNofillSvg);
 
 // Imperative helpers (for DOM contexts that can't use Preact components)
 

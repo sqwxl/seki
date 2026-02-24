@@ -24,7 +24,7 @@ const timeFmt = new Intl.DateTimeFormat(undefined, {
   minute: "2-digit",
 });
 
-function formatTime(iso: string): string {
+function formatTimestamp(iso: string): string {
   return timeFmt.format(new Date(iso));
 }
 
@@ -34,7 +34,7 @@ function formatPrefix(entry: ChatEntry): string {
     parts.push(`#${entry.move_number}`);
   }
   if (entry.sent_at) {
-    parts.push(formatTime(entry.sent_at));
+    parts.push(formatTimestamp(entry.sent_at));
   }
   if (parts.length > 0) {
     return `[${parts.join(" ")}] `;

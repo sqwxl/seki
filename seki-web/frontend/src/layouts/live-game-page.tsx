@@ -1,9 +1,4 @@
-import {
-  GameStage,
-  isPlayStage,
-  type Point,
-  type SettledTerritoryData,
-} from "../goban/types";
+import { GameStage, isPlayStage, type Point } from "../goban/types";
 import type { TerritoryOverlay } from "../goban/create-board";
 import { Chat } from "../components/chat";
 import type { ControlsProps } from "../components/controls";
@@ -65,27 +60,26 @@ export type LiveGamePageProps = {
 // Territory overlay helpers (used by board callbacks, exported for mount)
 // ---------------------------------------------------------------------------
 
-export function getServerTerritory(): TerritoryOverlay | undefined {
-  if (gameStage.value === GameStage.TerritoryReview && territory.value) {
-    const paintMap = territory.value.ownership.map((v) => (v === 0 ? null : v));
-    const dimmedVertices: Point[] = territory.value.dead_stones.map(
-      ([c, r]) => [c, r] as Point,
-    );
-    return { paintMap, dimmedVertices };
-  }
-  // Settled territory overlay for finished games (not in analysis — WASM handles that)
-  if (estimateMode.value && settledTerritory.value && !analysisMode.value) {
-    return buildSettledOverlay(settledTerritory.value);
-  }
-  return undefined;
-}
-
-function buildSettledOverlay(st: SettledTerritoryData): TerritoryOverlay {
-  const paintMap = st.ownership.map((v) => (v === 0 ? null : v));
-  const dimmedVertices: Point[] = st.dead_stones.map(
+function buildTerritoryOverlay(data: {
+  ownership: number[];
+  dead_stones: [number, number][];
+}): TerritoryOverlay {
+  const paintMap = data.ownership.map((v) => (v === 0 ? null : v));
+  const dimmedVertices: Point[] = data.dead_stones.map(
     ([c, r]) => [c, r] as Point,
   );
   return { paintMap, dimmedVertices };
+}
+
+export function getServerTerritory(): TerritoryOverlay | undefined {
+  if (gameStage.value === GameStage.TerritoryReview && territory.value) {
+    return buildTerritoryOverlay(territory.value);
+  }
+  // Settled territory overlay for finished games (not in analysis — WASM handles that)
+  if (estimateMode.value && settledTerritory.value && !analysisMode.value) {
+    return buildTerritoryOverlay(settledTerritory.value);
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,10 +1,8 @@
-import { isPlayStage } from "../goban/types";
 import type { ScoreData } from "../goban/types";
 import type { ChatEntry } from "../components/chat";
 import { formatGameDescription, formatPoints } from "../utils/format";
 import {
-  playerStone,
-  currentTurn,
+  isMyTurn,
   gameStage,
   initialProps,
   black,
@@ -47,11 +45,7 @@ function stopFlashing() {
 }
 
 export function updateTurnFlash(): void {
-  const isMyTurn =
-    playerStone.value !== 0 &&
-    currentTurn.value === playerStone.value &&
-    isPlayStage(gameStage.value);
-  if (isMyTurn && document.hidden) {
+  if (isMyTurn.value && document.hidden) {
     startFlashing();
   } else {
     stopFlashing();
