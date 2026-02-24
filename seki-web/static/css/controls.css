@@ -71,8 +71,8 @@
   order: -2;
 }
 
-.controls-nav-row > .controls-navbar,
-.controls-nav-row > .controls-navbar-extra {
+.controls-nav-row > .controls-nav,
+.controls-nav-row > .controls-middle {
   order: -1;
 }
 
@@ -88,8 +88,8 @@
     order: 0;
   }
 
-  .controls-nav-row > .controls-navbar,
-  .controls-nav-row > .controls-navbar-extra {
+  .controls-nav-row > .controls-nav,
+  .controls-nav-row > .controls-middle {
     grid-column: 2;
     order: 0;
   }
@@ -101,7 +101,7 @@
   }
 }
 
-.controls-navbar {
+.controls-nav {
   display: flex;
   gap: 0.25em;
   justify-content: center;

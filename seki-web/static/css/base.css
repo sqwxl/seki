@@ -350,6 +350,10 @@ a:visited {
   }
 }
 
+.game-header {
+  text-align: center;
+}
+
 .game-page-body {
   display: flex;
   flex-direction: column;
@@ -375,7 +379,6 @@ a:visited {
   .game-page-body > .game-header {
     grid-column: 1 / -1;
     grid-row: 1;
-    text-align: center;
   }
   .game-page-body > .player-top {
     grid-column: 2;

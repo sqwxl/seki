@@ -124,7 +124,7 @@ export function initAnalysis(root: HTMLElement) {
       };
     } else if (!finalized) {
       props.pass = { onClick: () => board?.pass() };
-      props.score = { onClick: () => board?.enterTerritoryReview() };
+      props.estimate = { onClick: () => board?.enterTerritoryReview() };
       props.sgfImport = { onFileChange: handleSgfImport };
       props.sgfExport = { onClick: handleSgfExport };
       props.territoryReady = undefined;

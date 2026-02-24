@@ -15,10 +15,7 @@ import type { PremoveState } from "../utils/premove";
 import { storage, SHOW_MOVE_TREE } from "../utils/storage";
 import { GamePageLayout } from "./game-page-layout";
 import { GameDescription } from "../components/game-description";
-import {
-  buildNavProps,
-  buildCoordsToggle,
-} from "../utils/shared-controls";
+import { buildNavProps, buildCoordsToggle } from "../utils/shared-controls";
 import type { CoordsToggleState } from "../utils/shared-controls";
 import type { PlayerPanelProps } from "../components/player-panel";
 import {
@@ -69,13 +66,8 @@ export type LiveGamePageProps = {
 // ---------------------------------------------------------------------------
 
 export function getServerTerritory(): TerritoryOverlay | undefined {
-  if (
-    gameStage.value === GameStage.TerritoryReview &&
-    territory.value
-  ) {
-    const paintMap = territory.value.ownership.map((v) =>
-      v === 0 ? null : v,
-    );
+  if (gameStage.value === GameStage.TerritoryReview && territory.value) {
+    const paintMap = territory.value.ownership.map((v) => (v === 0 ? null : v));
     const dimmedVertices: Point[] = territory.value.dead_stones.map(
       ([c, r]) => [c, r] as Point,
     );
@@ -130,11 +122,7 @@ function LiveHeader() {
   );
 }
 
-function LivePlayerPanel({
-  position,
-}: {
-  position: "top" | "bottom";
-}) {
+function LivePlayerPanel({ position }: { position: "top" | "bottom" }) {
   const b = black.value;
   const w = white.value;
   const bName = b ? b.display_name : "...";
@@ -244,15 +232,18 @@ function LiveControls({
   const props: ControlsProps = {
     nav,
     coordsToggle: buildCoordsToggle(board.value, coordsState),
-    moveConfirmToggle: isPlayerVal && isPlay ? {
-      enabled: moveConfirmEnabled.value,
-      onClick: () => {
-        pm.enabled = !pm.enabled;
-        moveConfirmEnabled.value = pm.enabled;
-        pm.clear();
-        board.value?.render();
-      },
-    } : undefined,
+    moveConfirmToggle:
+      isPlayerVal && isPlay
+        ? {
+            enabled: moveConfirmEnabled.value,
+            onClick: () => {
+              pm.enabled = !pm.enabled;
+              moveConfirmEnabled.value = pm.enabled;
+              pm.clear();
+              board.value?.render();
+            },
+          }
+        : undefined,
     moveTreeToggle: {
       enabled: showMoveTree.value,
       onClick: () => setMoveTree(!showMoveTree.value),
@@ -286,7 +277,10 @@ function LiveControls({
 
   if (isPlayerVal && allowUndo.value && (isPlay || isChallenge)) {
     const canUndo =
-      !isChallenge && moves.value.length > 0 && !isMyTurn && !undoRejected.value;
+      !isChallenge &&
+      moves.value.length > 0 &&
+      !isMyTurn &&
+      !undoRejected.value;
     props.requestUndo = {
       onClick: () => channel.requestUndo(),
       disabled: modeActive || !canUndo,
@@ -310,8 +304,7 @@ function LiveControls({
     };
   }
 
-  const canAbort =
-    isPlayerVal && moves.value.length === 0 && !result.value;
+  const canAbort = isPlayerVal && moves.value.length === 0 && !result.value;
   if (canAbort) {
     props.abort = {
       message: "Abort this game?",
@@ -347,10 +340,7 @@ function LiveControls({
 
   // Challenge accept/decline (challengee only — not the creator)
   if (isChallenge && isPlayerVal) {
-    const myId =
-      playerStone.value === 1
-        ? black.value?.id
-        : white.value?.id;
+    const myId = playerStone.value === 1 ? black.value?.id : white.value?.id;
     const isCreator = myId != null && myId === initialProps.value.creator_id;
     if (!isCreator) {
       props.acceptChallenge = {
@@ -526,9 +516,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
       playerTop={LivePlayerPanel({ position: "top" })}
       playerBottom={LivePlayerPanel({ position: "bottom" })}
       controls={controlsProps}
-      sidebar={
-        <LiveSidebar channel={channel} moveTreeEl={moveTreeEl} />
-      }
+      sidebar={<LiveSidebar channel={channel} moveTreeEl={moveTreeEl} />}
     />
   );
 }
