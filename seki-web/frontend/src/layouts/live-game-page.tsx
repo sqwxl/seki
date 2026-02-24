@@ -1,4 +1,5 @@
-import { GameStage, isPlayStage, type Point } from "../goban/types";
+import type { Point } from "../goban/types";
+import { GameStage, isPlayStage } from "../game/types";
 import type { TerritoryOverlay } from "../goban/create-board";
 import { Chat } from "../components/chat";
 import type { ControlsProps } from "../components/controls";
@@ -116,7 +117,7 @@ function LiveHeader() {
   );
 }
 
-function LivePlayerPanel({ position }: { position: "top" | "bottom" }) {
+function buildLivePlayerPanel({ position }: { position: "top" | "bottom" }) {
   const b = black.value;
   const w = white.value;
   const bName = b ? b.display_name : "...";
@@ -172,7 +173,221 @@ function LivePlayerPanel({ position }: { position: "top" | "bottom" }) {
   return isWhitePlayer ? whitePanel : blackPanel;
 }
 
-function LiveControls({
+// ---------------------------------------------------------------------------
+// Shared state snapshot for controls builders
+// ---------------------------------------------------------------------------
+
+type GameCtx = {
+  isPlayer: boolean;
+  isChallenge: boolean;
+  isPlay: boolean;
+  isReview: boolean;
+  isMyTurn: boolean;
+  inAnalysis: boolean;
+  inEstimate: boolean;
+  modeActive: boolean;
+};
+
+function readGameCtx(): GameCtx {
+  const inAnalysis = analysisMode.value;
+  const inEstimate = estimateMode.value;
+  return {
+    isPlayer: playerStone.value !== 0,
+    isChallenge: gameStage.value === GameStage.Challenge,
+    isPlay: isPlayStage(gameStage.value),
+    isReview: gameStage.value === GameStage.TerritoryReview,
+    isMyTurn: currentTurn.value === playerStone.value,
+    inAnalysis,
+    inEstimate,
+    modeActive: inAnalysis || inEstimate,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Controls sub-builders (each returns a partial ControlsProps)
+// ---------------------------------------------------------------------------
+
+/** Pass, undo request, resign, abort. */
+function buildGameActions(
+  channel: GameChannel,
+  ctx: GameCtx,
+): Partial<ControlsProps> {
+  const out: Partial<ControlsProps> = {};
+  const { isPlayer, isChallenge, isPlay, isMyTurn, inAnalysis, inEstimate, modeActive } = ctx;
+
+  if (isPlayer && (isPlay || isChallenge)) {
+    if (inAnalysis && !inEstimate) {
+      out.pass = { onClick: () => { board.value?.pass(); } };
+    } else {
+      out.pass = {
+        onClick: () => {},
+        disabled: modeActive || isChallenge || !isMyTurn,
+      };
+      if (!modeActive && !isChallenge) {
+        out.confirmPass = {
+          message: "Pass your turn?",
+          onConfirm: () => channel.pass(),
+        };
+      }
+    }
+  }
+
+  if (isPlayer && allowUndo.value && (isPlay || isChallenge)) {
+    const canUndo =
+      !isChallenge &&
+      moves.value.length > 0 &&
+      !isMyTurn &&
+      !undoRejected.value;
+    out.requestUndo = {
+      onClick: () => channel.requestUndo(),
+      disabled: modeActive || !canUndo,
+      title: isChallenge
+        ? "Challenge not yet accepted"
+        : undoRejected.value
+          ? "Undo was rejected for this move"
+          : moves.value.length === 0
+            ? "No moves to undo"
+            : isMyTurn
+              ? "Cannot undo on your turn"
+              : "Request to undo your last move",
+    };
+  }
+
+  if (isPlayer && (isPlay || isChallenge)) {
+    out.resign = {
+      message: "Resign this game?",
+      onConfirm: () => channel.resign(),
+      disabled: modeActive || isChallenge,
+    };
+  }
+
+  if (isPlayer && moves.value.length === 0 && !result.value) {
+    out.abort = {
+      message: "Abort this game?",
+      onConfirm: () => channel.abort(),
+      disabled: modeActive,
+    };
+  }
+
+  return out;
+}
+
+/** Invite link, join, challenge accept/decline, territory accept. */
+function buildLobbyControls(
+  channel: GameChannel,
+  ctx: GameCtx,
+): Partial<ControlsProps> {
+  const out: Partial<ControlsProps> = {};
+  const { isPlayer, isChallenge, isReview, modeActive } = ctx;
+  const hasOpenSlot = !black.value || !white.value;
+
+  const token = initialProps.value.invite_token;
+  if (token && hasOpenSlot && isPlayer) {
+    out.copyInviteLink = {
+      onClick: () => {
+        const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
+        navigator.clipboard.writeText(url);
+      },
+    };
+  }
+
+  if (!isPlayer && hasOpenSlot && !initialProps.value.settings.is_private) {
+    out.joinGame = {
+      onClick: () => {
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = `/games/${gameId.value}/join`;
+        document.body.appendChild(form);
+        form.submit();
+      },
+    };
+  }
+
+  if (isChallenge && isPlayer) {
+    const myId = playerStone.value === 1 ? black.value?.id : white.value?.id;
+    const isCreator = myId != null && myId === initialProps.value.creator_id;
+    if (!isCreator) {
+      out.acceptChallenge = { onClick: () => channel.acceptChallenge() };
+      out.declineChallenge = {
+        message: "Decline this challenge?",
+        onConfirm: () => channel.declineChallenge(),
+      };
+    }
+  }
+
+  if (isReview && isPlayer) {
+    const alreadyApproved =
+      (playerStone.value === 1 && territory.value?.black_approved) ||
+      (playerStone.value === -1 && territory.value?.white_approved);
+    out.acceptTerritory = {
+      message: "Accept territory?",
+      onConfirm: () => channel.approveTerritory(),
+      disabled: !!alreadyApproved,
+    };
+  }
+
+  if (result.value && isPlayer) {
+    out.rematch = {
+      onConfirm: (swapColors) => {
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = `/games/${gameId.value}/rematch`;
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "swap_colors";
+        input.value = swapColors ? "true" : "false";
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+      },
+      disabled: modeActive,
+    };
+  }
+
+  return out;
+}
+
+/** Analyze/estimate mode toggles and SGF export. */
+function buildModeControls(
+  ctx: GameCtx,
+  callbacks: {
+    enterAnalysis: () => void;
+    exitAnalysis: () => void;
+    enterEstimate: () => void;
+    exitEstimate: () => void;
+    handleSgfExport: () => void;
+  },
+): Partial<ControlsProps> {
+  const out: Partial<ControlsProps> = {};
+  const { isPlay, isReview, inAnalysis, inEstimate } = ctx;
+
+  if (inAnalysis) {
+    out.exitAnalysis = { onClick: callbacks.exitAnalysis, disabled: inEstimate };
+  } else if (!isReview) {
+    out.analyze = { onClick: callbacks.enterAnalysis, disabled: inEstimate };
+  }
+
+  out.sgfExport = { onClick: callbacks.handleSgfExport, disabled: inEstimate };
+
+  if (inEstimate) {
+    out.exitEstimate = {
+      onClick: callbacks.exitEstimate,
+      title: inAnalysis ? "Back to analysis" : undefined,
+    };
+  } else if (isPlay && !isReview) {
+    out.estimate = { onClick: callbacks.enterEstimate };
+  } else if (result.value && settledTerritory.value) {
+    out.estimate = { onClick: callbacks.enterEstimate, title: "Show territory" };
+  }
+
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Main controls builder (orchestrates sub-builders)
+// ---------------------------------------------------------------------------
+
+function buildLiveControls({
   channel,
   pm,
   coordsState,
@@ -192,24 +407,16 @@ function LiveControls({
   exitEstimate: () => void;
   handleSgfExport: () => void;
   setMoveTree: (visible: boolean) => void;
-}) {
-  const isChallenge = gameStage.value === GameStage.Challenge;
-  const isPlay = isPlayStage(gameStage.value);
-  const isReview = gameStage.value === GameStage.TerritoryReview;
-  const isMyTurn = currentTurn.value === playerStone.value;
-  const isPlayerVal = playerStone.value !== 0;
-
-  const inAnalysis = analysisMode.value;
-  const inEstimate = estimateMode.value;
-  const modeActive = inAnalysis || inEstimate;
+}): ControlsProps {
+  const ctx = readGameCtx();
 
   const nav = buildNavProps(board.value);
 
-  // Show result in nav counter when available
+  // Append result to nav counter when available
   let resultStr: string | undefined;
   if (estimateScore.value) {
     resultStr = formatResult(estimateScore.value, initialProps.value.komi);
-  } else if (isReview && territory.value?.score) {
+  } else if (ctx.isReview && territory.value?.score) {
     resultStr = formatResult(territory.value.score, initialProps.value.komi);
   } else if (result.value && board.value?.engine.is_at_latest()) {
     resultStr = result.value;
@@ -222,7 +429,7 @@ function LiveControls({
     nav,
     coordsToggle: buildCoordsToggle(board.value, coordsState),
     moveConfirmToggle:
-      isPlayerVal && isPlay
+      ctx.isPlayer && ctx.isPlay
         ? {
             enabled: moveConfirmEnabled.value,
             onClick: () => {
@@ -237,164 +444,19 @@ function LiveControls({
       enabled: showMoveTree.value,
       onClick: () => setMoveTree(!showMoveTree.value),
     },
+    ...buildGameActions(channel, ctx),
+    ...buildLobbyControls(channel, ctx),
+    ...buildModeControls(ctx, {
+      enterAnalysis,
+      exitAnalysis,
+      enterEstimate,
+      exitEstimate,
+      handleSgfExport,
+    }),
   };
 
-  // --- Game action buttons (controls-start) ---
-  // Always shown based on game state; disabled in analysis/estimate modes.
-
-  if (isPlayerVal && (isPlay || isChallenge)) {
-    if (inAnalysis && !inEstimate) {
-      // Analysis pass — no confirmation needed
-      props.pass = {
-        onClick: () => {
-          board.value?.pass();
-        },
-      };
-    } else {
-      props.pass = {
-        onClick: () => {},
-        disabled: modeActive || isChallenge || !isMyTurn,
-      };
-      if (!modeActive && !isChallenge) {
-        props.confirmPass = {
-          message: "Pass your turn?",
-          onConfirm: () => channel.pass(),
-        };
-      }
-    }
-  }
-
-  if (isPlayerVal && allowUndo.value && (isPlay || isChallenge)) {
-    const canUndo =
-      !isChallenge &&
-      moves.value.length > 0 &&
-      !isMyTurn &&
-      !undoRejected.value;
-    props.requestUndo = {
-      onClick: () => channel.requestUndo(),
-      disabled: modeActive || !canUndo,
-      title: isChallenge
-        ? "Challenge not yet accepted"
-        : undoRejected.value
-          ? "Undo was rejected for this move"
-          : moves.value.length === 0
-            ? "No moves to undo"
-            : isMyTurn
-              ? "Cannot undo on your turn"
-              : "Request to undo your last move",
-    };
-  }
-
-  if (isPlayerVal && (isPlay || isChallenge)) {
-    props.resign = {
-      message: "Resign this game?",
-      onConfirm: () => channel.resign(),
-      disabled: modeActive || isChallenge,
-    };
-  }
-
-  const canAbort = isPlayerVal && moves.value.length === 0 && !result.value;
-  if (canAbort) {
-    props.abort = {
-      message: "Abort this game?",
-      onConfirm: () => channel.abort(),
-      disabled: modeActive,
-    };
-  }
-
-  // Copy invite link (creator only, while waiting for opponent)
-  const token = initialProps.value.invite_token;
-  const hasOpenSlot = !black.value || !white.value;
-  if (token && hasOpenSlot && isPlayerVal) {
-    props.copyInviteLink = {
-      onClick: () => {
-        const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
-        navigator.clipboard.writeText(url);
-      },
-    };
-  }
-
-  // Join game (spectator on a non-private game with an open slot)
-  if (!isPlayerVal && hasOpenSlot && !initialProps.value.settings.is_private) {
-    props.joinGame = {
-      onClick: () => {
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = `/games/${gameId.value}/join`;
-        document.body.appendChild(form);
-        form.submit();
-      },
-    };
-  }
-
-  // Challenge accept/decline (challengee only — not the creator)
-  if (isChallenge && isPlayerVal) {
-    const myId = playerStone.value === 1 ? black.value?.id : white.value?.id;
-    const isCreator = myId != null && myId === initialProps.value.creator_id;
-    if (!isCreator) {
-      props.acceptChallenge = {
-        onClick: () => channel.acceptChallenge(),
-      };
-      props.declineChallenge = {
-        message: "Decline this challenge?",
-        onConfirm: () => channel.declineChallenge(),
-      };
-    }
-  }
-
-  if (isReview && isPlayerVal) {
-    const alreadyApproved =
-      (playerStone.value === 1 && territory.value?.black_approved) ||
-      (playerStone.value === -1 && territory.value?.white_approved);
-    props.acceptTerritory = {
-      message: "Accept territory?",
-      onConfirm: () => channel.approveTerritory(),
-      disabled: !!alreadyApproved,
-    };
-  }
-
-  // --- Board control buttons ---
-  // Swap analyze/exitAnalysis and estimate/exitEstimate; disable where needed.
-
-  if (inAnalysis) {
-    props.exitAnalysis = { onClick: exitAnalysis, disabled: inEstimate };
-  } else if (!isReview) {
-    props.analyze = { onClick: enterAnalysis, disabled: inEstimate };
-  }
-
-  props.sgfExport = { onClick: handleSgfExport, disabled: inEstimate };
-
-  if (inEstimate) {
-    props.exitEstimate = {
-      onClick: exitEstimate,
-      title: inAnalysis ? "Back to analysis" : undefined,
-    };
-  } else if (isPlay && !isReview) {
-    props.estimate = { onClick: enterEstimate };
-  } else if (result.value && settledTerritory.value) {
-    props.estimate = { onClick: enterEstimate, title: "Show territory" };
-  }
-
-  if (result.value && isPlayerVal) {
-    props.rematch = {
-      onConfirm: (swapColors) => {
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = `/games/${gameId.value}/rematch`;
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = "swap_colors";
-        input.value = swapColors ? "true" : "false";
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-      },
-      disabled: modeActive,
-    };
-  }
-
   // Undo response popover
-  if (undoResponseNeeded.value && isPlayerVal) {
+  if (undoResponseNeeded.value && ctx.isPlayer) {
     props.undoResponse = {
       onAccept: () => {
         undoResponseNeeded.value = false;
@@ -408,7 +470,7 @@ function LiveControls({
   }
 
   // Confirm move button
-  if (pm.value && isMyTurn && !analysisMode.value) {
+  if (pm.value && ctx.isMyTurn && !ctx.inAnalysis) {
     props.confirmMove = {
       onClick: () => {
         if (pm.value) {
@@ -484,7 +546,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
     board.value?.render();
   }
 
-  const controlsProps = LiveControls({
+  const controlsProps = buildLiveControls({
     channel,
     pm,
     coordsState,
@@ -502,8 +564,8 @@ export function LiveGamePage(props: LiveGamePageProps) {
       gobanRef={gobanRef}
       gobanStyle={`aspect-ratio: ${gameState.value.cols}/${gameState.value.rows}`}
       gobanClass={analysisMode.value ? "goban-analysis" : undefined}
-      playerTop={LivePlayerPanel({ position: "top" })}
-      playerBottom={LivePlayerPanel({ position: "bottom" })}
+      playerTop={buildLivePlayerPanel({ position: "top" })}
+      playerBottom={buildLivePlayerPanel({ position: "bottom" })}
       controls={controlsProps}
       sidebar={<LiveSidebar channel={channel} moveTreeEl={moveTreeEl} />}
     />

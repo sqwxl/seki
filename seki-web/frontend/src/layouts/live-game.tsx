@@ -1,5 +1,6 @@
 import { render, createRef } from "preact";
-import { GameStage, type InitialGameProps, type Sign } from "../goban/types";
+import type { Sign } from "../goban/types";
+import { GameStage, type InitialGameProps } from "../game/types";
 import { createBoard, computeVertexSize } from "../goban/create-board";
 import { Goban } from "../goban";
 import type { ChatEntry } from "../components/chat";

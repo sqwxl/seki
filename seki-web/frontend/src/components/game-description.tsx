@@ -1,4 +1,4 @@
-import type { UserData, GameSettings, GameStage } from "../goban/types";
+import type { UserData, GameSettings, GameStage } from "../game/types";
 import { UserLabel } from "./user-label";
 import { buildDescriptionParts } from "../utils/format";
 

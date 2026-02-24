@@ -3,9 +3,8 @@ import { useState, useEffect } from "preact/hooks";
 import { subscribe } from "../ws";
 import { GameDescription } from "../components/game-description";
 import type { LiveGameItem, GameUpdate } from "../components/game-description";
-import { GameStage } from "../goban/types";
+import { GameStage, type UserData } from "../game/types";
 import { parseDatasetJson } from "../utils/format";
-import type { UserData } from "../utils/format";
 
 export type InitMessage = {
   kind: "init";

@@ -1,18 +1,15 @@
 import { render } from "preact";
 import { MoveTree } from "../components/move-tree";
 import { flashPassEffect } from "../game/messages";
+import { GameStage, type GameTreeData, type ScoreData } from "../game/types";
 import { storage } from "../utils/storage";
 import { Goban } from "./";
-import {
-  MarkerData,
-  Point,
-  Sign,
-  GhostStoneData,
-  GameStage,
-  GameTreeData,
-  ScoreData,
-} from "./types";
+import type { MarkerData, Point, Sign, GhostStoneData } from "./types";
 import { WasmEngine } from "/static/wasm/go_engine_wasm.js";
+
+// ---------------------------------------------------------------------------
+// WASM singleton
+// ---------------------------------------------------------------------------
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
 
@@ -29,6 +26,10 @@ export async function ensureWasm(): Promise<
   wasmModule = wasm;
   return wasm;
 }
+
+// ---------------------------------------------------------------------------
+// Nav buttons (legacy DOM-based nav, used by some callers)
+// ---------------------------------------------------------------------------
 
 export type NavButtons = {
   start: HTMLButtonElement | null;
@@ -51,23 +52,16 @@ export function findNavButtons(): NavButtons {
 function updateNavButtons(engine: WasmEngine, buttons: NavButtons): void {
   const atStart = engine.is_at_start();
   const atLatest = engine.is_at_latest();
-
-  if (buttons.start) {
-    buttons.start.disabled = atStart;
-  }
-  if (buttons.back) {
-    buttons.back.disabled = atStart;
-  }
-  if (buttons.forward) {
-    buttons.forward.disabled = atLatest;
-  }
-  if (buttons.end) {
-    buttons.end.disabled = atLatest;
-  }
-  if (buttons.counter) {
-    buttons.counter.textContent = `${engine.view_index()}`;
-  }
+  if (buttons.start) { buttons.start.disabled = atStart; }
+  if (buttons.back) { buttons.back.disabled = atStart; }
+  if (buttons.forward) { buttons.forward.disabled = atLatest; }
+  if (buttons.end) { buttons.end.disabled = atLatest; }
+  if (buttons.counter) { buttons.counter.textContent = `${engine.view_index()}`; }
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 export function computeVertexSize(
   gobanEl: HTMLElement,
@@ -77,9 +71,6 @@ export function computeVertexSize(
 ): number {
   const avail = gobanEl.clientWidth;
   const extra = 0.8;
-  // When coordinates are shown, the grid has 1em labels on each side.
-  // Solve: vertexSize * (maxDim + extra) + 2 * vertexSize = avail
-  // => vertexSize * (maxDim + extra + 2) = avail
   const coordExtra = showCoordinates ? 2 : 0;
   return Math.max(avail / (Math.max(cols, rows) + extra + coordExtra), 12);
 }
@@ -112,7 +103,6 @@ function renderFromEngine(
       const lr = engine.last_move_row();
       markerMap[lr * cols + lc] = { type: "circle" };
     }
-
     if (engine.has_ko()) {
       const kc = engine.ko_col();
       const kr = engine.ko_row();
@@ -220,7 +210,9 @@ function navigateEngine(engine: WasmEngine, action: NavAction): boolean {
   }
 }
 
-// --- Board factory ---
+// ---------------------------------------------------------------------------
+// Public types
+// ---------------------------------------------------------------------------
 
 export type TerritoryInfo = {
   reviewing: boolean;
@@ -273,78 +265,128 @@ export type Board = {
   destroy: () => void;
 };
 
+// ---------------------------------------------------------------------------
+// BoardController — implements Board
+// ---------------------------------------------------------------------------
+
 const wideQuery = window.matchMedia("(min-width: 1600px)");
 
-export async function createBoard(config: BoardConfig): Promise<Board> {
-  const wasm = await ensureWasm();
-  const engine = new wasm.WasmEngine(config.cols, config.rows);
-  if (config.handicap && config.handicap >= 2) {
-    engine.set_handicap(config.handicap);
+type TerritoryState = {
+  deadStones: [number, number][];
+  ownership: number[];
+  score: ScoreData | undefined;
+};
+
+class BoardController implements Board {
+  readonly engine: WasmEngine;
+  readonly restoredWithAnalysis: boolean;
+
+  private config: BoardConfig;
+  private komi: number;
+  private showCoords: boolean;
+  private baseMoves: string;
+  private baseMoveCount: number;
+  private _baseTipNodeId: number;
+  private territoryState: TerritoryState | undefined;
+  private finalizedNodes: Map<number, [number, number][]>;
+  private abortController: AbortController;
+
+  get baseTipNodeId(): number {
+    return this._baseTipNodeId;
   }
-  const komi = config.komi ?? 6.5;
-  let showCoordinates = config.showCoordinates ?? false;
 
-  function resolveTreeDirection(): "horizontal" | "vertical" | undefined {
-    if (config.moveTreeDirection === "responsive") {
-      return wideQuery.matches ? "vertical" : "horizontal";
-    }
-    return config.moveTreeDirection;
+  private constructor(
+    engine: WasmEngine,
+    config: BoardConfig,
+    opts: {
+      restoredWithAnalysis: boolean;
+      baseMoves: string;
+      baseMoveCount: number;
+      baseTipNodeId: number;
+      finalizedNodes: Map<number, [number, number][]>;
+    },
+  ) {
+    this.engine = engine;
+    this.config = config;
+    this.komi = config.komi ?? 6.5;
+    this.showCoords = config.showCoordinates ?? false;
+    this.restoredWithAnalysis = opts.restoredWithAnalysis;
+    this.baseMoves = opts.baseMoves;
+    this.baseMoveCount = opts.baseMoveCount;
+    this._baseTipNodeId = opts.baseTipNodeId;
+    this.finalizedNodes = opts.finalizedNodes;
+    this.abortController = new AbortController();
   }
 
-  // Base moves the board can be reset to (e.g. game moves from WS)
-  let baseMoves = config.baseMoves ?? "[]";
-  let baseMoveCount = (JSON.parse(baseMoves) as unknown[]).length;
-  let baseTipNodeId = -1;
+  static async create(config: BoardConfig): Promise<BoardController> {
+    const wasm = await ensureWasm();
+    const engine = new wasm.WasmEngine(config.cols, config.rows);
+    if (config.handicap && config.handicap >= 2) {
+      engine.set_handicap(config.handicap);
+    }
 
-  // Initialize from localStorage or baseMoves
-  const saved = config.storageKey
-    ? storage.get(config.storageKey)
-    : null;
-  let restoredWithAnalysis = false;
-  if (saved) {
-    if (!engine.replace_tree(saved)) {
-      engine.replace_moves(saved);
-    }
-    const savedBase = storage.get(`${config.storageKey}:base`);
-    if (savedBase) {
-      baseMoves = savedBase;
-      baseMoveCount = (JSON.parse(savedBase) as unknown[]).length;
-    }
-    restoredWithAnalysis = engine.tree_node_count() > baseMoveCount;
-    // Restore saved cursor position
-    const savedNodeId = storage.get(`${config.storageKey}:node`);
-    if (savedNodeId != null) {
-      const id = parseInt(savedNodeId, 10);
-      if (id >= 0) {
-        engine.navigate_to(id);
-      } else {
-        engine.to_start();
+    let baseMoves = config.baseMoves ?? "[]";
+    let baseMoveCount = (JSON.parse(baseMoves) as unknown[]).length;
+    let baseTipNodeId = -1;
+    let restoredWithAnalysis = false;
+
+    const saved = config.storageKey
+      ? storage.get(config.storageKey)
+      : null;
+
+    if (saved) {
+      if (!engine.replace_tree(saved)) {
+        engine.replace_moves(saved);
       }
-    } else {
+      const savedBase = storage.get(`${config.storageKey}:base`);
+      if (savedBase) {
+        baseMoves = savedBase;
+        baseMoveCount = (JSON.parse(savedBase) as unknown[]).length;
+      }
+      restoredWithAnalysis = engine.tree_node_count() > baseMoveCount;
+      const savedNodeId = storage.get(`${config.storageKey}:node`);
+      if (savedNodeId != null) {
+        const id = parseInt(savedNodeId, 10);
+        if (id >= 0) {
+          engine.navigate_to(id);
+        } else {
+          engine.to_start();
+        }
+      } else {
+        engine.to_latest();
+      }
+    } else if (baseMoves !== "[]") {
+      engine.replace_moves(baseMoves);
+      baseTipNodeId = baseMoveCount - 1;
       engine.to_latest();
     }
-  } else if (baseMoves !== "[]") {
-    engine.replace_moves(baseMoves);
-    baseTipNodeId = baseMoveCount - 1;
-    engine.to_latest();
+
+    const finalizedNodes = BoardController.loadFinalizedNodes(
+      config.storageKey,
+    );
+
+    const ctrl = new BoardController(engine, config, {
+      restoredWithAnalysis,
+      baseMoves,
+      baseMoveCount,
+      baseTipNodeId,
+      finalizedNodes,
+    });
+
+    ctrl.wireListeners();
+    ctrl.render();
+    return ctrl;
   }
 
-  // --- Territory review state ---
-  type TerritoryState = {
-    deadStones: [number, number][];
-    ownership: number[];
-    score: ScoreData | undefined;
-  };
-  let territoryState: TerritoryState | undefined;
+  // ---- Storage helpers ----
 
-  // Finalized nodes: nodeId → dead stones at finalization
-  let finalizedNodes = loadFinalizedNodes();
-
-  function loadFinalizedNodes(): Map<number, [number, number][]> {
-    if (!config.storageKey) {
+  private static loadFinalizedNodes(
+    storageKey?: string,
+  ): Map<number, [number, number][]> {
+    if (!storageKey) {
       return new Map();
     }
-    const raw = storage.get(`${config.storageKey}:finalized`);
+    const raw = storage.get(`${storageKey}:finalized`);
     if (!raw) {
       return new Map();
     }
@@ -360,46 +402,54 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     }
   }
 
-  function saveFinalizedNodes() {
-    if (!config.storageKey) {
+  private saveFinalizedNodes(): void {
+    if (!this.config.storageKey) {
       return;
     }
-    if (finalizedNodes.size === 0) {
-      storage.remove(`${config.storageKey}:finalized`);
+    if (this.finalizedNodes.size === 0) {
+      storage.remove(`${this.config.storageKey}:finalized`);
       return;
     }
     const data: Record<string, [number, number][]> = {};
-    for (const [id, dead] of finalizedNodes) {
+    for (const [id, dead] of this.finalizedNodes) {
       data[String(id)] = dead;
     }
     storage.set(
-      `${config.storageKey}:finalized`,
+      `${this.config.storageKey}:finalized`,
       JSON.stringify(data),
     );
   }
 
-  function buildOverlay(
+  save(): void {
+    if (this.config.storageKey) {
+      storage.set(this.config.storageKey, this.engine.tree_json());
+      storage.set(`${this.config.storageKey}:base`, this.baseMoves);
+    }
+  }
+
+  // ---- Territory ----
+
+  private buildOverlay(
     deadStones: [number, number][],
     ownership: number[],
   ): TerritoryOverlay {
-    const size = engine.cols() * engine.rows();
+    const size = this.engine.cols() * this.engine.rows();
     const paintMap: (number | null)[] = new Array(size);
     for (let i = 0; i < size; i++) {
       paintMap[i] = ownership[i] || null;
     }
-    const dimmedVertices: Point[] = deadStones;
-    return { paintMap, dimmedVertices };
+    return { paintMap, dimmedVertices: deadStones };
   }
 
-  function computeTerritoryState(
+  private computeTerritoryState(
     deadStones: [number, number][],
   ): TerritoryState | undefined {
     try {
       const deadJson = JSON.stringify(deadStones);
       const ownership: number[] = JSON.parse(
-        engine.estimate_territory(deadJson),
+        this.engine.estimate_territory(deadJson),
       );
-      const scoreJson = engine.score(deadJson, komi);
+      const scoreJson = this.engine.score(deadJson, this.komi);
       const parsed = JSON.parse(scoreJson);
       const score: ScoreData = {
         black: parsed.black,
@@ -412,74 +462,74 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     }
   }
 
-  function enterTerritory() {
+  enterTerritoryReview(): void {
     let deadStones: [number, number][];
     try {
-      deadStones = JSON.parse(engine.detect_dead_stones());
+      deadStones = JSON.parse(this.engine.detect_dead_stones());
     } catch {
       console.warn("Failed to parse dead stones");
       return;
     }
-    territoryState = computeTerritoryState(deadStones);
-    doRender();
+    this.territoryState = this.computeTerritoryState(deadStones);
+    this.render();
   }
 
-  function exitTerritory() {
-    territoryState = undefined;
-    doRender();
+  exitTerritoryReview(): void {
+    this.territoryState = undefined;
+    this.render();
   }
 
-  function finalizeTerritory(): ScoreData | undefined {
-    if (!territoryState) {
+  finalizeTerritoryReview(): ScoreData | undefined {
+    if (!this.territoryState) {
       return undefined;
     }
-    const nodeId = engine.current_node_id();
+    const nodeId = this.engine.current_node_id();
     if (nodeId < 0) {
       return undefined;
     }
-    const score = territoryState.score;
-    finalizedNodes.set(nodeId, territoryState.deadStones);
-    saveFinalizedNodes();
-    territoryState = undefined;
-    doRender();
+    const score = this.territoryState.score;
+    this.finalizedNodes.set(nodeId, this.territoryState.deadStones);
+    this.saveFinalizedNodes();
+    this.territoryState = undefined;
+    this.render();
     return score;
   }
 
-  function save() {
-    if (config.storageKey) {
-      storage.set(config.storageKey, engine.tree_json());
-      storage.set(`${config.storageKey}:base`, baseMoves);
-    }
+  isTerritoryReview(): boolean {
+    return !!this.territoryState;
   }
 
-  function doReset() {
-    if (config.storageKey) {
-      storage.remove(config.storageKey);
-      storage.remove(`${config.storageKey}:base`);
-      storage.remove(`${config.storageKey}:finalized`);
-      storage.remove(`${config.storageKey}:node`);
-    }
-    territoryState = undefined;
-    finalizedNodes = new Map();
-    engine.replace_moves(baseMoves);
-    engine.to_latest();
-    doRender();
+  isFinalized(): boolean {
+    const nodeId = this.engine.current_node_id();
+    return nodeId >= 0 && this.finalizedNodes.has(nodeId);
   }
 
-  function doRenderBoard(): TerritoryInfo {
-    const nodeId = engine.current_node_id();
-    const finalized = nodeId >= 0 && finalizedNodes.has(nodeId);
+  // ---- Rendering ----
+
+  private resolveTreeDirection(): "horizontal" | "vertical" | undefined {
+    if (this.config.moveTreeDirection === "responsive") {
+      return wideQuery.matches ? "vertical" : "horizontal";
+    }
+    return this.config.moveTreeDirection;
+  }
+
+  private renderBoard(): TerritoryInfo {
+    const nodeId = this.engine.current_node_id();
+    const finalized = nodeId >= 0 && this.finalizedNodes.has(nodeId);
 
     let overlay: TerritoryOverlay | undefined;
     let territoryInfo: TerritoryInfo;
 
     if (finalized) {
-      // Read-only territory display for finalized node
-      const deadStones = finalizedNodes.get(nodeId)!;
-      const ts = computeTerritoryState(deadStones);
+      const deadStones = this.finalizedNodes.get(nodeId)!;
+      const ts = this.computeTerritoryState(deadStones);
       if (ts) {
-        overlay = buildOverlay(ts.deadStones, ts.ownership);
-        territoryInfo = { reviewing: false, finalized: true, score: ts.score };
+        overlay = this.buildOverlay(ts.deadStones, ts.ownership);
+        territoryInfo = {
+          reviewing: false,
+          finalized: true,
+          score: ts.score,
+        };
       } else {
         territoryInfo = {
           reviewing: false,
@@ -487,23 +537,25 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
           score: undefined,
         };
       }
-    } else if (territoryState) {
-      // Active territory review
-      overlay = buildOverlay(
-        territoryState.deadStones,
-        territoryState.ownership,
+    } else if (this.territoryState) {
+      overlay = this.buildOverlay(
+        this.territoryState.deadStones,
+        this.territoryState.ownership,
       );
       territoryInfo = {
         reviewing: true,
         finalized: false,
-        score: territoryState.score,
+        score: this.territoryState.score,
       };
-    } else if (config.territoryOverlay && engine.is_at_latest()) {
-      // Server-sent territory data (live game)
-      const serverOverlay = config.territoryOverlay();
+    } else if (this.config.territoryOverlay && this.engine.is_at_latest()) {
+      const serverOverlay = this.config.territoryOverlay();
       if (serverOverlay) {
         overlay = serverOverlay;
-        territoryInfo = { reviewing: true, finalized: false, score: undefined };
+        territoryInfo = {
+          reviewing: true,
+          finalized: false,
+          score: undefined,
+        };
       } else {
         territoryInfo = {
           reviewing: false,
@@ -512,279 +564,290 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
         };
       }
     } else {
-      territoryInfo = { reviewing: false, finalized: false, score: undefined };
+      territoryInfo = {
+        reviewing: false,
+        finalized: false,
+        score: undefined,
+      };
     }
 
     const onVertexClick = (_: Event, [col, row]: Point) => {
-      // Finalized: no interaction
       if (finalized) {
         return;
       }
 
-      // Territory review: toggle dead stones
-      if (territoryState) {
+      if (this.territoryState) {
         let newDead: [number, number][];
         try {
-          const deadJson = engine.toggle_dead_chain(
+          const deadJson = this.engine.toggle_dead_chain(
             col,
             row,
-            JSON.stringify(territoryState.deadStones),
+            JSON.stringify(this.territoryState.deadStones),
           );
           newDead = JSON.parse(deadJson);
         } catch {
           console.warn("Failed to toggle dead chain");
           return;
         }
-        territoryState = computeTerritoryState(newDead);
-        doRender();
+        this.territoryState = this.computeTerritoryState(newDead);
+        this.render();
         return;
       }
 
-      // Normal play
-      if (config.onVertexClick && config.onVertexClick(col, row)) {
+      if (this.config.onVertexClick && this.config.onVertexClick(col, row)) {
         return;
       }
-      if (engine.try_play(col, row)) {
-        config.onStonePlay?.();
-        save();
-        doRender();
+      if (this.engine.try_play(col, row)) {
+        this.config.onStonePlay?.();
+        this.save();
+        this.render();
       }
     };
 
     renderFromEngine(
-      engine,
-      config.gobanEl,
+      this.engine,
+      this.config.gobanEl,
       onVertexClick,
       overlay,
-      showCoordinates,
-      config.ghostStone,
+      this.showCoords,
+      this.config.ghostStone,
     );
 
     return territoryInfo;
   }
 
-  function doRender() {
-    const territoryInfo = doRenderBoard();
+  render(): void {
+    const territoryInfo = this.renderBoard();
 
-    if (config.moveTreeEl) {
+    if (this.config.moveTreeEl) {
       const fIds =
-        finalizedNodes.size > 0 ? new Set(finalizedNodes.keys()) : undefined;
-      const branchId =
-        config.branchAtBaseTip && baseTipNodeId >= 0
-          ? baseTipNodeId
+        this.finalizedNodes.size > 0
+          ? new Set(this.finalizedNodes.keys())
           : undefined;
-      const treeSize = engine.tree_node_count();
+      const branchId =
+        this.config.branchAtBaseTip && this._baseTipNodeId >= 0
+          ? this._baseTipNodeId
+          : undefined;
+      const treeSize = this.engine.tree_node_count();
       const hasAnalysis =
-        branchId != null ? treeSize > baseMoveCount : treeSize > 0;
+        branchId != null ? treeSize > this.baseMoveCount : treeSize > 0;
       renderMoveTree(
-        engine,
-        config.moveTreeEl,
-        doRender,
+        this.engine,
+        this.config.moveTreeEl,
+        () => this.render(),
         fIds,
-        resolveTreeDirection(),
+        this.resolveTreeDirection(),
         branchId,
-        hasAnalysis ? doReset : undefined,
+        hasAnalysis ? () => this.reset() : undefined,
       );
     }
 
-    if (config.navButtons) {
-      updateNavButtons(engine, config.navButtons);
+    if (this.config.navButtons) {
+      updateNavButtons(this.engine, this.config.navButtons);
     }
 
-    // Persist current node for restore on refresh
-    if (config.storageKey) {
+    if (this.config.storageKey) {
       storage.set(
-        `${config.storageKey}:node`,
-        String(engine.current_node_id()),
+        `${this.config.storageKey}:node`,
+        String(this.engine.current_node_id()),
       );
     }
 
-    if (config.onRender) {
-      config.onRender(engine, territoryInfo);
-    }
+    this.config.onRender?.(this.engine, territoryInfo);
   }
 
-  function doNavigate(action: NavAction) {
-    // Clear active territory review when navigating
-    if (territoryState) {
-      territoryState = undefined;
+  // ---- Navigation ----
+
+  navigate(action: NavAction): void {
+    if (this.territoryState) {
+      this.territoryState = undefined;
     }
-    if (navigateEngine(engine, action)) {
-      // Auto-enter territory review if navigating to a two-pass position,
-      // but not at the base tip (settled game endpoint — territory handled externally)
-      const stage = engine.stage();
-      const nodeId = engine.current_node_id();
-      if (stage === GameStage.TerritoryReview && !isCurrentFinalized() && nodeId !== baseTipNodeId) {
-        enterTerritory();
+    if (navigateEngine(this.engine, action)) {
+      const stage = this.engine.stage();
+      const nodeId = this.engine.current_node_id();
+      if (
+        stage === GameStage.TerritoryReview &&
+        !this.isFinalized() &&
+        nodeId !== this._baseTipNodeId
+      ) {
+        this.enterTerritoryReview();
         return;
       }
-      doRender();
+      this.render();
     }
   }
 
-  function isCurrentFinalized(): boolean {
-    const nodeId = engine.current_node_id();
-    return nodeId >= 0 && finalizedNodes.has(nodeId);
-  }
-
-  function doUpdateBaseMoves(movesJson: string) {
-    baseMoves = movesJson;
-    baseMoveCount = (JSON.parse(movesJson) as unknown[]).length;
-    engine.replace_moves(movesJson);
-    baseTipNodeId = baseMoveCount > 0 ? baseMoveCount - 1 : -1;
-  }
-
-  function doUpdateNav() {
-    if (config.navButtons) {
-      updateNavButtons(engine, config.navButtons);
-    }
-  }
-
-  function doPass(): boolean {
-    const stage = engine.stage();
+  pass(): boolean {
+    const stage = this.engine.stage();
     if (
-      isCurrentFinalized() ||
+      this.isFinalized() ||
       stage === GameStage.TerritoryReview ||
       stage === GameStage.Completed
     ) {
       return false;
     }
-    if (territoryState) {
-      territoryState = undefined;
+    if (this.territoryState) {
+      this.territoryState = undefined;
     }
-    if (engine.pass()) {
-      config.onPass?.();
-      save();
-      flashPassEffect(config.gobanEl);
-      // Auto-enter territory review after two consecutive passes
-      if (engine.stage() === GameStage.TerritoryReview) {
-        enterTerritory();
+    if (this.engine.pass()) {
+      this.config.onPass?.();
+      this.save();
+      flashPassEffect(this.config.gobanEl);
+      if (this.engine.stage() === GameStage.TerritoryReview) {
+        this.enterTerritoryReview();
         return true;
       }
-      doRender();
+      this.render();
       return true;
     }
     return false;
   }
 
-  // --- Wire up listeners ---
-  const abortController = new AbortController();
-  const opts = { signal: abortController.signal };
+  // ---- State updates ----
 
-  // Re-render move tree when viewport crosses the responsive breakpoint
-  wideQuery.addEventListener(
-    "change",
-    () => {
-      if (config.moveTreeEl && config.moveTreeDirection === "responsive") {
-        doRender();
-      }
-    },
-    opts,
-  );
-
-  if (config.navButtons) {
-    config.navButtons.start?.addEventListener(
-      "click",
-      () => doNavigate("start"),
-      opts,
-    );
-    config.navButtons.back?.addEventListener(
-      "click",
-      () => doNavigate("back"),
-      opts,
-    );
-    config.navButtons.forward?.addEventListener(
-      "click",
-      () => doNavigate("forward"),
-      opts,
-    );
-    config.navButtons.end?.addEventListener(
-      "click",
-      () => doNavigate("end"),
-      opts,
-    );
+  updateBaseMoves(movesJson: string): void {
+    this.baseMoves = movesJson;
+    this.baseMoveCount = (JSON.parse(movesJson) as unknown[]).length;
+    this.engine.replace_moves(movesJson);
+    this._baseTipNodeId =
+      this.baseMoveCount > 0 ? this.baseMoveCount - 1 : -1;
   }
 
-  if (config.buttons) {
-    config.buttons.undo?.addEventListener(
-      "click",
+  updateNav(): void {
+    if (this.config.navButtons) {
+      updateNavButtons(this.engine, this.config.navButtons);
+    }
+  }
+
+  setShowCoordinates(show: boolean): void {
+    this.showCoords = show;
+    this.renderBoard();
+  }
+
+  setMoveTreeEl(el: HTMLElement | null): void {
+    this.config.moveTreeEl = el;
+    if (!this.config.moveTreeDirection) {
+      this.config.moveTreeDirection = "responsive";
+    }
+  }
+
+  private reset(): void {
+    if (this.config.storageKey) {
+      storage.remove(this.config.storageKey);
+      storage.remove(`${this.config.storageKey}:base`);
+      storage.remove(`${this.config.storageKey}:finalized`);
+      storage.remove(`${this.config.storageKey}:node`);
+    }
+    this.territoryState = undefined;
+    this.finalizedNodes = new Map();
+    this.engine.replace_moves(this.baseMoves);
+    this.engine.to_latest();
+    this.render();
+  }
+
+  destroy(): void {
+    this.abortController.abort();
+  }
+
+  // ---- Listeners ----
+
+  private wireListeners(): void {
+    const opts = { signal: this.abortController.signal };
+
+    wideQuery.addEventListener(
+      "change",
       () => {
-        if (territoryState || isCurrentFinalized()) {
-          return;
-        }
-        if (engine.undo()) {
-          save();
-          doRender();
+        if (
+          this.config.moveTreeEl &&
+          this.config.moveTreeDirection === "responsive"
+        ) {
+          this.render();
         }
       },
       opts,
     );
 
-    config.buttons.pass?.addEventListener("click", () => doPass(), opts);
+    if (this.config.navButtons) {
+      this.config.navButtons.start?.addEventListener(
+        "click",
+        () => this.navigate("start"),
+        opts,
+      );
+      this.config.navButtons.back?.addEventListener(
+        "click",
+        () => this.navigate("back"),
+        opts,
+      );
+      this.config.navButtons.forward?.addEventListener(
+        "click",
+        () => this.navigate("forward"),
+        opts,
+      );
+      this.config.navButtons.end?.addEventListener(
+        "click",
+        () => this.navigate("end"),
+        opts,
+      );
+    }
+
+    if (this.config.buttons) {
+      this.config.buttons.undo?.addEventListener(
+        "click",
+        () => {
+          if (this.territoryState || this.isFinalized()) {
+            return;
+          }
+          if (this.engine.undo()) {
+            this.save();
+            this.render();
+          }
+        },
+        opts,
+      );
+      this.config.buttons.pass?.addEventListener(
+        "click",
+        () => this.pass(),
+        opts,
+      );
+    }
+
+    document.addEventListener(
+      "keydown",
+      (e: KeyboardEvent) => {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+          return;
+        }
+        switch (e.key) {
+          case "ArrowLeft":
+            e.preventDefault();
+            this.navigate("back");
+            break;
+          case "ArrowRight":
+            e.preventDefault();
+            this.navigate("forward");
+            break;
+          case "Home":
+            e.preventDefault();
+            this.navigate("start");
+            break;
+          case "End":
+            e.preventDefault();
+            this.navigate("end");
+            break;
+        }
+      },
+      opts,
+    );
+
+    window.addEventListener("resize", () => this.render(), opts);
   }
+}
 
-  // Keyboard navigation
-  const keyHandler = (e: KeyboardEvent) => {
-    const tag = (e.target as HTMLElement)?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
-      return;
-    }
+// ---------------------------------------------------------------------------
+// Factory (preserves existing API)
+// ---------------------------------------------------------------------------
 
-    switch (e.key) {
-      case "ArrowLeft":
-        e.preventDefault();
-        doNavigate("back");
-        break;
-      case "ArrowRight":
-        e.preventDefault();
-        doNavigate("forward");
-        break;
-      case "Home":
-        e.preventDefault();
-        doNavigate("start");
-        break;
-      case "End":
-        e.preventDefault();
-        doNavigate("end");
-        break;
-    }
-  };
-  document.addEventListener("keydown", keyHandler, opts);
-
-  // Resize
-  const resizeHandler = () => doRender();
-  window.addEventListener("resize", resizeHandler, opts);
-
-  // Initial render
-  doRender();
-
-  return {
-    engine,
-    get baseTipNodeId() {
-      return baseTipNodeId;
-    },
-    restoredWithAnalysis,
-    save,
-    render: doRender,
-    pass: doPass,
-    navigate: doNavigate,
-    updateBaseMoves: doUpdateBaseMoves,
-    updateNav: doUpdateNav,
-    setShowCoordinates: (show: boolean) => {
-      showCoordinates = show;
-      doRenderBoard();
-    },
-    setMoveTreeEl: (el: HTMLElement | null) => {
-      config.moveTreeEl = el;
-      if (!config.moveTreeDirection) {
-        config.moveTreeDirection = "responsive";
-      }
-    },
-    enterTerritoryReview: enterTerritory,
-    exitTerritoryReview: exitTerritory,
-    finalizeTerritoryReview: finalizeTerritory,
-    isTerritoryReview: () => !!territoryState,
-    isFinalized: isCurrentFinalized,
-    destroy: () => abortController.abort(),
-  };
+export async function createBoard(config: BoardConfig): Promise<Board> {
+  return BoardController.create(config);
 }

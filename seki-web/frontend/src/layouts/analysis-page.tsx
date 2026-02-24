@@ -65,7 +65,7 @@ function AnalysisHeader() {
   );
 }
 
-function AnalysisPlayerPanel({ position }: { position: "top" | "bottom" }) {
+function buildAnalysisPlayerPanel({ position }: { position: "top" | "bottom" }) {
   const board = analysisBoard.value;
   const meta = analysisMeta.value;
 
@@ -132,7 +132,7 @@ function AnalysisPlayerPanel({ position }: { position: "top" | "bottom" }) {
   return position === "top" ? whitePanel : blackPanel;
 }
 
-function AnalysisControls({
+function buildAnalysisControls({
   pm,
   coordsState,
   onSizeChange,
@@ -223,7 +223,7 @@ export function AnalysisPage(props: AnalysisPageProps) {
 
   const size = analysisSize.value;
 
-  const controlsProps = AnalysisControls({
+  const controlsProps = buildAnalysisControls({
     pm,
     coordsState,
     onSizeChange,
@@ -236,8 +236,8 @@ export function AnalysisPage(props: AnalysisPageProps) {
       header={<AnalysisHeader />}
       gobanRef={gobanRef}
       gobanStyle={`aspect-ratio: ${size}/${size}`}
-      playerTop={AnalysisPlayerPanel({ position: "top" })}
-      playerBottom={AnalysisPlayerPanel({ position: "bottom" })}
+      playerTop={buildAnalysisPlayerPanel({ position: "top" })}
+      playerBottom={buildAnalysisPlayerPanel({ position: "bottom" })}
       controls={controlsProps}
       sidebar={
         <div

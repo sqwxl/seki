@@ -8,8 +8,8 @@ import type {
   TerritoryData,
   TurnData,
   ScoreData,
-} from "../goban/types";
-import { GameStage as GS, isPlayStage } from "../goban/types";
+} from "./types";
+import { GameStage as GS, isPlayStage } from "./types";
 import type { Board } from "../goban/create-board";
 import type { ChatEntry } from "../components/chat";
 import { storage, SHOW_MOVE_TREE } from "../utils/storage";

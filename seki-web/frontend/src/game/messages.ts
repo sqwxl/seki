@@ -1,4 +1,4 @@
-import { GameStage, isPlayStage, type IncomingMessage } from "../goban/types";
+import { GameStage, isPlayStage, type IncomingMessage } from "./types";
 import type { GameChannel } from "./channel";
 import type { ClockState } from "./clock";
 import { syncClock } from "./clock";

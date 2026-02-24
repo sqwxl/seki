@@ -8,8 +8,8 @@ import type {
   GameUpdatedMessage,
   GameRemovedMessage,
 } from "./games-list";
+import type { UserData } from "../game/types";
 import { parseDatasetJson } from "../utils/format";
-import type { UserData } from "../utils/format";
 
 type InitialData = {
   profile_user_id: number;

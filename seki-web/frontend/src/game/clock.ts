@@ -1,5 +1,5 @@
 import { signal } from "@preact/signals";
-import type { ClockData, GameSettings } from "../goban/types";
+import type { ClockData, GameSettings } from "./types";
 import { DEFAULT_BYOYOMI_PERIOD_SECS } from "../utils/format";
 import { initialProps } from "./state";
 

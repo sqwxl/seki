@@ -1,6 +1,6 @@
 import { h } from "preact";
 import { useEffect, useRef } from "preact/hooks";
-import type { GameTreeData } from "../goban/types";
+import type { GameTreeData } from "../game/types";
 
 const NODE_RADIUS = 12;
 const COL_SPACING = 32;

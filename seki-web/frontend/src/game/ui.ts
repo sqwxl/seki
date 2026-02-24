@@ -1,4 +1,4 @@
-import type { ScoreData } from "../goban/types";
+import type { ScoreData } from "./types";
 import type { ChatEntry } from "../components/chat";
 import { formatGameDescription, formatPoints } from "../utils/format";
 import {

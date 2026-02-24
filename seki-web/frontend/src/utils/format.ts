@@ -1,7 +1,5 @@
-import type { GameSettings, ScoreData, UserData } from "../goban/types";
-import { GameStage, isPlayStage } from "../goban/types";
-
-export type { GameSettings, UserData };
+import type { GameSettings, ScoreData, UserData } from "../game/types";
+import { GameStage, isPlayStage } from "../game/types";
 
 // Default time-control values used when GameSettings fields are undefined.
 // Keep in sync with server defaults and game-settings-form.tsx UI defaults.

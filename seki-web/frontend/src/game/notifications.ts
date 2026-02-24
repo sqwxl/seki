@@ -1,4 +1,4 @@
-import { isPlayStage } from "../goban/types";
+import { isPlayStage } from "./types";
 import {
   playerStone,
   currentTurn,

@@ -4,7 +4,7 @@ import { initUserGames } from "./layouts/user-games";
 import { initAnalysis } from "./layouts/analysis";
 import { initNotificationToggle } from "./game/notifications";
 import { initNewGameForm } from "./layouts/game-settings-form";
-import type { InitialGameProps } from "./goban/types";
+import type { InitialGameProps } from "./game/types";
 import { parseDatasetJson } from "./utils/format";
 
 initNotificationToggle();
