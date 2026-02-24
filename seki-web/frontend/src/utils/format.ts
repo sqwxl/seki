@@ -1,4 +1,5 @@
 import type { GameSettings, ScoreData, UserData } from "../goban/types";
+import { GameStage, isPlayStage } from "../goban/types";
 
 export type { GameSettings, UserData };
 
@@ -114,16 +115,12 @@ export function formatSize(cols: number, rows: number): string {
   return `${cols}×${rows}`;
 }
 
-function isPlayStage(stage: string): boolean {
-  return stage === "black_to_play" || stage === "white_to_play";
-}
-
 type DescriptionInput = {
   creator_id: number | undefined;
   black: UserData | undefined;
   white: UserData | undefined;
   settings: GameSettings;
-  stage: string;
+  stage: GameStage;
   result: string | null | undefined;
   move_count: number | undefined;
 };
@@ -157,7 +154,7 @@ export function formatGameDescription(g: DescriptionInput): string {
   if (g.result) {
     parts.push(g.result);
   } else if (
-    (isPlayStage(g.stage) || g.stage === "territory_review") &&
+    (isPlayStage(g.stage) || g.stage === GameStage.TerritoryReview) &&
     g.move_count != null
   ) {
     parts.push(`Move ${g.move_count}`);

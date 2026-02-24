@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "../ws";
 import { GameDescription } from "../components/game-description";
 import type { LiveGameItem, GameUpdate } from "../components/game-description";
+import { GameStage } from "../goban/types";
 import type { UserData } from "../utils/format";
 
 type InitMessage = {
@@ -48,6 +49,38 @@ function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
     map.set(g.id, g);
   }
   return map;
+}
+
+function GameSection({
+  title,
+  games,
+  emptyText,
+}: {
+  title: string;
+  games: LiveGameItem[];
+  emptyText?: string;
+}) {
+  if (!emptyText && games.length === 0) {
+    return null;
+  }
+  return (
+    <>
+      <h1>{title}</h1>
+      {games.length === 0 ? (
+        <p>{emptyText}</p>
+      ) : (
+        <ul class="games-list">
+          {games.map((g) => (
+            <li key={g.id}>
+              <a href={`/games/${g.id}`}>
+                <GameDescription {...g} />
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
 }
 
 function GamesList({ initial }: { initial?: InitMessage }) {
@@ -117,7 +150,7 @@ function GamesList({ initial }: { initial?: InitMessage }) {
     g.result !== "Aborted" && g.result !== "Declined";
 
   const isIncomingChallenge = (g: LiveGameItem) =>
-    g.stage === "challenge" && g.creator_id !== playerId;
+    g.stage === GameStage.Challenge && g.creator_id !== playerId;
 
   const challenges = allGames.filter(
     (g) => isMyGame(g) && isVisible(g) && isIncomingChallenge(g),
@@ -143,62 +176,10 @@ function GamesList({ initial }: { initial?: InitMessage }) {
 
   return (
     <>
-      {challenges.length > 0 && (
-        <>
-          <h1>Challenges</h1>
-          <ul class="games-list">
-            {challenges.map((g) => (
-              <li key={g.id}>
-                <a href={`/games/${g.id}`}>
-                  <GameDescription {...g} />
-                </a>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      <h1>Your games</h1>
-      {userGames.length === 0 ? (
-        <p>No games yet.</p>
-      ) : (
-        <ul class="games-list">
-          {userGames.map((g) => (
-            <li key={g.id}>
-              <a href={`/games/${g.id}`}>
-                <GameDescription {...g} />
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-      <h1>Open games</h1>
-      {openGames.length === 0 ? (
-        <p>No open games.</p>
-      ) : (
-        <ul class="games-list">
-          {openGames.map((g) => (
-            <li key={g.id}>
-              <a href={`/games/${g.id}`}>
-                <GameDescription {...g} />
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
-      <h1>Public games</h1>
-      {publicGames.length === 0 ? (
-        <p>No public games.</p>
-      ) : (
-        <ul class="games-list">
-          {publicGames.map((g) => (
-            <li key={g.id}>
-              <a href={`/games/${g.id}`}>
-                <GameDescription {...g} />
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
+      <GameSection title="Challenges" games={challenges} />
+      <GameSection title="Your games" games={userGames} emptyText="No games yet." />
+      <GameSection title="Open games" games={openGames} emptyText="No open games." />
+      <GameSection title="Public games" games={publicGames} emptyText="No public games." />
     </>
   );
 }

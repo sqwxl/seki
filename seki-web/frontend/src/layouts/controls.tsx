@@ -5,8 +5,10 @@ import {
   UIControls,
 } from "../components/controls";
 
-function AnalysisBoardControls(props: ControlsProps) {
-  const reviewing = !!(props.territoryReady || props.territoryExit);
+export function Controls(props: ControlsProps) {
+  const reviewing =
+    props.layout === "analysis" &&
+    !!(props.territoryReady || props.territoryExit);
 
   if (reviewing) {
     return (
@@ -39,33 +41,5 @@ function AnalysisBoardControls(props: ControlsProps) {
         <UIControls {...props} />
       </span>
     </div>
-  );
-}
-
-function LiveGameControls(props: ControlsProps) {
-  return (
-    <div class="controls-nav-row">
-      <span class="btn-group controls-start">
-        <GameControls {...props} />
-      </span>
-      <span class="btn-group controls-middle">
-        <NavControls nav={props.nav} />
-      </span>
-      <span class="btn-group controls-end">
-        <UIControls {...props} />
-      </span>
-    </div>
-  );
-}
-
-export function Controls(props: ControlsProps) {
-  return (
-    <>
-      {props.layout === "analysis" ? (
-        <AnalysisBoardControls {...props} />
-      ) : (
-        <LiveGameControls {...props} />
-      )}
-    </>
   );
 }

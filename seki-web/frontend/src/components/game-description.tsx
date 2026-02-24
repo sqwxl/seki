@@ -1,10 +1,10 @@
-import { UserData, GameSettings } from "../goban/types";
+import { UserData, GameSettings, GameStage, isPlayStage } from "../goban/types";
 import { UserLabel } from "./user-label";
 import { formatSize, formatTimeControl } from "../utils/format";
 
 export type GameUpdate = {
   id: number;
-  stage: string;
+  stage: GameStage;
   result: string | undefined;
   black: UserData | undefined;
   white: UserData | undefined;
@@ -14,17 +14,13 @@ export type GameUpdate = {
 export type LiveGameItem = {
   id: number;
   creator_id: number | undefined;
-  stage: string;
+  stage: GameStage;
   result: string | undefined;
   black: UserData | undefined;
   white: UserData | undefined;
   settings: GameSettings;
   move_count: number | undefined;
 };
-
-function isPlayStage(stage: string): boolean {
-  return stage === "black_to_play" || stage === "white_to_play";
-}
 
 export function GameDescription(props: LiveGameItem) {
   const b = props.black?.display_name ?? "?";
@@ -54,7 +50,7 @@ export function GameDescription(props: LiveGameItem) {
   if (props.result) {
     parts.push(props.result);
   } else if (
-    (isPlayStage(props.stage) || props.stage === "territory_review") &&
+    (isPlayStage(props.stage) || props.stage === GameStage.TerritoryReview) &&
     props.move_count != null
   ) {
     parts.push(`Move ${props.move_count}`);
