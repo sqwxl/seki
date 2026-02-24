@@ -1,6 +1,7 @@
 mod common;
 
 mod chat;
+mod disconnect;
 mod game_lifecycle;
 mod ko;
 mod lobby;

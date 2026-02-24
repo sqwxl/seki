@@ -175,6 +175,7 @@ pub async fn handle_message(
         "respond_to_undo" => handle_respond_to_undo(state, game_id, player_id, data).await,
         "toggle_chain" => handle_toggle_chain(state, game_id, player_id, data).await,
         "approve_territory" => game_actions::approve_territory(state, game_id, player_id).await,
+        "disconnect_abort" => game_actions::disconnect_abort(state, game_id, player_id).await,
         "timeout_flag" => game_actions::handle_timeout_flag(state, game_id, player_id).await,
         "territory_timeout_flag" => {
             game_actions::handle_territory_timeout_flag(state, game_id, player_id).await

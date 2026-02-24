@@ -142,4 +142,4 @@ function joinGame(gameId: number, handler: Handler): () => void {
   };
 }
 
-export { subscribe, send, joinGame };
+export { ensureConnected, subscribe, send, joinGame };

@@ -65,6 +65,9 @@ export const settledTerritory = signal<SettledTerritoryData | undefined>(
 export const onlineUsers = signal<Set<number>>(new Set());
 export const undoRejected = signal(false);
 export const allowUndo = signal(false);
+export const opponentDisconnected = signal<{ since: Date } | undefined>(
+  undefined,
+);
 
 // ---------------------------------------------------------------------------
 // Chat
@@ -175,6 +178,14 @@ export function applyGameState(data: {
     white.value = data.white ?? undefined;
     if (data.online_users) {
       onlineUsers.value = new Set(data.online_users);
+      // Reconcile: clear disconnect signal if opponent is back online
+      if (opponentDisconnected.value) {
+        const oppId =
+          playerStone.value === 1 ? white.value?.id : black.value?.id;
+        if (oppId != null && data.online_users.includes(oppId)) {
+          opponentDisconnected.value = undefined;
+        }
+      }
     }
     if (approvalMessages.length > 0) {
       chatMessages.value = [...chatMessages.value, ...approvalMessages];

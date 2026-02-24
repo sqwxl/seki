@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
 use go_engine::{Engine, Point};
 use tokio::sync::{RwLock, mpsc};
 
@@ -30,6 +31,8 @@ struct GameRoom {
     territory_review: Option<TerritoryReviewState>,
     /// In-memory clock state for timed games
     clock: Option<ClockState>,
+    /// Players marked as disconnected (player_id -> disconnect time)
+    disconnected_players: HashMap<i64, DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone)]
@@ -249,5 +252,49 @@ impl GameRegistry {
         if let Some(room) = rooms.get_mut(&game_id) {
             room.territory_review = None;
         }
+    }
+
+    // -- Disconnect tracking --
+
+    /// Check if a player is marked as disconnected in a game room.
+    pub async fn is_player_disconnected(&self, game_id: i64, player_id: i64) -> bool {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .is_some_and(|room| room.disconnected_players.contains_key(&player_id))
+    }
+
+    /// Mark a player as disconnected in a game room.
+    pub async fn mark_disconnected(&self, game_id: i64, player_id: i64, now: DateTime<Utc>) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            room.disconnected_players.insert(player_id, now);
+        }
+    }
+
+    /// Clear a player's disconnected status in a game room.
+    pub async fn mark_reconnected(&self, game_id: i64, player_id: i64) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            room.disconnected_players.remove(&player_id);
+        }
+    }
+
+    /// Get the timestamp when a player was marked disconnected.
+    pub async fn disconnect_time(&self, game_id: i64, player_id: i64) -> Option<DateTime<Utc>> {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .and_then(|room| room.disconnected_players.get(&player_id).copied())
+    }
+
+    /// Find all game room IDs where a user is marked as disconnected.
+    pub async fn games_with_disconnected_player(&self, user_id: i64) -> Vec<i64> {
+        let rooms = self.rooms.read().await;
+        rooms
+            .iter()
+            .filter(|(_, room)| room.disconnected_players.contains_key(&user_id))
+            .map(|(game_id, _)| *game_id)
+            .collect()
     }
 }

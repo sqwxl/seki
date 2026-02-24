@@ -275,6 +275,11 @@ impl ClockState {
         Some(now + TimeDelta::milliseconds(total_ms))
     }
 
+    /// Resume a paused clock by setting last_move_at (inverse of pause).
+    pub fn resume(&mut self, now: DateTime<Utc>) {
+        self.last_move_at = Some(now);
+    }
+
     /// Deduct elapsed time for the active user and clear last_move_at (pauses the clock).
     pub fn pause(&mut self, active_stone: Option<Stone>, now: DateTime<Utc>) {
         if let Some(stone) = active_stone

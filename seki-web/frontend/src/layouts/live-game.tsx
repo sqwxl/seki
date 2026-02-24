@@ -1,4 +1,5 @@
 import { render, createRef } from "preact";
+import { effect } from "@preact/signals";
 import type { Sign } from "../goban/types";
 import { GameStage, type InitialGameProps } from "../game/types";
 import { createBoard, computeVertexSize } from "../goban/create-board";
@@ -32,6 +33,7 @@ import {
   chatMessages,
   analysisMode,
   estimateMode,
+  opponentDisconnected,
   board,
   playerStone,
   initialProps as initialPropsSignal,
@@ -319,6 +321,28 @@ export function liveGame(
     },
   };
   joinGame(gameId, (raw) => handleGameMessage(raw, deps));
+
+  // --- Disconnect abort timer ---
+  // Re-render after each possible abort threshold so the button appears
+  effect(() => {
+    const dc = opponentDisconnected.value;
+    if (!dc) {
+      return;
+    }
+    const elapsed = Date.now() - dc.since.getTime();
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (const threshold of [15_000, 30_000]) {
+      const delay = threshold - elapsed + 100;
+      if (delay > 0) {
+        timers.push(setTimeout(() => doRender(), delay));
+      }
+    }
+    // If both thresholds already passed, render now
+    if (timers.length === 0) {
+      doRender();
+    }
+    return () => timers.forEach(clearTimeout);
+  });
 
   // --- Tab title flash ---
   document.addEventListener("visibilitychange", () => updateTurnFlash());

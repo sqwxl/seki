@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{State, WebSocketUpgrade};
 use axum::response::Response;
+use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
 use serde_json::json;
 use tokio::sync::mpsc;
@@ -10,6 +11,7 @@ use tokio::sync::mpsc;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
+use crate::services::clock::{self, TimeControl};
 use crate::services::live::build_live_items;
 use crate::session::CurrentUser;
 use crate::ws::game_channel;
@@ -26,6 +28,19 @@ pub async fn ws_upgrade(
 async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
     let (mut ws_sink, mut ws_stream) = socket.split();
 
+    // -- Global presence: register connection --
+    let timer_was_pending = state.presence.connect(user_id).await;
+    // Check if we were marked disconnected in any game room (timer may have already fired)
+    let was_disconnected = timer_was_pending
+        || !state
+            .registry
+            .games_with_disconnected_player(user_id)
+            .await
+            .is_empty();
+    if was_disconnected {
+        handle_reconnect(&state, user_id).await;
+    }
+
     // Channel for game room messages (registered in registry per game)
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
 
@@ -35,6 +50,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
     // Send lobby init
     let init = build_init_message(&state, user_id).await;
     if ws_sink.send(Message::Text(init.into())).await.is_err() {
+        register_disconnect(&state, user_id);
         return;
     }
 
@@ -143,6 +159,151 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
         }
     }
     send_task.abort();
+
+    // -- Global presence: deregister connection --
+    register_disconnect(&state, user_id);
+}
+
+/// Start the grace-period disconnect timer for a user.
+fn register_disconnect(state: &AppState, user_id: i64) {
+    let state_for_task = state.clone();
+    let state_for_callback = state.clone();
+    // `presence.disconnect` is async but we're in a sync-ish cleanup context.
+    // Spawn a small task to call it.
+    tokio::spawn(async move {
+        state_for_task
+            .presence
+            .disconnect(user_id, move |uid| {
+                // Grace period expired — fire disconnect logic
+                tokio::spawn(async move {
+                    handle_disconnect(&state_for_callback, uid).await;
+                });
+            })
+            .await;
+    });
+}
+
+/// Called after grace period expires: pause clocks and broadcast disconnect.
+async fn handle_disconnect(state: &AppState, user_id: i64) {
+    let game_ids = match Game::active_timed_game_ids(&state.db, user_id).await {
+        Ok(ids) => ids,
+        Err(e) => {
+            tracing::error!("Failed to query active timed games for disconnect: {e}");
+            return;
+        }
+    };
+
+    let now = Utc::now();
+
+    for game_id in game_ids {
+        state.registry.mark_disconnected(game_id, user_id, now).await;
+
+        // Pause the disconnected player's clock if it's active
+        let game = match Game::find_by_id(&state.db, game_id).await {
+            Ok(g) => g,
+            Err(_) => continue,
+        };
+        let tc = TimeControl::from_game(&game);
+        if !tc.is_none() {
+            if let Some(mut clock) = state.registry.get_clock(game_id).await {
+                let active = clock::active_stone_from_stage(&game.stage);
+                // Only pause if the disconnected player's clock is the active one
+                let disconnected_stone = if game.black_id == Some(user_id) {
+                    Some(go_engine::Stone::Black)
+                } else if game.white_id == Some(user_id) {
+                    Some(go_engine::Stone::White)
+                } else {
+                    None
+                };
+
+                if active == disconnected_stone && disconnected_stone.is_some() {
+                    clock.pause(active, now);
+                    state.registry.update_clock(game_id, clock.clone()).await;
+                    // Persist paused clock to DB
+                    let _ = Game::update_clock(
+                        &state.db,
+                        game_id,
+                        &clock.to_update(None, &tc),
+                    )
+                    .await;
+                }
+            }
+        }
+
+        // Broadcast disconnect to all viewers in the game room
+        state
+            .registry
+            .broadcast(
+                game_id,
+                &json!({
+                    "kind": "player_disconnected",
+                    "game_id": game_id,
+                    "user_id": user_id,
+                    "timestamp": now.to_rfc3339(),
+                })
+                .to_string(),
+            )
+            .await;
+    }
+}
+
+/// Called when a user reconnects after being disconnected: resume clocks and broadcast.
+async fn handle_reconnect(state: &AppState, user_id: i64) {
+    let game_ids = state
+        .registry
+        .games_with_disconnected_player(user_id)
+        .await;
+
+    let now = Utc::now();
+
+    for game_id in game_ids {
+        state.registry.mark_reconnected(game_id, user_id).await;
+
+        // Resume clock if the game is active + timed
+        let game = match Game::find_by_id(&state.db, game_id).await {
+            Ok(g) => g,
+            Err(_) => continue,
+        };
+
+        if game.result.is_some() {
+            continue;
+        }
+
+        let tc = TimeControl::from_game(&game);
+        if !tc.is_none() {
+            let active = clock::active_stone_from_stage(&game.stage);
+            // Resume the clock for whoever's turn it is
+            if active.is_some() {
+                if let Some(mut clock) = state.registry.get_clock(game_id).await {
+                    // Only resume if the clock is actually paused
+                    if clock.last_move_at.is_none() {
+                        clock.resume(now);
+                        state.registry.update_clock(game_id, clock.clone()).await;
+                        let _ = Game::update_clock(
+                            &state.db,
+                            game_id,
+                            &clock.to_update(active, &tc),
+                        )
+                        .await;
+                    }
+                }
+            }
+        }
+
+        // Broadcast reconnect to all viewers
+        state
+            .registry
+            .broadcast(
+                game_id,
+                &json!({
+                    "kind": "player_reconnected",
+                    "game_id": game_id,
+                    "user_id": user_id,
+                })
+                .to_string(),
+            )
+            .await;
+    }
 }
 
 async fn build_init_message(state: &AppState, user_id: i64) -> String {

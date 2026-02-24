@@ -31,6 +31,7 @@ import {
   analysisMode,
   estimateMode,
   undoResponseNeeded,
+  opponentDisconnected,
   board,
   playerStone,
   initialProps,
@@ -328,14 +329,31 @@ function buildLobbyControls(
   }
 
   if (isReview && isPlayer) {
+    const oppDisconnected = !!opponentDisconnected.value;
     const alreadyApproved =
       (playerStone.value === 1 && territory.value?.black_approved) ||
       (playerStone.value === -1 && territory.value?.white_approved);
     out.acceptTerritory = {
       message: "Accept territory?",
       onConfirm: () => channel.approveTerritory(),
-      disabled: !!alreadyApproved,
+      disabled: !!alreadyApproved || oppDisconnected,
     };
+  }
+
+  // Disconnect abort: show after threshold
+  if (isPlayer && !result.value && opponentDisconnected.value) {
+    const elapsed = Date.now() - opponentDisconnected.value.since.getTime();
+    const hasOpponentMoved = moves.value.some((m) => {
+      const oppStone = playerStone.value === 1 ? -1 : 1;
+      return m.stone === oppStone;
+    });
+    const thresholdMs = hasOpponentMoved ? 15_000 : 30_000;
+    if (elapsed >= thresholdMs) {
+      out.disconnectAbort = {
+        message: "Abort game? (Opponent disconnected)",
+        onConfirm: () => channel.disconnectAbort(),
+      };
+    }
   }
 
   if (result.value && isPlayer) {

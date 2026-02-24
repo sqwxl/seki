@@ -175,6 +175,17 @@ export type UndoResponseNeededMessage = {
   requesting_user: string;
 };
 
+export type PlayerDisconnectedMessage = {
+  kind: "player_disconnected";
+  user_id: number;
+  timestamp: string;
+};
+
+export type PlayerReconnectedMessage = {
+  kind: "player_reconnected";
+  user_id: number;
+};
+
 export type IncomingMessage =
   | StateMessage
   | ChatMessage
@@ -183,4 +194,6 @@ export type IncomingMessage =
   | UndoAcceptedMessage
   | UndoRejectedMessage
   | UndoRequestSentMessage
-  | UndoResponseNeededMessage;
+  | UndoResponseNeededMessage
+  | PlayerDisconnectedMessage
+  | PlayerReconnectedMessage;

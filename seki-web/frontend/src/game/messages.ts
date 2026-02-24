@@ -17,6 +17,9 @@ import {
   currentTurn,
   undoResponseNeeded,
   territory,
+  opponentDisconnected,
+  black,
+  white,
   applyGameState,
   applyUndo,
   addChatMessage,
@@ -178,11 +181,34 @@ export function handleGameMessage(
       setPresence(data.player_id, data.online);
       break;
     }
+    case "player_disconnected": {
+      if (isOpponent(data.user_id)) {
+        opponentDisconnected.value = { since: new Date(data.timestamp) };
+      }
+      break;
+    }
+    case "player_reconnected": {
+      if (isOpponent(data.user_id)) {
+        opponentDisconnected.value = undefined;
+      }
+      break;
+    }
     default: {
       console.warn("Unknown game message kind:", data);
       break;
     }
   }
+}
+
+function isOpponent(userId: number): boolean {
+  const myStone = playerStone.value;
+  if (myStone === 1) {
+    return white.value?.id === userId;
+  }
+  if (myStone === -1) {
+    return black.value?.id === userId;
+  }
+  return false;
 }
 
 export function flashPassEffect(goban: HTMLElement): void {

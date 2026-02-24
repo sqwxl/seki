@@ -22,10 +22,20 @@ pub mod ws;
 pub struct AppState {
     pub db: db::DbPool,
     pub registry: ws::registry::GameRegistry,
+    pub presence: ws::presence::UserPresence,
     pub live_tx: broadcast::Sender<String>,
 }
 
 pub async fn build_router(pool: db::DbPool, session_secure: bool) -> (Router, AppState) {
+    build_router_with_presence(pool, session_secure, ws::presence::UserPresence::new()).await
+}
+
+/// Build the router with a custom `UserPresence` (e.g. for tests with zero grace period).
+pub async fn build_router_with_presence(
+    pool: db::DbPool,
+    session_secure: bool,
+    presence: ws::presence::UserPresence,
+) -> (Router, AppState) {
     let session_store = PostgresStore::new(pool.clone());
     session_store
         .migrate()
@@ -40,6 +50,7 @@ pub async fn build_router(pool: db::DbPool, session_secure: bool) -> (Router, Ap
     let state = AppState {
         db: pool,
         registry: ws::registry::GameRegistry::new(),
+        presence,
         live_tx,
     };
 

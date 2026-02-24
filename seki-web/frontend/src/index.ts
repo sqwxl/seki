@@ -7,6 +7,10 @@ import { initNewGameForm } from "./layouts/game-settings-form";
 import type { InitialGameProps } from "./game/types";
 import { parseDatasetJson } from "./utils/format";
 import { initThemeToggle } from "./utils/theme";
+import { ensureConnected } from "./ws";
+
+// Connect WS on every page for global presence tracking
+ensureConnected();
 
 initThemeToggle();
 initNotificationToggle();

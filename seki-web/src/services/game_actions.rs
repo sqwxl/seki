@@ -206,6 +206,15 @@ pub async fn toggle_chain(
         return Err(AppError::BadRequest("Not in territory review".to_string()));
     }
 
+    // Block territory actions while opponent is disconnected
+    if let Some(opp) = gwp.opponent_of(player_id) {
+        if state.registry.is_player_disconnected(game_id, opp.id).await {
+            return Err(AppError::BadRequest(
+                "Opponent disconnected, territory review paused".to_string(),
+            ));
+        }
+    }
+
     state
         .registry
         .toggle_dead_chain(game_id, (col, row), engine.goban())
@@ -240,6 +249,15 @@ pub async fn approve_territory(
 
     if engine.stage() != Stage::TerritoryReview {
         return Err(AppError::BadRequest("Not in territory review".to_string()));
+    }
+
+    // Block territory actions while opponent is disconnected
+    if let Some(opp) = gwp.opponent_of(player_id) {
+        if state.registry.is_player_disconnected(game_id, opp.id).await {
+            return Err(AppError::BadRequest(
+                "Opponent disconnected, territory review paused".to_string(),
+            ));
+        }
     }
 
     state.registry.set_approved(game_id, stone, true).await;
@@ -567,6 +585,100 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
     {
         Ok(engine) => broadcast_game_state(state, &gwp, &engine).await,
         Err(e) => tracing::warn!("abort: failed to init engine for broadcast: {e}"),
+    }
+
+    Ok(())
+}
+
+/// Abort a game because the opponent disconnected.
+/// Requires the opponent to be marked disconnected for at least the threshold duration.
+pub async fn disconnect_abort(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+) -> Result<(), AppError> {
+    let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    require_both_players(&gwp)?;
+
+    if gwp.game.result.is_some() {
+        return Err(AppError::BadRequest("The game is over".to_string()));
+    }
+
+    // Find the opponent
+    let opponent_id = gwp
+        .opponent_of(player_id)
+        .map(|u| u.id)
+        .ok_or_else(|| AppError::BadRequest("Cannot determine opponent".to_string()))?;
+
+    // Verify opponent is disconnected
+    let disconnect_time = state
+        .registry
+        .disconnect_time(game_id, opponent_id)
+        .await
+        .ok_or_else(|| AppError::BadRequest("Opponent is not disconnected".to_string()))?;
+
+    // Check threshold: 30s before opponent's first move, 15s after
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let opponent_has_moved = engine.moves().iter().any(|t| {
+        let opp_stone = gwp.player_stone(opponent_id);
+        t.stone.to_int() == opp_stone as i8
+    });
+
+    let threshold_secs = if opponent_has_moved { 15 } else { 30 };
+    let elapsed = Utc::now() - disconnect_time;
+    if elapsed.num_seconds() < threshold_secs {
+        return Err(AppError::BadRequest(format!(
+            "Opponent must be disconnected for at least {threshold_secs}s"
+        )));
+    }
+
+    // Abort the game
+    let mut tx = state
+        .db
+        .begin()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    pause_clock(state, &mut *tx, game_id, &gwp.game).await?;
+    Game::set_ended(&mut *tx, game_id, "Aborted", "aborted")
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    tx.commit()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    gwp.game.result = Some("Aborted".to_string());
+    gwp.game.stage = "aborted".to_string();
+
+    live::notify_game_removed(state, game_id);
+
+    let _ = state
+        .registry
+        .with_engine_mut(game_id, |engine| {
+            engine.set_result("Aborted".to_string());
+            Ok(())
+        })
+        .await;
+
+    broadcast_system_chat(
+        state,
+        game_id,
+        "Opponent disconnected; game aborted",
+        Some(engine.moves().len() as i32),
+    )
+    .await;
+
+    match state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await
+    {
+        Ok(engine) => broadcast_game_state(state, &gwp, &engine).await,
+        Err(e) => tracing::warn!("disconnect_abort: failed to init engine for broadcast: {e}"),
     }
 
     Ok(())
@@ -1087,8 +1199,23 @@ async fn process_clock_after_move(
         clock.process_move(stone, active, &tc, now);
     }
 
-    // After the move, the new active stone is the opponent
-    let new_active = Some(stone.opp());
+    // After the move, the new active stone is the opponent — unless they're disconnected
+    let opp_stone = stone.opp();
+    let opp_id = match opp_stone {
+        Stone::Black => game.black_id,
+        Stone::White => game.white_id,
+    };
+    let opp_disconnected = match opp_id {
+        Some(id) => state.registry.is_player_disconnected(game_id, id).await,
+        None => false,
+    };
+    let new_active = if opp_disconnected {
+        // Clear last_move_at so broadcast shows clock as paused
+        clock.last_move_at = None;
+        None
+    } else {
+        Some(opp_stone)
+    };
     persist_clock(state, executor, game_id, &clock, &tc, new_active).await?;
 
     Ok(())

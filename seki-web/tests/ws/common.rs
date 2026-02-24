@@ -74,8 +74,11 @@ impl TestServer {
         .await
         .unwrap();
 
-        // Build and spawn the server
-        let (router, _state) = seki_web::build_router(pool.clone(), false).await;
+        // Build and spawn the server (zero grace period for instant disconnect in tests)
+        let presence =
+            seki_web::ws::presence::UserPresence::with_grace_period(Duration::from_millis(0));
+        let (router, _state) =
+            seki_web::build_router_with_presence(pool.clone(), false, presence).await;
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap().to_string();
 
@@ -386,5 +389,16 @@ impl WsClient {
     pub async fn approve_territory(&mut self, game_id: i64) {
         self.send(json!({"action": "approve_territory", "game_id": game_id}))
             .await;
+    }
+
+    pub async fn disconnect_abort(&mut self, game_id: i64) {
+        self.send(json!({"action": "disconnect_abort", "game_id": game_id}))
+            .await;
+    }
+
+    /// Close the WebSocket connection (simulates browser close / disconnect).
+    pub async fn close(self) {
+        let mut sink = self.sink;
+        let _ = sink.close().await;
     }
 }

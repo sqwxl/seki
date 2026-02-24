@@ -48,6 +48,7 @@ export type ControlsProps = {
   resign?: ConfirmDef & { disabled?: boolean };
 
   abort?: ConfirmDef & { disabled?: boolean };
+  disconnectAbort?: ConfirmDef & { disabled?: boolean };
   acceptTerritory?: ConfirmDef & { disabled?: boolean };
   joinGame?: ButtonDef;
   acceptChallenge?: ButtonDef;
@@ -271,6 +272,15 @@ export function GameControls(props: ControlsProps) {
           title="Abort game"
           disabled={props.abort.disabled}
           confirm={props.abort}
+        />
+      )}
+      {props.disconnectAbort && (
+        <ConfirmButton
+          id="disconnect-abort-btn"
+          icon={() => <>Abort</>}
+          title="Abort game (opponent disconnected)"
+          disabled={props.disconnectAbort.disabled}
+          confirm={props.disconnectAbort}
         />
       )}
       {props.copyInviteLink && (
