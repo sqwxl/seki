@@ -1,7 +1,5 @@
 import { render, createRef } from "preact";
 import { createBoard, ensureWasm } from "../goban/create-board";
-import type { Board } from "../goban/create-board";
-import type { ControlsProps } from "../components/controls";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import {
   storage,
@@ -10,68 +8,38 @@ import {
   ANALYSIS_SGF_TEXT,
   analysisTreeKey,
 } from "../utils/storage";
-import {
-  blackSymbol,
-  whiteSymbol,
-  formatPoints,
-  formatSize,
-  formatSgfTime,
-  formatTime,
-} from "../utils/format";
-import { GamePageLayout } from "./game-page-layout";
-import type { GamePageLayoutProps } from "./game-page-layout";
 import { playStoneSound, playPassSound } from "../game/sound";
-import { formatScoreStr } from "../game/ui";
-import type { PlayerPanelProps } from "../components/player-panel";
 import { createPremove } from "../utils/premove";
-import {
-  buildNavProps,
-  buildCoordsToggle,
-  buildMoveConfirmToggle,
-} from "../utils/shared-controls";
 import type { CoordsToggleState } from "../utils/shared-controls";
 import { readFileAsText, downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
 import type { Sign } from "../goban/types";
+import {
+  analysisBoard,
+  analysisMeta,
+  analysisSize,
+  analysisTerritoryInfo,
+} from "./analysis-state";
+import { AnalysisPage } from "./analysis-page";
 
 const VALID_SIZES = [9, 13, 19];
 const KOMI = 6.5;
 
-function formatSgfDescription(meta: SgfMeta): string {
-  const b = meta.black_name ?? "Black";
-  const w = meta.white_name ?? "White";
-  const parts: string[] = [
-    `${b} ${blackSymbol()} vs ${w} ${whiteSymbol()}`,
-    formatSize(meta.cols, meta.rows),
-  ];
-  if (meta.handicap && meta.handicap >= 2) {
-    parts.push(`H${meta.handicap}`);
-  }
-  const tc = formatSgfTime(meta.time_limit_secs, meta.overtime);
-  if (tc) {
-    parts.push(tc);
-  }
-  if (meta.result) {
-    parts.push(meta.result);
-  }
-  return parts.join(" - ");
-}
-
 export function initAnalysis(root: HTMLElement) {
   const gobanRef = createRef<HTMLDivElement>();
 
-  // Create move tree element for the sidebar slot
   const moveTreeEl = document.createElement("div");
   moveTreeEl.className = "move-tree";
 
+  // Restore persisted state into signals
   const savedSize = storage.get(ANALYSIS_SIZE);
-  let currentSize = savedSize ? parseInt(savedSize, 10) : 19;
-  if (!VALID_SIZES.includes(currentSize)) {
-    currentSize = 19;
+  let parsed = savedSize ? parseInt(savedSize, 10) : 19;
+  if (!VALID_SIZES.includes(parsed)) {
+    parsed = 19;
   }
+  analysisSize.value = parsed;
+  analysisMeta.value = storage.getJson(ANALYSIS_SGF_META);
 
-  let board: Board | undefined;
-  let sgfMeta: SgfMeta | undefined = storage.getJson(ANALYSIS_SGF_META);
   let sgfText: string | undefined = storage.get(ANALYSIS_SGF_TEXT) ?? undefined;
 
   const coordsState: CoordsToggleState = {
@@ -79,121 +47,53 @@ export function initAnalysis(root: HTMLElement) {
   };
 
   const pm = createPremove({
-    getSign: () => (board?.engine.current_turn_stone() ?? 1) as Sign,
+    getSign: () =>
+      (analysisBoard.value?.engine.current_turn_stone() ?? 1) as Sign,
   });
 
   function ghostStone() {
     return pm.getGhostStone();
   }
 
-  // Cached player panel props (updated in onRender)
-  let playerTopProps: PlayerPanelProps | undefined;
-  let playerBottomProps: PlayerPanelProps | undefined;
-
-  // --- Build controls props ---
-  function buildControls(): ControlsProps {
-    const reviewing = board?.isTerritoryReview() ?? false;
-    const finalized = board?.isFinalized() ?? false;
-
-    const props: ControlsProps = {
-      layout: "analysis",
-      nav: buildNavProps(board),
-      coordsToggle: buildCoordsToggle(board, coordsState),
-      moveConfirmToggle: buildMoveConfirmToggle(pm, board),
-      sizeSelect: {
-        value: currentSize,
-        options: VALID_SIZES,
-        onChange: (size) => {
-          currentSize = size;
-          sgfMeta = undefined;
-          sgfText = undefined;
-          storage.remove(ANALYSIS_SGF_META);
-          storage.remove(ANALYSIS_SGF_TEXT);
-          storage.set(ANALYSIS_SIZE, String(size));
-          initBoard(size);
-        },
-      },
-    };
-
-    if (reviewing) {
-      props.territoryReady = {
-        onClick: () => board?.finalizeTerritoryReview(),
-      };
-      props.territoryExit = {
-        onClick: () => board?.exitTerritoryReview(),
-      };
-    } else if (!finalized) {
-      props.pass = { onClick: () => board?.pass() };
-      props.estimate = { onClick: () => board?.enterTerritoryReview() };
-      props.sgfImport = { onFileChange: handleSgfImport };
-      props.sgfExport = { onClick: handleSgfExport };
-      props.territoryReady = undefined;
-      props.territoryExit = undefined;
-    }
-
-    if (pm.value) {
-      props.confirmMove = {
-        onClick: () => {
-          if (pm.value && board) {
-            const [col, row] = pm.value;
-            pm.clear();
-            if (board.engine.try_play(col, row)) {
-              playStoneSound();
-              board.save();
-              board.render();
-            }
-          }
-        },
-      };
-    }
-
-    return props;
+  // --- Render ---
+  function doRender() {
+    render(
+      <AnalysisPage
+        gobanRef={gobanRef}
+        pm={pm}
+        coordsState={coordsState}
+        moveTreeEl={moveTreeEl}
+        onSizeChange={handleSizeChange}
+        handleSgfImport={handleSgfImport}
+        handleSgfExport={handleSgfExport}
+      />,
+      root,
+    );
   }
 
-  // --- Single render function ---
-  function doRender() {
-    const header = (
-      <>
-        <h2>Analysis Board</h2>
-        {sgfMeta && <p>{formatSgfDescription(sgfMeta)}</p>}
-      </>
-    );
-
-    const props: GamePageLayoutProps = {
-      header,
-      gobanRef,
-      gobanStyle: `aspect-ratio: ${currentSize}/${currentSize}`,
-      playerTop: playerTopProps,
-      playerBottom: playerBottomProps,
-      controls: buildControls(),
-      sidebar: (
-        <div
-          class="move-tree-slot"
-          ref={(el) => {
-            if (el && !el.contains(moveTreeEl)) {
-              el.appendChild(moveTreeEl);
-            }
-          }}
-        />
-      ),
-    };
-
-    render(<GamePageLayout {...props} />, root);
+  // --- Size change ---
+  function handleSizeChange(size: number) {
+    analysisSize.value = size;
+    analysisMeta.value = undefined;
+    sgfText = undefined;
+    storage.remove(ANALYSIS_SGF_META);
+    storage.remove(ANALYSIS_SGF_TEXT);
+    storage.set(ANALYSIS_SIZE, String(size));
+    initBoard(size);
   }
 
   // --- Board initialization ---
   async function initBoard(size: number) {
-    if (board) {
-      board.destroy();
+    if (analysisBoard.value) {
+      analysisBoard.value.destroy();
     }
     pm.clear();
-    playerTopProps = undefined;
-    playerBottomProps = undefined;
+    analysisBoard.value = undefined;
 
-    // Render the layout first so the goban div exists
+    // Render layout first so the goban div exists
     doRender();
 
-    board = await createBoard({
+    const board = await createBoard({
       cols: size,
       rows: size,
       showCoordinates: coordsState.showCoordinates,
@@ -210,12 +110,12 @@ export function initAnalysis(root: HTMLElement) {
         if (pm.value && pm.value[0] === col && pm.value[1] === row) {
           pm.clear();
           doRender();
-          return false; // let the board play the move
+          return false;
         }
         pm.value = [col, row];
         doRender();
-        board?.render();
-        return true; // consume the click
+        analysisBoard.value?.render();
+        return true;
       },
       onStonePlay: () => {
         pm.clear();
@@ -225,78 +125,21 @@ export function initAnalysis(root: HTMLElement) {
         pm.clear();
         playPassSound();
       },
-      onRender: (engine, territory) => {
-        const { reviewing, finalized, score } = territory;
-        const isBlackTurn = engine.current_turn_stone() === 1;
-
-        let bStr: string;
-        let wStr: string;
-        if (score) {
-          ({ bStr, wStr } = formatScoreStr(score, KOMI));
-        } else {
-          ({ bStr, wStr } = formatPoints(
-            engine.captures_black(),
-            engine.captures_white(),
-            KOMI,
-          ));
-        }
-
-        // White on top, black on bottom
-        const whiteName = sgfMeta?.white_name ?? "White";
-        const blackName = sgfMeta?.black_name ?? "Black";
-
-        // Per-move time (BL/WL) if available, else static time settings
-        const mtJson = engine.current_move_time();
-        let bClock = "";
-        let wClock = "";
-        if (mtJson) {
-          const mt = JSON.parse(mtJson);
-          if (mt.black_time != null) {
-            bClock = formatTime(mt.black_time);
-            if (mt.black_periods != null) {
-              bClock += ` (${mt.black_periods})`;
-            }
-          }
-          if (mt.white_time != null) {
-            wClock = formatTime(mt.white_time);
-            if (mt.white_periods != null) {
-              wClock += ` (${mt.white_periods})`;
-            }
-          }
-        }
-        if (!bClock && !wClock) {
-          const fallback =
-            formatSgfTime(sgfMeta?.time_limit_secs, sgfMeta?.overtime) ?? "";
-          bClock = fallback;
-          wClock = fallback;
-        }
-
-        playerTopProps = {
-          name: whiteName,
-          captures: wStr,
-          stone: "white",
-          clock: wClock,
-          isTurn: !reviewing && !finalized && !isBlackTurn,
-        };
-        playerBottomProps = {
-          name: blackName,
-          captures: bStr,
-          stone: "black",
-          clock: bClock,
-          isTurn: !reviewing && !finalized && isBlackTurn,
-        };
-
+      onRender: (_engine, territoryInfo) => {
+        analysisTerritoryInfo.value = territoryInfo;
         doRender();
       },
     });
 
+    analysisBoard.value = board;
+
     // Restore move_times from saved SGF text (tree already restored via storageKey)
-    if (sgfText && board) {
+    if (sgfText) {
       board.engine.load_sgf_move_times(sgfText);
     }
   }
 
-  // --- SGF import handler ---
+  // --- SGF import ---
   async function handleSgfImport(input: HTMLInputElement) {
     const file = input.files?.[0];
     if (!file) {
@@ -322,20 +165,21 @@ export function initAnalysis(root: HTMLElement) {
       input.value = "";
       return;
     }
-    // Update current size
-    currentSize = size;
+    // Update signals + storage
+    analysisSize.value = size;
     storage.set(ANALYSIS_SIZE, String(size));
-    // Clear stored tree for this size so initBoard starts fresh
     const treeKey = analysisTreeKey(size);
     storage.remove(treeKey);
     storage.remove(`${treeKey}:base`);
     storage.remove(`${treeKey}:finalized`);
     storage.remove(`${treeKey}:node`);
-    sgfMeta = meta;
+    analysisMeta.value = meta;
     sgfText = text;
     storage.setJson(ANALYSIS_SGF_META, meta);
     storage.set(ANALYSIS_SGF_TEXT, text);
+
     await initBoard(size);
+    const board = analysisBoard.value;
     if (board) {
       board.engine.load_sgf_tree(text);
       board.engine.to_start();
@@ -345,31 +189,32 @@ export function initAnalysis(root: HTMLElement) {
     input.value = "";
   }
 
-  // --- SGF export handler ---
+  // --- SGF export ---
   function handleSgfExport() {
+    const board = analysisBoard.value;
     if (!board) {
       return;
     }
     const meta: SgfMeta = {
-      cols: currentSize,
-      rows: currentSize,
-      komi: sgfMeta?.komi ?? KOMI,
-      handicap: sgfMeta?.handicap,
-      black_name: sgfMeta?.black_name,
-      white_name: sgfMeta?.white_name,
-      game_name: sgfMeta?.game_name,
-      result: sgfMeta?.result,
-      time_limit_secs: sgfMeta?.time_limit_secs,
-      overtime: sgfMeta?.overtime,
+      cols: analysisSize.value,
+      rows: analysisSize.value,
+      komi: analysisMeta.value?.komi ?? KOMI,
+      handicap: analysisMeta.value?.handicap,
+      black_name: analysisMeta.value?.black_name,
+      white_name: analysisMeta.value?.white_name,
+      game_name: analysisMeta.value?.game_name,
+      result: analysisMeta.value?.result,
+      time_limit_secs: analysisMeta.value?.time_limit_secs,
+      overtime: analysisMeta.value?.overtime,
     };
     const sgf = board.engine.export_sgf(JSON.stringify(meta));
     const filename =
-      sgfMeta?.game_name ??
-      (sgfMeta?.black_name && sgfMeta?.white_name
-        ? `${sgfMeta.black_name}-vs-${sgfMeta.white_name}`
+      analysisMeta.value?.game_name ??
+      (analysisMeta.value?.black_name && analysisMeta.value?.white_name
+        ? `${analysisMeta.value.black_name}-vs-${analysisMeta.value.white_name}`
         : "analysis");
     downloadSgf(sgf, `${filename}.sgf`);
   }
 
-  initBoard(currentSize);
+  initBoard(analysisSize.value);
 }
