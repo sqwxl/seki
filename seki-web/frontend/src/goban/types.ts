@@ -1,7 +1,5 @@
 export type Sign = 0 | 1 | -1;
 export type Point = [number, number];
-export type SignMap = Sign[][];
-
 export type MarkerData = {
   type: string;
   label?: string;
@@ -26,11 +24,6 @@ export type LineData = {
 
 export type VertexEventHandler = (evt: Event, position: Point) => void;
 
-export enum Stone {
-  Black = 1,
-  White = -1,
-}
-
 // Keep in sync with go-engine Stage enum (go-engine/src/engine.rs)
 export enum GameStage {
   Unstarted = "unstarted",
@@ -50,11 +43,6 @@ export function isPlayStage(stage: GameStage): boolean {
 export type Captures = {
   black: number;
   white: number;
-};
-
-export type Ko = {
-  pos: [number, number];
-  illegal: Stone;
 };
 
 // Keep in sync with go-engine GameState (go-engine/src/engine.rs)

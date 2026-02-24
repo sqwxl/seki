@@ -1,11 +1,11 @@
 import type { JSX } from "preact";
 
-interface MarkerProps {
+type MarkerProps = {
   sign: number;
   type: string;
   label?: string;
   zIndex?: number;
-}
+};
 
 export default function Marker({
   sign,

@@ -8,6 +8,7 @@ import {
   Point,
   Sign,
   GhostStoneData,
+  GameStage,
   GameTreeData,
   ScoreData,
 } from "./types";
@@ -613,7 +614,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       // but not at the base tip (settled game endpoint — territory handled externally)
       const stage = engine.stage();
       const nodeId = engine.current_node_id();
-      if (stage === "territory_review" && !isCurrentFinalized() && nodeId !== baseTipNodeId) {
+      if (stage === GameStage.TerritoryReview && !isCurrentFinalized() && nodeId !== baseTipNodeId) {
         enterTerritory();
         return;
       }
@@ -643,8 +644,8 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
     const stage = engine.stage();
     if (
       isCurrentFinalized() ||
-      stage === "territory_review" ||
-      stage === "completed"
+      stage === GameStage.TerritoryReview ||
+      stage === GameStage.Completed
     ) {
       return false;
     }
@@ -656,7 +657,7 @@ export async function createBoard(config: BoardConfig): Promise<Board> {
       save();
       flashPassEffect(config.gobanEl);
       // Auto-enter territory review after two consecutive passes
-      if (engine.stage() === "territory_review") {
+      if (engine.stage() === GameStage.TerritoryReview) {
         enterTerritory();
         return true;
       }

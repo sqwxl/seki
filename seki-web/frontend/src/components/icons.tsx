@@ -2,7 +2,7 @@ import { useState, useEffect } from "preact/hooks";
 
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-export function useDarkMode(): boolean {
+function useDarkMode(): boolean {
   const [dark, setDark] = useState(darkQuery.matches);
   useEffect(() => {
     const handler = (e: MediaQueryListEvent) => setDark(e.matches);
@@ -216,8 +216,4 @@ export function setIcon(id: string, svg: string): void {
   }
 }
 
-export function setIconAll(selector: string, svg: string): void {
-  for (const el of document.querySelectorAll(selector)) {
-    (el as HTMLElement).innerHTML = svg;
-  }
-}
+

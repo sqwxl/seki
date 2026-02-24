@@ -3,11 +3,6 @@ import type { Point } from "./types";
 export const avg = (xs: number[]): number =>
   xs.length === 0 ? 0 : xs.reduce((sum, x) => sum + x, 0) / xs.length;
 
-export const range = (n: number): number[] =>
-  Array(n)
-    .fill(0)
-    .map((_, i) => i);
-
 export const random = (n: number): number =>
   Math.floor(Math.random() * (n + 1));
 
@@ -23,11 +18,6 @@ export const vertexEquals = (
   [x1, y1]: readonly number[],
   [x2, y2]: readonly number[],
 ): boolean => x1 === x2 && y1 === y2;
-
-export const lineEquals = (
-  [v1, w1]: [Point, Point],
-  [v2, w2]: [Point, Point],
-): boolean => vertexEquals(v1, v2) && vertexEquals(w1, w2);
 
 export const signEquals = (...xs: (number | null | undefined)[]): boolean =>
   xs.length === 0

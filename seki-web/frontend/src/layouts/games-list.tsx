@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { useState, useEffect, useRef } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { subscribe } from "../ws";
 import { GameDescription } from "../components/game-description";
 import type { LiveGameItem, GameUpdate } from "../components/game-description";
@@ -76,7 +76,6 @@ function GamesList({ initial }: { initial?: InitMessage }) {
   const [games, setGames] = useState<Map<number, LiveGameItem>>(() =>
     initial ? buildGamesMap(initial) : new Map(),
   );
-  const playerIdRef = useRef<number | undefined>(initial?.player_id);
   const [playerId, setPlayerId] = useState<number | undefined>(
     initial?.player_id,
   );
@@ -84,7 +83,6 @@ function GamesList({ initial }: { initial?: InitMessage }) {
   useEffect(() => {
     const unsubs = [
       subscribe<InitMessage>("init", (msg) => {
-        playerIdRef.current = msg.player_id;
         setPlayerId(msg.player_id);
         setGames(buildGamesMap(msg));
       }),

@@ -37,7 +37,6 @@ type GobanState = {
 export type GobanProps = {
   id?: string;
   class?: string;
-  className?: string;
   cols: number;
   rows: number;
   innerProps?: HTMLAttributes<HTMLDivElement>;
@@ -173,7 +172,7 @@ export default class SVGGoban extends Component<GobanProps, GobanState> {
             "goban-busy": busy,
             "goban-coordinates": showCoordinates,
           },
-          this.props.class ?? this.props.className,
+          this.props.class,
         )}
         style={{
           display: "inline-grid",

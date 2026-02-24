@@ -11,7 +11,7 @@ import type {
 import { avg, signEquals } from "./helper";
 import Marker from "./marker";
 
-interface VertexProps {
+type VertexProps = {
   position: Point;
   shift?: number;
   random?: number;
@@ -36,7 +36,7 @@ interface VertexProps {
   selectedTop?: boolean;
   selectedBottom?: boolean;
   onClick?: VertexEventHandler;
-}
+};
 
 const absoluteStyle = (zIndex?: number): CSSProperties => ({
   position: "absolute",
