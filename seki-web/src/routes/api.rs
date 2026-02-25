@@ -10,6 +10,7 @@ use crate::models::game::Game;
 use crate::models::message::Message;
 use crate::models::turn::TurnRow;
 use crate::models::user::User;
+use crate::services::live::build_live_items;
 use crate::services::{game_actions, game_creator, state_serializer};
 use crate::session::ApiUser;
 
@@ -33,20 +34,6 @@ impl UserResponse {
 }
 
 #[derive(Serialize)]
-struct GameListItem {
-    id: i64,
-    cols: i32,
-    rows: i32,
-    komi: f64,
-    handicap: i32,
-    is_private: bool,
-    result: Option<String>,
-    created_at: DateTime<Utc>,
-    started_at: Option<DateTime<Utc>>,
-    ended_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Serialize)]
 struct GameResponse {
     id: i64,
     cols: i32,
@@ -66,6 +53,7 @@ struct GameResponse {
     current_turn_stone: i32,
     negotiations: serde_json::Value,
     territory: Option<serde_json::Value>,
+    clock: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -159,29 +147,20 @@ pub fn router() -> Router<AppState> {
         .route("/games/{id}/messages", get(get_messages).post(send_message))
         // Turns
         .route("/games/{id}/turns", get(get_turns))
+        // Users
+        .route("/users/{username}", get(get_user))
+        .route("/users/{username}/games", get(get_user_games))
         // Auth
         .route("/me", get(get_me))
 }
 
 // -- Game handlers --
 
-async fn list_games(State(state): State<AppState>) -> Result<Json<Vec<GameListItem>>, ApiError> {
-    let games = Game::list_public(&state.db).await?;
-    let items: Vec<GameListItem> = games
-        .into_iter()
-        .map(|g| GameListItem {
-            id: g.id,
-            cols: g.cols,
-            rows: g.rows,
-            komi: g.komi,
-            handicap: g.handicap,
-            is_private: g.is_private,
-            result: g.result,
-            created_at: g.created_at,
-            started_at: g.started_at,
-            ended_at: g.ended_at,
-        })
-        .collect();
+async fn list_games(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<crate::services::live::LiveGameItem>>, ApiError> {
+    let games = Game::list_public_with_players(&state.db, None).await?;
+    let items = build_live_items(&state.db, &games).await;
     Ok(Json(items))
 }
 
@@ -584,6 +563,30 @@ async fn get_turns(
     Ok(Json(items))
 }
 
+// -- User handlers --
+
+async fn get_user(
+    State(state): State<AppState>,
+    Path(username): Path<String>,
+) -> Result<Json<UserResponse>, ApiError> {
+    let user = User::find_by_username(&state.db, &username)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+    Ok(Json(UserResponse::from_user(&user)))
+}
+
+async fn get_user_games(
+    State(state): State<AppState>,
+    Path(username): Path<String>,
+) -> Result<Json<Vec<crate::services::live::LiveGameItem>>, ApiError> {
+    let user = User::find_by_username(&state.db, &username)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+    let games = Game::list_all_for_player(&state.db, user.id).await?;
+    let items = build_live_items(&state.db, &games).await;
+    Ok(Json(items))
+}
+
 // -- Auth handlers --
 
 async fn get_me(api_user: ApiUser) -> Json<UserResponse> {
@@ -647,6 +650,7 @@ async fn build_game_response(
     );
 
     let territory_json = serialized.get("territory").cloned();
+    let clock_json = serialized.get("clock").cloned();
 
     GameResponse {
         id: gwp.game.id,
@@ -670,5 +674,6 @@ async fn build_game_response(
         current_turn_stone: serialized["current_turn_stone"].as_i64().unwrap_or(1) as i32,
         negotiations: serialized["negotiations"].clone(),
         territory: territory_json,
+        clock: clock_json,
     }
 }
