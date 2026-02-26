@@ -56,8 +56,9 @@ pub async fn build_router_with_presence(
 
     let app = Router::new()
         .route("/analysis", get(routes::analysis::analysis_board))
-        .route("/", get(routes::games::new_game))
+        .route("/", get(routes::games::list_games))
         .route("/games", get(routes::games::list_games))
+        .route("/games/new", get(routes::games::new_game))
         .route("/games", post(routes::games::create_game))
         .route("/games/{id}", get(routes::games::show_game))
         .route("/games/{id}/join", post(routes::games::join_game))

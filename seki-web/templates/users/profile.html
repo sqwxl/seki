@@ -13,7 +13,7 @@
     <h1 style="display:flex;align-items:center;gap:0.5em">
         {{ profile_username }}
         {% if !is_own_profile %}
-            <a href="/?opponent={{ profile_username }}" class="btn"
+            <a href="/games/new?opponent={{ profile_username }}" class="btn"
                style="font-size:0.5em;text-decoration:none;border:1px solid var(--border);border-radius:4px;background:var(--bg-muted);color:var(--fg)">Challenge</a>
         {% endif %}
     </h1>
@@ -24,7 +24,7 @@
             <h2>Settings</h2>
             {% if user_is_registered %}
                 <h3>Username</h3>
-                <form action="/users/{{ profile_username }}" method="post" class="inline-form">
+                <form action="/users/{{ profile_username }}" method="post" class="inline-form" data-validate>
                     <input type="text"
                            name="username"
                            value="{{ profile_username }}"

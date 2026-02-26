@@ -7,11 +7,13 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use serde::Deserialize;
+use serde_json::json;
 use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::user::User;
+use crate::routes::wants_json;
 use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
 use crate::templates::UserData;
 use crate::templates::auth::{LoginTemplate, RegisterTemplate};
@@ -78,6 +80,7 @@ pub async fn register_form(current_user: CurrentUser) -> Result<Response, AppErr
 pub async fn register(
     State(state): State<AppState>,
     current_user: CurrentUser,
+    headers: axum::http::HeaderMap,
     Form(form): Form<RegisterForm>,
 ) -> Result<Response, AppError> {
     if current_user.is_registered() {
@@ -85,6 +88,7 @@ pub async fn register(
     }
 
     let username = form.username.trim().to_string();
+    let json = wants_json(&headers);
     let user_data = serialize_user_data(&current_user);
     let user_username = current_user.username.clone();
     let render_error = |msg: String| -> Result<Response, AppError> {
@@ -106,13 +110,25 @@ pub async fn register(
 
     // Validate
     if username.is_empty() || username.len() > 30 {
-        return render_error("Username must be between 1 and 30 characters.".to_string());
+        let msg = "Username must be between 1 and 30 characters.";
+        if json {
+            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+        }
+        return render_error(msg.to_string());
     }
     if form.password.len() < 8 {
-        return render_error("Password must be at least 8 characters.".to_string());
+        let msg = "Password must be at least 8 characters.";
+        if json {
+            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "password"}))).into_response());
+        }
+        return render_error(msg.to_string());
     }
     if form.password != form.password_confirmation {
-        return render_error("Passwords do not match.".to_string());
+        let msg = "Passwords do not match.";
+        if json {
+            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "password_confirmation"}))).into_response());
+        }
+        return render_error(msg.to_string());
     }
 
     // Check uniqueness
@@ -120,7 +136,11 @@ pub async fn register(
         .await?
         .is_some()
     {
-        return render_error("Username is already taken.".to_string());
+        let msg = "Username is already taken.";
+        if json {
+            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+        }
+        return render_error(msg.to_string());
     }
 
     // Hash password
@@ -132,6 +152,9 @@ pub async fn register(
 
     User::set_credentials(&state.db, current_user.id, &username, &password_hash).await?;
 
+    if json {
+        return Ok(axum::Json(json!({"redirect": "/"})).into_response());
+    }
     Ok(Redirect::to("/").into_response())
 }
 
@@ -168,9 +191,11 @@ pub struct RedirectQuery {
 pub async fn login(
     State(state): State<AppState>,
     session: Session,
+    headers: axum::http::HeaderMap,
     Query(query): Query<RedirectQuery>,
     Form(form): Form<LoginForm>,
 ) -> Result<Response, AppError> {
+    let json = wants_json(&headers);
     let redirect = query.redirect.clone();
     let render_error = |msg: String| -> Result<Response, AppError> {
         let tmpl = LoginTemplate {
@@ -190,14 +215,26 @@ pub async fn login(
             .into_response())
     };
 
+    let login_err = "Invalid username or password.";
+
     let user = match User::find_by_username(&state.db, form.username.trim()).await? {
         Some(p) => p,
-        None => return render_error("Invalid username or password.".to_string()),
+        None => {
+            if json {
+                return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": login_err}))).into_response());
+            }
+            return render_error(login_err.to_string());
+        }
     };
 
     let stored_hash = match &user.password_hash {
         Some(h) => h.clone(),
-        None => return render_error("Invalid username or password.".to_string()),
+        None => {
+            if json {
+                return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": login_err}))).into_response());
+            }
+            return render_error(login_err.to_string());
+        }
     };
 
     let parsed_hash = PasswordHash::new(&stored_hash)
@@ -207,7 +244,10 @@ pub async fn login(
         .verify_password(form.password.as_bytes(), &parsed_hash)
         .is_err()
     {
-        return render_error("Invalid username or password.".to_string());
+        if json {
+            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": login_err}))).into_response());
+        }
+        return render_error(login_err.to_string());
     }
 
     // Save the current anonymous token in a cookie so we can restore it on logout
@@ -228,7 +268,11 @@ pub async fn login(
     } else {
         &query.redirect
     };
-    let mut response = Redirect::to(target).into_response();
+    let mut response = if json {
+        axum::Json(json!({"redirect": target})).into_response()
+    } else {
+        Redirect::to(target).into_response()
+    };
     if let Some(token) = anon_token {
         response.headers_mut().insert(
             axum::http::header::SET_COOKIE,

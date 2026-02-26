@@ -3,11 +3,13 @@ use axum::Form;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
+use serde_json::json;
 
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::user::User;
+use crate::routes::wants_json;
 use crate::services::live::build_live_items;
 use crate::session::CurrentUser;
 use crate::templates::UserData;
@@ -72,6 +74,7 @@ pub async fn profile(
 pub async fn update_username(
     State(state): State<AppState>,
     current_user: CurrentUser,
+    headers: axum::http::HeaderMap,
     Path(username): Path<String>,
     Form(form): Form<UpdateUsernameForm>,
 ) -> Result<Response, AppError> {
@@ -85,21 +88,30 @@ pub async fn update_username(
     }
 
     let new_username = form.username.trim().to_string();
+    let json = wants_json(&headers);
 
     // Validate
     if new_username.is_empty() || new_username.len() > 30 {
+        let msg = "Username must be between 1 and 30 characters.";
+        if json {
+            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+        }
         return render_profile_with_flash(
             &state,
             &current_user,
             &profile_user,
-            "Username must be between 1 and 30 characters.",
+            msg,
         )
         .await;
     }
 
     // No change
     if new_username == profile_user.username {
-        return Ok(Redirect::to(&format!("/users/{new_username}")).into_response());
+        let url = format!("/users/{new_username}");
+        if json {
+            return Ok(axum::Json(json!({"redirect": url})).into_response());
+        }
+        return Ok(Redirect::to(&url).into_response());
     }
 
     // Check uniqueness
@@ -107,24 +119,39 @@ pub async fn update_username(
         .await?
         .is_some()
     {
+        let msg = "Username is already taken.";
+        if json {
+            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+        }
         return render_profile_with_flash(
             &state,
             &current_user,
             &profile_user,
-            "Username is already taken.",
+            msg,
         )
         .await;
     }
 
     // Update
     match User::update_username(&state.db, current_user.id, &new_username).await {
-        Ok(_) => Ok(Redirect::to(&format!("/users/{new_username}")).into_response()),
+        Ok(_) => {
+            let url = format!("/users/{new_username}");
+            if json {
+                Ok(axum::Json(json!({"redirect": url})).into_response())
+            } else {
+                Ok(Redirect::to(&url).into_response())
+            }
+        }
         Err(sqlx::Error::Database(e)) if e.is_unique_violation() => {
+            let msg = "Username is already taken.";
+            if json {
+                return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+            }
             render_profile_with_flash(
                 &state,
                 &current_user,
                 &profile_user,
-                "Username is already taken.",
+                msg,
             )
             .await
         }
