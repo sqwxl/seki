@@ -8,10 +8,10 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #1a1a1a;
-  --fg: #ddd;
-  --bg-muted: #2a2a2a;
-  --border: #444;
+  --bg: #282828;
+  --fg: #ebdbb2;
+  --bg-muted: #3c3836;
+  --border: #504945;
 }
 
 * {
