@@ -1,9 +1,16 @@
 :root {
   color-scheme: light;
   --bg: #fff;
-  --fg: #222;
+  --fg: #282828;
   --bg-muted: #eee;
   --border: #ccc;
+  --red: #fb4934;
+  --green: #b8bb26;
+  --yellow: #fabd2f;
+  --blue: #83a598;
+  --purple: #d3869b;
+  --aqua: #8ec07c;
+  --orange: #fe8019;
 }
 
 :root[data-theme="dark"] {
@@ -12,6 +19,13 @@
   --fg: #ebdbb2;
   --bg-muted: #3c3836;
   --border: #504945;
+  --red: #cc241d;
+  --green: #98971a;
+  --yellow: #d79921;
+  --blue: #458588;
+  --purple: #b16286;
+  --aqua: #609d6a;
+  --orange: #d65d0e;
 }
 
 * {
@@ -34,122 +48,13 @@ code {
   font-family: monospace;
 }
 
-fieldset {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75em;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 1em 1.5em;
-  margin-bottom: 0.5em;
-}
-
-form:not(nav form) {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75em;
-  width: 100%;
-  max-width: 28em;
-}
-
-#new-game {
-  max-width: none;
-}
-
-form:not(nav form) > div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25em;
-}
-
-.inline-form {
-  display: flex;
-  align-items: stretch;
-  gap: 0.5em;
-}
-
-fieldset > div {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5em;
-}
-
-fieldset > div > input[type="email"] {
-  flex: 1;
-  min-width: 10em;
-}
-
-/* Time control sub-panels: stack fields vertically */
-[id^="tc-"] {
-  flex-direction: column;
-  align-items: stretch !important;
-}
-
-[id^="tc-"] > div {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-}
-
-legend {
-  font-weight: 600;
-  padding: 0 0.25em;
-}
-
-h1,
-legend {
+h1 {
   font-variant-caps: small-caps;
 }
 
-/* Color picker: hide radios, outline the selected icon */
-.color-picker {
-  font-size: 2em;
+h2 {
+  margin-top: 1.5rem;
 }
-
-.color-picker input[type="radio"] {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.color-picker label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-}
-
-.color-picker input[type="radio"]:checked + label {
-  border-color: Highlight;
-  border-color: AccentColor;
-}
-
-.color-picker input[type="radio"]:focus-visible + label {
-  outline: 2px solid Highlight;
-  outline-offset: 2px;
-}
-
-/* Stone color icons: swap filled/outline with theme so both remain visible */
-.icon-stone-black,
-.icon-stone-white {
-  fill: var(--fg);
-}
-
-[data-theme="dark"] .icon-stone-black path {
-  d: path(
-    "M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"
-  );
-}
-[data-theme="dark"] .icon-stone-white path {
-  d: path(
-    "M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z"
-  );
-}
-
-/* --- Base button reset --- */
 
 button {
   box-sizing: border-box;
@@ -178,28 +83,6 @@ button:disabled:hover {
   border-color: var(--border);
 }
 
-/* --- Action buttons (form submits, .btn) --- */
-
-button[type="submit"],
-.btn {
-  padding: 0.5em 1.5em;
-}
-
-/* --- Confirm/cancel button pair --- */
-
-.confirm-yes,
-.confirm-no {
-  padding: 0.3em 0.6em;
-}
-
-.confirm-yes {
-  color: #080;
-}
-
-.confirm-no {
-  color: #c00;
-}
-
 /* --- Link-styled button (overrides base reset) --- */
 
 button.link {
@@ -212,30 +95,6 @@ button.link {
 
 button.link:hover {
   border-color: transparent;
-}
-
-/* --- Form inputs --- */
-
-input[type="number"],
-input[type="email"],
-input[type="text"],
-input[type="password"],
-select {
-  box-sizing: border-box;
-  padding: 0.5em;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--fg);
-  font: inherit;
-  font-size: 0.9em;
-  line-height: 1.2;
-}
-
-input[type="checkbox"],
-input[type="radio"] {
-  margin-right: 0.35em;
-  vertical-align: middle;
 }
 
 body {
@@ -268,23 +127,26 @@ nav {
   gap: 0.5em;
   font-size: 1.125em;
   padding: 0.5em 1.5em;
-}
 
-@media (max-width: 768px) {
-  nav {
+  @media (max-width: 768px) {
     font-size: 0.875em;
+  }
+
+  div {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+  }
+
+  a {
+    white-space: nowrap;
   }
 }
 
-nav > div {
-  display: flex;
-  align-items: center;
-  gap: 0.75em;
-}
-
-nav a {
+a,
+a:visited {
+  color: inherit;
   text-decoration: none;
-  white-space: nowrap;
 }
 
 .nav-icon {
@@ -361,12 +223,6 @@ nav a {
   white-space: nowrap;
 }
 
-a,
-a:visited {
-  color: inherit;
-  text-decoration: none;
-}
-
 .user-label {
   display: inline-flex;
   align-items: baseline;
@@ -398,18 +254,16 @@ a:visited {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
-}
 
-.game-page h2 {
-  text-align: center;
-  word-break: break-word;
-  font-size: 1.1em;
-  margin: 0.5em 0;
-}
+  h2 {
+    text-align: center;
+    word-break: break-word;
+    font-size: 1.1em;
+    margin: 0.5em 0;
 
-@media (min-width: 768px) {
-  .game-page h2 {
-    font-size: 1.5em;
+    @media (min-width: 768px) {
+      font-size: 1.5em;
+    }
   }
 }
 
@@ -495,21 +349,21 @@ a:visited {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.5em;
-}
+  gap: 0.75em;
 
-.games-list li {
-  position: relative;
-}
+  li {
+    position: relative;
 
-.games-list li.your-turn::before {
-  content: "";
-  position: absolute;
-  left: -0.9em;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 0.45em;
-  height: 0.45em;
-  border-radius: 50%;
-  background: #cc241d;
+    &.your-turn::before {
+      content: "";
+      position: absolute;
+      left: -0.9em;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0.45em;
+      height: 0.45em;
+      border-radius: 50%;
+      background: var(--red);
+    }
+  }
 }

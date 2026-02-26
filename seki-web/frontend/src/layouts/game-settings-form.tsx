@@ -54,19 +54,10 @@ function loadSettings(): Settings {
     if (saved) {
       return { ...DEFAULTS, ...saved };
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
+
   return { ...DEFAULTS };
 }
-
-// SVG paths (same viewBox 0 -960 960 960)
-const filledCirclePath =
-  "M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Z";
-const outlineCirclePath =
-  "M480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z";
-const nigiriPath =
-  "M324-111.5Q251-143 197-197t-85.5-127Q80-397 80-480t31.5-156Q143-709 197-763t127-85.5Q397-880 480-880t156 31.5Q709-817 763-763t85.5 127Q880-563 880-480t-31.5 156Q817-251 763-197t-127 85.5Q563-80 480-80t-156-31.5ZM520-163q119-15 199.5-104.5T800-480q0-123-80.5-212.5T520-797v634Z";
 
 type Props = {
   showNotifications?: boolean;
@@ -173,17 +164,6 @@ export function GameSettingsForm({
           />
         </div>
         <div>
-          <label for="allow_undo">Allow takebacks</label>
-          <input
-            type="checkbox"
-            name="allow_undo"
-            id="allow_undo"
-            value="true"
-            checked={s.allowUndo}
-            onChange={(e) => set("allowUndo", e.currentTarget.checked)}
-          />
-        </div>
-        <div>
           <label>Your color</label>
           <div class="color-picker">
             <input
@@ -194,7 +174,7 @@ export function GameSettingsForm({
               checked={s.color === "black"}
               onChange={() => set("color", "black")}
             />
-            <label for="color_black">
+            <label for="color_black" title="Black">
               <StoneBlack />
             </label>
             <input
@@ -205,7 +185,7 @@ export function GameSettingsForm({
               checked={s.color === "white"}
               onChange={() => set("color", "white")}
             />
-            <label for="color_white">
+            <label for="color_white" title="White">
               <StoneWhite />
             </label>
             <input
@@ -216,14 +196,25 @@ export function GameSettingsForm({
               checked={s.color === "nigiri"}
               onChange={() => set("color", "nigiri")}
             />
-            <label for="color_nigiri">
+            <label for="color_nigiri" title="Random">
               <IconNigiri />
             </label>
           </div>
         </div>
+        <div>
+          <label for="allow_undo">Allow takebacks</label>
+          <input
+            type="checkbox"
+            name="allow_undo"
+            id="allow_undo"
+            value="true"
+            checked={s.allowUndo}
+            onChange={(e) => set("allowUndo", e.currentTarget.checked)}
+          />
+        </div>
         {showPrivate && (
           <div>
-            <label for="is_private">Private?</label>
+            <label for="is_private">Private</label>
             <input
               type="checkbox"
               name="is_private"
@@ -238,7 +229,7 @@ export function GameSettingsForm({
 
       <fieldset>
         <legend>Time control</legend>
-        <div>
+        <div class="new-game-form-time-controls">
           <label>
             <input
               type="radio"
