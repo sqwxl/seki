@@ -1,5 +1,7 @@
 import type { ControlsProps } from "../components/controls";
 import type { PlayerPanelProps } from "../components/player-panel";
+import { GameStatus, getStatusText } from "../components/game-status";
+import { GameStage } from "../game/types";
 import {
   blackSymbol,
   whiteSymbol,
@@ -231,6 +233,21 @@ export function AnalysisPage(props: AnalysisPageProps) {
     handleSgfExport,
   });
 
+  const board = analysisBoard.value;
+  const { reviewing, finalized, score } = analysisTerritoryInfo.value;
+  const isBlackTurn = board ? board.engine.current_turn_stone() === 1 : true;
+
+  const statusText = getStatusText({
+    stage: reviewing
+      ? GameStage.TerritoryReview
+      : isBlackTurn
+        ? GameStage.BlackToPlay
+        : GameStage.WhiteToPlay,
+    komi: KOMI,
+    territoryScore: (reviewing || finalized) ? score : undefined,
+    isBlackTurn,
+  });
+
   return (
     <GamePageLayout
       header={<AnalysisHeader />}
@@ -239,7 +256,8 @@ export function AnalysisPage(props: AnalysisPageProps) {
       playerTop={buildAnalysisPlayerPanel({ position: "top" })}
       playerBottom={buildAnalysisPlayerPanel({ position: "bottom" })}
       controls={controlsProps}
-      sidebar={
+      status={statusText ? <GameStatus text={statusText} /> : undefined}
+      moveTree={
         <div
           class="move-tree-slot"
           ref={(el) => {

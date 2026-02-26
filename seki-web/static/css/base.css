@@ -284,13 +284,44 @@ a:visited {
   max-width: 100%;
 }
 
-/* Mobile: push sidebar after board elements */
-.game-page-body > .chat,
+/* Mobile: push sidebar + move tree after board elements */
+.game-page-body > .game-sidebar,
 .game-page-body > .move-tree-slot {
   order: 1;
 }
 
-@media (min-width: 1600px) {
+.game-page-body > .game-sidebar {
+  width: min(90vw, 70vh);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.game-page-body > .game-sidebar > .chat {
+  width: auto;
+}
+
+.game-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 1.125rem;
+  background-color: var(--bg-muted);
+  font-family: monospace;
+}
+
+@media (min-width: 768px) {
+  .game-page-body > .game-sidebar {
+    width: min(70vw, 70vh);
+  }
+}
+
+@media (min-width: 1960px) {
   .game-page-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -323,18 +354,22 @@ a:visited {
     max-height: 100%;
     overflow: auto;
   }
-  .game-page-body > .chat {
+  .game-page-body > .game-sidebar {
     grid-column: 3;
     grid-row: 3;
     align-self: stretch;
     contain: size;
     width: auto;
     margin: 0 1.5em;
-    display: flex;
-    flex-direction: column;
     order: 0;
   }
-  .game-page-body .chat .chat-box {
+  .game-page-body > .game-sidebar > .chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .game-page-body > .game-sidebar .chat-box {
     flex: 1;
     overflow: auto;
   }

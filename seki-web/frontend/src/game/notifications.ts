@@ -40,18 +40,6 @@ function sendNotification(title: string, body: string, tag: string): void {
   };
 }
 
-export function notifyGameStarted(): void {
-  if (!isEnabled() || !document.hidden) {
-    return;
-  }
-
-  sendNotification(
-    "Game started",
-    `Your game against ${getOpponentName()} has begun!`,
-    `seki-start-${gameId.value}`,
-  );
-}
-
 export function notifyTurn(state: NotificationState): void {
   if (!isEnabled() || !document.hidden) {
     return;

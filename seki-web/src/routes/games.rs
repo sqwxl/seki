@@ -333,10 +333,6 @@ pub async fn join_game(
     let engine = engine_builder::build_engine(&state.db, &game).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
 
-    if started {
-        crate::services::game_actions::announce_game_started(&state, id, start_stage).await;
-    }
-
     let tc = TimeControl::from_game(&gwp.game);
     let clock_data = if !tc.is_none() {
         ClockState::from_game(&gwp.game).map(|c| (c, tc))

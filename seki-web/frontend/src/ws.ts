@@ -142,4 +142,8 @@ function joinGame(gameId: number, handler: Handler): () => void {
   };
 }
 
-export { ensureConnected, subscribe, send, joinGame };
+function isGameActive(gameId: number): boolean {
+  return gameHandlers.has(gameId);
+}
+
+export { ensureConnected, subscribe, send, joinGame, isGameActive };

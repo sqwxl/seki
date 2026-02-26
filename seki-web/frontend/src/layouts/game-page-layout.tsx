@@ -12,7 +12,9 @@ export type GamePageLayoutProps = {
   playerTop?: PlayerPanelProps;
   playerBottom?: PlayerPanelProps;
   controls?: ControlsProps;
-  sidebar?: ComponentChildren;
+  status?: ComponentChildren;
+  chat?: ComponentChildren;
+  moveTree?: ComponentChildren;
 };
 
 export function GamePageLayout(props: GamePageLayoutProps) {
@@ -31,7 +33,11 @@ export function GamePageLayout(props: GamePageLayoutProps) {
       <div class="game-board-area">
         <div class={gobanClass} style={props.gobanStyle} ref={props.gobanRef} />
       </div>
-      {props.sidebar}
+      <div class="game-sidebar">
+        {props.status}
+        {props.chat}
+      </div>
+      {props.moveTree}
       {props.playerBottom && (
         <div class="player-label player-bottom">
           <PlayerPanel {...props.playerBottom} />

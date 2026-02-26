@@ -5,7 +5,7 @@ import { syncClock } from "./clock";
 import type { PremoveState } from "../utils/premove";
 import { updateTurnFlash, syncTerritoryCountdown } from "./ui";
 import type { TerritoryCountdown } from "./ui";
-import { notifyGameStarted, notifyTurn, type NotificationState } from "./notifications";
+import { notifyTurn, type NotificationState } from "./notifications";
 import { markRead } from "./unread";
 import { playStoneSound, playPassSound } from "./sound";
 import {
@@ -112,7 +112,6 @@ export function handleGameMessage(
           isPlayStage(data.stage);
         if (gameJustStarted) {
           playPassSound();
-          notifyGameStarted();
         }
       }
 

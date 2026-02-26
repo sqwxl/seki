@@ -280,10 +280,6 @@ async fn join_game(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    if started {
-        crate::services::game_actions::announce_game_started(&state, id, start_stage).await;
-    }
-
     crate::services::live::notify_game_created(&state, id).await;
 
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))

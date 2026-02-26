@@ -2,8 +2,8 @@ import type { Point } from "../goban/types";
 import { GameStage, isPlayStage } from "../game/types";
 import type { TerritoryOverlay } from "../goban/create-board";
 import { Chat } from "../components/chat";
+import { GameStatus, getStatusText } from "../components/game-status";
 import type { ControlsProps } from "../components/controls";
-import { formatResult } from "../utils/format";
 import type { GameChannel } from "../game/channel";
 import { formatScoreStr } from "../game/ui";
 import { clockDisplay } from "../game/clock";
@@ -89,32 +89,19 @@ export function getServerTerritory(): TerritoryOverlay | undefined {
 // ---------------------------------------------------------------------------
 
 function LiveHeader() {
-  let subtitle: string | undefined;
-  if (gameStage.value === GameStage.Challenge) {
-    const creatorId = initialProps.value.creator_id;
-    const challengee =
-      black.value?.id !== creatorId ? black.value : white.value;
-    if (challengee) {
-      subtitle = `Waiting for ${challengee.display_name} to accept`;
-    }
-  }
-
   return (
-    <>
-      <h2>
-        <GameDescription
-          id={gameId.value}
-          creator_id={initialProps.value.creator_id}
-          black={black.value}
-          white={white.value}
-          settings={initialProps.value.settings}
-          stage={gameStage.value}
-          result={result.value ?? undefined}
-          move_count={moves.value.length > 0 ? moves.value.length : undefined}
-        />
-      </h2>
-      {subtitle && <h3>{subtitle}</h3>}
-    </>
+    <h2>
+      <GameDescription
+        id={gameId.value}
+        creator_id={initialProps.value.creator_id}
+        black={black.value}
+        white={white.value}
+        settings={initialProps.value.settings}
+        stage={gameStage.value}
+        result={result.value ?? undefined}
+        move_count={moves.value.length > 0 ? moves.value.length : undefined}
+      />
+    </h2>
   );
 }
 
@@ -448,19 +435,6 @@ function buildLiveControls({
 
   const nav = buildNavProps(board.value);
 
-  // Append result to nav counter when available
-  let resultStr: string | undefined;
-  if (estimateScore.value) {
-    resultStr = formatResult(estimateScore.value, initialProps.value.komi);
-  } else if (ctx.isReview && territory.value?.score) {
-    resultStr = formatResult(territory.value.score, initialProps.value.komi);
-  } else if (result.value && board.value?.engine.is_at_latest()) {
-    resultStr = result.value;
-  }
-  if (resultStr) {
-    nav.counter = `${nav.counter} (${resultStr})`;
-  }
-
   const props: ControlsProps = {
     nav,
     coordsToggle: buildCoordsToggle(board.value, coordsState),
@@ -521,39 +495,6 @@ function buildLiveControls({
   return props;
 }
 
-function LiveSidebar({
-  channel,
-  moveTreeEl,
-}: {
-  channel: GameChannel;
-  moveTreeEl: HTMLElement;
-}) {
-  return (
-    <>
-      <div class="chat">
-        <Chat
-          messages={chatMessages.value}
-          onlineUsers={onlineUsers.value}
-          black={black.value}
-          white={white.value}
-          onSend={(text) => channel.say(text)}
-          showPrefix={false} // TODO: Make this configurable
-        />
-      </div>
-      {showMoveTree.value && (
-        <div
-          class="move-tree-slot"
-          ref={(el) => {
-            if (el && !el.contains(moveTreeEl)) {
-              el.appendChild(moveTreeEl);
-            }
-          }}
-        />
-      )}
-    </>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
@@ -595,6 +536,22 @@ export function LiveGamePage(props: LiveGamePageProps) {
     setMoveTree,
   });
 
+  const creatorId = initialProps.value.creator_id;
+  const myId = playerStone.value === 1 ? black.value?.id : white.value?.id;
+  const challengee =
+    black.value?.id !== creatorId ? black.value : white.value;
+
+  const statusText = getStatusText({
+    stage: gameStage.value,
+    result: result.value ?? undefined,
+    komi: initialProps.value.komi,
+    estimateScore: estimateMode.value ? estimateScore.value : undefined,
+    territoryScore: territory.value?.score,
+    isChallengeCreator: myId != null && myId === creatorId,
+    challengeWaitingFor: challengee?.display_name,
+    hasOpenSlot: !black.value || !white.value,
+  });
+
   return (
     <GamePageLayout
       header={<LiveHeader />}
@@ -604,7 +561,31 @@ export function LiveGamePage(props: LiveGamePageProps) {
       playerTop={buildLivePlayerPanel({ position: "top" })}
       playerBottom={buildLivePlayerPanel({ position: "bottom" })}
       controls={controlsProps}
-      sidebar={<LiveSidebar channel={channel} moveTreeEl={moveTreeEl} />}
+      status={statusText ? <GameStatus text={statusText} /> : undefined}
+      chat={
+        <div class="chat">
+          <Chat
+            messages={chatMessages.value}
+            onlineUsers={onlineUsers.value}
+            black={black.value}
+            white={white.value}
+            onSend={(text) => channel.say(text)}
+            showPrefix={false}
+          />
+        </div>
+      }
+      moveTree={
+        showMoveTree.value ? (
+          <div
+            class="move-tree-slot"
+            ref={(el) => {
+              if (el && !el.contains(moveTreeEl)) {
+                el.appendChild(moveTreeEl);
+              }
+            }}
+          />
+        ) : undefined
+      }
     />
   );
 }

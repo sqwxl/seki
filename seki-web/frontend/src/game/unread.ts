@@ -6,7 +6,7 @@
  */
 
 import { signal, computed } from "@preact/signals";
-import { subscribe } from "../ws";
+import { subscribe, isGameActive } from "../ws";
 import type { UserData } from "./types";
 import type {
   InitMessage,
@@ -41,7 +41,10 @@ function broadcastMarkRead(gameId: number): void {
 
 let currentPlayerId: number | undefined;
 
-function addUnread(game: LiveGameItem): void {
+function addUnread(game: UnreadGame): void {
+  if (isGameActive(game.id)) {
+    return;
+  }
   const next = new Map(unreadGames.value);
   next.set(game.id, {
     id: game.id,
@@ -100,16 +103,8 @@ export function initUnreadTracking(): void {
   subscribe<GameUpdatedMessage>("game_updated", (msg) => {
     const g = msg.game;
     if (isMyTurn(g, currentPlayerId)) {
-      // Only add if we don't already have it (server-side read state is authoritative on init)
       if (!unreadGames.value.has(g.id)) {
-        const next = new Map(unreadGames.value);
-        next.set(g.id, {
-          id: g.id,
-          stage: g.stage,
-          black: g.black,
-          white: g.white,
-        });
-        unreadGames.value = next;
+        addUnread(g);
       }
     } else {
       removeUnread(g.id);
