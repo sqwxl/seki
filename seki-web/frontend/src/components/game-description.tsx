@@ -1,4 +1,4 @@
-import type { UserData, GameSettings, GameStage } from "../game/types";
+import { GameStage, type UserData, type GameSettings } from "../game/types";
 import { UserLabel } from "./user-label";
 import { buildDescriptionParts } from "../utils/format";
 
@@ -22,6 +22,25 @@ export type LiveGameItem = {
   move_count: number | undefined;
   unread?: boolean;
 };
+
+export function isMyTurn(
+  game: { stage: GameStage; creator_id?: number; black?: { id: number }; white?: { id: number } },
+  playerId: number | undefined,
+): boolean {
+  if (playerId == null) {
+    return false;
+  }
+  switch (game.stage) {
+    case GameStage.BlackToPlay:
+      return game.black?.id === playerId;
+    case GameStage.WhiteToPlay:
+      return game.white?.id === playerId;
+    case GameStage.Challenge:
+      return game.creator_id !== playerId && (game.black?.id === playerId || game.white?.id === playerId);
+    default:
+      return false;
+  }
+}
 
 export function GameDescription(props: LiveGameItem) {
   const b = props.black?.display_name ?? "?";

@@ -7,7 +7,6 @@
 
 import { signal, computed } from "@preact/signals";
 import { subscribe } from "../ws";
-import { GameStage } from "./types";
 import type { UserData } from "./types";
 import type {
   InitMessage,
@@ -15,6 +14,7 @@ import type {
   GameCreatedMessage,
   GameRemovedMessage,
 } from "../layouts/games-list";
+import { isMyTurn } from "../components/game-description";
 import type { LiveGameItem } from "../components/game-description";
 
 export type UnreadGame = {
@@ -40,30 +40,6 @@ function broadcastMarkRead(gameId: number): void {
 // --- Helpers ---
 
 let currentPlayerId: number | undefined;
-
-function isMyTurn(
-  stage: string,
-  blackId: number | undefined,
-  whiteId: number | undefined,
-  creatorId: number | undefined,
-): boolean {
-  if (!currentPlayerId) {
-    return false;
-  }
-  switch (stage) {
-    case GameStage.BlackToPlay:
-      return blackId === currentPlayerId;
-    case GameStage.WhiteToPlay:
-      return whiteId === currentPlayerId;
-    case GameStage.Challenge:
-      return (
-        creatorId !== currentPlayerId &&
-        (blackId === currentPlayerId || whiteId === currentPlayerId)
-      );
-    default:
-      return false;
-  }
-}
 
 function addUnread(game: LiveGameItem): void {
   const next = new Map(unreadGames.value);
@@ -123,8 +99,7 @@ export function initUnreadTracking(): void {
   // Game updated — check if it became my turn
   subscribe<GameUpdatedMessage>("game_updated", (msg) => {
     const g = msg.game;
-    const myTurn = isMyTurn(g.stage, g.black?.id, g.white?.id, undefined);
-    if (myTurn) {
+    if (isMyTurn(g, currentPlayerId)) {
       // Only add if we don't already have it (server-side read state is authoritative on init)
       if (!unreadGames.value.has(g.id)) {
         const next = new Map(unreadGames.value);
@@ -144,7 +119,7 @@ export function initUnreadTracking(): void {
   // Game created — check if it's a challenge for me
   subscribe<GameCreatedMessage>("game_created", (msg) => {
     const g = msg.game;
-    if (isMyTurn(g.stage, g.black?.id, g.white?.id, g.creator_id)) {
+    if (isMyTurn(g, currentPlayerId)) {
       addUnread(g);
     }
   });

@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "../ws";
-import { GameDescription } from "../components/game-description";
+import { GameDescription, isMyTurn } from "../components/game-description";
 import type { LiveGameItem } from "../components/game-description";
 import type {
   GameCreatedMessage,
@@ -10,6 +10,7 @@ import type {
 } from "./games-list";
 import type { UserData } from "../game/types";
 import { parseDatasetJson } from "../utils/format";
+import { readUserData } from "../game/util";
 
 type InitialData = {
   profile_user_id: number;
@@ -26,6 +27,7 @@ function involvesUser(
 const GAMES_PER_PAGE = 10;
 
 function UserGames({ initial }: { initial?: InitialData }) {
+  const currentUserId = readUserData()?.id;
   const [games, setGames] = useState<Map<number, LiveGameItem>>(() => {
     const map = new Map<number, LiveGameItem>();
     if (initial) {
@@ -101,7 +103,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
     <>
       <ul class="games-list">
         {visibleGames.map((g) => (
-          <li key={g.id}>
+          <li key={g.id} class={isMyTurn(g, currentUserId) ? "your-turn" : undefined} title={isMyTurn(g, currentUserId) ? "Your turn" : undefined}>
             <a href={`/games/${g.id}`}>
               <GameDescription {...g} />
             </a>

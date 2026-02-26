@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { subscribe } from "../ws";
-import { GameDescription } from "../components/game-description";
+import { GameDescription, isMyTurn } from "../components/game-description";
 import type { LiveGameItem, GameUpdate } from "../components/game-description";
 import { GameStage, type UserData } from "../game/types";
 import { parseDatasetJson } from "../utils/format";
@@ -42,10 +42,12 @@ function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
 function GameSection({
   title,
   games,
+  playerId,
   emptyText,
 }: {
   title: string;
   games: LiveGameItem[];
+  playerId: number | undefined;
   emptyText?: string;
 }) {
   if (!emptyText && games.length === 0) {
@@ -59,7 +61,7 @@ function GameSection({
       ) : (
         <ul class="games-list">
           {games.map((g) => (
-            <li key={g.id}>
+            <li key={g.id} class={isMyTurn(g, playerId) ? "your-turn" : undefined} title={isMyTurn(g, playerId) ? "Your turn" : undefined}>
               <a href={`/games/${g.id}`}>
                 <GameDescription {...g} />
               </a>
@@ -158,10 +160,10 @@ function GamesList({ initial }: { initial?: InitMessage }) {
 
   return (
     <>
-      <GameSection title="Challenges" games={challenges} />
-      <GameSection title="Your games" games={userGames} emptyText="No games yet." />
-      <GameSection title="Open games" games={openGames} emptyText="No open games." />
-      <GameSection title="Public games" games={publicGames} emptyText="No public games." />
+      <GameSection title="Challenges" games={challenges} playerId={playerId} />
+      <GameSection title="Your games" games={userGames} playerId={playerId} emptyText="No games yet." />
+      <GameSection title="Open games" games={openGames} playerId={playerId} emptyText="No open games." />
+      <GameSection title="Public games" games={publicGames} playerId={playerId} emptyText="No public games." />
     </>
   );
 }
