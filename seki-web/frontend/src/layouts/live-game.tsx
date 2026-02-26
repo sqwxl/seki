@@ -16,6 +16,7 @@ import { handleGameMessage, resetMovesTracker } from "../game/messages";
 import type { ClockState } from "../game/clock";
 import { readUserData, derivePlayerStone } from "../game/util";
 import { createNotificationState } from "../game/notifications";
+import { markRead } from "../game/unread";
 import { playStoneSound, playPassSound } from "../game/sound";
 import { downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
@@ -320,6 +321,7 @@ export function liveGame(
       }
     },
   };
+  markRead(gameId);
   joinGame(gameId, (raw) => handleGameMessage(raw, deps));
 
   // --- Disconnect abort timer ---

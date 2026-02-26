@@ -6,12 +6,14 @@ import type { PremoveState } from "../utils/premove";
 import { updateTurnFlash, syncTerritoryCountdown } from "./ui";
 import type { TerritoryCountdown } from "./ui";
 import { notifyGameStarted, notifyTurn, type NotificationState } from "./notifications";
+import { markRead } from "./unread";
 import { playStoneSound, playPassSound } from "./sound";
 import {
   board,
   moves,
   gameStage,
   gameState,
+  gameId,
   playerStone,
   analysisMode,
   currentTurn,
@@ -115,6 +117,7 @@ export function handleGameMessage(
       }
 
       syncBoardMoves(isLiveUpdate, deps.gobanEl(), onNewMove);
+      markRead(gameId.value);
       if (isLiveUpdate) {
         updateTurnFlash();
         notifyTurn(notificationState);

@@ -38,7 +38,7 @@
             </div>
             <div>
                 <button id="theme-toggle" type="button" class="nav-icon" title="Switch to light theme"></button>
-                <button id="notification-toggle" type="button" title="Enable turn notifications"></button>
+                <span id="notification-bell"></span>
                 <a href="/users/{{ user_username }}">{{ user_username }}</a>
                 {% if user_is_registered %}
                 <button type="button" class="nav-icon" title="Log out" onclick="fetch('/logout',{method:'POST'}).then(()=>location.replace('/'))"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor"><path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"/></svg></button>

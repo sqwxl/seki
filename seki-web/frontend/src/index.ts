@@ -2,7 +2,8 @@ import { liveGame } from "./layouts/live-game";
 import { initGamesList } from "./layouts/games-list";
 import { initUserGames } from "./layouts/user-games";
 import { initAnalysis } from "./layouts/analysis";
-import { initNotificationToggle } from "./game/notifications";
+import { initUnreadTracking } from "./game/unread";
+import { initNotificationBell } from "./components/notification-bell";
 import { initNewGameForm } from "./layouts/game-settings-form";
 import type { InitialGameProps } from "./game/types";
 import { parseDatasetJson } from "./utils/format";
@@ -13,7 +14,8 @@ import { ensureConnected } from "./ws";
 ensureConnected();
 
 initThemeToggle();
-initNotificationToggle();
+initUnreadTracking();
+initNotificationBell();
 
 const newGameRoot = document.getElementById("new-game-form");
 

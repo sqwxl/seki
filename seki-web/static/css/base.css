@@ -255,7 +255,14 @@ nav {
   flex-wrap: wrap;
   padding: 0.5em 1em;
   gap: 0.5em;
-  font-size: 0.875em;
+  font-size: 1.125em;
+  padding: 0.5em 1.5em;
+}
+
+@media (max-width: 768px) {
+  nav {
+    font-size: 0.875em;
+  }
 }
 
 nav > div {
@@ -269,8 +276,7 @@ nav a {
   white-space: nowrap;
 }
 
-.nav-icon,
-#notification-toggle {
+.nav-icon {
   display: flex;
   align-items: center;
   background: none;
@@ -280,22 +286,68 @@ nav a {
   cursor: pointer;
 }
 
-.nav-icon svg,
-#notification-toggle svg {
+.nav-icon svg {
   width: 1.25em;
   height: 1.25em;
 }
 
-#notification-toggle:disabled {
-  opacity: 0.3;
-  cursor: default;
+.notification-bell {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-@media (min-width: 768px) {
-  nav {
-    font-size: 1em;
-    padding: 0.5em 1.5em;
-  }
+.notification-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  min-width: 16em;
+  max-width: 22em;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 0.5em;
+}
+
+.notification-dropdown ul {
+  list-style: none;
+  margin: 0;
+  padding: 0.25em 0;
+}
+
+.notification-dropdown li a {
+  display: block;
+  padding: 0.5em 0.75em;
+  font-size: 0.85em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notification-dropdown li a:hover {
+  background: var(--bg-muted);
+}
+
+.notification-dropdown-empty {
+  padding: 0.75em;
+  font-size: 0.85em;
+  color: var(--fg);
+  opacity: 0.6;
+}
+
+.notification-dropdown-footer {
+  border-top: 1px solid var(--border);
+  padding: 0.5em 0.75em;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 
 a,

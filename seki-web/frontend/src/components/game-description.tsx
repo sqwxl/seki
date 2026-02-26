@@ -20,6 +20,7 @@ export type LiveGameItem = {
   white: UserData | undefined;
   settings: GameSettings;
   move_count: number | undefined;
+  unread?: boolean;
 };
 
 export function GameDescription(props: LiveGameItem) {

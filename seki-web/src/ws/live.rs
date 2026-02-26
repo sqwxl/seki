@@ -11,6 +11,8 @@ use tokio::sync::mpsc;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
+use crate::models::game_read::GameRead;
+use crate::models::turn::TurnRow;
 use crate::services::clock::{self, TimeControl};
 use crate::services::live::build_live_items;
 use crate::session::CurrentUser;
@@ -116,6 +118,17 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                             "Failed to send initial state for game {game_id}: {e}"
                                         );
                                     }
+
+                                    // Mark game as read at current move count
+                                    let mc = TurnRow::count_by_game_ids(&state.db, &[game_id])
+                                        .await
+                                        .unwrap_or_default()
+                                        .get(&game_id)
+                                        .copied()
+                                        .unwrap_or(0);
+                                    GameRead::upsert(&state.db, user_id, game_id, mc as i32)
+                                        .await
+                                        .ok();
                                 }
                             }
                         }
@@ -319,11 +332,47 @@ async fn build_init_message(state: &AppState, user_id: i64) -> String {
         build_live_items(&state.db, &public_games),
     );
 
+    // Enrich player games with unread flags
+    let game_ids: Vec<i64> = player_games.iter().map(|g| g.game.id).collect();
+    let reads = GameRead::find_by_user_and_games(&state.db, user_id, &game_ids)
+        .await
+        .unwrap_or_default();
+
+    let user_items_enriched: Vec<serde_json::Value> = user_items
+        .iter()
+        .zip(player_games.iter())
+        .map(|(item, gwp)| {
+            let mut v = serde_json::to_value(item).unwrap();
+            let is_my_turn = is_user_turn(&gwp.game, user_id);
+            let last_seen = reads.get(&gwp.game.id).copied().unwrap_or(0);
+            let mc = item.move_count.unwrap_or(0) as i32;
+            let unread = is_my_turn && mc > last_seen;
+            v.as_object_mut()
+                .unwrap()
+                .insert("unread".into(), serde_json::Value::Bool(unread));
+            v
+        })
+        .collect();
+
     json!({
         "kind": "init",
         "player_id": user_id,
-        "player_games": user_items,
+        "player_games": user_items_enriched,
         "public_games": public_items,
     })
     .to_string()
+}
+
+/// Check whether it's the given user's turn (or they need to respond to a challenge).
+fn is_user_turn(game: &Game, user_id: i64) -> bool {
+    match game.stage.as_str() {
+        "black_to_play" => game.black_id == Some(user_id),
+        "white_to_play" => game.white_id == Some(user_id),
+        "challenge" => {
+            // It's the invited player's turn to accept/decline
+            game.creator_id != Some(user_id)
+                && (game.black_id == Some(user_id) || game.white_id == Some(user_id))
+        }
+        _ => false,
+    }
 }
