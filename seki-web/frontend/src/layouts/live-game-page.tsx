@@ -44,6 +44,7 @@ import {
   isOriginator,
   currentUserId,
   controlRequest,
+  presenterDisplayName,
 } from "../game/state";
 
 // ---------------------------------------------------------------------------
@@ -413,49 +414,71 @@ function buildModeControls(
   return out;
 }
 
-/** Presentation start/end, control transfer. */
+/** Presentation overrides: analyze triggers presentation, viewer choice popover, control request modal. */
 function buildPresentationControls(
   channel: GameChannel,
+  ctx: GameCtx,
   callbacks: {
+    enterAnalysis: () => void;
     enterPresentation: () => void;
     exitPresentation: () => void;
   },
 ): Partial<ControlsProps> {
   const out: Partial<ControlsProps> = {};
 
-  // "Present" button: game is done, no active presentation
+  // Game done + no active presentation: analyze button starts presentation
   if (result.value && !presentationActive.value) {
-    out.startPresentation = { onClick: callbacks.enterPresentation };
+    out.analyze = { onClick: callbacks.enterPresentation };
   }
 
-  if (presentationActive.value) {
-    if (isPresenter.value) {
-      out.endPresentation = { onClick: callbacks.exitPresentation };
-      if (controlRequest.value) {
-        out.giveControl = {
-          onClick: () => channel.giveControl(controlRequest.value!.userId),
-          title: `Give control to ${controlRequest.value.displayName}`,
-        };
-      }
+  if (!presentationActive.value) {
+    return out;
+  }
+
+  // Presenter: exit analysis ends the presentation
+  if (isPresenter.value) {
+    out.exitAnalysis = { onClick: callbacks.exitPresentation };
+
+    // Show control request popover when someone requests control
+    if (controlRequest.value) {
+      out.controlRequestResponse = {
+        displayName: controlRequest.value.displayName,
+        onGive: () => channel.giveControl(controlRequest.value!.userId),
+        onDismiss: () => {
+          controlRequest.value = undefined;
+        },
+      };
+    }
+  } else if (!ctx.inAnalysis) {
+    // Viewer (not in personal analysis): analyze button opens choice popover
+    const options: Array<{ label: string; onClick: () => void }> = [];
+
+    if (isOriginator.value) {
+      options.push({
+        label: "Take control",
+        onClick: () => channel.takeControl(),
+      });
     } else {
-      // Viewer
-      if (isOriginator.value) {
-        out.takeControl = { onClick: () => channel.takeControl() };
+      const myRequest =
+        controlRequest.value?.userId === currentUserId.value;
+      if (myRequest) {
+        options.push({
+          label: "Cancel request",
+          onClick: () => channel.cancelControlRequest(),
+        });
       } else {
-        const myRequest =
-          controlRequest.value?.userId === currentUserId.value;
-        if (myRequest) {
-          out.cancelControlRequest = {
-            onClick: () => channel.cancelControlRequest(),
-          };
-        } else {
-          out.requestControl = {
-            onClick: () => channel.requestControl(),
-            disabled: !!controlRequest.value,
-          };
-        }
+        options.push({
+          label: "Request control",
+          onClick: () => channel.requestControl(),
+        });
       }
     }
+    options.push({
+      label: "Analyze (local)",
+      onClick: callbacks.enterAnalysis,
+    });
+
+    out.analyzeChoice = { options };
   }
 
   return out;
@@ -522,7 +545,8 @@ function buildLiveControls({
       exitEstimate,
       handleSgfExport,
     }),
-    ...buildPresentationControls(channel, {
+    ...buildPresentationControls(channel, ctx, {
+      enterAnalysis,
       enterPresentation,
       exitPresentation,
     }),
@@ -613,7 +637,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
   const challengee =
     black.value?.id !== creatorId ? black.value : white.value;
 
-  const statusText = getStatusText({
+  let statusText = getStatusText({
     stage: gameStage.value,
     result: result.value ?? undefined,
     komi: initialProps.value.komi,
@@ -623,6 +647,10 @@ export function LiveGamePage(props: LiveGamePageProps) {
     challengeWaitingFor: challengee?.display_name,
     hasOpenSlot: !black.value || !white.value,
   });
+
+  if (statusText && presenterDisplayName.value) {
+    statusText += ` (${presenterDisplayName.value} presenting)`;
+  }
 
   return (
     <GamePageLayout

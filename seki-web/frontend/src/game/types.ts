@@ -127,13 +127,14 @@ export type StateMessage = {
   territory?: TerritoryData;
   settled_territory?: SettledTerritoryData;
   clock?: ClockData;
-  online_users?: number[];
+  online_users?: UserData[];
 };
 
 export type PresenceMessage = {
   kind: "presence";
   player_id: number;
   online: boolean;
+  user?: UserData;
 };
 
 export type ChatMessage = {

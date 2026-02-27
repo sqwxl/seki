@@ -341,7 +341,13 @@ pub async fn join_game(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let online_users = state.registry.get_online_user_ids(id).await;
+    let online_ids = state.registry.get_online_user_ids(id).await;
+    let online_users: Vec<UserData> = crate::models::user::User::find_by_ids(&state.db, &online_ids)
+        .await
+        .unwrap_or_default()
+        .iter()
+        .map(UserData::from)
+        .collect();
     let game_state = state_serializer::serialize_state(
         &gwp,
         &engine,

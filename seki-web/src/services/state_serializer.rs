@@ -89,7 +89,7 @@ pub fn serialize_state(
     territory: Option<&TerritoryData>,
     settled_territory: Option<&SettledTerritoryData>,
     clock: Option<(&ClockState, &TimeControl)>,
-    online_users: &[i64],
+    online_users: &[UserData],
 ) -> serde_json::Value {
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
     // for terminal states (done), challenges, and started-but-no-moves games.

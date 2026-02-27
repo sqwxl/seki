@@ -62,7 +62,7 @@ export const territory = signal<TerritoryData | undefined>(undefined);
 export const settledTerritory = signal<SettledTerritoryData | undefined>(
   undefined,
 );
-export const onlineUsers = signal<Set<number>>(new Set());
+export const onlineUsers = signal<Map<number, UserData>>(new Map());
 export const undoRejected = signal(false);
 export const allowUndo = signal(false);
 export const opponentDisconnected = signal<{ since: Date } | undefined>(
@@ -127,6 +127,14 @@ export const isOriginator = computed(
   () => presentationActive.value && originatorId.value === currentUserId.value,
 );
 
+export const presenterDisplayName = computed(() => {
+  if (!presentationActive.value) {
+    return "";
+  }
+  const user = onlineUsers.value.get(presenterId.value);
+  return user?.display_name ?? "";
+});
+
 // ---------------------------------------------------------------------------
 // Action functions — all signal mutations go through these
 // ---------------------------------------------------------------------------
@@ -171,7 +179,7 @@ export function applyGameState(data: {
   settled_territory?: SettledTerritoryData;
   black: UserData | null;
   white: UserData | null;
-  online_users?: number[];
+  online_users?: UserData[];
 }): void {
   const approvalMessages: ChatEntry[] = [];
   if (data.territory) {
@@ -198,12 +206,16 @@ export function applyGameState(data: {
     black.value = data.black ?? undefined;
     white.value = data.white ?? undefined;
     if (data.online_users) {
-      onlineUsers.value = new Set(data.online_users);
+      const map = new Map<number, UserData>();
+      for (const u of data.online_users) {
+        map.set(u.id, u);
+      }
+      onlineUsers.value = map;
       // Reconcile: clear disconnect signal if opponent is back online
       if (opponentDisconnected.value) {
         const oppId =
           playerStone.value === 1 ? white.value?.id : black.value?.id;
-        if (oppId != null && data.online_users.includes(oppId)) {
+        if (oppId != null && map.has(oppId)) {
           opponentDisconnected.value = undefined;
         }
       }
@@ -254,10 +266,14 @@ export function removeChatEntry(entry: ChatEntry): void {
 }
 
 /** Update online user presence. */
-export function setPresence(userId: number, online: boolean): void {
-  const next = new Set(onlineUsers.value);
-  if (online) {
-    next.add(userId);
+export function setPresence(
+  userId: number,
+  online: boolean,
+  user?: UserData,
+): void {
+  const next = new Map(onlineUsers.value);
+  if (online && user) {
+    next.set(userId, user);
   } else {
     next.delete(userId);
   }

@@ -642,7 +642,7 @@ async fn build_game_response(
         territory.as_ref(),
         settled_territory.as_ref(),
         clock_ref,
-        &[],
+        &[] as &[crate::templates::UserData],
     );
 
     let territory_json = serialized.get("territory").cloned();

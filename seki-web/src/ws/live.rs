@@ -13,10 +13,12 @@ use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::game_read::GameRead;
 use crate::models::turn::TurnRow;
+use crate::models::user::User;
 use crate::services::clock::{self, TimeControl};
 use crate::services::live::build_live_items;
 use crate::services::presentation_actions;
 use crate::session::CurrentUser;
+use crate::templates::UserData;
 use crate::ws::game_channel;
 
 /// WebSocket upgrade handler: GET /live
@@ -107,8 +109,9 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                     state.registry.join(game_id, user_id, tx.clone()).await;
                                     subscribed_games.insert(game_id);
 
-                                    // Notify others that this user came online
-                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":true}).to_string()).await;
+                                    // Notify others that this user came online (include user data)
+                                    let user_data = User::find_by_id(&state.db, user_id).await.ok().map(|u| UserData::from(&u));
+                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":true,"user":user_data}).to_string()).await;
 
                                     if let Err(e) = game_channel::send_initial_state(
                                         &state, game_id, user_id, &tx,

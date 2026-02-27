@@ -298,11 +298,13 @@ export function liveGame(
         estimateScore.value = territoryInfo.score;
       }
       // Auto-enter analysis when navigating away from latest game move
+      // (skip for presentation viewers — their board is driven by snapshots)
       if (
         board.value &&
         !analysisMode.value &&
         !estimateMode.value &&
-        engine.view_index() < moves.value.length
+        engine.view_index() < moves.value.length &&
+        !(presentationActive.value && !isPresenter.value)
       ) {
         enterAnalysis();
       }
@@ -375,6 +377,9 @@ export function liveGame(
         if (!analysisMode.value) {
           enterAnalysis();
         }
+      } else if (analysisMode.value) {
+        // We lost control — exit analysis so we sync with the new presenter
+        exitAnalysis();
       }
       doRender();
     },

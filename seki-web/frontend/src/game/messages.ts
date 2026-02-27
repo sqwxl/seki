@@ -188,7 +188,7 @@ export function handleGameMessage(
       break;
     }
     case "presence": {
-      setPresence(data.player_id, data.online);
+      setPresence(data.player_id, data.online, data.user);
       break;
     }
     case "player_disconnected": {

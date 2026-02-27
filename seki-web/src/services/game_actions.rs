@@ -10,6 +10,7 @@ use crate::models::turn::TurnRow;
 use crate::models::user::User;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
+use crate::templates::UserData;
 
 // -- Return types --
 
@@ -955,7 +956,13 @@ pub async fn respond_to_undo(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let online_users = state.registry.get_online_user_ids(game_id).await;
+    let online_ids = state.registry.get_online_user_ids(game_id).await;
+    let online_users: Vec<UserData> = User::find_by_ids(&state.db, &online_ids)
+        .await
+        .unwrap_or_default()
+        .iter()
+        .map(UserData::from)
+        .collect();
     let game_state = state_serializer::serialize_state(
         &result.gwp,
         &result.engine,
@@ -1021,7 +1028,13 @@ async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers, engine: &
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let online_users = state.registry.get_online_user_ids(game_id).await;
+    let online_ids = state.registry.get_online_user_ids(game_id).await;
+    let online_users: Vec<UserData> = User::find_by_ids(&state.db, &online_ids)
+        .await
+        .unwrap_or_default()
+        .iter()
+        .map(UserData::from)
+        .collect();
     let game_state = state_serializer::serialize_state(
         gwp,
         engine,

@@ -78,12 +78,14 @@ export type ControlsProps = {
   confirmMove?: ButtonDef;
 
   // Presentation
-  startPresentation?: ButtonDef;
-  endPresentation?: ButtonDef;
-  giveControl?: ButtonDef;
-  takeControl?: ButtonDef;
-  requestControl?: ButtonDef;
-  cancelControlRequest?: ButtonDef;
+  controlRequestResponse?: {
+    displayName: string;
+    onGive: () => void;
+    onDismiss: () => void;
+  };
+  analyzeChoice?: {
+    options: Array<{ label: string; onClick: () => void }>;
+  };
 };
 
 function ConfirmButton({
@@ -373,59 +375,36 @@ export function GameControls(props: ControlsProps) {
           </label>
         </ConfirmButton>
       )}
-      {props.startPresentation && (
-        <button
-          title="Start presentation"
-          disabled={props.startPresentation.disabled}
-          onClick={props.startPresentation.onClick}
+      {props.controlRequestResponse && (
+        <div
+          id="control-request"
+          popover="manual"
+          ref={(el) => {
+            if (el && !el.matches(":popover-open")) {
+              el.showPopover();
+            }
+          }}
         >
-          Present
-        </button>
-      )}
-      {props.endPresentation && (
-        <button
-          title="End presentation"
-          disabled={props.endPresentation.disabled}
-          onClick={props.endPresentation.onClick}
-        >
-          End
-        </button>
-      )}
-      {props.giveControl && (
-        <button
-          title={props.giveControl.title ?? "Give control"}
-          disabled={props.giveControl.disabled}
-          onClick={props.giveControl.onClick}
-        >
-          Give
-        </button>
-      )}
-      {props.takeControl && (
-        <button
-          title="Take control"
-          disabled={props.takeControl.disabled}
-          onClick={props.takeControl.onClick}
-        >
-          Take control
-        </button>
-      )}
-      {props.requestControl && (
-        <button
-          title="Request control"
-          disabled={props.requestControl.disabled}
-          onClick={props.requestControl.onClick}
-        >
-          Request
-        </button>
-      )}
-      {props.cancelControlRequest && (
-        <button
-          title="Cancel control request"
-          disabled={props.cancelControlRequest.disabled}
-          onClick={props.cancelControlRequest.onClick}
-        >
-          Cancel
-        </button>
+          <p>{props.controlRequestResponse.displayName} requests control</p>
+          <button
+            class="confirm-yes"
+            onClick={() => {
+              document.getElementById("control-request")?.hidePopover();
+              props.controlRequestResponse!.onGive();
+            }}
+          >
+            <IconCheck />
+          </button>
+          <button
+            class="confirm-no"
+            onClick={() => {
+              document.getElementById("control-request")?.hidePopover();
+              props.controlRequestResponse!.onDismiss();
+            }}
+          >
+            <IconX />
+          </button>
+        </div>
       )}
     </>
   );
@@ -470,7 +449,30 @@ export function NavControls({ nav }: { nav: ControlsProps["nav"] }) {
 export function UIControls(props: ControlsProps) {
   return (
     <>
-      {props.analyze && (
+      {props.analyze && props.analyzeChoice && (
+        <>
+          <button
+            title={props.analyze.title ?? "Analyze"}
+            disabled={props.analyze.disabled}
+            popovertarget="analyze-choice"
+          >
+            <IconAnalysis />
+          </button>
+          <div id="analyze-choice" popover>
+            {props.analyzeChoice.options.map((opt) => (
+              <button
+                key={opt.label}
+                popovertarget="analyze-choice"
+                onClick={opt.onClick}
+              >
+                {opt.label}
+              </button>
+            ))}
+            <button popovertarget="analyze-choice">Cancel</button>
+          </div>
+        </>
+      )}
+      {props.analyze && !props.analyzeChoice && (
         <button
           title={props.analyze.title ?? "Analyze"}
           disabled={props.analyze.disabled}

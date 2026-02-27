@@ -13,7 +13,7 @@ export type ChatEntry = {
 
 export type ChatProps = {
   messages: ChatEntry[];
-  onlineUsers: Set<number>;
+  onlineUsers: Map<number, UserData>;
   black: UserData | undefined;
   white: UserData | undefined;
   showPrefix: boolean;

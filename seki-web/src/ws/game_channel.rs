@@ -7,6 +7,7 @@ use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::{game_actions, presentation_actions};
 use crate::services::state_serializer;
+use crate::templates::UserData;
 use crate::ws::registry::WsSender;
 
 fn send_to_client(tx: &WsSender, msg: &str) {
@@ -104,7 +105,13 @@ pub async fn send_initial_state(
         None
     };
 
-    let online_users = state.registry.get_online_user_ids(game_id).await;
+    let online_ids = state.registry.get_online_user_ids(game_id).await;
+    let online_users: Vec<UserData> = User::find_by_ids(&state.db, &online_ids)
+        .await
+        .unwrap_or_default()
+        .iter()
+        .map(UserData::from)
+        .collect();
     let game_state = state_serializer::serialize_state(
         &gwp,
         &engine,
