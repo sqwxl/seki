@@ -39,6 +39,11 @@ import {
   estimateScore,
   showMoveTree,
   moveConfirmEnabled,
+  presentationActive,
+  isPresenter,
+  isOriginator,
+  currentUserId,
+  controlRequest,
 } from "../game/state";
 
 // ---------------------------------------------------------------------------
@@ -56,6 +61,8 @@ export type LiveGamePageProps = {
   enterEstimate: () => void;
   exitEstimate: () => void;
   handleSgfExport: () => void;
+  enterPresentation: () => void;
+  exitPresentation: () => void;
 };
 
 // ---------------------------------------------------------------------------
@@ -406,6 +413,54 @@ function buildModeControls(
   return out;
 }
 
+/** Presentation start/end, control transfer. */
+function buildPresentationControls(
+  channel: GameChannel,
+  callbacks: {
+    enterPresentation: () => void;
+    exitPresentation: () => void;
+  },
+): Partial<ControlsProps> {
+  const out: Partial<ControlsProps> = {};
+
+  // "Present" button: game is done, no active presentation
+  if (result.value && !presentationActive.value) {
+    out.startPresentation = { onClick: callbacks.enterPresentation };
+  }
+
+  if (presentationActive.value) {
+    if (isPresenter.value) {
+      out.endPresentation = { onClick: callbacks.exitPresentation };
+      if (controlRequest.value) {
+        out.giveControl = {
+          onClick: () => channel.giveControl(controlRequest.value!.userId),
+          title: `Give control to ${controlRequest.value.displayName}`,
+        };
+      }
+    } else {
+      // Viewer
+      if (isOriginator.value) {
+        out.takeControl = { onClick: () => channel.takeControl() };
+      } else {
+        const myRequest =
+          controlRequest.value?.userId === currentUserId.value;
+        if (myRequest) {
+          out.cancelControlRequest = {
+            onClick: () => channel.cancelControlRequest(),
+          };
+        } else {
+          out.requestControl = {
+            onClick: () => channel.requestControl(),
+            disabled: !!controlRequest.value,
+          };
+        }
+      }
+    }
+  }
+
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Main controls builder (orchestrates sub-builders)
 // ---------------------------------------------------------------------------
@@ -419,6 +474,8 @@ function buildLiveControls({
   enterEstimate,
   exitEstimate,
   handleSgfExport,
+  enterPresentation,
+  exitPresentation,
   setMoveTree,
 }: {
   channel: GameChannel;
@@ -429,6 +486,8 @@ function buildLiveControls({
   enterEstimate: () => void;
   exitEstimate: () => void;
   handleSgfExport: () => void;
+  enterPresentation: () => void;
+  exitPresentation: () => void;
   setMoveTree: (visible: boolean) => void;
 }): ControlsProps {
   const ctx = readGameCtx();
@@ -463,7 +522,16 @@ function buildLiveControls({
       exitEstimate,
       handleSgfExport,
     }),
+    ...buildPresentationControls(channel, {
+      enterPresentation,
+      exitPresentation,
+    }),
   };
+
+  // Disable nav for viewers watching a presentation (not in personal analysis)
+  if (presentationActive.value && !isPresenter.value && !ctx.inAnalysis) {
+    props.nav = { ...props.nav, atStart: true, atLatest: true };
+  }
 
   // Undo response popover
   if (undoResponseNeeded.value && ctx.isPlayer) {
@@ -511,6 +579,8 @@ export function LiveGamePage(props: LiveGamePageProps) {
     enterEstimate,
     exitEstimate,
     handleSgfExport,
+    enterPresentation,
+    exitPresentation,
   } = props;
 
   function setMoveTree(visible: boolean) {
@@ -533,6 +603,8 @@ export function LiveGamePage(props: LiveGamePageProps) {
     enterEstimate,
     exitEstimate,
     handleSgfExport,
+    enterPresentation,
+    exitPresentation,
     setMoveTree,
   });
 

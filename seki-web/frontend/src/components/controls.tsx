@@ -76,6 +76,14 @@ export type ControlsProps = {
   moveConfirmToggle?: { enabled: boolean; onClick: () => void };
   moveTreeToggle?: { enabled: boolean; onClick: () => void };
   confirmMove?: ButtonDef;
+
+  // Presentation
+  startPresentation?: ButtonDef;
+  endPresentation?: ButtonDef;
+  giveControl?: ButtonDef;
+  takeControl?: ButtonDef;
+  requestControl?: ButtonDef;
+  cancelControlRequest?: ButtonDef;
 };
 
 function ConfirmButton({
@@ -364,6 +372,60 @@ export function GameControls(props: ControlsProps) {
             <input type="checkbox" id="rematch-swap" /> Swap colors
           </label>
         </ConfirmButton>
+      )}
+      {props.startPresentation && (
+        <button
+          title="Start presentation"
+          disabled={props.startPresentation.disabled}
+          onClick={props.startPresentation.onClick}
+        >
+          Present
+        </button>
+      )}
+      {props.endPresentation && (
+        <button
+          title="End presentation"
+          disabled={props.endPresentation.disabled}
+          onClick={props.endPresentation.onClick}
+        >
+          End
+        </button>
+      )}
+      {props.giveControl && (
+        <button
+          title={props.giveControl.title ?? "Give control"}
+          disabled={props.giveControl.disabled}
+          onClick={props.giveControl.onClick}
+        >
+          Give
+        </button>
+      )}
+      {props.takeControl && (
+        <button
+          title="Take control"
+          disabled={props.takeControl.disabled}
+          onClick={props.takeControl.onClick}
+        >
+          Take control
+        </button>
+      )}
+      {props.requestControl && (
+        <button
+          title="Request control"
+          disabled={props.requestControl.disabled}
+          onClick={props.requestControl.onClick}
+        >
+          Request
+        </button>
+      )}
+      {props.cancelControlRequest && (
+        <button
+          title="Cancel control request"
+          disabled={props.cancelControlRequest.disabled}
+          onClick={props.cancelControlRequest.onClick}
+        >
+          Cancel
+        </button>
       )}
     </>
   );

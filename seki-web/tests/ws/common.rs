@@ -292,6 +292,23 @@ pub struct WsClient {
 }
 
 impl WsClient {
+    /// Create a WsClient from pre-split sink and stream (for custom auth scenarios).
+    pub fn from_parts(
+        sink: futures_util::stream::SplitSink<
+            tokio_tungstenite::WebSocketStream<
+                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+            >,
+            tungstenite::Message,
+        >,
+        stream: futures_util::stream::SplitStream<
+            tokio_tungstenite::WebSocketStream<
+                tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+            >,
+        >,
+    ) -> Self {
+        WsClient { sink, stream }
+    }
+
     /// Send a JSON message.
     pub async fn send(&mut self, msg: Value) {
         self.sink
@@ -393,6 +410,41 @@ impl WsClient {
 
     pub async fn disconnect_abort(&mut self, game_id: i64) {
         self.send(json!({"action": "disconnect_abort", "game_id": game_id}))
+            .await;
+    }
+
+    pub async fn start_presentation(&mut self, game_id: i64) {
+        self.send(json!({"action": "start_presentation", "game_id": game_id}))
+            .await;
+    }
+
+    pub async fn end_presentation(&mut self, game_id: i64) {
+        self.send(json!({"action": "end_presentation", "game_id": game_id}))
+            .await;
+    }
+
+    pub async fn send_presentation_state(&mut self, game_id: i64, snapshot: &str) {
+        self.send(json!({"action": "presentation_state", "game_id": game_id, "snapshot": snapshot}))
+            .await;
+    }
+
+    pub async fn give_control(&mut self, game_id: i64, target_user_id: i64) {
+        self.send(json!({"action": "give_control", "game_id": game_id, "target_user_id": target_user_id}))
+            .await;
+    }
+
+    pub async fn take_control(&mut self, game_id: i64) {
+        self.send(json!({"action": "take_control", "game_id": game_id}))
+            .await;
+    }
+
+    pub async fn request_control(&mut self, game_id: i64) {
+        self.send(json!({"action": "request_control", "game_id": game_id}))
+            .await;
+    }
+
+    pub async fn cancel_control_request(&mut self, game_id: i64) {
+        self.send(json!({"action": "cancel_control_request", "game_id": game_id}))
             .await;
     }
 

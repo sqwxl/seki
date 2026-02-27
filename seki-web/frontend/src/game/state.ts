@@ -82,6 +82,17 @@ export const estimateMode = signal(false);
 export const undoResponseNeeded = signal(false);
 
 // ---------------------------------------------------------------------------
+// Presentation state (post-game collaborative analysis)
+// ---------------------------------------------------------------------------
+export const currentUserId = signal(0);
+export const presentationActive = signal(false);
+export const presenterId = signal(0);
+export const originatorId = signal(0);
+export const controlRequest = signal<
+  { userId: number; displayName: string } | undefined
+>(undefined);
+
+// ---------------------------------------------------------------------------
 // Board reference (async, set after WASM loads)
 // ---------------------------------------------------------------------------
 export const board = signal<Board | undefined>(undefined);
@@ -108,6 +119,14 @@ export const isMyTurn = computed(
 
 export const isPlayer = computed(() => playerStone.value !== 0);
 
+export const isPresenter = computed(
+  () => presentationActive.value && presenterId.value === currentUserId.value,
+);
+
+export const isOriginator = computed(
+  () => presentationActive.value && originatorId.value === currentUserId.value,
+);
+
 // ---------------------------------------------------------------------------
 // Action functions — all signal mutations go through these
 // ---------------------------------------------------------------------------
@@ -115,11 +134,13 @@ export const isPlayer = computed(() => playerStone.value !== 0);
 /** Called once at page load to set config signals. */
 export function initGameState(
   id: number,
+  userId: number,
   stone: number,
   props: InitialGameProps,
 ): void {
   batch(() => {
     gameId.value = id;
+    currentUserId.value = userId;
     playerStone.value = stone;
     initialProps.value = props;
     gameState.value = props.state;
@@ -241,4 +262,35 @@ export function setPresence(userId: number, online: boolean): void {
     next.delete(userId);
   }
   onlineUsers.value = next;
+}
+
+/** Called when a presentation starts (from WS message). */
+export function applyPresentationStarted(data: {
+  presenter_id: number;
+  originator_id: number;
+  control_request?: number;
+}): void {
+  batch(() => {
+    presentationActive.value = true;
+    presenterId.value = data.presenter_id;
+    originatorId.value = data.originator_id;
+    if (data.control_request != null) {
+      // We don't have the display name for late joiners, but the signal will
+      // be updated if a new control_requested message comes in.
+      controlRequest.value = {
+        userId: data.control_request,
+        displayName: "",
+      };
+    }
+  });
+}
+
+/** Called when a presentation ends (from WS message). */
+export function clearPresentation(): void {
+  batch(() => {
+    presentationActive.value = false;
+    presenterId.value = 0;
+    originatorId.value = 0;
+    controlRequest.value = undefined;
+  });
 }

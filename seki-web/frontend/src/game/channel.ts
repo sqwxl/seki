@@ -16,6 +16,13 @@ export type GameChannel = {
   declineChallenge(): void;
   timeoutFlag(): void;
   territoryTimeoutFlag(): void;
+  startPresentation(): void;
+  endPresentation(): void;
+  sendPresentationState(snapshot: string): void;
+  giveControl(targetUserId: number): void;
+  takeControl(): void;
+  requestControl(): void;
+  cancelControlRequest(): void;
 };
 
 export function createGameChannel(gameId: number): GameChannel {
@@ -68,6 +75,27 @@ export function createGameChannel(gameId: number): GameChannel {
     },
     territoryTimeoutFlag() {
       gameSend({ action: "territory_timeout_flag" });
+    },
+    startPresentation() {
+      gameSend({ action: "start_presentation" });
+    },
+    endPresentation() {
+      gameSend({ action: "end_presentation" });
+    },
+    sendPresentationState(snapshot) {
+      gameSend({ action: "presentation_state", snapshot });
+    },
+    giveControl(targetUserId) {
+      gameSend({ action: "give_control", target_user_id: targetUserId });
+    },
+    takeControl() {
+      gameSend({ action: "take_control" });
+    },
+    requestControl() {
+      gameSend({ action: "request_control" });
+    },
+    cancelControlRequest() {
+      gameSend({ action: "cancel_control_request" });
     },
   };
 }

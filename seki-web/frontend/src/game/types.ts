@@ -186,6 +186,54 @@ export type PlayerReconnectedMessage = {
   user_id: number;
 };
 
+export type PresentationSnapshot = {
+  tree: string;
+  activeNodeId: string;
+  territory?: {
+    ownership: number[];
+    deadStones: number[];
+    score: { black: number; white: number };
+  };
+};
+
+export type PresentationStartedMessage = {
+  kind: "presentation_started";
+  game_id: number;
+  presenter_id: number;
+  originator_id: number;
+  snapshot: string;
+  control_request?: number;
+};
+
+export type PresentationEndedMessage = {
+  kind: "presentation_ended";
+  game_id: number;
+};
+
+export type PresentationUpdateMessage = {
+  kind: "presentation_update";
+  game_id: number;
+  snapshot: string;
+};
+
+export type ControlChangedMessage = {
+  kind: "control_changed";
+  game_id: number;
+  presenter_id: number;
+};
+
+export type ControlRequestedMessage = {
+  kind: "control_requested";
+  game_id: number;
+  user_id: number;
+  display_name: string;
+};
+
+export type ControlRequestCancelledMessage = {
+  kind: "control_request_cancelled";
+  game_id: number;
+};
+
 export type IncomingMessage =
   | StateMessage
   | ChatMessage
@@ -196,4 +244,10 @@ export type IncomingMessage =
   | UndoRequestSentMessage
   | UndoResponseNeededMessage
   | PlayerDisconnectedMessage
-  | PlayerReconnectedMessage;
+  | PlayerReconnectedMessage
+  | PresentationStartedMessage
+  | PresentationEndedMessage
+  | PresentationUpdateMessage
+  | ControlChangedMessage
+  | ControlRequestedMessage
+  | ControlRequestCancelledMessage;

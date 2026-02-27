@@ -15,6 +15,7 @@ use crate::models::game_read::GameRead;
 use crate::models::turn::TurnRow;
 use crate::services::clock::{self, TimeControl};
 use crate::services::live::build_live_items;
+use crate::services::presentation_actions;
 use crate::session::CurrentUser;
 use crate::ws::game_channel;
 
@@ -138,6 +139,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                 subscribed_games.remove(&game_id);
                                 if removed {
                                     state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":false}).to_string()).await;
+                                    presentation_actions::handle_presenter_left(&state, game_id, user_id).await;
                                 }
                             }
                         }
@@ -169,6 +171,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                     &json!({"kind":"presence","player_id":user_id,"online":false}).to_string(),
                 )
                 .await;
+            presentation_actions::handle_presenter_left(&state, *game_id, user_id).await;
         }
     }
     send_task.abort();

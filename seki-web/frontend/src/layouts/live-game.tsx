@@ -37,10 +37,13 @@ import {
   opponentDisconnected,
   board,
   playerStone,
+  currentUserId,
   initialProps as initialPropsSignal,
   estimateScore,
   showMoveTree,
   moveConfirmEnabled,
+  presentationActive,
+  isPresenter,
 } from "../game/state";
 import { LiveGamePage, getServerTerritory } from "./live-game-page";
 
@@ -59,7 +62,7 @@ export function liveGame(
   console.debug("InitialGameProps", initialProps);
   console.debug("UserData", userData, "playerStone", pStone);
 
-  initGameState(gameId, pStone, initialProps);
+  initGameState(gameId, userData?.id ?? 0, pStone, initialProps);
 
   const channel = createGameChannel(gameId);
   const gobanRef = createRef<HTMLDivElement>();
@@ -131,6 +134,23 @@ export function liveGame(
       board.value?.exitTerritoryReview();
       doRender();
     }
+  }
+
+  // --- Presentation helpers ---
+  function broadcastSnapshot() {
+    if (!board.value || !isPresenter.value) {
+      return;
+    }
+    const snapshot = board.value.exportSnapshot();
+    channel.sendPresentationState(snapshot);
+  }
+
+  function enterPresentation() {
+    channel.startPresentation();
+  }
+
+  function exitPresentation() {
+    channel.endPresentation();
   }
 
   // --- SGF export ---
@@ -215,6 +235,8 @@ export function liveGame(
         enterEstimate={enterEstimate}
         exitEstimate={exitEstimate}
         handleSgfExport={handleSgfExport}
+        enterPresentation={enterPresentation}
+        exitPresentation={exitPresentation}
       />,
       root,
     );
@@ -284,6 +306,10 @@ export function liveGame(
       ) {
         enterAnalysis();
       }
+      // Broadcast snapshot to viewers when presenting
+      if (presentationActive.value && isPresenter.value) {
+        broadcastSnapshot();
+      }
       doRender();
     },
   }).then((b) => {
@@ -319,6 +345,38 @@ export function liveGame(
       if (estimateMode.value) {
         exitEstimate();
       }
+    },
+    onPresentationStarted: (snapshot: string) => {
+      if (isPresenter.value) {
+        enterAnalysis();
+      } else if (snapshot) {
+        board.value?.importSnapshot(snapshot);
+      }
+      doRender();
+    },
+    onPresentationEnded: () => {
+      if (analysisMode.value) {
+        exitAnalysis();
+      }
+      if (estimateMode.value) {
+        exitEstimate();
+      }
+      doRender();
+    },
+    onPresentationUpdate: (snapshot: string) => {
+      // Only import if we're a viewer (not in personal analysis)
+      if (!isPresenter.value && !analysisMode.value) {
+        board.value?.importSnapshot(snapshot);
+      }
+    },
+    onControlChanged: (newPresenterId: number) => {
+      if (newPresenterId === currentUserId.value) {
+        // We just became the presenter
+        if (!analysisMode.value) {
+          enterAnalysis();
+        }
+      }
+      doRender();
     },
   };
   markRead(gameId);

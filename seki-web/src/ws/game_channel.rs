@@ -3,8 +3,9 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::models::game::Game;
+use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
-use crate::services::game_actions;
+use crate::services::{game_actions, presentation_actions};
 use crate::services::state_serializer;
 use crate::ws::registry::WsSender;
 
@@ -116,6 +117,19 @@ pub async fn send_initial_state(
 
     send_to_client(tx, &game_state.to_string());
 
+    // If there's an active presentation, send state to the joining user
+    if let Some(pres) = state.registry.get_presentation(game_id).await {
+        let msg = json!({
+            "kind": "presentation_started",
+            "game_id": game_id,
+            "presenter_id": pres.presenter_id,
+            "originator_id": pres.originator_id,
+            "snapshot": pres.cached_snapshot,
+            "control_request": pres.control_request,
+        });
+        send_to_client(tx, &msg.to_string());
+    }
+
     // If there's a pending undo request, send targeted UI control messages
     if undo_requested {
         let current_turn = engine.current_turn_stone();
@@ -179,6 +193,25 @@ pub async fn handle_message(
         "timeout_flag" => game_actions::handle_timeout_flag(state, game_id, player_id).await,
         "territory_timeout_flag" => {
             game_actions::handle_territory_timeout_flag(state, game_id, player_id).await
+        }
+        "start_presentation" => {
+            presentation_actions::start_presentation(state, game_id, player_id).await
+        }
+        "end_presentation" => {
+            presentation_actions::end_presentation(state, game_id, player_id).await
+        }
+        "presentation_state" => {
+            handle_presentation_state(state, game_id, player_id, data).await
+        }
+        "give_control" => handle_give_control(state, game_id, player_id, data).await,
+        "take_control" => {
+            presentation_actions::take_control(state, game_id, player_id).await
+        }
+        "request_control" => {
+            handle_request_control(state, game_id, player_id).await
+        }
+        "cancel_control_request" => {
+            presentation_actions::cancel_control_request(state, game_id, player_id).await
         }
         _ => {
             send_to_client(
@@ -271,4 +304,47 @@ async fn handle_respond_to_undo(
 
     game_actions::respond_to_undo(state, game_id, player_id, response == "accept").await?;
     Ok(())
+}
+
+async fn handle_presentation_state(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+    data: &serde_json::Value,
+) -> Result<(), crate::error::AppError> {
+    let snapshot = data
+        .get("snapshot")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    presentation_actions::update_snapshot(state, game_id, player_id, snapshot).await
+}
+
+async fn handle_give_control(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+    data: &serde_json::Value,
+) -> Result<(), crate::error::AppError> {
+    let target_user_id = data
+        .get("target_user_id")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| {
+            crate::error::AppError::BadRequest("Missing target_user_id".to_string())
+        })?;
+
+    presentation_actions::give_control(state, game_id, player_id, target_user_id).await
+}
+
+async fn handle_request_control(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+) -> Result<(), crate::error::AppError> {
+    let user = User::find_by_id(&state.db, player_id)
+        .await
+        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
+
+    presentation_actions::request_control(state, game_id, player_id, user.display_name()).await
 }

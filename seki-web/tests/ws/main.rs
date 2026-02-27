@@ -7,6 +7,7 @@ mod ko;
 mod lobby;
 mod moves;
 mod pass;
+mod presentation;
 mod presence;
 mod rematch;
 mod resign;

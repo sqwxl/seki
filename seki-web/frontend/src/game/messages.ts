@@ -22,10 +22,14 @@ import {
   opponentDisconnected,
   black,
   white,
+  presenterId,
+  controlRequest,
   applyGameState,
   applyUndo,
   addChatMessage,
   setPresence,
+  applyPresentationStarted,
+  clearPresentation,
 } from "./state";
 
 export type GameMessageDeps = {
@@ -36,6 +40,10 @@ export type GameMessageDeps = {
   premove: PremoveState;
   notificationState: NotificationState;
   onNewMove?: () => void;
+  onPresentationStarted?: (snapshot: string) => void;
+  onPresentationEnded?: () => void;
+  onPresentationUpdate?: (snapshot: string) => void;
+  onControlChanged?: (newPresenterId: number) => void;
 };
 
 // Track last-seen moves JSON for change detection
@@ -193,6 +201,37 @@ export function handleGameMessage(
       if (isOpponent(data.user_id)) {
         opponentDisconnected.value = undefined;
       }
+      break;
+    }
+    case "presentation_started": {
+      applyPresentationStarted(data);
+      deps.onPresentationStarted?.(data.snapshot);
+      break;
+    }
+    case "presentation_ended": {
+      clearPresentation();
+      deps.onPresentationEnded?.();
+      break;
+    }
+    case "presentation_update": {
+      deps.onPresentationUpdate?.(data.snapshot);
+      break;
+    }
+    case "control_changed": {
+      presenterId.value = data.presenter_id;
+      controlRequest.value = undefined;
+      deps.onControlChanged?.(data.presenter_id);
+      break;
+    }
+    case "control_requested": {
+      controlRequest.value = {
+        userId: data.user_id,
+        displayName: data.display_name,
+      };
+      break;
+    }
+    case "control_request_cancelled": {
+      controlRequest.value = undefined;
       break;
     }
     default: {

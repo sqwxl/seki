@@ -19,6 +19,14 @@ pub struct TerritoryReviewState {
     pub white_approved: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct PresentationState {
+    pub presenter_id: i64,
+    pub originator_id: i64,
+    pub cached_snapshot: String,
+    pub control_request: Option<i64>,
+}
+
 #[derive(Debug, Default)]
 struct GameRoom {
     /// Map of player_id -> list of ws senders (a user may have multiple tabs open).
@@ -33,6 +41,10 @@ struct GameRoom {
     clock: Option<ClockState>,
     /// Players marked as disconnected (player_id -> disconnect time)
     disconnected_players: HashMap<i64, DateTime<Utc>>,
+    /// Active presentation state (post-game collaborative analysis)
+    presentation: Option<PresentationState>,
+    /// Whether a presentation has ever completed on this game room
+    has_had_presentation: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -296,5 +308,90 @@ impl GameRegistry {
             .filter(|(_, room)| room.disconnected_players.contains_key(&user_id))
             .map(|(game_id, _)| *game_id)
             .collect()
+    }
+
+    // -- Presentation --
+
+    pub async fn get_presentation(&self, game_id: i64) -> Option<PresentationState> {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .and_then(|room| room.presentation.clone())
+    }
+
+    pub async fn has_had_presentation(&self, game_id: i64) -> bool {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .is_some_and(|room| room.has_had_presentation)
+    }
+
+    pub async fn start_presentation(&self, game_id: i64, presenter_id: i64) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            room.presentation = Some(PresentationState {
+                presenter_id,
+                originator_id: presenter_id,
+                cached_snapshot: String::new(),
+                control_request: None,
+            });
+        }
+    }
+
+    pub async fn end_presentation(&self, game_id: i64) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            room.presentation = None;
+            room.has_had_presentation = true;
+        }
+    }
+
+    pub async fn update_presentation_snapshot(&self, game_id: i64, snapshot: String) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            if let Some(p) = room.presentation.as_mut() {
+                p.cached_snapshot = snapshot;
+            }
+        }
+    }
+
+    pub async fn set_presenter(&self, game_id: i64, presenter_id: i64) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            if let Some(p) = room.presentation.as_mut() {
+                p.presenter_id = presenter_id;
+                p.control_request = None;
+            }
+        }
+    }
+
+    pub async fn set_control_request(&self, game_id: i64, user_id: Option<i64>) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            if let Some(p) = room.presentation.as_mut() {
+                p.control_request = user_id;
+            }
+        }
+    }
+
+    pub async fn is_in_room(&self, game_id: i64, user_id: i64) -> bool {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .is_some_and(|room| room.players.contains_key(&user_id))
+    }
+
+    /// Broadcast a message to all users in a game room except one.
+    pub async fn broadcast_except(&self, game_id: i64, except_id: i64, message: &str) {
+        let rooms = self.rooms.read().await;
+        if let Some(room) = rooms.get(&game_id) {
+            for (&player_id, senders) in &room.players {
+                if player_id != except_id {
+                    for sender in senders {
+                        let _ = sender.send(message.to_string());
+                    }
+                }
+            }
+        }
     }
 }

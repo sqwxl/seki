@@ -1,7 +1,12 @@
 import { render } from "preact";
 import { MoveTree } from "../components/move-tree";
 import { flashPassEffect } from "../game/messages";
-import { GameStage, type GameTreeData, type ScoreData } from "../game/types";
+import {
+  GameStage,
+  type GameTreeData,
+  type PresentationSnapshot,
+  type ScoreData,
+} from "../game/types";
 import { storage } from "../utils/storage";
 import { Goban } from "./";
 import type { MarkerData, Point, Sign, GhostStoneData } from "./types";
@@ -262,6 +267,8 @@ export type Board = {
   finalizeTerritoryReview: () => ScoreData | undefined;
   isTerritoryReview: () => boolean;
   isFinalized: () => boolean;
+  exportSnapshot: () => string;
+  importSnapshot: (json: string) => void;
   destroy: () => void;
 };
 
@@ -742,6 +749,68 @@ class BoardController implements Board {
     this.finalizedNodes = new Map();
     this.engine.replace_moves(this.baseMoves);
     this.engine.to_latest();
+    this.render();
+  }
+
+  exportSnapshot(): string {
+    const snapshot: PresentationSnapshot = {
+      tree: this.engine.tree_json(),
+      activeNodeId: String(this.engine.current_node_id()),
+    };
+    if (this.territoryState) {
+      const flat = this.territoryState.ownership;
+      const deadFlat = this.territoryState.deadStones.map(
+        ([c, r]) => r * this.engine.cols() + c,
+      );
+      snapshot.territory = {
+        ownership: flat,
+        deadStones: deadFlat,
+        score: {
+          black:
+            (this.territoryState.score?.black.territory ?? 0) +
+            (this.territoryState.score?.black.captures ?? 0),
+          white:
+            (this.territoryState.score?.white.territory ?? 0) +
+            (this.territoryState.score?.white.captures ?? 0),
+        },
+      };
+    }
+    return JSON.stringify(snapshot);
+  }
+
+  importSnapshot(json: string): void {
+    if (!json) {
+      return;
+    }
+    let snapshot: PresentationSnapshot;
+    try {
+      snapshot = JSON.parse(json);
+    } catch {
+      console.warn("Failed to parse presentation snapshot");
+      return;
+    }
+    if (snapshot.tree) {
+      this.engine.replace_tree(snapshot.tree);
+    }
+    const nodeId = parseInt(snapshot.activeNodeId, 10);
+    if (nodeId >= 0) {
+      this.engine.navigate_to(nodeId);
+    } else {
+      this.engine.to_start();
+    }
+    if (snapshot.territory) {
+      const cols = this.engine.cols();
+      const deadStones: [number, number][] = snapshot.territory.deadStones.map(
+        (idx) => [idx % cols, Math.floor(idx / cols)] as [number, number],
+      );
+      this.territoryState = {
+        deadStones,
+        ownership: snapshot.territory.ownership,
+        score: undefined,
+      };
+    } else {
+      this.territoryState = undefined;
+    }
     this.render();
   }
 
