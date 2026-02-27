@@ -441,9 +441,7 @@ function buildPresentationControls(
     out.controlRequestResponse = {
       displayName: controlRequest.value.displayName,
       onGive: () => channel.giveControl(controlRequest.value!.userId),
-      onDismiss: () => {
-        controlRequest.value = undefined;
-      },
+      onDismiss: () => channel.rejectControlRequest(),
     };
   }
 
@@ -454,7 +452,7 @@ function buildPresentationControls(
       : { onClick: () => channel.giveControl(originatorId.value) };
   } else if (!ctx.inAnalysis) {
     // Viewer (not in personal analysis): analyze button opens choice popover
-    const options: Array<{ label: string; onClick: () => void }> = [];
+    const options: Array<{ label: string; onClick: () => void; disabled?: boolean }> = [];
 
     if (isOriginator.value) {
       options.push({
@@ -468,6 +466,12 @@ function buildPresentationControls(
         options.push({
           label: "Cancel request",
           onClick: () => channel.cancelControlRequest(),
+        });
+      } else if (controlRequest.value) {
+        options.push({
+          label: `${controlRequest.value.displayName} request pending`,
+          onClick: () => {},
+          disabled: true,
         });
       } else {
         options.push({
@@ -651,8 +655,12 @@ export function LiveGamePage(props: LiveGamePageProps) {
     hasOpenSlot: !black.value || !white.value,
   });
 
-  if (statusText && presenterDisplayName.value) {
-    statusText += ` (${presenterDisplayName.value} presenting)`;
+  if (statusText && presentationActive.value) {
+    if (isPresenter.value) {
+      statusText += " (You are presenting)";
+    } else if (presenterDisplayName.value) {
+      statusText += ` (${presenterDisplayName.value} presenting)`;
+    }
   }
 
   return (

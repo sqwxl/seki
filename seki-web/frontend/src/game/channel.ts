@@ -23,6 +23,7 @@ export type GameChannel = {
   takeControl(): void;
   requestControl(): void;
   cancelControlRequest(): void;
+  rejectControlRequest(): void;
 };
 
 export function createGameChannel(gameId: number): GameChannel {
@@ -96,6 +97,9 @@ export function createGameChannel(gameId: number): GameChannel {
     },
     cancelControlRequest() {
       gameSend({ action: "cancel_control_request" });
+    },
+    rejectControlRequest() {
+      gameSend({ action: "reject_control_request" });
     },
   };
 }

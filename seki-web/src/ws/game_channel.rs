@@ -220,6 +220,9 @@ pub async fn handle_message(
         "cancel_control_request" => {
             presentation_actions::cancel_control_request(state, game_id, player_id).await
         }
+        "reject_control_request" => {
+            presentation_actions::reject_control_request(state, game_id, player_id).await
+        }
         _ => {
             send_to_client(
                 tx,

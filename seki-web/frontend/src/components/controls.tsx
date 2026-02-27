@@ -84,7 +84,7 @@ export type ControlsProps = {
     onDismiss: () => void;
   };
   analyzeChoice?: {
-    options: Array<{ label: string; onClick: () => void }>;
+    options: Array<{ label: string; onClick: () => void; disabled?: boolean }>;
   };
 };
 
@@ -462,7 +462,8 @@ export function UIControls(props: ControlsProps) {
             {props.analyzeChoice.options.map((opt) => (
               <button
                 key={opt.label}
-                popovertarget="analyze-choice"
+                popovertarget={opt.disabled ? undefined : "analyze-choice"}
+                disabled={opt.disabled}
                 onClick={opt.onClick}
               >
                 {opt.label}

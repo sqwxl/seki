@@ -28,6 +28,7 @@ import {
   applyUndo,
   addChatMessage,
   setPresence,
+  isPresenter,
   applyPresentationStarted,
   clearPresentation,
 } from "./state";
@@ -41,7 +42,7 @@ export type GameMessageDeps = {
   notificationState: NotificationState;
   onNewMove?: () => void;
   onPresentationStarted?: (snapshot: string) => void;
-  onPresentationEnded?: () => void;
+  onPresentationEnded?: (wasPresenter: boolean) => void;
   onPresentationUpdate?: (snapshot: string) => void;
   onControlChanged?: (newPresenterId: number) => void;
 };
@@ -209,8 +210,9 @@ export function handleGameMessage(
       break;
     }
     case "presentation_ended": {
+      const wasPresenter = isPresenter.value;
       clearPresentation();
-      deps.onPresentationEnded?.();
+      deps.onPresentationEnded?.(wasPresenter);
       break;
     }
     case "presentation_update": {

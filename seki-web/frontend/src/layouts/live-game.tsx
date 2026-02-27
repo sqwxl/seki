@@ -104,7 +104,12 @@ export function liveGame(
     pm.clear();
     analysisMode.value = false;
     if (board.value) {
-      board.value.updateBaseMoves(JSON.stringify(moves.value));
+      // Sync to active presentation, or fall back to base game moves
+      if (presentationActive.value && !isPresenter.value && lastPresentationSnapshot) {
+        board.value.importSnapshot(lastPresentationSnapshot);
+      } else {
+        board.value.updateBaseMoves(JSON.stringify(moves.value));
+      }
     }
     showMoveTree.value = false;
     board.value?.setMoveTreeEl(null);
@@ -135,6 +140,11 @@ export function liveGame(
       doRender();
     }
   }
+
+  // --- Presentation snapshot cache ---
+  // Always stores the latest snapshot from the presenter, even while in local
+  // analysis, so we can re-sync when exiting personal analysis.
+  let lastPresentationSnapshot = "";
 
   // --- Presentation helpers ---
   function broadcastSnapshot() {
@@ -352,21 +362,31 @@ export function liveGame(
       if (isPresenter.value) {
         enterAnalysis();
       } else if (snapshot) {
-        board.value?.importSnapshot(snapshot);
+        lastPresentationSnapshot = snapshot;
+        // Only import if not in personal analysis
+        if (!analysisMode.value) {
+          board.value?.importSnapshot(snapshot);
+        }
       }
       doRender();
     },
-    onPresentationEnded: () => {
-      if (analysisMode.value) {
+    onPresentationEnded: (wasPresenter: boolean) => {
+      lastPresentationSnapshot = "";
+      if (wasPresenter) {
+        // Presenter: exit analysis
         exitAnalysis();
+      } else if (!analysisMode.value && board.value) {
+        // Synced viewer: reset board to base game state
+        board.value.updateBaseMoves(JSON.stringify(moves.value));
+        board.value.render();
       }
-      if (estimateMode.value) {
-        exitEstimate();
-      }
+      // Viewers in personal analysis: unaffected
       doRender();
     },
     onPresentationUpdate: (snapshot: string) => {
-      // Only import if we're a viewer (not in personal analysis)
+      // Always cache the latest snapshot for re-sync on analysis exit
+      lastPresentationSnapshot = snapshot;
+      // Only import if we're a synced viewer (not presenter, not in personal analysis)
       if (!isPresenter.value && !analysisMode.value) {
         board.value?.importSnapshot(snapshot);
       }

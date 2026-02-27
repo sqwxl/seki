@@ -306,6 +306,49 @@ pub async fn cancel_control_request(
     Ok(())
 }
 
+pub async fn reject_control_request(
+    state: &AppState,
+    game_id: i64,
+    user_id: i64,
+) -> Result<(), AppError> {
+    let pres = state
+        .registry
+        .get_presentation(game_id)
+        .await
+        .ok_or_else(|| AppError::BadRequest("No active presentation".to_string()))?;
+
+    if pres.originator_id != user_id && pres.presenter_id != user_id {
+        return Err(AppError::BadRequest(
+            "Not authorized to reject control request".to_string(),
+        ));
+    }
+
+    if pres.control_request.is_none() {
+        return Err(AppError::BadRequest(
+            "No pending control request".to_string(),
+        ));
+    }
+
+    state
+        .registry
+        .set_control_request(game_id, None)
+        .await;
+
+    state
+        .registry
+        .broadcast(
+            game_id,
+            &json!({
+                "kind": "control_request_cancelled",
+                "game_id": game_id,
+            })
+            .to_string(),
+        )
+        .await;
+
+    Ok(())
+}
+
 /// Called when a user leaves the room (leave_game or WS disconnect cleanup).
 /// If the user was the presenter, determines a fallback or ends the presentation.
 pub async fn handle_presenter_left(
