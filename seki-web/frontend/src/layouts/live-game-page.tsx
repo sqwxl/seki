@@ -42,6 +42,7 @@ import {
   presentationActive,
   isPresenter,
   isOriginator,
+  originatorId,
   currentUserId,
   controlRequest,
   presenterDisplayName,
@@ -437,7 +438,10 @@ function buildPresentationControls(
 
   // Presenter: exit analysis ends the presentation
   if (isPresenter.value) {
-    out.exitAnalysis = { onClick: callbacks.exitPresentation };
+    // Originator ends the presentation; others give control back
+    out.exitAnalysis = isOriginator.value
+      ? { onClick: callbacks.exitPresentation }
+      : { onClick: () => channel.giveControl(originatorId.value) };
 
     // Show control request popover when someone requests control
     if (controlRequest.value) {
