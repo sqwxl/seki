@@ -436,23 +436,22 @@ function buildPresentationControls(
     return out;
   }
 
-  // Presenter: exit analysis ends the presentation
+  // Control request popover: originator always handles requests
+  if (isOriginator.value && controlRequest.value) {
+    out.controlRequestResponse = {
+      displayName: controlRequest.value.displayName,
+      onGive: () => channel.giveControl(controlRequest.value!.userId),
+      onDismiss: () => {
+        controlRequest.value = undefined;
+      },
+    };
+  }
+
+  // Presenter: exit analysis ends the presentation or returns control
   if (isPresenter.value) {
-    // Originator ends the presentation; others give control back
     out.exitAnalysis = isOriginator.value
       ? { onClick: callbacks.exitPresentation }
       : { onClick: () => channel.giveControl(originatorId.value) };
-
-    // Show control request popover when someone requests control
-    if (controlRequest.value) {
-      out.controlRequestResponse = {
-        displayName: controlRequest.value.displayName,
-        onGive: () => channel.giveControl(controlRequest.value!.userId),
-        onDismiss: () => {
-          controlRequest.value = undefined;
-        },
-      };
-    }
   } else if (!ctx.inAnalysis) {
     // Viewer (not in personal analysis): analyze button opens choice popover
     const options: Array<{ label: string; onClick: () => void }> = [];

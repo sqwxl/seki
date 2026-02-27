@@ -155,9 +155,9 @@ pub async fn give_control(
         .await
         .ok_or_else(|| AppError::BadRequest("No active presentation".to_string()))?;
 
-    if pres.presenter_id != user_id {
+    if pres.presenter_id != user_id && pres.originator_id != user_id {
         return Err(AppError::BadRequest(
-            "Only the presenter can give control".to_string(),
+            "Only the presenter or originator can give control".to_string(),
         ));
     }
 
