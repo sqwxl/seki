@@ -44,6 +44,7 @@ import {
   moveConfirmEnabled,
   presentationActive,
   isPresenter,
+  navState,
 } from "../game/state";
 import { LiveGamePage, getServerTerritory } from "./live-game-page";
 
@@ -101,6 +102,9 @@ export function liveGame(
   }
 
   function exitAnalysis() {
+    if (estimateMode.value) {
+      exitEstimate();
+    }
     pm.clear();
     analysisMode.value = false;
     if (board.value) {
@@ -322,6 +326,12 @@ export function liveGame(
       if (presentationActive.value && isPresenter.value) {
         broadcastSnapshot();
       }
+      // Update nav state signal so Preact re-renders the controls
+      navState.value = {
+        atStart: engine.is_at_start(),
+        atLatest: engine.is_at_latest(),
+        counter: `${engine.view_index()}`,
+      };
       doRender();
     },
   }).then((b) => {
@@ -361,10 +371,15 @@ export function liveGame(
     onPresentationStarted: (snapshot: string) => {
       if (isPresenter.value) {
         enterAnalysis();
-      } else if (snapshot) {
-        lastPresentationSnapshot = snapshot;
-        // Only import if not in personal analysis
-        if (!analysisMode.value) {
+      } else {
+        // Exit personal analysis to sync with the presentation.
+        // Handles the reconnect race where auto-analysis fires before
+        // presentationActive is set by the later presentation_started message.
+        if (analysisMode.value) {
+          exitAnalysis();
+        }
+        if (snapshot) {
+          lastPresentationSnapshot = snapshot;
           board.value?.importSnapshot(snapshot);
         }
       }
@@ -373,7 +388,7 @@ export function liveGame(
     onPresentationEnded: (wasPresenter: boolean) => {
       lastPresentationSnapshot = "";
       if (wasPresenter) {
-        // Presenter: exit analysis
+        // Presenter: exit analysis (also clears estimate if active)
         exitAnalysis();
       } else if (!analysisMode.value && board.value) {
         // Synced viewer: reset board to base game state

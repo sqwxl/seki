@@ -16,6 +16,7 @@ const handlers = new Map<string, Set<Handler>>();
 const gameHandlers = new Map<number, Handler>();
 
 let ws: WebSocket | undefined;
+(window as any).__ws = { close: () => ws?.close() };
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSends: string[] = [];
 
@@ -31,6 +32,10 @@ function connect() {
   ws = new WebSocket(url);
 
   ws.onopen = () => {
+    // Notify game handlers before re-joining so they can reset stale state
+    for (const [gameId, handler] of gameHandlers) {
+      handler({ kind: "ws_reconnected", game_id: gameId });
+    }
     // Re-join any game rooms after reconnect
     for (const gameId of gameHandlers.keys()) {
       ws!.send(JSON.stringify({ action: "join_game", game_id: gameId }));

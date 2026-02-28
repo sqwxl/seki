@@ -126,10 +126,32 @@ pub async fn send_initial_state(
 
     // If there's an active presentation, send state to the joining user
     if let Some(pres) = state.registry.get_presentation(game_id).await {
+        // Auto-revert control to originator when they reconnect
+        let presenter_id = if pres.originator_id == player_id
+            && pres.presenter_id != player_id
+        {
+            state.registry.set_presenter(game_id, player_id).await;
+            state
+                .registry
+                .broadcast(
+                    game_id,
+                    &json!({
+                        "kind": "control_changed",
+                        "game_id": game_id,
+                        "presenter_id": player_id,
+                    })
+                    .to_string(),
+                )
+                .await;
+            player_id
+        } else {
+            pres.presenter_id
+        };
+
         let msg = json!({
             "kind": "presentation_started",
             "game_id": game_id,
-            "presenter_id": pres.presenter_id,
+            "presenter_id": presenter_id,
             "originator_id": pres.originator_id,
             "snapshot": pres.cached_snapshot,
             "control_request": pres.control_request,

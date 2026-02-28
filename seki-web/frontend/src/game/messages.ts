@@ -236,6 +236,14 @@ export function handleGameMessage(
       controlRequest.value = undefined;
       break;
     }
+    case "ws_reconnected": {
+      // Clear stale local state before the server sends fresh state on rejoin.
+      // Without this, presentation signals from a previous session persist
+      // (e.g. "You are presenting" after the presentation ended while offline).
+      clearPresentation();
+      initialStateReceived = false;
+      break;
+    }
     default: {
       console.warn("Unknown game message kind:", data);
       break;

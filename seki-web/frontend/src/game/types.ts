@@ -251,4 +251,5 @@ export type IncomingMessage =
   | PresentationUpdateMessage
   | ControlChangedMessage
   | ControlRequestedMessage
-  | ControlRequestCancelledMessage;
+  | ControlRequestCancelledMessage
+  | { kind: "ws_reconnected"; game_id: number };

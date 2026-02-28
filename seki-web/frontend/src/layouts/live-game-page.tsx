@@ -11,7 +11,7 @@ import type { PremoveState } from "../utils/premove";
 import { storage, SHOW_MOVE_TREE } from "../utils/storage";
 import { GamePageLayout } from "./game-page-layout";
 import { GameDescription } from "../components/game-description";
-import { buildNavProps, buildCoordsToggle } from "../utils/shared-controls";
+import { buildCoordsToggle } from "../utils/shared-controls";
 import type { CoordsToggleState } from "../utils/shared-controls";
 import type { PlayerPanelProps } from "../components/player-panel";
 import {
@@ -46,6 +46,7 @@ import {
   currentUserId,
   controlRequest,
   presenterDisplayName,
+  navState,
 } from "../game/state";
 
 // ---------------------------------------------------------------------------
@@ -275,6 +276,15 @@ function buildGameActions(
       message: "Abort this game?",
       onConfirm: () => channel.abort(),
       disabled: modeActive,
+    };
+  }
+
+  // Analysis pass button for finished games (no stage → no pass from above)
+  if (result.value && ctx.inAnalysis && !ctx.inEstimate) {
+    out.pass = {
+      onClick: () => {
+        board.value?.pass();
+      },
     };
   }
 
@@ -522,7 +532,13 @@ function buildLiveControls({
 }): ControlsProps {
   const ctx = readGameCtx();
 
-  const nav = buildNavProps(board.value);
+  const ns = navState.value;
+  const nav: ControlsProps["nav"] = {
+    atStart: ns.atStart,
+    atLatest: ns.atLatest,
+    counter: ns.counter,
+    onNavigate: (action) => board.value?.navigate(action),
+  };
 
   const props: ControlsProps = {
     nav,
