@@ -200,7 +200,7 @@ function renderMoveTree(
   );
 }
 
-export type NavAction = "back" | "forward" | "start" | "end";
+export type NavAction = "back" | "forward" | "start" | "end" | "main-end";
 
 function navigateEngine(engine: WasmEngine, action: NavAction): boolean {
   switch (action) {
@@ -213,6 +213,9 @@ function navigateEngine(engine: WasmEngine, action: NavAction): boolean {
       return true;
     case "end":
       engine.to_latest();
+      return true;
+    case "main-end":
+      engine.to_main_end();
       return true;
   }
 }

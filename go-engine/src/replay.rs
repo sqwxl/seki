@@ -350,6 +350,14 @@ impl Replay {
         self.rebuild();
     }
 
+    /// Jump to the end of the main line (children[0] from root to leaf).
+    pub fn to_main_end(&mut self) {
+        let main = Self::main_line_path(&self.tree);
+        self.current = main.last().copied();
+        self.path = main;
+        self.rebuild();
+    }
+
     /// Jump to a specific node, remembering the path.
     pub fn navigate_to(&mut self, node_id: NodeId) {
         if node_id < self.tree.len() {

@@ -406,7 +406,14 @@ export function NavControls({ nav }: { nav: ControlsProps["nav"] }) {
       >
         <IconPlaybackPrev />
       </button>
-      <span class="controls-counter">{nav.counter}</span>
+      <button
+        class="controls-counter"
+        title="Go to end of main line"
+        disabled={nav.atStart && nav.atLatest}
+        onClick={() => nav.onNavigate("main-end")}
+      >
+        {nav.counter}
+      </button>
       <button
         title="Forward"
         disabled={nav.atLatest}

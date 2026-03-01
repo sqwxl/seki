@@ -73,6 +73,10 @@ impl WasmEngine {
         self.inner.to_latest();
     }
 
+    pub fn to_main_end(&mut self) {
+        self.inner.to_main_end();
+    }
+
     pub fn view_index(&self) -> usize {
         self.inner.view_index()
     }

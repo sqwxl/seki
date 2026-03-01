@@ -135,14 +135,23 @@
   align-items: stretch;
 }
 
-.controls-counter {
+.controls button.controls-counter {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 7ch;
   font-size: 1.3em;
   font-family: monospace;
   padding: 0 0.4em;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg-muted);
+}
+
+.controls button.controls-counter:disabled {
+  opacity: 1;
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--border) 40%, transparent);
+  background: color-mix(in srgb, var(--bg-muted) 40%, transparent);
+  cursor: default;
 }
