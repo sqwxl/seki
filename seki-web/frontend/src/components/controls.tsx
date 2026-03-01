@@ -130,7 +130,7 @@ function ConfirmPopover({
       {children}
       <div class="confirm-actions">
         <button
-          class="confirm-yes"
+          class="btn-accept"
           popovertarget={manual ? undefined : id}
           onClick={() => {
             onConfirm();
@@ -142,7 +142,7 @@ function ConfirmPopover({
           <IconCheck />
         </button>
         <button
-          class="confirm-no"
+          class="btn-decline"
           popovertarget={manual ? undefined : id}
           onClick={() => {
             onCancel?.();

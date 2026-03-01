@@ -114,19 +114,6 @@ input[type="radio"] {
   margin-top: 0.75em;
 }
 
-.confirm-yes,
-.confirm-no {
-  padding: 0.3em 0.6em;
-}
-
-.confirm-yes {
-  color: var(--green);
-}
-
-.confirm-no {
-  color: var(--red);
-}
-
 .btn-accept,
 .btn-decline {
   padding: 0.4em 1em;
