@@ -76,16 +76,7 @@
   white-space: nowrap;
 }
 
-.turn-indicator {
-  visibility: hidden;
-}
-
-.turn-indicator.active {
-  visibility: visible;
-}
-
 .icon,
-.turn-indicator,
 .stone-icon,
 .captures-icon {
   display: inline-flex;

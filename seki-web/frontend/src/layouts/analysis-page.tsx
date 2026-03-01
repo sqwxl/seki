@@ -120,14 +120,12 @@ function buildAnalysisPlayerPanel({ position }: { position: "top" | "bottom" }) 
     captures: wStr,
     stone: "white",
     clock: wClock,
-    isTurn: !reviewing && !finalized && !isBlackTurn,
   };
   const blackPanel: PlayerPanelProps = {
     name: blackName,
     captures: bStr,
     stone: "black",
     clock: bClock,
-    isTurn: !reviewing && !finalized && isBlackTurn,
   };
 
   // White on top, black on bottom

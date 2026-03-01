@@ -1,4 +1,4 @@
-import { CapturesBlack, CapturesWhite, IconAsterisk } from "./icons";
+import { CapturesBlack, CapturesWhite } from "./icons";
 import { UserLabel } from "./user-label";
 
 export type PlayerPanelProps = {
@@ -9,7 +9,6 @@ export type PlayerPanelProps = {
   clockLowTime?: boolean;
   profileUrl?: string;
   isOnline?: boolean;
-  isTurn?: boolean;
 };
 
 export function PlayerPanel(props: PlayerPanelProps) {
@@ -24,9 +23,6 @@ export function PlayerPanel(props: PlayerPanelProps) {
           profileUrl={props.profileUrl}
           isOnline={props.isOnline}
         />
-        <span class={`turn-indicator${props.isTurn ? " active" : ""}`}>
-          <IconAsterisk />
-        </span>
       </span>
       <span class={`player-clock${props.clockLowTime ? " low-time" : ""}`}>
         {props.clock ?? ""}

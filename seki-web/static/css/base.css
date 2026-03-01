@@ -271,14 +271,18 @@ a:visited {
   display: inline-flex;
   align-items: baseline;
   gap: 0.25em;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .user-label .stone-icon {
   align-self: center;
+  flex-shrink: 0;
 }
 
 .presence-dot {
   display: none;
+  flex-shrink: 0;
   width: 0.5em;
   height: 0.5em;
   margin-right: 0.3em;

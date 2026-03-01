@@ -25,6 +25,7 @@ export type StatusInput = {
   estimateScore?: ScoreData;
   territoryScore?: ScoreData;
   isBlackTurn?: boolean;
+  lastMoveWasPass?: boolean;
   // Challenge-specific
   challengeWaitingFor?: string;
   isChallengeCreator?: boolean;
@@ -55,10 +56,14 @@ export function getStatusText(input: StatusInput): string | undefined {
   }
 
   if (stage === GameStage.BlackToPlay) {
-    return "Black to play";
+    return input.lastMoveWasPass
+      ? "Black to play (White passed)"
+      : "Black to play";
   }
   if (stage === GameStage.WhiteToPlay) {
-    return "White to play";
+    return input.lastMoveWasPass
+      ? "White to play (Black passed)"
+      : "White to play";
   }
 
   if (stage === GameStage.TerritoryReview) {

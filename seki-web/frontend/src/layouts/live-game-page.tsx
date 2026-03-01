@@ -109,8 +109,6 @@ function buildLivePlayerPanel({ position }: { position: "top" | "bottom" }) {
   const online = onlineUsers.value;
   const bOnline = b ? online.has(b.id) : false;
   const wOnline = w ? online.has(w.id) : false;
-  const bTurn = gameStage.value === GameStage.BlackToPlay;
-  const wTurn = gameStage.value === GameStage.WhiteToPlay;
 
   const score =
     estimateScore.value ??
@@ -135,7 +133,6 @@ function buildLivePlayerPanel({ position }: { position: "top" | "bottom" }) {
     clockLowTime: cd.blackLow,
     profileUrl: bUrl,
     isOnline: bOnline,
-    isTurn: bTurn,
   };
   const whitePanel: PlayerPanelProps = {
     name: wName,
@@ -145,7 +142,6 @@ function buildLivePlayerPanel({ position }: { position: "top" | "bottom" }) {
     clockLowTime: cd.whiteLow,
     profileUrl: wUrl,
     isOnline: wOnline,
-    isTurn: wTurn,
   };
 
   const isWhitePlayer = playerStone.value === -1;
@@ -643,12 +639,14 @@ export function LiveGamePage(props: LiveGamePageProps) {
   const challengee =
     black.value?.id !== creatorId ? black.value : white.value;
 
+  const lastMove = moves.value[moves.value.length - 1];
   let statusText = getStatusText({
     stage: gameStage.value,
     result: result.value ?? undefined,
     komi: initialProps.value.komi,
     estimateScore: estimateMode.value ? estimateScore.value : undefined,
     territoryScore: territory.value?.score,
+    lastMoveWasPass: lastMove?.kind === "pass",
     isChallengeCreator: myId != null && myId === creatorId,
     challengeWaitingFor: challengee?.display_name,
     hasOpenSlot: !black.value || !white.value,
