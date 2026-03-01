@@ -1,6 +1,6 @@
 import classnames from "classnames";
 import type { CSSProperties, HTMLAttributes, JSX } from "preact";
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { CoordCols, CoordRows } from "./coord";
 import Grid from "./grid";
@@ -45,6 +45,7 @@ export type GobanProps = {
   selectedVertices?: Point[];
   dimmedVertices?: Point[];
   onVertexClick?: VertexEventHandler;
+  crosshairStone?: number;
 };
 
 type AnimState = {
@@ -92,6 +93,120 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
   } = props;
 
   const hoshis = useMemo(() => getHoshis(cols, rows), [cols, rows]);
+
+  // --- Touch crosshair ---
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [touchTarget, setTouchTarget] = useState<Point | null>(null);
+  const touchTargetRef = useRef<Point | null>(null);
+  const onVertexClickRef = useRef(props.onVertexClick);
+  onVertexClickRef.current = props.onVertexClick;
+
+  const OFFSET_PX = 76; // ~2cm in CSS pixels (consistent across DPI)
+
+  const touchToVertex = useCallback(
+    (touch: Touch): Point | null => {
+      const el = contentRef.current;
+      if (!el) {
+        return null;
+      }
+      const rect = el.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      const y = touch.clientY - rect.top - OFFSET_PX;
+      const vx = rect.width / cols;
+      const col = Math.round(x / vx - 0.5);
+      const row = Math.round(y / vx - 0.5);
+      if (col < 0 || col >= cols || row < 0 || row >= rows) {
+        return null;
+      }
+      return [col, row];
+    },
+    [cols, rows],
+  );
+
+  const isFarFromBoard = useCallback(
+    (touch: Touch): boolean => {
+      const el = contentRef.current;
+      if (!el) {
+        return true;
+      }
+      const rect = el.getBoundingClientRect();
+      const margin = 2 * OFFSET_PX;
+      return (
+        touch.clientX < rect.left - margin ||
+        touch.clientX > rect.right + margin ||
+        touch.clientY < rect.top - margin ||
+        touch.clientY > rect.bottom + margin
+      );
+    },
+    [],
+  );
+
+  const crosshairActive = !!props.crosshairStone && !!props.onVertexClick;
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || !crosshairActive) {
+      return;
+    }
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 1) {
+        touchTargetRef.current = null;
+        setTouchTarget(null);
+        return;
+      }
+      e.preventDefault();
+      const pt = touchToVertex(e.touches[0]);
+      touchTargetRef.current = pt;
+      setTouchTarget(pt);
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length !== 1) {
+        touchTargetRef.current = null;
+        setTouchTarget(null);
+        return;
+      }
+      e.preventDefault();
+      if (isFarFromBoard(e.touches[0])) {
+        touchTargetRef.current = null;
+        setTouchTarget(null);
+        return;
+      }
+      const pt = touchToVertex(e.touches[0]);
+      touchTargetRef.current = pt;
+      setTouchTarget(pt);
+    }
+
+    function onTouchEnd(e: TouchEvent) {
+      e.preventDefault();
+      const target = touchTargetRef.current;
+      if (target) {
+        onVertexClickRef.current?.(e, target);
+      }
+      touchTargetRef.current = null;
+      setTouchTarget(null);
+    }
+
+    function onTouchCancel() {
+      touchTargetRef.current = null;
+      setTouchTarget(null);
+    }
+
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: false });
+    el.addEventListener("touchcancel", onTouchCancel);
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchCancel);
+    };
+  }, [crosshairActive, touchToVertex, isFarFromBoard]);
+
+  // --- Animation state ---
 
   // Persistent animation state — reset when dimensions change, mutated in
   // place during the animation cycle (safe in Preact, no concurrent mode).
@@ -178,6 +293,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
       )}
 
       <div
+        ref={contentRef}
         className="goban-content"
         style={{
           position: "relative",
@@ -185,6 +301,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
           height: `${rows}em`,
           gridRow: showCoordinates ? "2" : "1",
           gridColumn: showCoordinates ? "2" : "1",
+          ...(crosshairActive ? { touchAction: "none" } : {}),
         }}
       >
         <Grid cols={cols} rows={rows} hoshis={hoshis} />
@@ -208,6 +325,11 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
             const y = Math.floor(i / cols);
             const equalsVertex = (v: Point) => vertexEquals(v, [x, y]);
             const isSelected = selectedVertices.some(equalsVertex);
+            const isTouchPreview =
+              !!touchTarget &&
+              x === touchTarget[0] &&
+              y === touchTarget[1] &&
+              (signMap[i] ?? 0) === 0;
 
             return (
               <Vertex
@@ -215,11 +337,11 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
                 position={[x, y]}
                 shift={fuzzyStonePlacement ? shiftMap?.[i] : 0}
                 random={randomMap?.[i]}
-                sign={signMap?.[i]}
+                sign={isTouchPreview ? props.crosshairStone : signMap?.[i]}
                 heat={heatMap?.[i]}
                 marker={markerMap?.[i]}
                 ghostStone={ghostStoneMap?.[i]}
-                dimmed={dimmedVertices.some(equalsVertex)}
+                dimmed={isTouchPreview || dimmedVertices.some(equalsVertex)}
                 animate={animatedSet.has(i)}
                 paint={paintMap?.[i]}
                 paintLeft={x > 0 ? paintMap?.[i - 1] : undefined}
@@ -288,6 +410,34 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
             {lines.map(({ v1, v2, type }: LineData, i: number) => (
               <Line key={i} v1={v1} v2={v2} type={type} />
             ))}
+          </svg>
+        )}
+
+        {touchTarget && (
+          <svg
+            className="goban-crosshair"
+            style={{
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "none",
+              zIndex: 10,
+            }}
+            viewBox={`-0.5 -0.5 ${cols} ${rows}`}
+          >
+            <line
+              className="goban-crosshair-line"
+              x1={0}
+              y1={touchTarget[1]}
+              x2={cols - 1}
+              y2={touchTarget[1]}
+            />
+            <line
+              className="goban-crosshair-line"
+              x1={touchTarget[0]}
+              y1={0}
+              x2={touchTarget[0]}
+              y2={rows - 1}
+            />
           </svg>
         )}
       </div>

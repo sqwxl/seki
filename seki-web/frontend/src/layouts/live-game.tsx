@@ -298,6 +298,18 @@ export function liveGame(
     gobanEl: gobanRef.current!,
     ghostStone,
     territoryOverlay: getServerTerritory,
+    canPlay: () => {
+      if (analysisMode.value) {
+        return true;
+      }
+      if (playerStone.value === 0 || result.value) {
+        return false;
+      }
+      if (gameStage.value === GameStage.Challenge) {
+        return false;
+      }
+      return currentTurn.value === playerStone.value;
+    },
     onVertexClick: handleVertexClick,
     onStonePlay: playStoneSound,
     onPass: playPassSound,

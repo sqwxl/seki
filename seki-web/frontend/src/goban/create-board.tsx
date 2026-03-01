@@ -96,6 +96,7 @@ function renderFromEngine(
   overlay?: TerritoryOverlay,
   showCoordinates?: boolean,
   ghostStone?: GhostStoneGetter,
+  crosshairStone?: number,
 ): void {
   const board = [...engine.board()] as number[];
   const cols = engine.cols();
@@ -138,6 +139,7 @@ function renderFromEngine(
       fuzzyStonePlacement
       animateStonePlacement
       onVertexClick={onVertexClick}
+      crosshairStone={crosshairStone}
     />,
     gobanEl,
   );
@@ -245,6 +247,7 @@ export type BoardConfig = {
   ghostStone?: GhostStoneGetter;
   territoryOverlay?: () => TerritoryOverlay | undefined;
   onRender?: (engine: WasmEngine, territory: TerritoryInfo) => void;
+  canPlay?: () => boolean;
   onVertexClick?: (col: number, row: number) => boolean;
   onStonePlay?: () => void;
   onPass?: () => void;
@@ -611,6 +614,10 @@ class BoardController implements Board {
       }
     };
 
+    const canPlay =
+      !finalized && !overlay && (this.config.canPlay?.() ?? true);
+    const crosshairStone = canPlay ? this.engine.current_turn_stone() : 0;
+
     renderFromEngine(
       this.engine,
       this.config.gobanEl,
@@ -618,6 +625,7 @@ class BoardController implements Board {
       overlay,
       this.showCoords,
       this.config.ghostStone,
+      crosshairStone,
     );
 
     return territoryInfo;

@@ -209,6 +209,14 @@
   fill: var(--goban-board-foreground-color);
 }
 
+/* Touch crosshair */
+
+.goban-crosshair-line {
+  stroke: var(--red);
+  stroke-width: 0.06;
+  opacity: 0.7;
+}
+
 /* Stone render */
 
 .goban-vertex .goban-stone {
