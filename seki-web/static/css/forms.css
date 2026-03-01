@@ -111,7 +111,7 @@ input[type="radio"] {
   display: flex;
   gap: 0.5em;
   justify-content: center;
-  margin-top: 0.25em;
+  margin-top: 0.75em;
 }
 
 .confirm-yes,
@@ -125,6 +125,23 @@ input[type="radio"] {
 
 .confirm-no {
   color: var(--red);
+}
+
+.btn-accept,
+.btn-decline {
+  padding: 0.4em 1em;
+  font-weight: 600;
+  border: none;
+}
+
+.btn-accept {
+  background: var(--green);
+  color: var(--bg);
+}
+
+.btn-decline {
+  background: var(--red);
+  color: var(--bg);
 }
 
 .color-picker {

@@ -1,4 +1,6 @@
 import type { NavAction } from "../goban/create-board";
+import type { GameSettings } from "../game/types";
+import { formatSize, formatTimeControl } from "../utils/format";
 import {
   IconPlaybackPrev,
   IconPlaybackRewind,
@@ -17,7 +19,9 @@ import {
   IconTouchDouble,
   IconGraph,
   IconRepeat,
+  IconStonesBw,
 } from "./icons";
+import { UserLabel } from "./user-label";
 
 type ButtonDef = {
   onClick: () => void;
@@ -314,27 +318,6 @@ export function GameControls(props: ControlsProps) {
           confirm={props.resign}
         />
       )}
-      {props.abort && (
-        <ConfirmButton
-          id="abort-btn"
-          icon={() => <>Abort</>}
-          title="Abort game"
-          disabled={props.abort.disabled}
-          confirm={props.abort}
-        />
-      )}
-      {props.disconnectAbort && (
-        <ConfirmButton
-          id="disconnect-abort-btn"
-          icon={() => <>Abort</>}
-          title="Abort game (opponent disconnected)"
-          disabled={props.disconnectAbort.disabled}
-          confirm={props.disconnectAbort}
-        />
-      )}
-      {props.copyInviteLink && (
-        <CopyInviteLinkButton onClick={props.copyInviteLink.onClick} />
-      )}
       {props.acceptTerritory && (
         <ConfirmButton
           id="accept-territory-btn"
@@ -344,29 +327,6 @@ export function GameControls(props: ControlsProps) {
           confirm={props.acceptTerritory}
         />
       )}
-      {props.joinGame && (
-        <button title="Join game" onClick={props.joinGame.onClick}>
-          Join
-        </button>
-      )}
-      {props.acceptChallenge && (
-        <button
-          title="Accept challenge"
-          disabled={props.acceptChallenge.disabled}
-          onClick={props.acceptChallenge.onClick}
-        >
-          Accept
-        </button>
-      )}
-      {props.declineChallenge && (
-        <ConfirmButton
-          id="decline-challenge-btn"
-          icon={() => <>Decline</>}
-          title="Decline challenge"
-          disabled={props.declineChallenge.disabled}
-          confirm={props.declineChallenge}
-        />
-      )}
       {props.moveConfirmToggle && (
         <button
           title={
@@ -374,6 +334,7 @@ export function GameControls(props: ControlsProps) {
               ? "Move confirmation: ON (click to disable)"
               : "Move confirmation: OFF (click to enable)"
           }
+          aria-pressed={props.moveConfirmToggle.enabled}
           onClick={props.moveConfirmToggle.onClick}
         >
           {props.moveConfirmToggle.enabled ? (
@@ -540,7 +501,11 @@ export function UIControls(props: ControlsProps) {
         </button>
       )}
       {props.coordsToggle && (
-        <button title="Toggle coordinates" onClick={props.coordsToggle.onClick}>
+        <button
+          title="Toggle coordinates"
+          aria-pressed={props.coordsToggle.enabled}
+          onClick={props.coordsToggle.onClick}
+        >
           A1
         </button>
       )}
@@ -549,6 +514,7 @@ export function UIControls(props: ControlsProps) {
           title={
             props.moveTreeToggle.enabled ? "Hide move tree" : "Show move tree"
           }
+          aria-pressed={props.moveTreeToggle.enabled}
           onClick={props.moveTreeToggle.onClick}
         >
           <IconGraph />
@@ -556,5 +522,105 @@ export function UIControls(props: ControlsProps) {
       )}
       {props.sizeSelect && <SizeSelect {...props.sizeSelect} />}
     </>
+  );
+}
+
+export function LobbyControls(props: ControlsProps) {
+  const hasAny =
+    props.abort ||
+    props.disconnectAbort ||
+    props.copyInviteLink ||
+    props.joinGame;
+
+  if (!hasAny) {
+    return null;
+  }
+
+  return (
+    <div class="lobby-controls">
+      {props.abort && (
+        <ConfirmButton
+          id="abort-btn"
+          icon={() => <>Abort</>}
+          title="Abort game"
+          disabled={props.abort.disabled}
+          confirm={props.abort}
+        />
+      )}
+      {props.disconnectAbort && (
+        <ConfirmButton
+          id="disconnect-abort-btn"
+          icon={() => <>Abort</>}
+          title="Abort game (opponent disconnected)"
+          disabled={props.disconnectAbort.disabled}
+          confirm={props.disconnectAbort}
+        />
+      )}
+      {props.copyInviteLink && (
+        <CopyInviteLinkButton onClick={props.copyInviteLink.onClick} />
+      )}
+      {props.joinGame && (
+        <button title="Join game" onClick={props.joinGame.onClick}>
+          Join
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function ChallengePopover({
+  settings,
+  komi,
+  allowUndo,
+  rated = false,
+  challengerName,
+  yourColor,
+  onAccept,
+  onDecline,
+}: {
+  settings: GameSettings;
+  komi: number;
+  allowUndo: boolean;
+  rated?: boolean;
+  challengerName: string;
+  yourColor: "Black" | "White";
+  onAccept: () => void;
+  onDecline: () => void;
+}) {
+  const size = formatSize(settings.cols, settings.rows);
+  const tc = formatTimeControl(settings);
+
+  return (
+    <div
+      id="challenge-popover"
+      class="confirm-popover"
+      popover="manual"
+      ref={(el) => {
+        if (el && !el.matches(":popover-open")) {
+          el.showPopover();
+        }
+      }}
+    >
+      <IconStonesBw />
+      <p><strong><UserLabel name={challengerName} profileUrl={`/users/${challengerName}`} /></strong> has challenged you to a game!</p>
+      <dl class="game-info-details" style="margin-top: 0.5em">
+        <dt>Rated</dt><dd>{rated ? "Yes" : "No"}</dd>
+        <dt>Your color</dt><dd>{yourColor}</dd>
+        <dt>Board</dt><dd>{size}</dd>
+        <dt>Komi</dt><dd>{String(komi)}</dd>
+        <dt>Handicap</dt><dd>{settings.handicap >= 2 ? String(settings.handicap) : "None"}</dd>
+        <dt>Time</dt><dd>{tc || "Unlimited"}</dd>
+        <dt>Takebacks</dt><dd>{allowUndo ? "Yes" : "No"}</dd>
+        <dt>Spectators</dt><dd>{settings.is_private ? "No" : "Yes"}</dd>
+      </dl>
+      <div class="confirm-actions">
+        <button class="btn-accept" onClick={onAccept}>
+          Accept
+        </button>
+        <button class="btn-decline" onClick={onDecline}>
+          Decline
+        </button>
+      </div>
+    </div>
   );
 }

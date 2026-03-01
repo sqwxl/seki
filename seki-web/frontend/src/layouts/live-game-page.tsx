@@ -5,6 +5,7 @@ import { Chat } from "../components/chat";
 import { GameInfo } from "../components/game-info";
 import { GameStatus, getStatusText } from "../components/game-status";
 import type { ControlsProps } from "../components/controls";
+import { LobbyControls, ChallengePopover } from "../components/controls";
 import type { GameChannel } from "../game/channel";
 import { formatScoreStr } from "../game/ui";
 import { clockDisplay } from "../game/clock";
@@ -255,11 +256,16 @@ function buildGameActions(
   }
 
   if (isPlayer && moves.value.length === 0 && !result.value) {
-    out.abort = {
-      message: "Abort this game?",
-      onConfirm: () => channel.abort(),
-      disabled: modeActive,
-    };
+    const myId = playerStone.value === 1 ? black.value?.id : white.value?.id;
+    const isCreator = myId != null && myId === initialProps.value.creator_id;
+    // During challenge: only creator can abort. After accepted: both players can.
+    if (!isChallenge || isCreator) {
+      out.abort = {
+        message: "Abort this game?",
+        onConfirm: () => channel.abort(),
+        disabled: modeActive,
+      };
+    }
   }
 
   // Analysis pass button for finished games (no stage → no pass from above)
@@ -303,18 +309,6 @@ function buildLobbyControls(
         form.submit();
       },
     };
-  }
-
-  if (isChallenge && isPlayer) {
-    const myId = playerStone.value === 1 ? black.value?.id : white.value?.id;
-    const isCreator = myId != null && myId === initialProps.value.creator_id;
-    if (!isCreator) {
-      out.acceptChallenge = { onClick: () => channel.acceptChallenge() };
-      out.declineChallenge = {
-        message: "Decline this challenge?",
-        onConfirm: () => channel.declineChallenge(),
-      };
-    }
   }
 
   if (isReview && isPlayer) {
@@ -640,6 +634,11 @@ export function LiveGamePage(props: LiveGamePageProps) {
 
   const creatorId = initialProps.value.creator_id;
   const myId = playerStone.value === 1 ? black.value?.id : white.value?.id;
+  const isChallengee =
+    gameStage.value === GameStage.Challenge &&
+    playerStone.value !== 0 &&
+    myId != null &&
+    myId !== creatorId;
   const challengee =
     black.value?.id !== creatorId ? black.value : white.value;
 
@@ -686,7 +685,27 @@ export function LiveGamePage(props: LiveGamePageProps) {
           estimateScore={estimateMode.value ? estimateScore.value : undefined}
         />
       }
-      status={statusText ? <GameStatus text={statusText} /> : undefined}
+      status={
+        <>
+          {statusText && <GameStatus text={statusText} />}
+          <LobbyControls {...controlsProps} />
+          {isChallengee && (
+            <ChallengePopover
+              settings={initialProps.value.settings}
+              komi={initialProps.value.komi}
+              allowUndo={allowUndo.value}
+              challengerName={
+                (black.value?.id === creatorId
+                  ? black.value?.display_name
+                  : white.value?.display_name) ?? "?"
+              }
+              yourColor={playerStone.value === 1 ? "Black" : "White"}
+              onAccept={() => channel.acceptChallenge()}
+              onDecline={() => channel.declineChallenge()}
+            />
+          )}
+        </>
+      }
       chat={
         <div class="chat">
           <Chat

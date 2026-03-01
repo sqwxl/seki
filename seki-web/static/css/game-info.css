@@ -10,6 +10,7 @@
   padding: 0.3em 0.5em;
   border: none;
   background: none;
+  box-shadow: none;
   color: var(--fg);
   font-size: 0.85em;
   cursor: pointer;
@@ -43,11 +44,13 @@
 
 .game-info-details dt {
   font-weight: 600;
+  text-align: left;
   opacity: 0.7;
 }
 
 .game-info-details dd {
   margin: 0;
+  text-align: left;
 }
 
 @media (min-width: 768px) {
