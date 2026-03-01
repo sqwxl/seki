@@ -448,6 +448,11 @@ impl WsClient {
             .await;
     }
 
+    pub async fn reject_control_request(&mut self, game_id: i64) {
+        self.send(json!({"action": "reject_control_request", "game_id": game_id}))
+            .await;
+    }
+
     /// Close the WebSocket connection (simulates browser close / disconnect).
     pub async fn close(self) {
         let mut sink = self.sink;
