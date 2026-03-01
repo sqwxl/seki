@@ -307,6 +307,11 @@ export function liveGame(
         estimateMode.value = false;
         estimateScore.value = undefined;
       }
+      // Auto-enter estimate when board enters territory review in analysis
+      // (e.g. passing twice or navigating to a territory review node)
+      if (analysisMode.value && territoryInfo.reviewing && !estimateMode.value) {
+        estimateMode.value = true;
+      }
       // Capture estimate score for status display
       if (estimateMode.value && territoryInfo.score) {
         estimateScore.value = territoryInfo.score;
