@@ -78,6 +78,7 @@ export const opponentDisconnected = signal<{ since: Date } | undefined>(
 // Chat
 // ---------------------------------------------------------------------------
 export const chatMessages = signal<ChatEntry[]>([]);
+export const hasUnreadChat = signal(false);
 
 // ---------------------------------------------------------------------------
 // UI mode flags
@@ -256,6 +257,9 @@ export function applyUndo(
 /** Append a chat entry (immutable). */
 export function addChatMessage(entry: ChatEntry): void {
   chatMessages.value = [...chatMessages.value, entry];
+  if (entry.user_id != null && mobileTab.value !== "chat") {
+    hasUnreadChat.value = true;
+  }
 }
 
 /** Replace a chat entry's text (immutable). */
