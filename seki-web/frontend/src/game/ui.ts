@@ -19,6 +19,8 @@ import {
 let flashInterval: ReturnType<typeof setInterval> | undefined;
 let savedTitle: string | undefined;
 
+const favicon = document.getElementById("favicon") as HTMLLinkElement | null;
+
 function startFlashing() {
   if (flashInterval) {
     return;
@@ -29,6 +31,9 @@ function startFlashing() {
   flashInterval = setInterval(() => {
     on = !on;
     document.title = on ? "YOUR MOVE" : (savedTitle ?? "");
+    if (favicon) {
+      favicon.href = `/static/images/favicon-${on ? "dark" : "light"}.svg`;
+    }
   }, 1000);
 }
 
@@ -41,6 +46,10 @@ function stopFlashing() {
   if (savedTitle != null) {
     document.title = savedTitle;
     savedTitle = undefined;
+  }
+  if (favicon) {
+    const dark = matchMedia("(prefers-color-scheme:dark)").matches;
+    favicon.href = `/static/images/favicon-${dark ? "dark" : "light"}.svg`;
   }
 }
 

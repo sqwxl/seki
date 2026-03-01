@@ -114,19 +114,18 @@ input[type="radio"] {
   margin-top: 0.75em;
 }
 
-.btn-accept,
-.btn-decline {
+.btn-success,
+.btn-warn {
   padding: 0.4em 1em;
-  font-weight: 600;
   border: none;
 }
 
-.btn-accept {
+.btn-success {
   background: var(--green);
   color: var(--bg);
 }
 
-.btn-decline {
+.btn-warn {
   background: var(--red);
   color: var(--bg);
 }

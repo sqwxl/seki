@@ -148,6 +148,12 @@
   background: var(--bg-muted);
 }
 
+.size-select-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
 .controls button.controls-counter:disabled {
   opacity: 1;
   color: var(--fg);

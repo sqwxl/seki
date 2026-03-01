@@ -16,12 +16,16 @@
         <meta property="og:title" content="Seki — Play Go Online">
         <meta property="og:description" content="Play Go (Weiqi/Baduk) online with friends">
         {% endblock %}
-        <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+        <link rel="icon" id="favicon" href="/static/images/favicon-light.svg" type="image/svg+xml">
         <script>
             (function() {
                 var m = localStorage.getItem("seki:theme") || "auto";
                 var d = m === "dark" || (m === "auto" && matchMedia("(prefers-color-scheme:dark)").matches);
                 document.documentElement.dataset.theme = d ? "dark" : "light";
+                var q = matchMedia("(prefers-color-scheme:dark)");
+                function setFavicon(dark) { document.getElementById("favicon").href = "/static/images/favicon-" + (dark ? "dark" : "light") + ".svg"; }
+                setFavicon(q.matches);
+                q.addEventListener("change", function(e) { setFavicon(e.matches); });
             })();
         </script>
         <link rel="stylesheet" href="/static/css/styles.css">

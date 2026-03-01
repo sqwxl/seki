@@ -20,6 +20,9 @@ import {
   IconGraph,
   IconRepeat,
   IconStonesBw,
+  IconCancel,
+  IconJoin,
+  IconGrid,
 } from "./icons";
 import { UserLabel } from "./user-label";
 
@@ -54,7 +57,7 @@ export type ControlsProps = {
   abort?: ConfirmDef & { disabled?: boolean };
   disconnectAbort?: ConfirmDef & { disabled?: boolean };
   acceptTerritory?: ConfirmDef & { disabled?: boolean };
-  joinGame?: ButtonDef;
+  joinGame?: ConfirmDef;
   acceptChallenge?: ButtonDef;
   declineChallenge?: ConfirmDef & { disabled?: boolean };
   rematch?: { onConfirm: (swapColors: boolean) => void; disabled?: boolean };
@@ -130,7 +133,7 @@ function ConfirmPopover({
       {children}
       <div class="confirm-actions">
         <button
-          class="btn-accept"
+          class="btn-success"
           popovertarget={manual ? undefined : id}
           onClick={() => {
             onConfirm();
@@ -142,7 +145,7 @@ function ConfirmPopover({
           <IconCheck />
         </button>
         <button
-          class="btn-decline"
+          class="btn-warn"
           popovertarget={manual ? undefined : id}
           onClick={() => {
             onCancel?.();
@@ -164,6 +167,7 @@ function ConfirmButton({
   title,
   disabled,
   confirm,
+  buttonClass,
   children,
 }: {
   id: string;
@@ -171,6 +175,7 @@ function ConfirmButton({
   title: string;
   disabled?: boolean;
   confirm: ConfirmDef;
+  buttonClass?: string;
   children?: preact.ComponentChildren;
 }) {
   const popoverId = `${id}-confirm`;
@@ -179,6 +184,7 @@ function ConfirmButton({
     <>
       <button
         id={id}
+        class={buttonClass}
         popovertarget={popoverId}
         title={title}
         disabled={disabled}
@@ -527,7 +533,12 @@ export function UIControls(props: ControlsProps) {
           <IconGraph />
         </button>
       )}
-      {props.sizeSelect && <SizeSelect {...props.sizeSelect} />}
+      {props.sizeSelect && (
+        <span class="size-select-group">
+          <IconGrid />
+          <SizeSelect {...props.sizeSelect} />
+        </span>
+      )}
     </>
   );
 }
@@ -548,28 +559,34 @@ export function LobbyControls(props: ControlsProps) {
       {props.abort && (
         <ConfirmButton
           id="abort-btn"
-          icon={() => <>Abort</>}
+          icon={IconCancel}
           title="Abort game"
           disabled={props.abort.disabled}
           confirm={props.abort}
+          buttonClass="btn-warn"
         />
       )}
       {props.disconnectAbort && (
         <ConfirmButton
           id="disconnect-abort-btn"
-          icon={() => <>Abort</>}
+          icon={IconCancel}
           title="Abort game (opponent disconnected)"
           disabled={props.disconnectAbort.disabled}
           confirm={props.disconnectAbort}
+          buttonClass="btn-warn"
         />
       )}
       {props.copyInviteLink && (
         <CopyInviteLinkButton onClick={props.copyInviteLink.onClick} />
       )}
       {props.joinGame && (
-        <button title="Join game" onClick={props.joinGame.onClick}>
-          Join
-        </button>
+        <ConfirmButton
+          id="join-btn"
+          icon={IconJoin}
+          title="Join game"
+          confirm={props.joinGame}
+          buttonClass="btn-success"
+        />
       )}
     </div>
   );
@@ -621,10 +638,10 @@ export function ChallengePopover({
         <dt>Spectators</dt><dd>{settings.is_private ? "No" : "Yes"}</dd>
       </dl>
       <div class="confirm-actions">
-        <button class="btn-accept" onClick={onAccept}>
+        <button class="btn-success" onClick={onAccept}>
           Accept
         </button>
-        <button class="btn-decline" onClick={onDecline}>
+        <button class="btn-warn" onClick={onDecline}>
           Decline
         </button>
       </div>

@@ -301,7 +301,8 @@ function buildLobbyControls(
 
   if (!isPlayer && hasOpenSlot && !initialProps.value.settings.is_private) {
     out.joinGame = {
-      onClick: () => {
+      message: "Join this game?",
+      onConfirm: () => {
         const form = document.createElement("form");
         form.method = "POST";
         form.action = `/games/${gameId.value}/join`;
