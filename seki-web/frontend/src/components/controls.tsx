@@ -525,6 +525,7 @@ export function UIControls(props: ControlsProps) {
       )}
       {props.moveTreeToggle && (
         <button
+          class="move-tree-toggle"
           title={
             props.moveTreeToggle.enabled ? "Hide move tree" : "Show move tree"
           }

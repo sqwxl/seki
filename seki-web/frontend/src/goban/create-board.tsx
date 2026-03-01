@@ -244,8 +244,6 @@ export type Board = {
 // BoardController — implements Board
 // ---------------------------------------------------------------------------
 
-const wideQuery = window.matchMedia("(min-width: 1600px)");
-
 type TerritoryState = {
   deadStones: [number, number][];
   ownership: number[];
@@ -478,7 +476,7 @@ class BoardController implements Board {
 
   private resolveTreeDirection(): "horizontal" | "vertical" | undefined {
     if (this.config.moveTreeDirection === "responsive") {
-      return wideQuery.matches ? "vertical" : "horizontal";
+      return "vertical";
     }
     return this.config.moveTreeDirection;
   }
@@ -778,19 +776,6 @@ class BoardController implements Board {
 
   private wireListeners(): void {
     const opts = { signal: this.abortController.signal };
-
-    wideQuery.addEventListener(
-      "change",
-      () => {
-        if (
-          this.config.moveTreeEl &&
-          this.config.moveTreeDirection === "responsive"
-        ) {
-          this.render();
-        }
-      },
-      opts,
-    );
 
     document.addEventListener(
       "keydown",

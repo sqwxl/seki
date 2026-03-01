@@ -45,6 +45,7 @@ import {
   presentationActive,
   isPresenter,
   navState,
+  mobileTab,
 } from "../game/state";
 import { LiveGamePage, getServerTerritory } from "./live-game-page";
 
@@ -120,7 +121,6 @@ export function liveGame(
       }
     }
     showMoveTree.value = false;
-    board.value?.setMoveTreeEl(null);
     board.value?.render();
     doRender();
   }
@@ -362,9 +362,7 @@ export function liveGame(
     },
   }).then((b) => {
     board.value = b;
-    if (showMoveTree.value) {
-      board.value.setMoveTreeEl(moveTreeEl);
-    }
+    board.value.setMoveTreeEl(moveTreeEl);
     if (moves.value.length > 0) {
       const movesJson = JSON.stringify(moves.value);
       resetMovesTracker(movesJson);
@@ -467,6 +465,15 @@ export function liveGame(
       doRender();
     }
     return () => timers.forEach(clearTimeout);
+  });
+
+  // --- Re-render board when returning to Board tab ---
+  effect(() => {
+    if (mobileTab.value === "board" && board.value) {
+      requestAnimationFrame(() => {
+        board.value?.render();
+      });
+    }
   });
 
   // --- Tab title flash ---

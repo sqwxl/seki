@@ -1,4 +1,5 @@
 import { render, createRef } from "preact";
+import { effect } from "@preact/signals";
 import { createBoard, ensureWasm } from "../goban/create-board";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import {
@@ -20,6 +21,7 @@ import {
   analysisSize,
   analysisTerritoryInfo,
 } from "./analysis-state";
+import { mobileTab } from "../game/state";
 import { AnalysisPage } from "./analysis-page";
 
 const VALID_SIZES = [9, 13, 19];
@@ -215,6 +217,15 @@ export function initAnalysis(root: HTMLElement) {
         : "analysis");
     downloadSgf(sgf, `${filename}.sgf`);
   }
+
+  // Re-render board when returning to Board tab
+  effect(() => {
+    if (mobileTab.value === "board" && analysisBoard.value) {
+      requestAnimationFrame(() => {
+        analysisBoard.value?.render();
+      });
+    }
+  });
 
   initBoard(analysisSize.value);
 }

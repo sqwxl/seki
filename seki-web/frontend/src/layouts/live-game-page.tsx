@@ -621,11 +621,6 @@ export function LiveGamePage(props: LiveGamePageProps) {
   function setMoveTree(visible: boolean) {
     showMoveTree.value = visible;
     storage.set(SHOW_MOVE_TREE, String(visible));
-    if (visible) {
-      board.value?.setMoveTreeEl(moveTreeEl);
-    } else {
-      board.value?.setMoveTreeEl(null);
-    }
     board.value?.render();
   }
 
@@ -681,25 +676,28 @@ export function LiveGamePage(props: LiveGamePageProps) {
       playerTop={buildLivePlayerPanel({ position: "top" })}
       playerBottom={buildLivePlayerPanel({ position: "bottom" })}
       controls={controlsProps}
-      info={
-        <GameInfo
-          settings={initialProps.value.settings}
-          komi={initialProps.value.komi}
-          stage={gameStage.value}
-          moveCount={moves.value.length}
-          result={result.value ?? undefined}
-          black={black.value}
-          white={white.value}
-          capturesBlack={gameState.value.captures.black}
-          capturesWhite={gameState.value.captures.white}
-          territory={territory.value}
-          settledTerritory={settledTerritory.value}
-          estimateScore={estimateMode.value ? estimateScore.value : undefined}
-        />
-      }
       status={
         <>
-          {statusText && <GameStatus text={statusText} />}
+          {statusText && (
+            <GameStatus text={statusText}>
+              <GameInfo
+                settings={initialProps.value.settings}
+                komi={initialProps.value.komi}
+                stage={gameStage.value}
+                moveCount={moves.value.length}
+                result={result.value ?? undefined}
+                black={black.value}
+                white={white.value}
+                capturesBlack={gameState.value.captures.black}
+                capturesWhite={gameState.value.captures.white}
+                territory={territory.value}
+                settledTerritory={settledTerritory.value}
+                estimateScore={
+                  estimateMode.value ? estimateScore.value : undefined
+                }
+              />
+            </GameStatus>
+          )}
           <LobbyControls {...controlsProps} />
           {isChallengee && (
             <ChallengePopover
@@ -737,16 +735,14 @@ export function LiveGamePage(props: LiveGamePageProps) {
         </div>
       }
       moveTree={
-        showMoveTree.value ? (
-          <div
-            class="move-tree-slot"
-            ref={(el) => {
-              if (el && !el.contains(moveTreeEl)) {
-                el.appendChild(moveTreeEl);
-              }
-            }}
-          />
-        ) : undefined
+        <div
+          class={`move-tree-slot${!showMoveTree.value ? " move-tree-desktop-hidden" : ""}`}
+          ref={(el) => {
+            if (el && !el.contains(moveTreeEl)) {
+              el.appendChild(moveTreeEl);
+            }
+          }}
+        />
       }
     />
   );

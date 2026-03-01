@@ -7,6 +7,16 @@
   max-width: 100%;
 }
 
+.controls button.move-tree-toggle {
+  display: none;
+}
+
+@media (min-width: 1960px) {
+  .controls button.move-tree-toggle {
+    display: inline-flex;
+  }
+}
+
 .controls button,
 .controls select {
   display: inline-flex;

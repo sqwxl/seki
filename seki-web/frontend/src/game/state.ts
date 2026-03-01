@@ -82,6 +82,7 @@ export const chatMessages = signal<ChatEntry[]>([]);
 // ---------------------------------------------------------------------------
 // UI mode flags
 // ---------------------------------------------------------------------------
+export const mobileTab = signal<"board" | "chat" | "tree">("board");
 export const analysisMode = signal(false);
 export const estimateMode = signal(false);
 export const undoResponseNeeded = signal(false);

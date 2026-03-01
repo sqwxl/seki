@@ -1,4 +1,4 @@
-import type { ComponentType } from "preact";
+import type { ComponentChildren, ComponentType } from "preact";
 import { GameStage } from "../game/types";
 import type { ScoreData } from "../game/types";
 import { formatResult } from "../utils/format";
@@ -6,6 +6,7 @@ import { formatResult } from "../utils/format";
 export type GameStatusProps = {
   icon?: ComponentType;
   text: string;
+  children?: ComponentChildren;
 };
 
 export function GameStatus(props: GameStatusProps) {
@@ -14,6 +15,7 @@ export function GameStatus(props: GameStatusProps) {
     <div class="game-status">
       {Icon && <Icon />}
       <span>{props.text}</span>
+      {props.children}
     </div>
   );
 }

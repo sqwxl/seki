@@ -3,10 +3,11 @@ import { PlayerPanel } from "../components/player-panel";
 import type { PlayerPanelProps } from "../components/player-panel";
 import type { ControlsProps } from "../components/controls";
 import { Controls } from "./controls";
+import { TabBar } from "../components/tab-bar";
+import { mobileTab } from "../game/state";
 
 export type GamePageLayoutProps = {
   header?: ComponentChildren;
-  info?: ComponentChildren;
   gobanRef: Ref<HTMLDivElement>;
   gobanStyle?: string;
   gobanClass?: string;
@@ -23,31 +24,45 @@ export function GamePageLayout(props: GamePageLayoutProps) {
     .filter(Boolean)
     .join(" ");
 
+  const tab = mobileTab.value;
+  const hasChat = !!props.chat;
+  const hideTabs = hasChat ? undefined : (["chat"] as "chat"[]);
+
   return (
     <>
-      {props.header && <div class="game-header">{props.header}</div>}
-      {props.info && <div class="game-info-slot">{props.info}</div>}
-      {props.status && <div class="game-status-slot">{props.status}</div>}
-      {props.playerTop && (
-        <div class="player-label player-top">
-          <PlayerPanel {...props.playerTop} />
+      <div class={`game-board-view ${tab !== "board" ? "tab-hidden" : ""}`}>
+        {props.header && <div class="game-header">{props.header}</div>}
+        {props.status && <div class="game-status-slot">{props.status}</div>}
+        {props.playerTop && (
+          <div class="player-label player-top">
+            <PlayerPanel {...props.playerTop} />
+          </div>
+        )}
+        <div class="game-board-area">
+          <div
+            class={gobanClass}
+            style={props.gobanStyle}
+            ref={props.gobanRef}
+          />
         </div>
-      )}
-      <div class="game-board-area">
-        <div class={gobanClass} style={props.gobanStyle} ref={props.gobanRef} />
+        {props.playerBottom && (
+          <div class="player-label player-bottom">
+            <PlayerPanel {...props.playerBottom} />
+          </div>
+        )}
+        {props.controls && (
+          <div class="controls">
+            <Controls {...props.controls} />
+          </div>
+        )}
       </div>
-      <div class="game-sidebar">{props.chat}</div>
-      {props.moveTree}
-      {props.playerBottom && (
-        <div class="player-label player-bottom">
-          <PlayerPanel {...props.playerBottom} />
-        </div>
-      )}
-      {props.controls && (
-        <div class="controls">
-          <Controls {...props.controls} />
-        </div>
-      )}
+      <div class={`game-chat-view ${tab !== "chat" ? "tab-hidden" : ""}`}>
+        {props.chat}
+      </div>
+      <div class={`game-tree-view ${tab !== "tree" ? "tab-hidden" : ""}`}>
+        {props.moveTree}
+      </div>
+      <TabBar hideTabs={hideTabs} />
     </>
   );
 }
