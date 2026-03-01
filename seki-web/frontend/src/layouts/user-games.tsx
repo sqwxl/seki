@@ -103,7 +103,11 @@ function UserGames({ initial }: { initial?: InitialData }) {
     <>
       <ul class="games-list">
         {visibleGames.map((g) => (
-          <li key={g.id} class={isMyTurn(g, currentUserId) ? "your-turn" : undefined} title={isMyTurn(g, currentUserId) ? "Your turn" : undefined}>
+          <li
+            key={g.id}
+            class={isMyTurn(g, currentUserId) ? "your-turn" : undefined}
+            title={isMyTurn(g, currentUserId) ? "Your turn" : undefined}
+          >
             <a href={`/games/${g.id}`}>
               <GameDescription {...g} />
             </a>

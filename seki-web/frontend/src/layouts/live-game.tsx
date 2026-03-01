@@ -109,7 +109,11 @@ export function liveGame(
     analysisMode.value = false;
     if (board.value) {
       // Sync to active presentation, or fall back to base game moves
-      if (presentationActive.value && !isPresenter.value && lastPresentationSnapshot) {
+      if (
+        presentationActive.value &&
+        !isPresenter.value &&
+        lastPresentationSnapshot
+      ) {
         board.value.importSnapshot(lastPresentationSnapshot);
       } else {
         board.value.updateBaseMoves(JSON.stringify(moves.value));
@@ -321,7 +325,11 @@ export function liveGame(
       }
       // Auto-enter estimate when board enters territory review in analysis
       // (e.g. passing twice or navigating to a territory review node)
-      if (analysisMode.value && territoryInfo.reviewing && !estimateMode.value) {
+      if (
+        analysisMode.value &&
+        territoryInfo.reviewing &&
+        !estimateMode.value
+      ) {
         estimateMode.value = true;
       }
       // Capture estimate score for status display

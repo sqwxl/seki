@@ -110,7 +110,10 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                     subscribed_games.insert(game_id);
 
                                     // Notify others that this user came online (include user data)
-                                    let user_data = User::find_by_id(&state.db, user_id).await.ok().map(|u| UserData::from(&u));
+                                    let user_data = User::find_by_id(&state.db, user_id)
+                                        .await
+                                        .ok()
+                                        .map(|u| UserData::from(&u));
                                     state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":true,"user":user_data}).to_string()).await;
 
                                     if let Err(e) = game_channel::send_initial_state(
@@ -142,7 +145,10 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                 subscribed_games.remove(&game_id);
                                 if removed {
                                     state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":false}).to_string()).await;
-                                    presentation_actions::handle_presenter_left(&state, game_id, user_id).await;
+                                    presentation_actions::handle_presenter_left(
+                                        &state, game_id, user_id,
+                                    )
+                                    .await;
                                 }
                             }
                         }
@@ -215,7 +221,10 @@ async fn handle_disconnect(state: &AppState, user_id: i64) {
     let now = Utc::now();
 
     for game_id in game_ids {
-        state.registry.mark_disconnected(game_id, user_id, now).await;
+        state
+            .registry
+            .mark_disconnected(game_id, user_id, now)
+            .await;
 
         // Pause the disconnected player's clock if it's active
         let game = match Game::find_by_id(&state.db, game_id).await {
@@ -240,12 +249,7 @@ async fn handle_disconnect(state: &AppState, user_id: i64) {
                 clock.pause(active, now);
                 state.registry.update_clock(game_id, clock.clone()).await;
                 // Persist paused clock to DB
-                let _ = Game::update_clock(
-                    &state.db,
-                    game_id,
-                    &clock.to_update(None, &tc),
-                )
-                .await;
+                let _ = Game::update_clock(&state.db, game_id, &clock.to_update(None, &tc)).await;
             }
         }
 
@@ -268,10 +272,7 @@ async fn handle_disconnect(state: &AppState, user_id: i64) {
 
 /// Called when a user reconnects after being disconnected: resume clocks and broadcast.
 async fn handle_reconnect(state: &AppState, user_id: i64) {
-    let game_ids = state
-        .registry
-        .games_with_disconnected_player(user_id)
-        .await;
+    let game_ids = state.registry.games_with_disconnected_player(user_id).await;
 
     let now = Utc::now();
 
@@ -297,12 +298,8 @@ async fn handle_reconnect(state: &AppState, user_id: i64) {
         {
             clock.resume(now);
             state.registry.update_clock(game_id, clock.clone()).await;
-            let _ = Game::update_clock(
-                &state.db,
-                game_id,
-                &clock.to_update(Some(active), &tc),
-            )
-            .await;
+            let _ =
+                Game::update_clock(&state.db, game_id, &clock.to_update(Some(active), &tc)).await;
         }
 
         // Broadcast reconnect to all viewers

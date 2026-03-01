@@ -17,7 +17,12 @@ pub fn max_handicap(cols: u8, rows: u8) -> u8 {
 ///
 /// Returns `None` if the board is non-square, even, too small, or count is invalid.
 pub fn handicap_points(cols: u8, rows: u8, count: u8) -> Option<Vec<Point>> {
-    if cols != rows || cols < 7 || cols.is_multiple_of(2) || count < 2 || count > max_handicap(cols, rows) {
+    if cols != rows
+        || cols < 7
+        || cols.is_multiple_of(2)
+        || count < 2
+        || count > max_handicap(cols, rows)
+    {
         return None;
     }
 

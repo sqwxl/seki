@@ -94,15 +94,13 @@ pub async fn update_username(
     if new_username.is_empty() || new_username.len() > 30 {
         let msg = "Username must be between 1 and 30 characters.";
         if json {
-            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+            return Ok((
+                StatusCode::UNPROCESSABLE_ENTITY,
+                axum::Json(json!({"error": msg, "field": "username"})),
+            )
+                .into_response());
         }
-        return render_profile_with_flash(
-            &state,
-            &current_user,
-            &profile_user,
-            msg,
-        )
-        .await;
+        return render_profile_with_flash(&state, &current_user, &profile_user, msg).await;
     }
 
     // No change
@@ -121,15 +119,13 @@ pub async fn update_username(
     {
         let msg = "Username is already taken.";
         if json {
-            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+            return Ok((
+                StatusCode::UNPROCESSABLE_ENTITY,
+                axum::Json(json!({"error": msg, "field": "username"})),
+            )
+                .into_response());
         }
-        return render_profile_with_flash(
-            &state,
-            &current_user,
-            &profile_user,
-            msg,
-        )
-        .await;
+        return render_profile_with_flash(&state, &current_user, &profile_user, msg).await;
     }
 
     // Update
@@ -145,15 +141,13 @@ pub async fn update_username(
         Err(sqlx::Error::Database(e)) if e.is_unique_violation() => {
             let msg = "Username is already taken.";
             if json {
-                return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+                return Ok((
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    axum::Json(json!({"error": msg, "field": "username"})),
+                )
+                    .into_response());
             }
-            render_profile_with_flash(
-                &state,
-                &current_user,
-                &profile_user,
-                msg,
-            )
-            .await
+            render_profile_with_flash(&state, &current_user, &profile_user, msg).await
         }
         Err(e) => Err(AppError::Internal(e.to_string())),
     }

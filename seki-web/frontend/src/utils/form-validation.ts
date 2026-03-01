@@ -61,8 +61,9 @@ function clearErrors(form: HTMLFormElement) {
 }
 
 export function initFormValidation() {
-  const forms =
-    document.querySelectorAll<HTMLFormElement>("form[data-validate]");
+  const forms = document.querySelectorAll<HTMLFormElement>(
+    "form[data-validate]",
+  );
   for (const form of forms) {
     enhanceForm(form);
   }

@@ -76,5 +76,4 @@ impl Message {
     ) -> Result<Message, sqlx::Error> {
         Self::create(executor, game_id, None, text, move_number).await
     }
-
 }

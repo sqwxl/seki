@@ -1,5 +1,11 @@
 import { useRef } from "preact/hooks";
-import type { ScoreData, UserData, GameSettings, TerritoryData, SettledTerritoryData } from "../game/types";
+import type {
+  ScoreData,
+  UserData,
+  GameSettings,
+  TerritoryData,
+  SettledTerritoryData,
+} from "../game/types";
 import { GameStage } from "../game/types";
 import { getStatusText } from "./game-status";
 import { IconInfo } from "./icons";
@@ -61,9 +67,12 @@ export function GameInfo(props: GameInfoProps) {
   });
 
   const score =
-    props.estimateScore ?? props.territory?.score ?? props.settledTerritory?.score;
+    props.estimateScore ??
+    props.territory?.score ??
+    props.settledTerritory?.score;
 
-  const tcLabel = settings.time_control !== "none" ? settings.time_control : undefined;
+  const tcLabel =
+    settings.time_control !== "none" ? settings.time_control : undefined;
   const tcDetail = tc ? (tcLabel ? `${tc} (${tcLabel})` : tc) : undefined;
 
   const bName = props.black?.display_name ?? "?";
@@ -74,10 +83,7 @@ export function GameInfo(props: GameInfoProps) {
 
   return (
     <div class="game-info">
-      <button
-        class="game-info-bar"
-        popovertarget={popoverId}
-      >
+      <button class="game-info-bar" popovertarget={popoverId}>
         <IconInfo />
         <span>{parts.join(" · ")}</span>
       </button>

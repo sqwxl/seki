@@ -257,7 +257,11 @@ pub async fn show_game(
         current_turn_stone: engine.current_turn_stone().to_int() as i32,
         result: gwp.game.result.clone(),
         settled_territory,
-        invite_token: if is_creator { gwp.game.invite_token.clone() } else { None },
+        invite_token: if is_creator {
+            gwp.game.invite_token.clone()
+        } else {
+            None
+        },
     })
     .unwrap();
 
@@ -342,12 +346,13 @@ pub async fn join_game(
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
     let online_ids = state.registry.get_online_user_ids(id).await;
-    let online_users: Vec<UserData> = crate::models::user::User::find_by_ids(&state.db, &online_ids)
-        .await
-        .unwrap_or_default()
-        .iter()
-        .map(UserData::from)
-        .collect();
+    let online_users: Vec<UserData> =
+        crate::models::user::User::find_by_ids(&state.db, &online_ids)
+            .await
+            .unwrap_or_default()
+            .iter()
+            .map(UserData::from)
+            .collect();
     let game_state = state_serializer::serialize_state(
         &gwp,
         &engine,

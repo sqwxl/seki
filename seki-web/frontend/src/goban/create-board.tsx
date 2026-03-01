@@ -305,9 +305,7 @@ class BoardController implements Board {
     let baseTipNodeId = -1;
     let restoredWithAnalysis = false;
 
-    const saved = config.storageKey
-      ? storage.get(config.storageKey)
-      : null;
+    const saved = config.storageKey ? storage.get(config.storageKey) : null;
 
     if (saved) {
       if (!engine.replace_tree(saved)) {
@@ -389,10 +387,7 @@ class BoardController implements Board {
     for (const [id, dead] of this.finalizedNodes) {
       data[String(id)] = dead;
     }
-    storage.set(
-      `${this.config.storageKey}:finalized`,
-      JSON.stringify(data),
-    );
+    storage.set(`${this.config.storageKey}:finalized`, JSON.stringify(data));
   }
 
   save(): void {
@@ -579,8 +574,7 @@ class BoardController implements Board {
       }
     };
 
-    const canPlay =
-      !finalized && !overlay && (this.config.canPlay?.() ?? true);
+    const canPlay = !finalized && !overlay && (this.config.canPlay?.() ?? true);
     const crosshairStone = canPlay ? this.engine.current_turn_stone() : 0;
 
     renderFromEngine(
@@ -685,8 +679,7 @@ class BoardController implements Board {
     this.baseMoves = movesJson;
     this.baseMoveCount = (JSON.parse(movesJson) as unknown[]).length;
     this.engine.replace_moves(movesJson);
-    this._baseTipNodeId =
-      this.baseMoveCount > 0 ? this.baseMoveCount - 1 : -1;
+    this._baseTipNodeId = this.baseMoveCount > 0 ? this.baseMoveCount - 1 : -1;
   }
 
   setShowCoordinates(show: boolean): void {

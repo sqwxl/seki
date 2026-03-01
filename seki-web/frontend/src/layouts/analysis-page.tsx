@@ -67,7 +67,11 @@ function AnalysisHeader() {
   );
 }
 
-function buildAnalysisPlayerPanel({ position }: { position: "top" | "bottom" }) {
+function buildAnalysisPlayerPanel({
+  position,
+}: {
+  position: "top" | "bottom";
+}) {
   const board = analysisBoard.value;
   const meta = analysisMeta.value;
 
@@ -109,8 +113,7 @@ function buildAnalysisPlayerPanel({ position }: { position: "top" | "bottom" }) 
     }
   }
   if (!bClock && !wClock) {
-    const fallback =
-      formatSgfTime(meta?.time_limit_secs, meta?.overtime) ?? "";
+    const fallback = formatSgfTime(meta?.time_limit_secs, meta?.overtime) ?? "";
     bClock = fallback;
     wClock = fallback;
   }
@@ -242,7 +245,7 @@ export function AnalysisPage(props: AnalysisPageProps) {
         ? GameStage.BlackToPlay
         : GameStage.WhiteToPlay,
     komi: KOMI,
-    territoryScore: (reviewing || finalized) ? score : undefined,
+    territoryScore: reviewing || finalized ? score : undefined,
     isBlackTurn,
   });
 

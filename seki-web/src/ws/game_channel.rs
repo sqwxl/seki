@@ -5,8 +5,8 @@ use crate::AppState;
 use crate::models::game::Game;
 use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
-use crate::services::{game_actions, presentation_actions};
 use crate::services::state_serializer;
+use crate::services::{game_actions, presentation_actions};
 use crate::templates::UserData;
 use crate::ws::registry::WsSender;
 
@@ -127,9 +127,7 @@ pub async fn send_initial_state(
     // If there's an active presentation, send state to the joining user
     if let Some(pres) = state.registry.get_presentation(game_id).await {
         // Auto-revert control to originator when they reconnect
-        let presenter_id = if pres.originator_id == player_id
-            && pres.presenter_id != player_id
-        {
+        let presenter_id = if pres.originator_id == player_id && pres.presenter_id != player_id {
             state.registry.set_presenter(game_id, player_id).await;
             state
                 .registry
@@ -206,12 +204,8 @@ pub async fn handle_message(
         "resign" => game_actions::resign(state, game_id, player_id)
             .await
             .map(|_| ()),
-        "accept_challenge" => {
-            game_actions::accept_challenge(state, game_id, player_id).await
-        }
-        "decline_challenge" => {
-            game_actions::decline_challenge(state, game_id, player_id).await
-        }
+        "accept_challenge" => game_actions::accept_challenge(state, game_id, player_id).await,
+        "decline_challenge" => game_actions::decline_challenge(state, game_id, player_id).await,
         "abort" => game_actions::abort(state, game_id, player_id).await,
         "chat" => handle_chat(state, game_id, player_id, data).await,
         "request_undo" => game_actions::request_undo(state, game_id, player_id).await,
@@ -229,16 +223,10 @@ pub async fn handle_message(
         "end_presentation" => {
             presentation_actions::end_presentation(state, game_id, player_id).await
         }
-        "presentation_state" => {
-            handle_presentation_state(state, game_id, player_id, data).await
-        }
+        "presentation_state" => handle_presentation_state(state, game_id, player_id, data).await,
         "give_control" => handle_give_control(state, game_id, player_id, data).await,
-        "take_control" => {
-            presentation_actions::take_control(state, game_id, player_id).await
-        }
-        "request_control" => {
-            handle_request_control(state, game_id, player_id).await
-        }
+        "take_control" => presentation_actions::take_control(state, game_id, player_id).await,
+        "request_control" => handle_request_control(state, game_id, player_id).await,
         "cancel_control_request" => {
             presentation_actions::cancel_control_request(state, game_id, player_id).await
         }
@@ -362,9 +350,7 @@ async fn handle_give_control(
     let target_user_id = data
         .get("target_user_id")
         .and_then(|v| v.as_i64())
-        .ok_or_else(|| {
-            crate::error::AppError::BadRequest("Missing target_user_id".to_string())
-        })?;
+        .ok_or_else(|| crate::error::AppError::BadRequest("Missing target_user_id".to_string()))?;
 
     presentation_actions::give_control(state, game_id, player_id, target_user_id).await
 }

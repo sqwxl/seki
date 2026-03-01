@@ -1,6 +1,12 @@
 import classnames from "classnames";
 import type { CSSProperties, HTMLAttributes, JSX } from "preact";
-import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "preact/hooks";
 
 import { CoordCols, CoordRows } from "./coord";
 import Grid from "./grid";
@@ -58,7 +64,11 @@ type AnimState = {
   clearHandler: ReturnType<typeof setTimeout> | null;
 };
 
-function initAnimState(cols: number, rows: number, signMap: number[]): AnimState {
+function initAnimState(
+  cols: number,
+  rows: number,
+  signMap: number[],
+): AnimState {
   const size = cols * rows;
   return {
     cols,
@@ -123,23 +133,20 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
     [cols, rows],
   );
 
-  const isFarFromBoard = useCallback(
-    (touch: Touch): boolean => {
-      const el = contentRef.current;
-      if (!el) {
-        return true;
-      }
-      const rect = el.getBoundingClientRect();
-      const margin = 2 * OFFSET_PX;
-      return (
-        touch.clientX < rect.left - margin ||
-        touch.clientX > rect.right + margin ||
-        touch.clientY < rect.top - margin ||
-        touch.clientY > rect.bottom + margin
-      );
-    },
-    [],
-  );
+  const isFarFromBoard = useCallback((touch: Touch): boolean => {
+    const el = contentRef.current;
+    if (!el) {
+      return true;
+    }
+    const rect = el.getBoundingClientRect();
+    const margin = 2 * OFFSET_PX;
+    return (
+      touch.clientX < rect.left - margin ||
+      touch.clientX > rect.right + margin ||
+      touch.clientY < rect.top - margin ||
+      touch.clientY > rect.bottom + margin
+    );
+  }, []);
 
   const crosshairActive = !!props.crosshairStone && !!props.onVertexClick;
 
@@ -218,7 +225,10 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
     fuzzyStonePlacement &&
     !ref.current.clearHandler
   ) {
-    ref.current.animatedVertices = diffSignMap(ref.current.prevSignMap, signMap);
+    ref.current.animatedVertices = diffSignMap(
+      ref.current.prevSignMap,
+      signMap,
+    );
     ref.current.prevSignMap = signMap;
   } else {
     ref.current.animatedVertices = [];

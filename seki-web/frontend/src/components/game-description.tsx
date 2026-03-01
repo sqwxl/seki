@@ -24,7 +24,12 @@ export type LiveGameItem = {
 };
 
 export function isMyTurn(
-  game: { stage: GameStage; creator_id?: number; black?: { id: number }; white?: { id: number } },
+  game: {
+    stage: GameStage;
+    creator_id?: number;
+    black?: { id: number };
+    white?: { id: number };
+  },
   playerId: number | undefined,
 ): boolean {
   if (playerId == null) {
@@ -36,7 +41,10 @@ export function isMyTurn(
     case GameStage.WhiteToPlay:
       return game.white?.id === playerId;
     case GameStage.Challenge:
-      return game.creator_id !== playerId && (game.black?.id === playerId || game.white?.id === playerId);
+      return (
+        game.creator_id !== playerId &&
+        (game.black?.id === playerId || game.white?.id === playerId)
+      );
     default:
       return false;
   }

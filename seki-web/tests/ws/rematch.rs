@@ -12,11 +12,7 @@ async fn play_one_move(ts: &TestServer, game_id: i64) {
         .send()
         .await
         .unwrap();
-    assert!(
-        resp.status().is_success(),
-        "play failed: {}",
-        resp.status()
-    );
+    assert!(resp.status().is_success(), "play failed: {}", resp.status());
 }
 
 /// Resign the game as black via API.

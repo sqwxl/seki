@@ -112,21 +112,33 @@ pub async fn register(
     if username.is_empty() || username.len() > 30 {
         let msg = "Username must be between 1 and 30 characters.";
         if json {
-            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+            return Ok((
+                StatusCode::UNPROCESSABLE_ENTITY,
+                axum::Json(json!({"error": msg, "field": "username"})),
+            )
+                .into_response());
         }
         return render_error(msg.to_string());
     }
     if form.password.len() < 8 {
         let msg = "Password must be at least 8 characters.";
         if json {
-            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "password"}))).into_response());
+            return Ok((
+                StatusCode::UNPROCESSABLE_ENTITY,
+                axum::Json(json!({"error": msg, "field": "password"})),
+            )
+                .into_response());
         }
         return render_error(msg.to_string());
     }
     if form.password != form.password_confirmation {
         let msg = "Passwords do not match.";
         if json {
-            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "password_confirmation"}))).into_response());
+            return Ok((
+                StatusCode::UNPROCESSABLE_ENTITY,
+                axum::Json(json!({"error": msg, "field": "password_confirmation"})),
+            )
+                .into_response());
         }
         return render_error(msg.to_string());
     }
@@ -138,7 +150,11 @@ pub async fn register(
     {
         let msg = "Username is already taken.";
         if json {
-            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": msg, "field": "username"}))).into_response());
+            return Ok((
+                StatusCode::UNPROCESSABLE_ENTITY,
+                axum::Json(json!({"error": msg, "field": "username"})),
+            )
+                .into_response());
         }
         return render_error(msg.to_string());
     }
@@ -221,7 +237,11 @@ pub async fn login(
         Some(p) => p,
         None => {
             if json {
-                return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": login_err}))).into_response());
+                return Ok((
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    axum::Json(json!({"error": login_err})),
+                )
+                    .into_response());
             }
             return render_error(login_err.to_string());
         }
@@ -231,7 +251,11 @@ pub async fn login(
         Some(h) => h.clone(),
         None => {
             if json {
-                return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": login_err}))).into_response());
+                return Ok((
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    axum::Json(json!({"error": login_err})),
+                )
+                    .into_response());
             }
             return render_error(login_err.to_string());
         }
@@ -245,7 +269,11 @@ pub async fn login(
         .is_err()
     {
         if json {
-            return Ok((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(json!({"error": login_err}))).into_response());
+            return Ok((
+                StatusCode::UNPROCESSABLE_ENTITY,
+                axum::Json(json!({"error": login_err})),
+            )
+                .into_response());
         }
         return render_error(login_err.to_string());
     }

@@ -1,7 +1,18 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { storage, GAME_SETTINGS } from "../utils/storage";
-import { IconBalance, IconNigiri, IconGrid, IconUndo, IconTimer, IconBell, IconHandicap, IconSettings, StoneBlack, StoneWhite } from "../components/icons";
+import {
+  IconBalance,
+  IconNigiri,
+  IconGrid,
+  IconUndo,
+  IconTimer,
+  IconBell,
+  IconHandicap,
+  IconSettings,
+  StoneBlack,
+  StoneWhite,
+} from "../components/icons";
 
 type TimeControl = "none" | "fischer" | "byoyomi" | "correspondence";
 
@@ -117,9 +128,13 @@ export function GameSettingsForm({
   return (
     <div ref={rootRef}>
       <fieldset>
-        <legend><IconSettings /> Settings</legend>
+        <legend>
+          <IconSettings /> Settings
+        </legend>
         <div>
-          <label for="cols"><IconGrid /> Board size</label>
+          <label for="cols">
+            <IconGrid /> Board size
+          </label>
           <input
             type="number"
             name="cols"
@@ -134,7 +149,9 @@ export function GameSettingsForm({
           />
         </div>
         <div>
-          <label for="komi"><IconBalance /> Komi</label>
+          <label for="komi">
+            <IconBalance /> Komi
+          </label>
           <input
             type="number"
             name="komi"
@@ -149,7 +166,9 @@ export function GameSettingsForm({
           />
         </div>
         <div>
-          <label for="handicap"><IconHandicap /> Handicap</label>
+          <label for="handicap">
+            <IconHandicap /> Handicap
+          </label>
           <input
             type="number"
             name="handicap"
@@ -202,7 +221,9 @@ export function GameSettingsForm({
           </div>
         </div>
         <div>
-          <label for="allow_undo"><IconUndo /> Allow takebacks</label>
+          <label for="allow_undo">
+            <IconUndo /> Allow takebacks
+          </label>
           <input
             type="checkbox"
             name="allow_undo"
@@ -228,7 +249,9 @@ export function GameSettingsForm({
       </fieldset>
 
       <fieldset>
-        <legend><IconTimer /> Time control</legend>
+        <legend>
+          <IconTimer /> Time control
+        </legend>
         <div class="new-game-form-time-controls">
           <label>
             <input
@@ -402,7 +425,9 @@ export function GameSettingsForm({
 
       {showNotifications && !opponent && (
         <fieldset>
-          <legend><IconBell /> Notifications</legend>
+          <legend>
+            <IconBell /> Notifications
+          </legend>
           <div>
             <label for="creator_email">
               Get notified when it's your turn to play (optional)

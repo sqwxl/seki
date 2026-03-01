@@ -423,9 +423,7 @@ async fn rematch_game(
         return Err(AppError::BadRequest("Game is not finished".to_string()).into());
     }
     if !gwp.has_player(api_user.id) {
-        return Err(
-            AppError::BadRequest("You are not a player in this game".to_string()).into(),
-        );
+        return Err(AppError::BadRequest("You are not a player in this game".to_string()).into());
     }
 
     let swap = body.swap_colors.unwrap_or(false);

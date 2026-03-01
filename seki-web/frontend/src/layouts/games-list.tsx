@@ -61,7 +61,11 @@ function GameSection({
       ) : (
         <ul class="games-list">
           {games.map((g) => (
-            <li key={g.id} class={isMyTurn(g, playerId) ? "your-turn" : undefined} title={isMyTurn(g, playerId) ? "Your turn" : undefined}>
+            <li
+              key={g.id}
+              class={isMyTurn(g, playerId) ? "your-turn" : undefined}
+              title={isMyTurn(g, playerId) ? "Your turn" : undefined}
+            >
               <a href={`/games/${g.id}`}>
                 <GameDescription {...g} />
               </a>
@@ -161,9 +165,24 @@ function GamesList({ initial }: { initial?: InitMessage }) {
   return (
     <>
       <GameSection title="Challenges" games={challenges} playerId={playerId} />
-      <GameSection title="Your games" games={userGames} playerId={playerId} emptyText="No games yet." />
-      <GameSection title="Open games" games={openGames} playerId={playerId} emptyText="No open games." />
-      <GameSection title="Public games" games={publicGames} playerId={playerId} emptyText="No public games." />
+      <GameSection
+        title="Your games"
+        games={userGames}
+        playerId={playerId}
+        emptyText="No games yet."
+      />
+      <GameSection
+        title="Open games"
+        games={openGames}
+        playerId={playerId}
+        emptyText="No open games."
+      />
+      <GameSection
+        title="Public games"
+        games={publicGames}
+        playerId={playerId}
+        emptyText="No public games."
+      />
     </>
   );
 }

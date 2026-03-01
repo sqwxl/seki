@@ -46,4 +46,3 @@ export function playPassSound(): void {
     src.start();
   });
 }
-

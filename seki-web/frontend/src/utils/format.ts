@@ -136,9 +136,7 @@ export type DescriptionInput = {
 
 /** Build the "size - handicap - time control - result/move" parts array. */
 export function buildDescriptionParts(g: DescriptionInput): string[] {
-  const parts: string[] = [
-    formatSize(g.settings.cols, g.settings.rows),
-  ];
+  const parts: string[] = [formatSize(g.settings.cols, g.settings.rows)];
 
   if (g.settings.handicap >= 2) {
     parts.push(`H${g.settings.handicap}`);

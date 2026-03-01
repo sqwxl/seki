@@ -35,11 +35,7 @@ async fn create_spectator(ts: &TestServer) -> (i64, WsClient) {
         .unwrap();
 
     let base = format!("http://{}", ts.addr);
-    client
-        .get(format!("{base}/login"))
-        .send()
-        .await
-        .unwrap();
+    client.get(format!("{base}/login")).send().await.unwrap();
     client
         .post(format!("{base}/login"))
         .form(&[("username", "test-spectator"), ("password", "testpassword")])
@@ -179,10 +175,7 @@ async fn late_joiner_gets_presentation_state() {
 
     let pres = white.recv_kind("presentation_started").await;
     assert_eq!(pres["presenter_id"], ts.black_id);
-    assert_eq!(
-        pres["snapshot"],
-        r#"{"tree":"cached","activeNodeId":"n1"}"#
-    );
+    assert_eq!(pres["snapshot"], r#"{"tree":"cached","activeNodeId":"n1"}"#);
 }
 
 #[tokio::test]
@@ -205,10 +198,7 @@ async fn cannot_start_second_presentation() {
 
     let err = white.recv_kind("error").await;
     assert!(
-        err["message"]
-            .as_str()
-            .unwrap()
-            .contains("already active"),
+        err["message"].as_str().unwrap().contains("already active"),
         "expected 'already active' error, got: {}",
         err["message"]
     );
@@ -243,7 +233,10 @@ async fn control_transfer_give_and_take() {
         .await;
 
     let update = black.recv_kind("presentation_update").await;
-    assert_eq!(update["snapshot"], r#"{"tree":"from_white","activeNodeId":"w1"}"#);
+    assert_eq!(
+        update["snapshot"],
+        r#"{"tree":"from_white","activeNodeId":"w1"}"#
+    );
 
     // Originator (black) takes back control
     black.take_control(game_id).await;
@@ -282,10 +275,7 @@ async fn request_control_flow() {
     white.request_control(game_id).await;
     let err = white.recv_kind("error").await;
     assert!(
-        err["message"]
-            .as_str()
-            .unwrap()
-            .contains("already pending"),
+        err["message"].as_str().unwrap().contains("already pending"),
         "expected 'already pending' error, got: {}",
         err["message"]
     );
@@ -383,10 +373,7 @@ async fn has_had_presentation_set_on_end() {
     spectator.start_presentation(game_id).await;
     let err = spectator.recv_kind("error").await;
     assert!(
-        err["message"]
-            .as_str()
-            .unwrap()
-            .contains("Not eligible"),
+        err["message"].as_str().unwrap().contains("Not eligible"),
         "spectator should not be eligible before a presentation has ended: {}",
         err["message"]
     );
@@ -755,10 +742,7 @@ async fn non_authorized_user_cannot_reject_control_request() {
 
     let err = spectator.recv_kind("error").await;
     assert!(
-        err["message"]
-            .as_str()
-            .unwrap()
-            .contains("Not authorized"),
+        err["message"].as_str().unwrap().contains("Not authorized"),
         "expected authorization error, got: {}",
         err["message"]
     );
@@ -824,10 +808,7 @@ async fn give_control_to_user_not_in_room_fails() {
 
     let err = black.recv_kind("error").await;
     assert!(
-        err["message"]
-            .as_str()
-            .unwrap()
-            .contains("not in the room"),
+        err["message"].as_str().unwrap().contains("not in the room"),
         "expected not-in-room error, got: {}",
         err["message"]
     );
@@ -874,10 +855,7 @@ async fn reject_with_no_pending_request_fails() {
 
     let err = black.recv_kind("error").await;
     assert!(
-        err["message"]
-            .as_str()
-            .unwrap()
-            .contains("No pending"),
+        err["message"].as_str().unwrap().contains("No pending"),
         "expected no-pending error, got: {}",
         err["message"]
     );

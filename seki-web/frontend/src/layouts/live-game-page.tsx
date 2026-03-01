@@ -436,7 +436,11 @@ function buildPresentationControls(
       : { onClick: () => channel.giveControl(originatorId.value) };
   } else if (!ctx.inAnalysis) {
     // Viewer (not in personal analysis): analyze button opens choice popover
-    const options: Array<{ label: string; onClick: () => void; disabled?: boolean }> = [];
+    const options: Array<{
+      label: string;
+      onClick: () => void;
+      disabled?: boolean;
+    }> = [];
 
     if (isOriginator.value) {
       options.push({
@@ -444,8 +448,7 @@ function buildPresentationControls(
         onClick: () => channel.takeControl(),
       });
     } else {
-      const myRequest =
-        controlRequest.value?.userId === currentUserId.value;
+      const myRequest = controlRequest.value?.userId === currentUserId.value;
       if (myRequest) {
         options.push({
           label: "Cancel request",
@@ -552,7 +555,12 @@ function buildLiveControls({
 
   // Disable nav for viewers watching a presentation (not in personal analysis)
   if (presentationActive.value && !isPresenter.value && !ctx.inAnalysis) {
-    props.nav = { ...props.nav, atStart: true, atLatest: true, atMainEnd: true };
+    props.nav = {
+      ...props.nav,
+      atStart: true,
+      atLatest: true,
+      atMainEnd: true,
+    };
   }
 
   // Undo response popover
@@ -637,8 +645,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
     playerStone.value !== 0 &&
     myId != null &&
     myId !== creatorId;
-  const challengee =
-    black.value?.id !== creatorId ? black.value : white.value;
+  const challengee = black.value?.id !== creatorId ? black.value : white.value;
 
   const lastMove = moves.value[moves.value.length - 1];
   let statusText = getStatusText({

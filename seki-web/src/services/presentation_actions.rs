@@ -16,9 +16,7 @@ pub async fn start_presentation(
 
     // Game must be finished
     if gwp.game.result.is_none() {
-        return Err(AppError::BadRequest(
-            "Game is not finished".to_string(),
-        ));
+        return Err(AppError::BadRequest("Game is not finished".to_string()));
     }
 
     // No active presentation
@@ -45,10 +43,7 @@ pub async fn start_presentation(
         }
     }
 
-    state
-        .registry
-        .start_presentation(game_id, user_id)
-        .await;
+    state.registry.start_presentation(game_id, user_id).await;
 
     state
         .registry
@@ -167,10 +162,7 @@ pub async fn give_control(
         ));
     }
 
-    state
-        .registry
-        .set_presenter(game_id, target_user_id)
-        .await;
+    state.registry.set_presenter(game_id, target_user_id).await;
 
     state
         .registry
@@ -188,11 +180,7 @@ pub async fn give_control(
     Ok(())
 }
 
-pub async fn take_control(
-    state: &AppState,
-    game_id: i64,
-    user_id: i64,
-) -> Result<(), AppError> {
+pub async fn take_control(state: &AppState, game_id: i64, user_id: i64) -> Result<(), AppError> {
     let pres = state
         .registry
         .get_presentation(game_id)
@@ -286,10 +274,7 @@ pub async fn cancel_control_request(
         ));
     }
 
-    state
-        .registry
-        .set_control_request(game_id, None)
-        .await;
+    state.registry.set_control_request(game_id, None).await;
 
     state
         .registry
@@ -329,10 +314,7 @@ pub async fn reject_control_request(
         ));
     }
 
-    state
-        .registry
-        .set_control_request(game_id, None)
-        .await;
+    state.registry.set_control_request(game_id, None).await;
 
     state
         .registry
@@ -351,11 +333,7 @@ pub async fn reject_control_request(
 
 /// Called when a user leaves the room (leave_game or WS disconnect cleanup).
 /// If the user was the presenter, determines a fallback or ends the presentation.
-pub async fn handle_presenter_left(
-    state: &AppState,
-    game_id: i64,
-    user_id: i64,
-) {
+pub async fn handle_presenter_left(state: &AppState, game_id: i64, user_id: i64) {
     let pres = match state.registry.get_presentation(game_id).await {
         Some(p) => p,
         None => return,
@@ -436,7 +414,10 @@ pub async fn handle_presenter_left(
     }
 }
 
-async fn is_any_player_in_room(state: &AppState, gwp: &crate::models::game::GameWithPlayers) -> bool {
+async fn is_any_player_in_room(
+    state: &AppState,
+    gwp: &crate::models::game::GameWithPlayers,
+) -> bool {
     let black_in = if let Some(id) = gwp.game.black_id {
         state.registry.is_in_room(gwp.game.id, id).await
     } else {

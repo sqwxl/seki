@@ -627,16 +627,32 @@ export function ChallengePopover({
       }}
     >
       <IconStonesBw />
-      <p><strong><UserLabel name={challengerName} profileUrl={`/users/${challengerName}`} /></strong> has challenged you to a game!</p>
+      <p>
+        <strong>
+          <UserLabel
+            name={challengerName}
+            profileUrl={`/users/${challengerName}`}
+          />
+        </strong>{" "}
+        has challenged you to a game!
+      </p>
       <dl class="game-info-details" style="margin-top: 0.5em">
-        <dt>Rated</dt><dd>{rated ? "Yes" : "No"}</dd>
-        <dt>Your color</dt><dd>{yourColor}</dd>
-        <dt>Board</dt><dd>{size}</dd>
-        <dt>Komi</dt><dd>{String(komi)}</dd>
-        <dt>Handicap</dt><dd>{settings.handicap >= 2 ? String(settings.handicap) : "None"}</dd>
-        <dt>Time</dt><dd>{tc || "Unlimited"}</dd>
-        <dt>Takebacks</dt><dd>{allowUndo ? "Yes" : "No"}</dd>
-        <dt>Spectators</dt><dd>{settings.is_private ? "No" : "Yes"}</dd>
+        <dt>Rated</dt>
+        <dd>{rated ? "Yes" : "No"}</dd>
+        <dt>Your color</dt>
+        <dd>{yourColor}</dd>
+        <dt>Board</dt>
+        <dd>{size}</dd>
+        <dt>Komi</dt>
+        <dd>{String(komi)}</dd>
+        <dt>Handicap</dt>
+        <dd>{settings.handicap >= 2 ? String(settings.handicap) : "None"}</dd>
+        <dt>Time</dt>
+        <dd>{tc || "Unlimited"}</dd>
+        <dt>Takebacks</dt>
+        <dd>{allowUndo ? "Yes" : "No"}</dd>
+        <dt>Spectators</dt>
+        <dd>{settings.is_private ? "No" : "Yes"}</dd>
       </dl>
       <div class="confirm-actions">
         <button class="btn-success" onClick={onAccept}>

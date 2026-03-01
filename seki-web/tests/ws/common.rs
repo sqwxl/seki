@@ -424,13 +424,17 @@ impl WsClient {
     }
 
     pub async fn send_presentation_state(&mut self, game_id: i64, snapshot: &str) {
-        self.send(json!({"action": "presentation_state", "game_id": game_id, "snapshot": snapshot}))
-            .await;
+        self.send(
+            json!({"action": "presentation_state", "game_id": game_id, "snapshot": snapshot}),
+        )
+        .await;
     }
 
     pub async fn give_control(&mut self, game_id: i64, target_user_id: i64) {
-        self.send(json!({"action": "give_control", "game_id": game_id, "target_user_id": target_user_id}))
-            .await;
+        self.send(
+            json!({"action": "give_control", "game_id": game_id, "target_user_id": target_user_id}),
+        )
+        .await;
     }
 
     pub async fn take_control(&mut self, game_id: i64) {

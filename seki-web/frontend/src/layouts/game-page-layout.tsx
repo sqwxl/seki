@@ -36,9 +36,7 @@ export function GamePageLayout(props: GamePageLayoutProps) {
       <div class="game-board-area">
         <div class={gobanClass} style={props.gobanStyle} ref={props.gobanRef} />
       </div>
-      <div class="game-sidebar">
-        {props.chat}
-      </div>
+      <div class="game-sidebar">{props.chat}</div>
       {props.moveTree}
       {props.playerBottom && (
         <div class="player-label player-bottom">
