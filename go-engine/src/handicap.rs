@@ -2,7 +2,7 @@ use crate::Point;
 
 /// Returns the maximum number of handicap stones for a given board size.
 pub fn max_handicap(cols: u8, rows: u8) -> u8 {
-    if cols != rows || cols < 7 || cols % 2 == 0 {
+    if cols != rows || cols < 7 || cols.is_multiple_of(2) {
         return 0;
     }
     if cols >= 13 {
@@ -17,7 +17,7 @@ pub fn max_handicap(cols: u8, rows: u8) -> u8 {
 ///
 /// Returns `None` if the board is non-square, even, too small, or count is invalid.
 pub fn handicap_points(cols: u8, rows: u8, count: u8) -> Option<Vec<Point>> {
-    if cols != rows || cols < 7 || cols % 2 == 0 || count < 2 || count > max_handicap(cols, rows) {
+    if cols != rows || cols < 7 || cols.is_multiple_of(2) || count < 2 || count > max_handicap(cols, rows) {
         return None;
     }
 

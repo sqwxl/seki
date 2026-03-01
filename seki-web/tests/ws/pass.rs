@@ -140,7 +140,7 @@ async fn pass_out_of_turn() {
 
     let err = white.recv_kind("error").await;
     assert!(
-        err["message"].as_str().unwrap().len() > 0,
+        !err["message"].as_str().unwrap().is_empty(),
         "expected an error message for pass out of turn"
     );
 }

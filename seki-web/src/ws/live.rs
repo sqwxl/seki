@@ -223,29 +223,29 @@ async fn handle_disconnect(state: &AppState, user_id: i64) {
             Err(_) => continue,
         };
         let tc = TimeControl::from_game(&game);
-        if !tc.is_none() {
-            if let Some(mut clock) = state.registry.get_clock(game_id).await {
-                let active = clock::active_stone_from_stage(&game.stage);
-                // Only pause if the disconnected player's clock is the active one
-                let disconnected_stone = if game.black_id == Some(user_id) {
-                    Some(go_engine::Stone::Black)
-                } else if game.white_id == Some(user_id) {
-                    Some(go_engine::Stone::White)
-                } else {
-                    None
-                };
+        if !tc.is_none()
+            && let Some(mut clock) = state.registry.get_clock(game_id).await
+        {
+            let active = clock::active_stone_from_stage(&game.stage);
+            // Only pause if the disconnected player's clock is the active one
+            let disconnected_stone = if game.black_id == Some(user_id) {
+                Some(go_engine::Stone::Black)
+            } else if game.white_id == Some(user_id) {
+                Some(go_engine::Stone::White)
+            } else {
+                None
+            };
 
-                if active == disconnected_stone && disconnected_stone.is_some() {
-                    clock.pause(active, now);
-                    state.registry.update_clock(game_id, clock.clone()).await;
-                    // Persist paused clock to DB
-                    let _ = Game::update_clock(
-                        &state.db,
-                        game_id,
-                        &clock.to_update(None, &tc),
-                    )
-                    .await;
-                }
+            if active == disconnected_stone && disconnected_stone.is_some() {
+                clock.pause(active, now);
+                state.registry.update_clock(game_id, clock.clone()).await;
+                // Persist paused clock to DB
+                let _ = Game::update_clock(
+                    &state.db,
+                    game_id,
+                    &clock.to_update(None, &tc),
+                )
+                .await;
             }
         }
 
@@ -289,24 +289,20 @@ async fn handle_reconnect(state: &AppState, user_id: i64) {
         }
 
         let tc = TimeControl::from_game(&game);
-        if !tc.is_none() {
-            let active = clock::active_stone_from_stage(&game.stage);
-            // Resume the clock for whoever's turn it is
-            if active.is_some() {
-                if let Some(mut clock) = state.registry.get_clock(game_id).await {
-                    // Only resume if the clock is actually paused
-                    if clock.last_move_at.is_none() {
-                        clock.resume(now);
-                        state.registry.update_clock(game_id, clock.clone()).await;
-                        let _ = Game::update_clock(
-                            &state.db,
-                            game_id,
-                            &clock.to_update(active, &tc),
-                        )
-                        .await;
-                    }
-                }
-            }
+        if !tc.is_none()
+            && let Some(active) = clock::active_stone_from_stage(&game.stage)
+            && let Some(mut clock) = state.registry.get_clock(game_id).await
+            // Only resume if the clock is actually paused
+            && clock.last_move_at.is_none()
+        {
+            clock.resume(now);
+            state.registry.update_clock(game_id, clock.clone()).await;
+            let _ = Game::update_clock(
+                &state.db,
+                game_id,
+                &clock.to_update(Some(active), &tc),
+            )
+            .await;
         }
 
         // Broadcast reconnect to all viewers

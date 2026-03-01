@@ -91,11 +91,11 @@ impl Engine {
 
     fn create(cols: u8, rows: u8, handicap: u8, moves: Vec<Turn>) -> Self {
         let mut goban = Goban::with_dimensions(cols, rows);
-        if handicap >= 2 {
-            if let Some(pts) = handicap::handicap_points(cols, rows, handicap) {
-                for pt in pts {
-                    goban.set_stone(pt, Stone::Black);
-                }
+        if handicap >= 2
+            && let Some(pts) = handicap::handicap_points(cols, rows, handicap)
+        {
+            for pt in pts {
+                goban.set_stone(pt, Stone::Black);
             }
         }
         let goban = goban.replay_moves(&moves);

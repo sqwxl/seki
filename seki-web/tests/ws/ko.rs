@@ -114,7 +114,7 @@ async fn ko_resolved_after_intervening_moves() {
     // The recapture should succeed — check that (1,1) now has a White stone.
     // board is a flat array indexed by row * cols + col; cols = 9.
     let board = &state["state"]["board"];
-    let idx = 1 * 9 + 1; // row=1, col=1
+    let idx = 9 + 1; // row=1, col=1
     assert_eq!(
         board[idx], -1,
         "White stone should be at (1,1) after recapture"

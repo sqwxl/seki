@@ -52,6 +52,12 @@ pub struct GameRegistry {
     rooms: Arc<RwLock<HashMap<i64, GameRoom>>>,
 }
 
+impl Default for GameRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GameRegistry {
     pub fn new() -> Self {
         GameRegistry {
@@ -348,29 +354,29 @@ impl GameRegistry {
 
     pub async fn update_presentation_snapshot(&self, game_id: i64, snapshot: String) {
         let mut rooms = self.rooms.write().await;
-        if let Some(room) = rooms.get_mut(&game_id) {
-            if let Some(p) = room.presentation.as_mut() {
-                p.cached_snapshot = snapshot;
-            }
+        if let Some(room) = rooms.get_mut(&game_id)
+            && let Some(p) = room.presentation.as_mut()
+        {
+            p.cached_snapshot = snapshot;
         }
     }
 
     pub async fn set_presenter(&self, game_id: i64, presenter_id: i64) {
         let mut rooms = self.rooms.write().await;
-        if let Some(room) = rooms.get_mut(&game_id) {
-            if let Some(p) = room.presentation.as_mut() {
-                p.presenter_id = presenter_id;
-                p.control_request = None;
-            }
+        if let Some(room) = rooms.get_mut(&game_id)
+            && let Some(p) = room.presentation.as_mut()
+        {
+            p.presenter_id = presenter_id;
+            p.control_request = None;
         }
     }
 
     pub async fn set_control_request(&self, game_id: i64, user_id: Option<i64>) {
         let mut rooms = self.rooms.write().await;
-        if let Some(room) = rooms.get_mut(&game_id) {
-            if let Some(p) = room.presentation.as_mut() {
-                p.control_request = user_id;
-            }
+        if let Some(room) = rooms.get_mut(&game_id)
+            && let Some(p) = room.presentation.as_mut()
+        {
+            p.control_request = user_id;
         }
     }
 

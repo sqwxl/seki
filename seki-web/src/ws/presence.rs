@@ -27,6 +27,12 @@ struct PresenceInner {
     timers: HashMap<i64, JoinHandle<()>>,
 }
 
+impl Default for UserPresence {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UserPresence {
     pub fn new() -> Self {
         Self {

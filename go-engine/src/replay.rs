@@ -395,10 +395,10 @@ impl Replay {
         }
         // Only update path if the tree actually grew (avoid clobbering
         // the user's remembered analysis-branch path on a no-op merge).
-        if self.tree.len() > old_len {
-            if let Some(tip) = parent {
-                self.path = self.tree.path_to(tip);
-            }
+        if self.tree.len() > old_len
+            && let Some(tip) = parent
+        {
+            self.path = self.tree.path_to(tip);
         }
         parent
     }

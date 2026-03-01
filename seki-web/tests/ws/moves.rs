@@ -94,7 +94,7 @@ async fn out_of_turn() {
     black.play(game_id, 4, 4).await;
     let err = black.recv_kind("error").await;
     assert!(
-        err["message"].as_str().unwrap().len() > 0,
+        !err["message"].as_str().unwrap().is_empty(),
         "expected an error message for out-of-turn play"
     );
 
@@ -128,7 +128,7 @@ async fn occupied_intersection() {
     white.play(game_id, 3, 3).await;
     let err = white.recv_kind("error").await;
     assert!(
-        err["message"].as_str().unwrap().len() > 0,
+        !err["message"].as_str().unwrap().is_empty(),
         "expected an error for playing on an occupied intersection"
     );
 }
@@ -167,7 +167,7 @@ async fn suicide() {
     white.play(game_id, 0, 0).await;
     let err = white.recv_kind("error").await;
     assert!(
-        err["message"].as_str().unwrap().len() > 0,
+        !err["message"].as_str().unwrap().is_empty(),
         "expected an error for suicide move"
     );
 }

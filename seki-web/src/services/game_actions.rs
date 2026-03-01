@@ -203,18 +203,7 @@ pub async fn toggle_chain(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    if engine.stage() != Stage::TerritoryReview {
-        return Err(AppError::BadRequest("Not in territory review".to_string()));
-    }
-
-    // Block territory actions while opponent is disconnected
-    if let Some(opp) = gwp.opponent_of(player_id) {
-        if state.registry.is_player_disconnected(game_id, opp.id).await {
-            return Err(AppError::BadRequest(
-                "Opponent disconnected, territory review paused".to_string(),
-            ));
-        }
-    }
+    require_territory_review(&engine, state, &gwp, game_id, player_id).await?;
 
     state
         .registry
@@ -248,18 +237,7 @@ pub async fn approve_territory(
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    if engine.stage() != Stage::TerritoryReview {
-        return Err(AppError::BadRequest("Not in territory review".to_string()));
-    }
-
-    // Block territory actions while opponent is disconnected
-    if let Some(opp) = gwp.opponent_of(player_id) {
-        if state.registry.is_player_disconnected(game_id, opp.id).await {
-            return Err(AppError::BadRequest(
-                "Opponent disconnected, territory review paused".to_string(),
-            ));
-        }
-    }
+    require_territory_review(&engine, state, &gwp, game_id, player_id).await?;
 
     state.registry.set_approved(game_id, stone, true).await;
 
@@ -1103,6 +1081,26 @@ fn require_both_players(gwp: &GameWithPlayers) -> Result<(), AppError> {
     if gwp.is_open() {
         return Err(AppError::BadRequest(
             "Waiting for opponent to join".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+async fn require_territory_review(
+    engine: &Engine,
+    state: &AppState,
+    gwp: &GameWithPlayers,
+    game_id: i64,
+    player_id: i64,
+) -> Result<(), AppError> {
+    if engine.stage() != Stage::TerritoryReview {
+        return Err(AppError::BadRequest("Not in territory review".to_string()));
+    }
+    if let Some(opp) = gwp.opponent_of(player_id)
+        && state.registry.is_player_disconnected(game_id, opp.id).await
+    {
+        return Err(AppError::BadRequest(
+            "Opponent disconnected, territory review paused".to_string(),
         ));
     }
     Ok(())

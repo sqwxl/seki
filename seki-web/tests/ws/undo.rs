@@ -133,7 +133,7 @@ async fn undo_disabled() {
     // Black requests undo -- should fail
     black.request_undo(game_id).await;
     let err = black.recv_kind("error").await;
-    assert!(err["message"].as_str().unwrap().len() > 0);
+    assert!(!err["message"].as_str().unwrap().is_empty());
 }
 
 /// 6.5 -- Double undo request: second request while one is pending yields an error.
@@ -163,7 +163,7 @@ async fn double_undo_request() {
     // Second undo request while pending -- should fail
     black.request_undo(game_id).await;
     let err = black.recv_kind("error").await;
-    assert!(err["message"].as_str().unwrap().len() > 0);
+    assert!(!err["message"].as_str().unwrap().is_empty());
 }
 
 /// 6.6 -- Undo blocked after rejection for the same move.
@@ -198,7 +198,7 @@ async fn undo_blocked_after_rejection() {
     // Black immediately requests undo again -- should fail (undo_rejected flag is set)
     black.request_undo(game_id).await;
     let err = black.recv_kind("error").await;
-    assert!(err["message"].as_str().unwrap().len() > 0);
+    assert!(!err["message"].as_str().unwrap().is_empty());
 }
 
 /// 6.7 -- Undo allowed after rejection + new moves clear the undo_rejected flag.
@@ -271,7 +271,7 @@ async fn cannot_undo_pass() {
     // Black requests undo -- should fail (can't undo a pass)
     black.request_undo(game_id).await;
     let err = black.recv_kind("error").await;
-    assert!(err["message"].as_str().unwrap().len() > 0);
+    assert!(!err["message"].as_str().unwrap().is_empty());
 }
 
 /// 6.9 -- Cannot undo opponent's move: can only undo your own last move.
@@ -301,5 +301,5 @@ async fn cannot_undo_opponents_move() {
     // Black requests undo -- should fail (last move was White's)
     black.request_undo(game_id).await;
     let err = black.recv_kind("error").await;
-    assert!(err["message"].as_str().unwrap().len() > 0);
+    assert!(!err["message"].as_str().unwrap().is_empty());
 }
