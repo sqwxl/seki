@@ -83,6 +83,23 @@ button:disabled:hover {
   border-color: var(--border);
 }
 
+[popover] {
+  padding: 0.75em;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+[popover]::backdrop {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] [popover]::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
 /* --- Link-styled button (overrides base reset) --- */
 
 button.link {
@@ -302,6 +319,10 @@ a:visited {
   width: auto;
 }
 
+.game-status-slot {
+  width: min(90vw, 70vh);
+}
+
 .game-status {
   display: flex;
   align-items: center;
@@ -316,6 +337,10 @@ a:visited {
 }
 
 @media (min-width: 768px) {
+  .game-status-slot {
+    width: min(70vw, 70vh);
+  }
+
   .game-page-body > .game-sidebar {
     width: min(70vw, 70vh);
   }
@@ -353,6 +378,12 @@ a:visited {
     width: auto;
     max-height: 100%;
     overflow: auto;
+  }
+  .game-page-body > .game-status-slot {
+    grid-column: 3;
+    grid-row: 2;
+    margin: 0 1.5em;
+    width: auto;
   }
   .game-page-body > .game-sidebar {
     grid-column: 3;

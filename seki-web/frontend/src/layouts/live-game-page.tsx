@@ -2,6 +2,7 @@ import type { Point } from "../goban/types";
 import { GameStage, isPlayStage } from "../game/types";
 import type { TerritoryOverlay } from "../goban/create-board";
 import { Chat } from "../components/chat";
+import { GameInfo } from "../components/game-info";
 import { GameStatus, getStatusText } from "../components/game-status";
 import type { ControlsProps } from "../components/controls";
 import type { GameChannel } from "../game/channel";
@@ -10,7 +11,6 @@ import { clockDisplay } from "../game/clock";
 import type { PremoveState } from "../utils/premove";
 import { storage, SHOW_MOVE_TREE } from "../utils/storage";
 import { GamePageLayout } from "./game-page-layout";
-import { GameDescription } from "../components/game-description";
 import { buildCoordsToggle } from "../utils/shared-controls";
 import type { CoordsToggleState } from "../utils/shared-controls";
 import type { PlayerPanelProps } from "../components/player-panel";
@@ -97,23 +97,6 @@ export function getServerTerritory(): TerritoryOverlay | undefined {
 // ---------------------------------------------------------------------------
 // Connected wrapper components
 // ---------------------------------------------------------------------------
-
-function LiveHeader() {
-  return (
-    <h2>
-      <GameDescription
-        id={gameId.value}
-        creator_id={initialProps.value.creator_id}
-        black={black.value}
-        white={white.value}
-        settings={initialProps.value.settings}
-        stage={gameStage.value}
-        result={result.value ?? undefined}
-        move_count={moves.value.length > 0 ? moves.value.length : undefined}
-      />
-    </h2>
-  );
-}
 
 function buildLivePlayerPanel({ position }: { position: "top" | "bottom" }) {
   const b = black.value;
@@ -681,13 +664,28 @@ export function LiveGamePage(props: LiveGamePageProps) {
 
   return (
     <GamePageLayout
-      header={<LiveHeader />}
       gobanRef={gobanRef}
       gobanStyle={`aspect-ratio: ${gameState.value.cols}/${gameState.value.rows}`}
       gobanClass={analysisMode.value ? "goban-analysis" : undefined}
       playerTop={buildLivePlayerPanel({ position: "top" })}
       playerBottom={buildLivePlayerPanel({ position: "bottom" })}
       controls={controlsProps}
+      info={
+        <GameInfo
+          settings={initialProps.value.settings}
+          komi={initialProps.value.komi}
+          stage={gameStage.value}
+          moveCount={moves.value.length}
+          result={result.value ?? undefined}
+          black={black.value}
+          white={white.value}
+          capturesBlack={gameState.value.captures.black}
+          capturesWhite={gameState.value.captures.white}
+          territory={territory.value}
+          settledTerritory={settledTerritory.value}
+          estimateScore={estimateMode.value ? estimateScore.value : undefined}
+        />
+      }
       status={statusText ? <GameStatus text={statusText} /> : undefined}
       chat={
         <div class="chat">

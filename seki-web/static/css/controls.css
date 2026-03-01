@@ -1,7 +1,7 @@
 .controls {
   display: flex;
   flex-direction: column;
-  gap: 0.5em;
+  gap: 0.75em;
   align-items: stretch;
   margin-top: 0.5em;
   max-width: 100%;
@@ -14,8 +14,20 @@
   justify-content: center;
   font-family: monospace;
   font-size: 1.3em;
-  height: 2em;
-  min-width: 2em;
+  height: 2.4em;
+  min-width: 2.4em;
+}
+
+@media (min-width: 768px) {
+  .controls {
+    gap: 0.5em;
+  }
+
+  .controls button,
+  .controls select {
+    height: 2em;
+    min-width: 2em;
+  }
 }
 
 .controls button > svg {
@@ -47,7 +59,7 @@
 .controls-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25em;
+  gap: 0.5em;
   align-items: center;
   justify-content: center;
 }
@@ -55,15 +67,25 @@
 .btn-group {
   display: inline-flex;
   flex-wrap: nowrap;
-  gap: 0.25em;
+  gap: 0.5em;
   align-items: center;
+}
+
+@media (min-width: 768px) {
+  .controls-group {
+    gap: 0.25em;
+  }
+
+  .btn-group {
+    gap: 0.25em;
+  }
 }
 
 .controls-nav-row {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25em;
+  gap: 0.5em;
   width: 100%;
 }
 
@@ -80,6 +102,7 @@
   .controls-nav-row {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
+    gap: 0.25em;
   }
 
   .controls-nav-row > .controls-start {
@@ -99,11 +122,15 @@
     justify-self: end;
     order: 0;
   }
+
+  .controls-nav {
+    gap: 0.25em;
+  }
 }
 
 .controls-nav {
   display: flex;
-  gap: 0.25em;
+  gap: 0.5em;
   justify-content: center;
   align-items: stretch;
 }

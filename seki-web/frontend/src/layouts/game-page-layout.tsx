@@ -6,6 +6,7 @@ import { Controls } from "./controls";
 
 export type GamePageLayoutProps = {
   header?: ComponentChildren;
+  info?: ComponentChildren;
   gobanRef: Ref<HTMLDivElement>;
   gobanStyle?: string;
   gobanClass?: string;
@@ -25,6 +26,8 @@ export function GamePageLayout(props: GamePageLayoutProps) {
   return (
     <>
       {props.header && <div class="game-header">{props.header}</div>}
+      {props.info && <div class="game-info-slot">{props.info}</div>}
+      {props.status && <div class="game-status-slot">{props.status}</div>}
       {props.playerTop && (
         <div class="player-label player-top">
           <PlayerPanel {...props.playerTop} />
@@ -34,7 +37,6 @@ export function GamePageLayout(props: GamePageLayoutProps) {
         <div class={gobanClass} style={props.gobanStyle} ref={props.gobanRef} />
       </div>
       <div class="game-sidebar">
-        {props.status}
         {props.chat}
       </div>
       {props.moveTree}

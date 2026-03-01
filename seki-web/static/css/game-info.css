@@ -1,0 +1,93 @@
+.game-info-slot {
+  width: min(90vw, 70vh);
+}
+
+.game-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  width: 100%;
+  padding: 0.3em 0.5em;
+  border: none;
+  background: none;
+  color: var(--fg);
+  font-size: 0.85em;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.game-info-bar:hover {
+  opacity: 1;
+  border-color: transparent;
+}
+
+.game-info-popover {
+  max-width: 20em;
+}
+
+.game-info-popover-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.5em;
+  font-size: 1.25em;
+  opacity: 0.6;
+}
+
+.game-info-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25em 0.75em;
+  margin: 0;
+  font-size: 0.9em;
+}
+
+.game-info-details dt {
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.game-info-details dd {
+  margin: 0;
+}
+
+@media (min-width: 768px) {
+  .game-info-slot {
+    width: min(70vw, 70vh);
+  }
+}
+
+@media (min-width: 1960px) {
+  .game-page-body > .game-info-slot {
+    grid-column: 2;
+    grid-row: 2;
+    width: auto;
+  }
+
+  .game-page-body > .game-status-slot {
+    grid-row: 3;
+  }
+
+  .game-page-body > .player-top {
+    grid-row: 3;
+  }
+
+  .game-page-body > .game-board-area {
+    grid-row: 4;
+  }
+
+  .game-page-body > .move-tree-slot {
+    grid-row: 4;
+  }
+
+  .game-page-body > .game-sidebar {
+    grid-row: 4;
+  }
+
+  .game-page-body > .player-bottom {
+    grid-row: 5;
+  }
+
+  .game-page-body > .controls {
+    grid-row: 6;
+  }
+}
