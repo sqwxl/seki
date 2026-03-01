@@ -92,6 +92,10 @@ button:disabled:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+[popover]:not(:popover-open) {
+  display: none;
+}
+
 [popover]::backdrop {
   background: rgba(0, 0, 0, 0.3);
 }

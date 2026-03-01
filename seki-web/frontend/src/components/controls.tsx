@@ -88,6 +88,72 @@ export type ControlsProps = {
   };
 };
 
+function ConfirmPopover({
+  id,
+  icon,
+  message,
+  onConfirm,
+  onCancel,
+  manual,
+  children,
+}: {
+  id: string;
+  icon: preact.ComponentType;
+  message: string;
+  onConfirm: () => void;
+  onCancel?: () => void;
+  manual?: boolean;
+  children?: preact.ComponentChildren;
+}) {
+  const Icon = icon;
+  return (
+    <div
+      id={id}
+      class="confirm-popover"
+      popover={manual ? "manual" : "auto"}
+      ref={
+        manual
+          ? (el) => {
+              if (el && !el.matches(":popover-open")) {
+                el.showPopover();
+              }
+            }
+          : undefined
+      }
+    >
+      <Icon />
+      <p>{message}</p>
+      {children}
+      <div class="confirm-actions">
+        <button
+          class="confirm-yes"
+          popovertarget={manual ? undefined : id}
+          onClick={() => {
+            onConfirm();
+            if (manual) {
+              document.getElementById(id)?.hidePopover();
+            }
+          }}
+        >
+          <IconCheck />
+        </button>
+        <button
+          class="confirm-no"
+          popovertarget={manual ? undefined : id}
+          onClick={() => {
+            onCancel?.();
+            if (manual) {
+              document.getElementById(id)?.hidePopover();
+            }
+          }}
+        >
+          <IconX />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ConfirmButton({
   id,
   icon,
@@ -115,20 +181,14 @@ function ConfirmButton({
       >
         <Icon />
       </button>
-      <div id={popoverId} popover>
-        <p>{confirm.message}</p>
+      <ConfirmPopover
+        id={popoverId}
+        icon={icon}
+        message={confirm.message}
+        onConfirm={confirm.onConfirm}
+      >
         {children}
-        <button
-          class="confirm-yes"
-          popovertarget={popoverId}
-          onClick={confirm.onConfirm}
-        >
-          <IconCheck />
-        </button>
-        <button class="confirm-no" popovertarget={popoverId}>
-          <IconX />
-        </button>
-      </div>
+      </ConfirmPopover>
     </>
   );
 }
@@ -218,35 +278,14 @@ export function GameControls(props: ControlsProps) {
         </button>
       )}
       {props.undoResponse && (
-        <div
+        <ConfirmPopover
           id="undo-response"
-          popover="manual"
-          ref={(el) => {
-            if (el && !el.matches(":popover-open")) {
-              el.showPopover();
-            }
-          }}
-        >
-          <p>Opponent requests to undo their last move.</p>
-          <button
-            class="confirm-yes"
-            onClick={() => {
-              document.getElementById("undo-response")?.hidePopover();
-              props.undoResponse!.onAccept();
-            }}
-          >
-            <IconCheck />
-          </button>
-          <button
-            class="confirm-no"
-            onClick={() => {
-              document.getElementById("undo-response")?.hidePopover();
-              props.undoResponse!.onReject();
-            }}
-          >
-            <IconX />
-          </button>
-        </div>
+          icon={IconUndo}
+          message="Opponent requests to undo their last move."
+          onConfirm={props.undoResponse.onAccept}
+          onCancel={props.undoResponse.onReject}
+          manual
+        />
       )}
       {props.pass && !props.confirmPass && (
         <button
@@ -376,35 +415,14 @@ export function GameControls(props: ControlsProps) {
         </ConfirmButton>
       )}
       {props.controlRequestResponse && (
-        <div
+        <ConfirmPopover
           id="control-request"
-          popover="manual"
-          ref={(el) => {
-            if (el && !el.matches(":popover-open")) {
-              el.showPopover();
-            }
-          }}
-        >
-          <p>{props.controlRequestResponse.displayName} requests control</p>
-          <button
-            class="confirm-yes"
-            onClick={() => {
-              document.getElementById("control-request")?.hidePopover();
-              props.controlRequestResponse!.onGive();
-            }}
-          >
-            <IconCheck />
-          </button>
-          <button
-            class="confirm-no"
-            onClick={() => {
-              document.getElementById("control-request")?.hidePopover();
-              props.controlRequestResponse!.onDismiss();
-            }}
-          >
-            <IconX />
-          </button>
-        </div>
+          icon={IconAnalysis}
+          message={`${props.controlRequestResponse.displayName} requests control`}
+          onConfirm={props.controlRequestResponse.onGive}
+          onCancel={props.controlRequestResponse.onDismiss}
+          manual
+        />
       )}
     </>
   );
