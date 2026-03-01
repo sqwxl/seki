@@ -138,7 +138,8 @@ pub fn serialize_state(
         "white": gwp.white.as_ref().map(UserData::from),
         "result": gwp.game.result,
         "undo_rejected": gwp.game.undo_rejected,
-        "allow_undo": gwp.game.allow_undo
+        "allow_undo": gwp.game.allow_undo,
+        "nigiri": gwp.game.nigiri
     });
 
     if let Some(t) = territory {

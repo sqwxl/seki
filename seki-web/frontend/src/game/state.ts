@@ -67,6 +67,7 @@ export const settledTerritory = signal<SettledTerritoryData | undefined>(
   undefined,
 );
 export const onlineUsers = signal<Map<number, UserData>>(new Map());
+export const nigiri = signal(false);
 export const undoRejected = signal(false);
 export const allowUndo = signal(false);
 export const opponentDisconnected = signal<{ since: Date } | undefined>(
@@ -164,6 +165,7 @@ export function initGameState(
     moves.value = props.moves ?? [];
     result.value = props.result;
     settledTerritory.value = props.settled_territory;
+    nigiri.value = props.nigiri ?? false;
     black.value = props.black ?? undefined;
     white.value = props.white ?? undefined;
   });
@@ -194,11 +196,22 @@ export function applyGameStateMessage(data: StateMessage): void {
     moves.value = data.moves ?? [];
     undoRejected.value = data.undo_rejected;
     allowUndo.value = data.allow_undo ?? false;
+    if (data.nigiri !== undefined) {
+      nigiri.value = data.nigiri;
+    }
     result.value = data.result;
     territory.value = data.territory;
     settledTerritory.value = data.settled_territory;
     black.value = data.black ?? undefined;
     white.value = data.white ?? undefined;
+    // Re-derive playerStone from updated black/white (nigiri swap may have changed them)
+    if (currentUserId.value) {
+      if (data.black?.id === currentUserId.value) {
+        playerStone.value = 1;
+      } else if (data.white?.id === currentUserId.value) {
+        playerStone.value = -1;
+      }
+    }
     if (data.online_users) {
       const map = new Map<number, UserData>();
       for (const u of data.online_users) {

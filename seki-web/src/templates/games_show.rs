@@ -20,6 +20,7 @@ pub struct InitialGameProps {
     pub current_turn_stone: i32,
     pub result: Option<String>,
     pub settled_territory: Option<SettledTerritoryData>,
+    pub nigiri: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invite_token: Option<String>,
 }

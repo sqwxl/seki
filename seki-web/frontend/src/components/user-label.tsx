@@ -1,11 +1,18 @@
-import { StoneBlack, StoneWhite } from "./icons";
+import { StoneBlack, StoneWhite, IconNigiri } from "./icons";
 
 type UserLabelProps = {
   name: string;
-  stone?: "black" | "white";
+  stone?: "black" | "white" | "nigiri";
   profileUrl?: string;
   isOnline?: boolean;
 };
+
+function StoneIcon({ stone }: { stone: "black" | "white" | "nigiri" }) {
+  if (stone === "nigiri") {
+    return <IconNigiri />;
+  }
+  return stone === "black" ? <StoneBlack /> : <StoneWhite />;
+}
 
 export function UserLabel(props: UserLabelProps) {
   const nameContent = props.profileUrl ? (
@@ -18,7 +25,7 @@ export function UserLabel(props: UserLabelProps) {
     <span class="user-label">
       {props.stone && (
         <span class="stone-icon">
-          {props.stone === "black" ? <StoneBlack /> : <StoneWhite />}
+          <StoneIcon stone={props.stone} />
         </span>
       )}
       <span class="player-name">{nameContent}</span>

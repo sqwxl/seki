@@ -50,17 +50,12 @@ pub async fn create_game(
 
     let friend_id = friend.as_ref().map(|f| f.id);
 
+    let nigiri = !matches!(params.color.as_str(), "black" | "white");
     let (black_id, white_id) = match params.color.as_str() {
         "black" => (Some(creator.id), friend_id),
         "white" => (friend_id, Some(creator.id)),
-        _ => {
-            // Random assignment
-            if rand::rng().random_bool(0.5) {
-                (Some(creator.id), friend_id)
-            } else {
-                (friend_id, Some(creator.id))
-            }
-        }
+        // Nigiri: assign deterministically now, randomize when game starts
+        _ => (Some(creator.id), friend_id),
     };
 
     let invite_token = generate_invite_token();
@@ -96,6 +91,7 @@ pub async fn create_game(
         initial_clock.as_ref().map(|c| c.white_remaining_ms),
         initial_clock.as_ref().map(|c| c.black_periods),
         initial_clock.as_ref().map(|c| c.white_periods),
+        nigiri,
     )
     .await?;
 

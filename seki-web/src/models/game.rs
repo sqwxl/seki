@@ -54,6 +54,7 @@ pub struct Game {
     pub clock_last_move_at: Option<DateTime<Utc>>,
     pub clock_expires_at: Option<DateTime<Utc>>,
     pub territory_review_expires_at: Option<DateTime<Utc>>,
+    pub nigiri: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -248,13 +249,14 @@ impl Game {
         clock_white_ms: Option<i64>,
         clock_black_periods: Option<i32>,
         clock_white_periods: Option<i32>,
+        nigiri: bool,
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, \
              is_private, allow_undo, invite_token, time_control, main_time_secs, \
              increment_secs, byoyomi_time_secs, byoyomi_periods, \
-             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
              RETURNING *",
         )
         .bind(creator_id)
@@ -276,6 +278,7 @@ impl Game {
         .bind(clock_white_ms)
         .bind(clock_black_periods)
         .bind(clock_white_periods)
+        .bind(nigiri)
         .fetch_one(executor)
         .await
     }
@@ -303,6 +306,19 @@ impl Game {
             .bind(game_id)
             .execute(executor)
             .await?;
+        Ok(())
+    }
+
+    pub async fn swap_players(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET black_id = white_id, white_id = black_id, updated_at = NOW() WHERE id = $1",
+        )
+        .bind(game_id)
+        .execute(executor)
+        .await?;
         Ok(())
     }
 

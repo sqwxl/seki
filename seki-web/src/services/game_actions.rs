@@ -443,6 +443,14 @@ pub async fn accept_challenge(
         ));
     }
 
+    // Nigiri: randomize colors now that the game is starting
+    if gwp.game.nigiri {
+        use rand::RngExt;
+        if rand::rng().random_bool(0.5) {
+            Game::swap_players(&state.db, game_id).await?;
+        }
+    }
+
     let start_stage = if gwp.game.handicap >= 2 {
         "white_to_play"
     } else {

@@ -608,7 +608,7 @@ export function ChallengePopover({
   allowUndo: boolean;
   rated?: boolean;
   challengerName: string;
-  yourColor: "Black" | "White";
+  yourColor: "Black" | "White" | "Random";
   onAccept: () => void;
   onDecline: () => void;
 }) {

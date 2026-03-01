@@ -9,4 +9,5 @@ pre-commit:
     prettier:
       root: seki-web/frontend/
       glob: "*.{ts,tsx}"
-      run: cd seki-web/frontend && pnpm exec prettier --check {staged_files}
+      run: pnpm exec prettier --write {staged_files}
+      stage_fixed: true

@@ -4,7 +4,7 @@ import { UserLabel } from "./user-label";
 export type PlayerPanelProps = {
   name: string;
   captures: string;
-  stone: "black" | "white";
+  stone: "black" | "white" | "nigiri";
   clock?: string;
   clockLowTime?: boolean;
   profileUrl?: string;
@@ -12,8 +12,6 @@ export type PlayerPanelProps = {
 };
 
 export function PlayerPanel(props: PlayerPanelProps) {
-  const CapturesIcon = props.stone === "black" ? CapturesBlack : CapturesWhite;
-
   return (
     <>
       <span class="player-name-group">
@@ -28,10 +26,14 @@ export function PlayerPanel(props: PlayerPanelProps) {
         {props.clock ?? ""}
       </span>
       <span class="player-captures">
-        {props.captures}
-        <span class="captures-icon">
-          <CapturesIcon />
-        </span>
+        {props.stone !== "nigiri" && (
+          <>
+            {props.captures}
+            <span class="captures-icon">
+              {props.stone === "black" ? <CapturesBlack /> : <CapturesWhite />}
+            </span>
+          </>
+        )}
       </span>
     </>
   );

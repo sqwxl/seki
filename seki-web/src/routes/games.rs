@@ -257,6 +257,7 @@ pub async fn show_game(
         current_turn_stone: engine.current_turn_stone().to_int() as i32,
         result: gwp.game.result.clone(),
         settled_territory,
+        nigiri: gwp.game.nigiri,
         invite_token: if is_creator {
             gwp.game.invite_token.clone()
         } else {
@@ -321,6 +322,15 @@ pub async fn join_game(
     } else {
         return Err(AppError::BadRequest("Game is full".to_string()));
     }
+
+    // Nigiri: randomize colors now that both players are present
+    if gwp.game.nigiri {
+        use rand::RngExt;
+        if rand::rng().random_bool(0.5) {
+            Game::swap_players(&mut *tx, id).await?;
+        }
+    }
+
     let started = gwp.game.stage == "unstarted";
     let start_stage = if gwp.game.handicap >= 2 {
         "white_to_play"

@@ -102,6 +102,7 @@ export type InitialGameProps = {
   current_turn_stone: number;
   result: string | null;
   settled_territory?: SettledTerritoryData;
+  nigiri?: boolean;
   invite_token?: string;
 };
 
@@ -124,6 +125,7 @@ export type StateMessage = {
   result: string | null;
   undo_rejected: boolean;
   allow_undo?: boolean;
+  nigiri?: boolean;
   territory?: TerritoryData;
   settled_territory?: SettledTerritoryData;
   clock?: ClockData;

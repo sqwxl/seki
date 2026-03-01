@@ -33,6 +33,7 @@ import {
   estimateMode,
   undoResponseNeeded,
   opponentDisconnected,
+  nigiri,
   board,
   playerStone,
   initialProps,
@@ -125,10 +126,14 @@ function buildLivePlayerPanel({ position }: { position: "top" | "bottom" }) {
 
   const cd = clockDisplay.value;
 
+  // Nigiri pending: colors not yet assigned (game hasn't started)
+  const isNigiriPending =
+    nigiri.value && !isPlayStage(gameStage.value) && !result.value;
+
   const blackPanel: PlayerPanelProps = {
     name: bName,
     captures: bStr,
-    stone: "black",
+    stone: isNigiriPending ? "nigiri" : "black",
     clock: cd.blackText || undefined,
     clockLowTime: cd.blackLow,
     profileUrl: bUrl,
@@ -137,7 +142,7 @@ function buildLivePlayerPanel({ position }: { position: "top" | "bottom" }) {
   const whitePanel: PlayerPanelProps = {
     name: wName,
     captures: wStr,
-    stone: "white",
+    stone: isNigiriPending ? "nigiri" : "white",
     clock: cd.whiteText || undefined,
     clockLowTime: cd.whiteLow,
     profileUrl: wUrl,
@@ -706,7 +711,13 @@ export function LiveGamePage(props: LiveGamePageProps) {
                   ? black.value?.display_name
                   : white.value?.display_name) ?? "?"
               }
-              yourColor={playerStone.value === 1 ? "Black" : "White"}
+              yourColor={
+                nigiri.value
+                  ? "Random"
+                  : playerStone.value === 1
+                    ? "Black"
+                    : "White"
+              }
               onAccept={() => channel.acceptChallenge()}
               onDecline={() => channel.declineChallenge()}
             />
