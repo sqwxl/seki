@@ -8,6 +8,10 @@ import type {
   TerritoryData,
   TurnData,
   ScoreData,
+  StateMessage,
+  UndoAcceptedMessage,
+  UndoRejectedMessage,
+  PresentationStartedMessage,
 } from "./types";
 import { GameStage as GS, isPlayStage } from "./types";
 import type { Board } from "../goban/create-board";
@@ -102,9 +106,7 @@ export const board = signal<Board | undefined>(undefined);
 // ---------------------------------------------------------------------------
 export const navState = signal({ atStart: true, atLatest: true, counter: "0" });
 export const estimateScore = signal<ScoreData | undefined>(undefined);
-export const showMoveTree = signal(
-  storage.get(SHOW_MOVE_TREE) === "true",
-);
+export const showMoveTree = signal(storage.get(SHOW_MOVE_TREE) === "true");
 export const moveConfirmEnabled = signal(readMoveConfirmation());
 
 // ---------------------------------------------------------------------------
@@ -167,20 +169,7 @@ let _prevBlackApproved = false;
 let _prevWhiteApproved = false;
 
 /** Called from WS "state" message handler. Uses batch() for atomic update. */
-export function applyGameState(data: {
-  state: GameState;
-  stage: GameStage;
-  current_turn_stone: number | null;
-  moves: TurnData[];
-  undo_rejected: boolean;
-  allow_undo?: boolean;
-  result: string | null;
-  territory?: TerritoryData;
-  settled_territory?: SettledTerritoryData;
-  black: UserData | null;
-  white: UserData | null;
-  online_users?: UserData[];
-}): void {
+export function applyGameStateMessage(data: StateMessage): void {
   const approvalMessages: ChatEntry[] = [];
   if (data.territory) {
     if (data.territory.black_approved && !_prevBlackApproved) {
@@ -227,12 +216,9 @@ export function applyGameState(data: {
 }
 
 /** Called from WS undo_accepted/undo_rejected handlers. */
-export function applyUndo(data: {
-  state?: GameState;
-  current_turn_stone?: number | null;
-  moves?: TurnData[];
-  undo_rejected?: boolean;
-}): void {
+export function applyUndo(
+  data: UndoAcceptedMessage | UndoRejectedMessage,
+): void {
   batch(() => {
     undoResponseNeeded.value = false;
     if (data.undo_rejected !== undefined) {
@@ -255,9 +241,7 @@ export function addChatMessage(entry: ChatEntry): void {
 
 /** Replace a chat entry's text (immutable). */
 export function updateChatEntry(old: ChatEntry, updated: ChatEntry): void {
-  chatMessages.value = chatMessages.value.map((e) =>
-    e === old ? updated : e,
-  );
+  chatMessages.value = chatMessages.value.map((e) => (e === old ? updated : e));
 }
 
 /** Remove a chat entry (immutable). */
@@ -281,11 +265,7 @@ export function setPresence(
 }
 
 /** Called when a presentation starts (from WS message). */
-export function applyPresentationStarted(data: {
-  presenter_id: number;
-  originator_id: number;
-  control_request?: number;
-}): void {
+export function applyPresentationStarted(data: PresentationStartedMessage): void {
   batch(() => {
     presentationActive.value = true;
     presenterId.value = data.presenter_id;

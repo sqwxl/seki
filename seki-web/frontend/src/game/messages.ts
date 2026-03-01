@@ -24,7 +24,7 @@ import {
   white,
   presenterId,
   controlRequest,
-  applyGameState,
+  applyGameStateMessage,
   applyUndo,
   addChatMessage,
   setPresence,
@@ -113,11 +113,12 @@ export function handleGameMessage(
       initialStateReceived = true;
 
       const prevStage = gameStage.value;
-      applyGameState(data);
+      applyGameStateMessage(data);
 
       if (isLiveUpdate) {
         const gameJustStarted =
-          (prevStage === GameStage.Unstarted || prevStage === GameStage.Challenge) &&
+          (prevStage === GameStage.Unstarted ||
+            prevStage === GameStage.Challenge) &&
           isPlayStage(data.stage);
         if (gameJustStarted) {
           playPassSound();
@@ -130,11 +131,7 @@ export function handleGameMessage(
         updateTurnFlash();
         notifyTurn(notificationState);
       }
-      syncClock(
-        clockState,
-        data.clock,
-        () => channel.timeoutFlag(),
-      );
+      syncClock(clockState, data.clock, () => channel.timeoutFlag());
       syncTerritoryCountdown(
         territoryCountdown,
         territory.value?.expires_at,
