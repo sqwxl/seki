@@ -1,0 +1,9 @@
+pre-commit:
+  commands:
+    rustfmt:
+      glob: "*.rs"
+      run: cargo fmt -- --check
+    prettier:
+      root: seki-web/frontend/
+      glob: "*.{ts,tsx}"
+      run: cd seki-web/frontend && pnpm exec prettier --check {staged_files}
