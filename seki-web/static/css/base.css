@@ -329,12 +329,15 @@ a:visited {
 
 .game-header {
   text-align: center;
+  align-self: center;
+  flex-shrink: 0;
 }
 
 .game-page-body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: 0.5em;
   width: 100%;
   max-width: 100%;
   flex: 1;
@@ -372,12 +375,12 @@ a:visited {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
 }
 
 .game-chat-view .chat {
   flex: 1;
   min-height: 0;
-  width: 100%;
 }
 
 .game-chat-view .chat-box {
@@ -390,6 +393,7 @@ a:visited {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  width: min(90vw, 70vh);
 }
 
 .game-tree-view .move-tree {
@@ -413,7 +417,9 @@ a:visited {
   display: flex;
   gap: 0.5em;
   align-items: stretch;
+  align-self: center;
   width: min(90vw, 70vh);
+  flex-shrink: 0;
 }
 
 .game-status {
@@ -437,7 +443,8 @@ a:visited {
 }
 
 @media (min-width: 768px) {
-  .game-status-slot {
+  .game-status-slot,
+  .game-tree-view .move-tree-slot {
     width: min(70vw, 70vh);
   }
 }

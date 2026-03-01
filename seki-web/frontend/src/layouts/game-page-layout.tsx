@@ -30,9 +30,9 @@ export function GamePageLayout(props: GamePageLayoutProps) {
 
   return (
     <>
+      {props.header && <div class="game-header">{props.header}</div>}
+      {props.status && <div class="game-status-slot">{props.status}</div>}
       <div class={`game-board-view ${tab !== "board" ? "tab-hidden" : ""}`}>
-        {props.header && <div class="game-header">{props.header}</div>}
-        {props.status && <div class="game-status-slot">{props.status}</div>}
         {props.playerTop && (
           <div class="player-label player-top">
             <PlayerPanel {...props.playerTop} />
