@@ -82,7 +82,6 @@ function syncBoardMoves(
   if (!analysisMode.value) {
     b.render();
   }
-  b.updateNav();
 }
 
 /** Reset the prevMovesJson tracker (call when board loads with initial moves). */

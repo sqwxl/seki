@@ -510,6 +510,7 @@ function buildLiveControls({
   const nav: ControlsProps["nav"] = {
     atStart: ns.atStart,
     atLatest: ns.atLatest,
+    atMainEnd: ns.atMainEnd,
     counter: ns.counter,
     onNavigate: (action) => board.value?.navigate(action),
   };
@@ -551,7 +552,7 @@ function buildLiveControls({
 
   // Disable nav for viewers watching a presentation (not in personal analysis)
   if (presentationActive.value && !isPresenter.value && !ctx.inAnalysis) {
-    props.nav = { ...props.nav, atStart: true, atLatest: true };
+    props.nav = { ...props.nav, atStart: true, atLatest: true, atMainEnd: true };
   }
 
   // Undo response popover

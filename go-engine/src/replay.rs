@@ -185,6 +185,11 @@ impl Replay {
         self.current.is_none()
     }
 
+    pub fn is_at_main_end(&self) -> bool {
+        let main = Self::main_line_path(&self.tree);
+        self.current == main.last().copied()
+    }
+
     /// The turn at the current position, if any.
     pub fn last_move(&self) -> Option<&Turn> {
         self.current.map(|id| &self.tree.node(id).turn)

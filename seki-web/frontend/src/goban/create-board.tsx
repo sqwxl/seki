@@ -33,38 +33,6 @@ export async function ensureWasm(): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// Nav buttons (legacy DOM-based nav, used by some callers)
-// ---------------------------------------------------------------------------
-
-export type NavButtons = {
-  start: HTMLButtonElement | null;
-  back: HTMLButtonElement | null;
-  forward: HTMLButtonElement | null;
-  end: HTMLButtonElement | null;
-  counter: HTMLElement | null;
-};
-
-export function findNavButtons(): NavButtons {
-  return {
-    start: document.getElementById("start-btn") as HTMLButtonElement | null,
-    back: document.getElementById("back-btn") as HTMLButtonElement | null,
-    forward: document.getElementById("forward-btn") as HTMLButtonElement | null,
-    end: document.getElementById("end-btn") as HTMLButtonElement | null,
-    counter: document.getElementById("move-counter"),
-  };
-}
-
-function updateNavButtons(engine: WasmEngine, buttons: NavButtons): void {
-  const atStart = engine.is_at_start();
-  const atLatest = engine.is_at_latest();
-  if (buttons.start) { buttons.start.disabled = atStart; }
-  if (buttons.back) { buttons.back.disabled = atStart; }
-  if (buttons.forward) { buttons.forward.disabled = atLatest; }
-  if (buttons.end) { buttons.end.disabled = atLatest; }
-  if (buttons.counter) { buttons.counter.textContent = `${engine.view_index()}`; }
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -242,11 +210,6 @@ export type BoardConfig = {
   baseMoves?: string;
   branchAtBaseTip?: boolean;
   komi?: number;
-  navButtons?: NavButtons;
-  buttons?: {
-    undo?: HTMLButtonElement | null;
-    pass?: HTMLButtonElement | null;
-  };
   ghostStone?: GhostStoneGetter;
   territoryOverlay?: () => TerritoryOverlay | undefined;
   onRender?: (engine: WasmEngine, territory: TerritoryInfo) => void;
@@ -265,7 +228,6 @@ export type Board = {
   pass: () => boolean;
   navigate: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string) => void;
-  updateNav: () => void;
   setShowCoordinates: (show: boolean) => void;
   setMoveTreeEl: (el: HTMLElement | null) => void;
   enterTerritoryReview: () => void;
@@ -660,10 +622,6 @@ class BoardController implements Board {
       );
     }
 
-    if (this.config.navButtons) {
-      updateNavButtons(this.engine, this.config.navButtons);
-    }
-
     if (this.config.storageKey) {
       storage.set(
         `${this.config.storageKey}:node`,
@@ -729,12 +687,6 @@ class BoardController implements Board {
     this.engine.replace_moves(movesJson);
     this._baseTipNodeId =
       this.baseMoveCount > 0 ? this.baseMoveCount - 1 : -1;
-  }
-
-  updateNav(): void {
-    if (this.config.navButtons) {
-      updateNavButtons(this.engine, this.config.navButtons);
-    }
   }
 
   setShowCoordinates(show: boolean): void {
@@ -846,50 +798,6 @@ class BoardController implements Board {
       },
       opts,
     );
-
-    if (this.config.navButtons) {
-      this.config.navButtons.start?.addEventListener(
-        "click",
-        () => this.navigate("start"),
-        opts,
-      );
-      this.config.navButtons.back?.addEventListener(
-        "click",
-        () => this.navigate("back"),
-        opts,
-      );
-      this.config.navButtons.forward?.addEventListener(
-        "click",
-        () => this.navigate("forward"),
-        opts,
-      );
-      this.config.navButtons.end?.addEventListener(
-        "click",
-        () => this.navigate("end"),
-        opts,
-      );
-    }
-
-    if (this.config.buttons) {
-      this.config.buttons.undo?.addEventListener(
-        "click",
-        () => {
-          if (this.territoryState || this.isFinalized()) {
-            return;
-          }
-          if (this.engine.undo()) {
-            this.save();
-            this.render();
-          }
-        },
-        opts,
-      );
-      this.config.buttons.pass?.addEventListener(
-        "click",
-        () => this.pass(),
-        opts,
-      );
-    }
 
     document.addEventListener(
       "keydown",

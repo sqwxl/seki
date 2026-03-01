@@ -44,6 +44,7 @@ export type ControlsProps = {
   nav: {
     atStart: boolean;
     atLatest: boolean;
+    atMainEnd: boolean;
     counter: string;
     onNavigate: (action: NavAction) => void;
   };
@@ -415,7 +416,7 @@ export function NavControls({ nav }: { nav: ControlsProps["nav"] }) {
       <button
         class="controls-counter"
         title="Go to end of main line"
-        disabled={nav.atStart && nav.atLatest}
+        disabled={nav.atMainEnd}
         onClick={() => nav.onNavigate("main-end")}
       >
         {nav.counter}

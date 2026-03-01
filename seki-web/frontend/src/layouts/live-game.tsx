@@ -347,6 +347,7 @@ export function liveGame(
       navState.value = {
         atStart: engine.is_at_start(),
         atLatest: engine.is_at_latest(),
+        atMainEnd: engine.is_at_main_end(),
         counter: `${engine.view_index()}`,
       };
       doRender();
@@ -362,7 +363,6 @@ export function liveGame(
       board.value.updateBaseMoves(movesJson);
     }
     board.value.render();
-    board.value.updateNav();
     doRender();
   });
 

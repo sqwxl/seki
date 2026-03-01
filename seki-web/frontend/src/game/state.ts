@@ -104,7 +104,7 @@ export const board = signal<Board | undefined>(undefined);
 // ---------------------------------------------------------------------------
 // Nav / estimate state (updated by board callbacks)
 // ---------------------------------------------------------------------------
-export const navState = signal({ atStart: true, atLatest: true, counter: "0" });
+export const navState = signal({ atStart: true, atLatest: true, atMainEnd: true, counter: "0" });
 export const estimateScore = signal<ScoreData | undefined>(undefined);
 export const showMoveTree = signal(storage.get(SHOW_MOVE_TREE) === "true");
 export const moveConfirmEnabled = signal(readMoveConfirmation());
