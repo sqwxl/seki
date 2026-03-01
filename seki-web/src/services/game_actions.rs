@@ -767,16 +767,6 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
         .map(|u| u.display_name().to_string())
         .unwrap_or_else(|| "Unknown".to_string());
     let opponent = gwp.opponent_of(player_id).cloned();
-    let move_number = current_move_number(state, &gwp.game).await;
-
-    // System chat
-    broadcast_system_chat(
-        state,
-        game_id,
-        &format!("{requesting_name} requested to undo their last move"),
-        move_number,
-    )
-    .await;
 
     // Notify requester: disable undo button
     state
@@ -836,11 +826,6 @@ pub async fn respond_to_undo(
             "Cannot respond to your own undo request".to_string(),
         ));
     }
-
-    let responding_name = gwp
-        .player_by_id(player_id)
-        .map(|u| u.display_name().to_string())
-        .unwrap_or_else(|| "Unknown".to_string());
 
     // Clear the in-memory request flag regardless of accept/reject
     state.registry.set_undo_requested(game_id, false).await;
@@ -913,20 +898,6 @@ pub async fn respond_to_undo(
             gwp,
         }
     };
-
-    // System chat
-    let message = if result.accepted {
-        format!("{responding_name} accepted the undo request. Move has been undone.")
-    } else {
-        format!("{responding_name} rejected the undo request")
-    };
-    broadcast_system_chat(
-        state,
-        game_id,
-        &message,
-        Some(result.engine.moves().len() as i32),
-    )
-    .await;
 
     // Notify both users with updated state
     let kind = if result.accepted {
