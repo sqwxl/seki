@@ -156,6 +156,8 @@ export function GameSettingsForm({
             type="number"
             name="komi"
             id="komi"
+            min={-100.5}
+            max={100.5}
             step={1}
             value={s.komi}
             onChange={(e) =>
