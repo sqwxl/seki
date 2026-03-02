@@ -493,7 +493,6 @@ impl Game {
 #[derive(Debug, Clone)]
 pub struct GameWithPlayers {
     pub game: Game,
-    #[allow(dead_code)] // Loaded for completeness; not yet read
     pub creator: Option<User>,
     pub black: Option<User>,
     pub white: Option<User>,

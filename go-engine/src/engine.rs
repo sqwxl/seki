@@ -195,7 +195,7 @@ impl Engine {
             return Err(GoError::OutOfTurn);
         }
 
-        self.goban.pass();
+        self.goban = self.goban.pass();
         self.moves.push(Turn::pass(stone));
         Ok(self.stage())
     }
@@ -265,22 +265,7 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn goban_from_layout(layout: &[&str]) -> Goban {
-        let board: Vec<Vec<i8>> = layout
-            .iter()
-            .map(|row| {
-                row.chars()
-                    .map(|c| match c {
-                        'B' => Stone::Black.to_int(),
-                        'W' => Stone::White.to_int(),
-                        _ => 0,
-                    })
-                    .collect()
-            })
-            .collect();
-        Goban::new(board)
-    }
+    use crate::test_utils::goban_from_layout;
 
     fn engine_from_layout(layout: &[&str]) -> Engine {
         let goban = goban_from_layout(layout);

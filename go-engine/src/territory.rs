@@ -772,23 +772,7 @@ pub fn format_result(black_score: f64, white_score: f64) -> String {
 #[allow(clippy::erasing_op, clippy::identity_op)]
 mod tests {
     use super::*;
-
-    /// Build a goban from an ASCII layout. 'B' = Black, 'W' = White, '+' = Empty.
-    fn goban_from_layout(layout: &[&str]) -> Goban {
-        let board: Vec<Vec<i8>> = layout
-            .iter()
-            .map(|row| {
-                row.chars()
-                    .map(|c| match c {
-                        'B' => Stone::Black.to_int(),
-                        'W' => Stone::White.to_int(),
-                        _ => 0,
-                    })
-                    .collect()
-            })
-            .collect();
-        Goban::new(board)
-    }
+    use crate::test_utils::goban_from_layout;
 
     // -- Territory estimation --
 

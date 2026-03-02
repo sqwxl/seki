@@ -87,7 +87,9 @@ impl Goban {
                     let point = m.pos.expect("play move must have a point");
                     self = self.play(point, m.stone).expect("invalid move in replay");
                 }
-                Move::Pass => self.pass(),
+                Move::Pass => {
+                    self = self.pass();
+                }
                 Move::Resign => {}
             }
         }
@@ -157,9 +159,11 @@ impl Goban {
         Ok(goban)
     }
 
-    /// Pass: clears ko in place.
-    pub fn pass(&mut self) {
-        self.ko = None;
+    /// Pass: clears ko and returns a new goban (matching `play()`'s pattern).
+    pub fn pass(&self) -> Self {
+        let mut goban = self.clone();
+        goban.ko = None;
+        goban
     }
 
     /// Place a stone, resolve captures, check for suicide.
@@ -501,23 +505,7 @@ impl Goban {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Test helper: build a goban from an ASCII layout. 'B' = Black, 'W' = White, '+' = Empty.
-    fn goban_from_layout(layout: &[&str]) -> Goban {
-        let board: Vec<Vec<i8>> = layout
-            .iter()
-            .map(|row| {
-                row.chars()
-                    .map(|c| match c {
-                        'B' => Stone::Black.to_int(),
-                        'W' => Stone::White.to_int(),
-                        _ => 0,
-                    })
-                    .collect()
-            })
-            .collect();
-        Goban::new(board)
-    }
+    use crate::test_utils::goban_from_layout;
 
     #[test]
     fn creates_empty_board() {
@@ -621,10 +609,10 @@ mod tests {
     #[test]
     fn pass_clears_ko() {
         let goban = goban_from_layout(&["+BW+", "BW+W", "+BW+", "++++"]);
-        let mut goban = goban.play((2, 1), Stone::Black).unwrap();
+        let goban = goban.play((2, 1), Stone::Black).unwrap();
         assert!(goban.ko().is_some());
 
-        goban.pass();
+        let goban = goban.pass();
         assert!(goban.ko().is_none());
     }
 }

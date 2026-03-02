@@ -13,9 +13,8 @@ use tower_sessions::Session;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::user::User;
-use crate::routes::wants_json;
+use crate::routes::{serialize_user_data, wants_json};
 use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
-use crate::templates::UserData;
 use crate::templates::auth::{LoginTemplate, RegisterTemplate};
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
@@ -39,10 +38,6 @@ fn get_cookie(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
                 .strip_prefix('=')
                 .map(String::from)
         })
-}
-
-fn serialize_user_data(user: &CurrentUser) -> String {
-    serde_json::to_string(&UserData::from(&user.user)).unwrap_or_else(|_| "{}".to_string())
 }
 
 #[derive(Deserialize)]
@@ -69,11 +64,7 @@ pub async fn register_form(current_user: CurrentUser) -> Result<Response, AppErr
         user_data: serialize_user_data(&current_user),
         flash: None,
     };
-    Ok(Html(
-        tmpl.render()
-            .map_err(|e| AppError::Internal(e.to_string()))?,
-    )
-    .into_response())
+    Ok(Html(tmpl.render()?).into_response())
 }
 
 // POST /register
@@ -98,14 +89,7 @@ pub async fn register(
             user_data: user_data.clone(),
             flash: Some(msg),
         };
-        Ok((
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Html(
-                tmpl.render()
-                    .map_err(|e| AppError::Internal(e.to_string()))?,
-            ),
-        )
-            .into_response())
+        Ok((StatusCode::UNPROCESSABLE_ENTITY, Html(tmpl.render()?)).into_response())
     };
 
     // Validate
@@ -190,11 +174,7 @@ pub async fn login_form(
         flash: None,
         redirect,
     };
-    Ok(Html(
-        tmpl.render()
-            .map_err(|e| AppError::Internal(e.to_string()))?,
-    )
-    .into_response())
+    Ok(Html(tmpl.render()?).into_response())
 }
 
 #[derive(Deserialize)]
@@ -221,14 +201,7 @@ pub async fn login(
             flash: Some(msg),
             redirect: redirect.clone(),
         };
-        Ok((
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Html(
-                tmpl.render()
-                    .map_err(|e| AppError::Internal(e.to_string()))?,
-            ),
-        )
-            .into_response())
+        Ok((StatusCode::UNPROCESSABLE_ENTITY, Html(tmpl.render()?)).into_response())
     };
 
     let login_err = "Invalid username or password.";

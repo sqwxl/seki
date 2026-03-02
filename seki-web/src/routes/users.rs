@@ -9,19 +9,14 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::user::User;
-use crate::routes::wants_json;
+use crate::routes::{serialize_user_data, wants_json};
 use crate::services::live::build_live_items;
 use crate::session::CurrentUser;
-use crate::templates::UserData;
 use crate::templates::user_profile::UserProfileTemplate;
 
 #[derive(serde::Deserialize)]
 pub struct UpdateUsernameForm {
     pub username: String,
-}
-
-fn serialize_user_data(user: &CurrentUser) -> String {
-    serde_json::to_string(&UserData::from(&user.user)).unwrap_or_else(|_| "{}".to_string())
 }
 
 // GET /users/:username
@@ -63,11 +58,7 @@ pub async fn profile(
         flash: None,
     };
 
-    Ok(Html(
-        tmpl.render()
-            .map_err(|e| AppError::Internal(e.to_string()))?,
-    )
-    .into_response())
+    Ok(Html(tmpl.render()?).into_response())
 }
 
 // POST /users/:username
@@ -182,12 +173,5 @@ async fn render_profile_with_flash(
         flash: Some(flash.to_string()),
     };
 
-    Ok((
-        StatusCode::UNPROCESSABLE_ENTITY,
-        Html(
-            tmpl.render()
-                .map_err(|e| AppError::Internal(e.to_string()))?,
-        ),
-    )
-        .into_response())
+    Ok((StatusCode::UNPROCESSABLE_ENTITY, Html(tmpl.render()?)).into_response())
 }

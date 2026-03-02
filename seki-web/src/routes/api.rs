@@ -192,8 +192,7 @@ async fn create_game(
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .await?;
 
     Ok(Json(
         build_game_response(&state, game.id, &gwp, &engine).await,
@@ -208,8 +207,7 @@ async fn get_game(
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .await?;
 
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
@@ -248,11 +246,7 @@ async fn join_game(
         return Err(AppError::BadRequest("Already in this game".to_string()).into());
     }
 
-    let mut tx = state
-        .db
-        .begin()
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let mut tx = state.db.begin().await?;
     if gwp.game.black_id.is_none() {
         Game::set_black(&mut *tx, id, api_user.id).await?;
     } else if gwp.game.white_id.is_none() {
@@ -269,16 +263,13 @@ async fn join_game(
     if started {
         Game::set_stage(&mut *tx, id, start_stage).await?;
     }
-    tx.commit()
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    tx.commit().await?;
 
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .await?;
 
     crate::services::live::notify_game_created(&state, id).await;
 
@@ -391,8 +382,7 @@ async fn toggle_chain(
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
@@ -406,8 +396,7 @@ async fn approve_territory(
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
@@ -459,11 +448,7 @@ async fn rematch_game(
     let game = game_creator::create_game(&state.db, &api_user, params).await?;
 
     if let Some(opp_id) = opponent_id {
-        let mut tx = state
-            .db
-            .begin()
-            .await
-            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let mut tx = state.db.begin().await?;
         if game.black_id.is_none() {
             Game::set_black(&mut *tx, game.id, opp_id).await?;
         } else if game.white_id.is_none() {
@@ -472,9 +457,7 @@ async fn rematch_game(
         if game.stage == "unstarted" {
             Game::set_stage(&mut *tx, game.id, "challenge").await?;
         }
-        tx.commit()
-            .await
-            .map_err(|e| AppError::Internal(e.to_string()))?;
+        tx.commit().await?;
     }
 
     crate::services::live::notify_game_created(&state, game.id).await;
@@ -483,8 +466,7 @@ async fn rematch_game(
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .await?;
 
     Ok(Json(
         build_game_response(&state, game.id, &gwp, &engine).await,

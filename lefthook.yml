@@ -2,7 +2,8 @@ pre-commit:
   commands:
     rustfmt:
       glob: "*.rs"
-      run: cargo fmt -- --check
+      run: cargo fmt
+      stage_fixed: true
     clippy:
       glob: "*.rs"
       run: cargo clippy --all-targets -- -D warnings

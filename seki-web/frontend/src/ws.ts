@@ -15,8 +15,14 @@ const handlers = new Map<string, Set<Handler>>();
 // Per-game handlers keyed by game_id
 const gameHandlers = new Map<number, Handler>();
 
+declare global {
+  interface Window {
+    __ws?: { close: () => void };
+  }
+}
+
 let ws: WebSocket | undefined;
-(window as any).__ws = { close: () => ws?.close() };
+window.__ws = { close: () => ws?.close() };
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSends: string[] = [];
 
@@ -48,7 +54,13 @@ function connect() {
   };
 
   ws.onmessage = (event: MessageEvent) => {
-    const data = JSON.parse(event.data);
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(event.data);
+    } catch (e) {
+      console.error("WS: malformed message", e);
+      return;
+    }
     const gameId = data.game_id as number | undefined;
 
     // Route game-specific messages to the game handler

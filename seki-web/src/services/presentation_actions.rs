@@ -10,9 +10,7 @@ pub async fn start_presentation(
     game_id: i64,
     user_id: i64,
 ) -> Result<(), AppError> {
-    let gwp = Game::find_with_players(&state.db, game_id)
-        .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let gwp = Game::find_with_players(&state.db, game_id).await?;
 
     // Game must be finished
     if gwp.game.result.is_none() {

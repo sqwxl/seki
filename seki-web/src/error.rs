@@ -24,9 +24,9 @@ impl std::fmt::Display for AppError {
     }
 }
 
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let (status, message) = match &self {
+impl AppError {
+    fn status_and_message(&self) -> (StatusCode, String) {
+        match self {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             AppError::BadRequest(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg.clone()),
             AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
@@ -38,7 +38,13 @@ impl IntoResponse for AppError {
                     "Internal server error".to_string(),
                 )
             }
-        };
+        }
+    }
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, message) = self.status_and_message();
         (status, message).into_response()
     }
 }
@@ -52,6 +58,18 @@ impl From<sqlx::Error> for AppError {
     }
 }
 
+impl From<askama::Error> for AppError {
+    fn from(e: askama::Error) -> Self {
+        AppError::Internal(e.to_string())
+    }
+}
+
+impl From<serde_json::Error> for AppError {
+    fn from(e: serde_json::Error) -> Self {
+        AppError::Internal(e.to_string())
+    }
+}
+
 /// JSON-returning error type for API routes.
 /// Wraps AppError and returns `{"error": "message"}` responses.
 #[derive(Debug)]
@@ -59,19 +77,7 @@ pub struct ApiError(pub AppError);
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let (status, message) = match &self.0 {
-            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
-            AppError::BadRequest(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg.clone()),
-            AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
-            AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
-            AppError::Database(e) => {
-                tracing::error!("Database error: {e}");
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Internal server error".to_string(),
-                )
-            }
-        };
+        let (status, message) = self.0.status_and_message();
         (status, Json(json!({"error": message}))).into_response()
     }
 }

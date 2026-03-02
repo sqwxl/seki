@@ -9,6 +9,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
 use crate::models::message::Message;
+use crate::routes::serialize_user_data;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
@@ -20,10 +21,6 @@ use crate::templates::games_list::GamesListTemplate;
 use crate::templates::games_new::GamesNewTemplate;
 use crate::templates::games_show::{GamesShowTemplate, InitialGameProps};
 
-fn serialize_user_data(user: &CurrentUser) -> String {
-    serde_json::to_string(&UserData::from(&user.user)).unwrap_or_else(|_| "{}".to_string())
-}
-
 // GET /
 pub async fn new_game(current_user: CurrentUser) -> Result<Response, AppError> {
     let tmpl = GamesNewTemplate {
@@ -32,11 +29,7 @@ pub async fn new_game(current_user: CurrentUser) -> Result<Response, AppError> {
         user_data: serialize_user_data(&current_user),
         flash: None,
     };
-    Ok(Html(
-        tmpl.render()
-            .map_err(|e| AppError::Internal(e.to_string()))?,
-    )
-    .into_response())
+    Ok(Html(tmpl.render()?).into_response())
 }
 
 // GET /games
@@ -70,11 +63,7 @@ pub async fn list_games(
         initial_games,
     };
 
-    Ok(Html(
-        tmpl.render()
-            .map_err(|e| AppError::Internal(e.to_string()))?,
-    )
-    .into_response())
+    Ok(Html(tmpl.render()?).into_response())
 }
 
 #[derive(Deserialize)]
@@ -87,8 +76,6 @@ pub struct CreateGameForm {
     pub color: Option<String>,
     pub invite_email: Option<String>,
     pub invite_username: Option<String>,
-    #[allow(dead_code)]
-    pub creator_email: Option<String>,
     pub time_control: Option<String>,
     pub main_time_minutes: Option<i32>,
     pub increment_secs: Option<i32>,
@@ -160,14 +147,7 @@ pub async fn create_game(
                 user_data: serialize_user_data(&current_user),
                 flash: Some(e.to_string()),
             };
-            Ok((
-                StatusCode::UNPROCESSABLE_ENTITY,
-                Html(
-                    tmpl.render()
-                        .map_err(|e| AppError::Internal(e.to_string()))?,
-                ),
-            )
-                .into_response())
+            Ok((StatusCode::UNPROCESSABLE_ENTITY, Html(tmpl.render()?)).into_response())
         }
     }
 }
@@ -295,11 +275,7 @@ pub async fn show_game(
         og_description,
     };
 
-    Ok(Html(
-        tmpl.render()
-            .map_err(|e| AppError::Internal(e.to_string()))?,
-    )
-    .into_response())
+    Ok(Html(tmpl.render()?).into_response())
 }
 
 // POST /games/:id/join
