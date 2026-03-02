@@ -474,7 +474,7 @@ class BoardController implements Board {
 
   private resolveTreeDirection(): "horizontal" | "vertical" | undefined {
     if (this.config.moveTreeDirection === "responsive") {
-      return window.innerWidth < 1960 ? "horizontal" : "vertical";
+      return window.innerWidth < 1200 ? "horizontal" : "vertical";
     }
     return this.config.moveTreeDirection;
   }

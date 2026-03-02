@@ -6,7 +6,7 @@ export function readMoveConfirmation(): boolean {
   if (stored !== null) {
     return stored === "true";
   }
-  return window.matchMedia("(max-width: 1024px)").matches;
+  return window.matchMedia("(max-width: 1199px)").matches;
 }
 
 export type PremoveState = {

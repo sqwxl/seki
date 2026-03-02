@@ -11,6 +11,7 @@
   --purple: #d3869b;
   --aqua: #8ec07c;
   --orange: #fe8019;
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 :root[data-theme="dark"] {
@@ -57,11 +58,10 @@ h2 {
 }
 
 button {
-  box-sizing: border-box;
   margin: 0;
   padding: 0.4em;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   background: var(--bg-muted);
   color: var(--fg);
   font: inherit;
@@ -103,10 +103,10 @@ button:disabled:hover {
 [popover] {
   padding: 0.75em;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 0.5rem;
   background: var(--bg);
   color: var(--fg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-elevated);
 }
 
 [popover]:not(:popover-open) {
@@ -158,7 +158,6 @@ main {
   align-items: stretch;
   width: 100%;
   padding: 0 0.75em;
-  box-sizing: border-box;
 }
 
 main:not(:has(.game-page)) {
@@ -172,14 +171,9 @@ nav {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  padding: 0.5em 1em;
-  gap: 0.5em;
-  font-size: 1.125em;
   padding: 0.5em 1.5em;
-
-  @media (max-width: 768px) {
-    font-size: 0.875em;
-  }
+  gap: 0.5em;
+  font-size: 0.875em;
 
   div {
     display: flex;
@@ -224,7 +218,6 @@ a:visited {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0;
   position: absolute;
   top: 100%;
   right: 0;
@@ -234,7 +227,7 @@ a:visited {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-elevated);
   margin-top: 0.5em;
 }
 
@@ -297,7 +290,7 @@ a:visited {
   height: 0.5em;
   margin-right: 0.3em;
   border-radius: 50%;
-  background-color: #4caf50;
+  background-color: var(--green);
   vertical-align: middle;
 }
 
@@ -320,10 +313,6 @@ a:visited {
     word-break: break-word;
     font-size: 1.1em;
     margin: 0.5em 0;
-
-    @media (min-width: 768px) {
-      font-size: 1.5em;
-    }
   }
 }
 
@@ -334,6 +323,7 @@ a:visited {
 }
 
 .game-page-body {
+  --col-width: min(90vw, 70vh);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -410,7 +400,7 @@ a:visited {
   font-size: 1.1em;
   height: 2em;
   min-width: 2em;
-  border-radius: 4px 4px 0 0;
+  border-radius: 0.25rem 0.25rem 0 0;
   border-bottom: none;
 }
 
@@ -419,7 +409,7 @@ a:visited {
   gap: 0.5em;
   align-items: stretch;
   align-self: center;
-  width: min(90vw, 70vh);
+  width: var(--col-width);
   flex-shrink: 0;
 }
 
@@ -432,101 +422,14 @@ a:visited {
   gap: 0.125em;
   padding: 0.25em 0.75em;
   border: 1px solid var(--border);
-  background: var(--bg);
-  font-size: 1rem;
   background-color: var(--bg-muted);
+  font-size: 1rem;
   font-family: monospace;
 }
 
 .lobby-controls {
   display: flex;
   gap: 0.5em;
-}
-
-@media (min-width: 768px) {
-  .game-status-slot {
-    width: min(70vw, 70vh);
-  }
-}
-
-@media (min-width: 1960px) {
-  /* Desktop: view wrappers are transparent, tab bar hidden */
-  .game-board-view,
-  .game-chat-view {
-    display: contents !important;
-  }
-  .mobile-tab-bar {
-    display: none;
-  }
-
-  .game-page-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: start;
-    gap: 0;
-    flex: none;
-    width: 100%;
-  }
-  .game-page-body .game-header {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-  .game-page-body .game-status-slot {
-    grid-column: 2;
-    grid-row: 2;
-    width: auto;
-    align-self: auto;
-  }
-  .game-page-body .player-top {
-    grid-column: 2;
-    grid-row: 3;
-  }
-  .game-page-body .game-board-area {
-    grid-column: 2;
-    grid-row: 4;
-  }
-  .game-page-body .move-tree-slot {
-    grid-column: 1;
-    grid-row: 4;
-    display: flex;
-    flex-direction: column;
-    height: min(70vw, 70vh);
-    overflow: hidden;
-    margin: 0 1.5em;
-    width: auto;
-  }
-  .game-page-body .move-tree-slot.hidden {
-    display: none;
-  }
-  .game-page-body .move-tree {
-    flex: 1;
-    min-height: 0;
-    width: auto;
-    overflow: auto;
-  }
-  .game-page-body .chat {
-    grid-column: 3;
-    grid-row: 4;
-    height: min(70vw, 70vh);
-    width: auto;
-    margin: 0 1.5em;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .game-page-body .chat .chat-box {
-    flex: 1;
-    overflow: auto;
-  }
-  .game-page-body .player-bottom {
-    grid-column: 2;
-    grid-row: 5;
-  }
-  .game-page-body .controls {
-    grid-column: 2;
-    grid-row: 6;
-    margin-top: 0;
-  }
 }
 
 .field-error {

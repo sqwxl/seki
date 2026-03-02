@@ -11,14 +11,10 @@
   display: none;
 }
 
-@media (min-width: 1960px) {
-  .controls .analysis-toggle {
-    display: inline-flex;
-  }
-}
-
 .controls button,
-.controls select {
+.controls select,
+.controls-menu-dropdown button,
+.controls-menu-dropdown select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -26,18 +22,6 @@
   font-size: 1.3em;
   height: 2.4em;
   min-width: 2.4em;
-}
-
-@media (min-width: 768px) {
-  .controls {
-    gap: 0.5em;
-  }
-
-  .controls button,
-  .controls select {
-    height: 2em;
-    min-width: 2em;
-  }
 }
 
 .controls button > svg {
@@ -51,10 +35,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
 
-.move-tree-slot.hidden {
-  display: none;
+  &.hidden {
+    display: none;
+  }
 }
 
 .move-tree {
@@ -65,10 +49,9 @@
   max-width: 100%;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 4px;
+  border-radius: 0.25rem;
+  padding: 0.25rem;
 }
-
 
 #confirm-move-btn {
   font-size: 2em;
@@ -88,16 +71,6 @@
   flex-wrap: nowrap;
   gap: 0.5em;
   align-items: center;
-}
-
-@media (min-width: 768px) {
-  .controls-group {
-    gap: 0.25em;
-  }
-
-  .btn-group {
-    gap: 0.25em;
-  }
 }
 
 /* --- Controls menu (hamburger, lives in tab bar) --- */
@@ -120,27 +93,9 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-elevated);
   margin-bottom: 0.25em;
   overflow: visible;
-}
-
-.controls-menu-dropdown button,
-.controls-menu-dropdown select {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: monospace;
-  font-size: 1.3em;
-  height: 2.4em;
-  min-width: 2.4em;
-}
-
-/* Hide hamburger on desktop — inline controls-end takes over */
-@media (min-width: 768px) {
-  .controls-menu {
-    display: none;
-  }
 }
 
 /* --- Controls nav row layout --- */
@@ -151,52 +106,20 @@
   align-items: center;
   gap: 0.5em;
   width: 100%;
-}
 
-.controls-nav-row > .controls-start {
-  order: -2;
-}
+  > .controls-start {
+    order: -2;
+  }
 
-.controls-nav-row > .controls-nav,
-.controls-nav-row > .controls-middle {
-  order: -1;
+  > .controls-nav,
+  > .controls-middle {
+    order: -1;
+  }
 }
 
 /* Mobile: hide inline UI controls when tab bar provides the hamburger */
 .game-page-body:has(.mobile-tab-bar) .controls-nav-row > .controls-end {
   display: none;
-}
-
-@media (min-width: 768px) {
-  .controls-nav-row {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 0.25em;
-  }
-
-  .controls-nav-row > .controls-start {
-    grid-column: 1;
-    justify-self: start;
-    order: 0;
-  }
-
-  .controls-nav-row > .controls-nav,
-  .controls-nav-row > .controls-middle {
-    grid-column: 2;
-    flex: initial;
-    order: 0;
-  }
-
-  .controls-nav-row > .controls-end {
-    display: inline-flex;
-    grid-column: 3;
-    justify-self: end;
-    order: 0;
-  }
-
-  .controls-nav {
-    gap: 0.25em;
-  }
 }
 
 .controls-nav {
@@ -207,16 +130,8 @@
 }
 
 .controls button.controls-counter {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   min-width: 7ch;
-  font-size: 1.3em;
-  font-family: monospace;
   padding: 0 0.4em;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-muted);
 }
 
 .size-select-group {
@@ -232,4 +147,3 @@
   background: color-mix(in srgb, var(--bg-muted) 40%, transparent);
   cursor: default;
 }
-

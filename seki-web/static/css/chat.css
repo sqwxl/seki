@@ -1,15 +1,10 @@
 .chat {
   display: flex;
   flex-direction: column;
-  width: min(90vw, 70vh);
+  width: var(--col-width);
   margin-bottom: 0.5em;
 }
 
-@media (min-width: 768px) {
-  .chat {
-    width: min(70vw, 70vh);
-  }
-}
 .chat-box {
   background-color: var(--bg-muted);
   border: 1px solid var(--border);

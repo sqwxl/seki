@@ -21,23 +21,11 @@
 .game-page-body .controls,
 .move-tree-slot,
 .mobile-tab-bar {
-  width: min(90vw, 70vh);
+  width: var(--col-width);
 }
 
-@media (min-width: 768px) {
-  .game-board-area,
-  .game-page-body .player-label,
-  .game-page-body .controls,
-  .move-tree-slot,
-  .mobile-tab-bar {
-    width: min(70vw, 70vh);
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .goban-container {
-    filter: brightness(0.8);
-  }
+:root[data-theme="dark"] .goban-container {
+  filter: brightness(0.8);
 }
 
 
@@ -49,12 +37,6 @@
   min-height: 1.5em;
   max-width: 100%;
   overflow: hidden;
-}
-
-@media (min-width: 768px) {
-  .player-label {
-    font-size: 1.5em;
-  }
 }
 
 .player-name-group {
@@ -96,7 +78,7 @@
 }
 
 .player-clock.low-time {
-  color: #c00;
+  color: var(--red);
   font-weight: bold;
 }
 
@@ -149,15 +131,13 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .goban-container.goban-pass-flash {
-    animation: goban-pass-flash-dark 300ms ease-in-out;
-  }
+:root[data-theme="dark"] .goban-container.goban-pass-flash {
+  animation: goban-pass-flash-dark 300ms ease-in-out;
+}
 
-  @keyframes goban-pass-flash-dark {
-    50% {
-      filter: brightness(1.2);
-    }
+@keyframes goban-pass-flash-dark {
+  50% {
+    filter: brightness(1.2);
   }
 }
 

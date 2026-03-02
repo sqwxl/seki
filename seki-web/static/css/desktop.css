@@ -1,0 +1,176 @@
+@media (min-width: 1200px) {
+  /* --- Base --- */
+
+  nav {
+    font-size: 1.125em;
+  }
+
+  .game-page h2 {
+    font-size: 1.5em;
+  }
+
+  .game-page-body {
+    --col-width: min(70vw, 70vh);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: start;
+    gap: 0;
+    flex: none;
+    width: 100%;
+
+    .game-header {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+
+    .game-status-slot {
+      grid-column: 2;
+      grid-row: 2;
+      width: auto;
+      align-self: auto;
+    }
+
+    .player-top {
+      grid-column: 2;
+      grid-row: 3;
+    }
+
+    .game-board-area {
+      grid-column: 2;
+      grid-row: 4;
+    }
+
+    .move-tree-slot {
+      grid-column: 1;
+      grid-row: 4;
+      display: flex;
+      flex-direction: column;
+      height: min(70vw, 70vh);
+      overflow: hidden;
+      margin: 0 1.5em;
+      width: auto;
+
+      &.hidden {
+        display: none;
+      }
+    }
+
+    .move-tree {
+      flex: 1;
+      min-height: 0;
+      width: auto;
+      overflow: auto;
+    }
+
+    .chat {
+      grid-column: 3;
+      grid-row: 4;
+      height: min(70vw, 70vh);
+      width: auto;
+      margin: 0 1.5em;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+
+      .chat-box {
+        flex: 1;
+        overflow: auto;
+      }
+    }
+
+    .player-bottom {
+      grid-column: 2;
+      grid-row: 5;
+    }
+
+    .controls {
+      grid-column: 2;
+      grid-row: 6;
+      margin-top: 0;
+    }
+  }
+
+  /* View wrappers become transparent, tab bar hidden */
+  .game-board-view,
+  .game-chat-view {
+    display: contents !important;
+  }
+
+  .mobile-tab-bar {
+    display: none;
+  }
+
+  /* --- Goban --- */
+
+  .player-label {
+    font-size: 1.5em;
+  }
+
+  /* --- Controls --- */
+
+  .controls {
+    gap: 0.5em;
+
+    button,
+    select {
+      height: 2em;
+      min-width: 2em;
+    }
+
+    .analysis-toggle {
+      display: inline-flex;
+    }
+  }
+
+  .controls-menu-dropdown {
+    button,
+    select {
+      height: 2em;
+      min-width: 2em;
+    }
+  }
+
+  .controls-group,
+  .btn-group {
+    gap: 0.25em;
+  }
+
+  .controls-menu {
+    display: none;
+  }
+
+  /* Override mobile hiding rule (matches specificity of the :has() selector) */
+  .game-page-body:has(.mobile-tab-bar) .controls-nav-row > .controls-end {
+    display: inline-flex;
+  }
+
+  .controls-nav-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.25em;
+
+    > .controls-start {
+      grid-column: 1;
+      justify-self: start;
+      order: 0;
+    }
+
+    > .controls-nav,
+    > .controls-middle {
+      grid-column: 2;
+      flex: initial;
+      order: 0;
+    }
+
+    > .controls-end {
+      display: inline-flex;
+      grid-column: 3;
+      justify-self: end;
+      order: 0;
+    }
+  }
+
+  .controls-nav {
+    gap: 0.25em;
+  }
+}
