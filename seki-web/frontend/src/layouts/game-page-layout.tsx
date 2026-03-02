@@ -4,7 +4,7 @@ import type { PlayerPanelProps } from "../components/player-panel";
 import type { ControlsProps } from "../components/controls";
 import { Controls } from "./controls";
 import { TabBar } from "../components/tab-bar";
-import { mobileTab, analysisMode } from "../game/state";
+import { mobileTab } from "../game/state";
 
 export type GamePageLayoutProps = {
   header?: ComponentChildren;
@@ -50,9 +50,7 @@ export function GamePageLayout(props: GamePageLayoutProps) {
           </div>
         )}
         {props.controls && (
-          <div
-            class={`controls${analysisMode.value ? " controls-analysis" : ""}`}
-          >
+          <div class="controls">
             <Controls {...props.controls} />
           </div>
         )}

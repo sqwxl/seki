@@ -40,14 +40,6 @@
   }
 }
 
-.goban-analysis .goban.goban-image {
-  --goban-board-foreground-color: #9a7050;
-  --goban-board-border-color: #d4b070;
-}
-
-.goban-analysis .goban::after {
-  opacity: 0;
-}
 
 .player-label {
   display: grid;

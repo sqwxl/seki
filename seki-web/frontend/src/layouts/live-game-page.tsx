@@ -250,7 +250,7 @@ function buildGameActions(
     out.resign = {
       message: "Resign this game?",
       onConfirm: () => channel.resign(),
-      disabled: modeActive || isChallenge,
+      disabled: isChallenge,
     };
   }
 
@@ -262,7 +262,6 @@ function buildGameActions(
       out.abort = {
         message: "Abort this game?",
         onConfirm: () => channel.abort(),
-        disabled: modeActive,
       };
     }
   }
@@ -353,7 +352,6 @@ function buildLobbyControls(
         document.body.appendChild(form);
         form.submit();
       },
-      disabled: modeActive,
     };
   }
 
@@ -666,7 +664,6 @@ export function LiveGamePage(props: LiveGamePageProps) {
     <GamePageLayout
       gobanRef={gobanRef}
       gobanStyle={`aspect-ratio: ${gameState.value.cols}/${gameState.value.rows}`}
-      gobanClass={analysisMode.value ? "goban-analysis" : undefined}
       playerTop={buildLivePlayerPanel({ position: "top" })}
       playerBottom={buildLivePlayerPanel({ position: "bottom" })}
       controls={controlsProps}
