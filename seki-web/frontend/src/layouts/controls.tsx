@@ -30,7 +30,7 @@ export function Controls(props: ControlsProps) {
   }
 
   return (
-    <div class="controls-nav-row">
+    <div class="controls-row">
       <span class="btn-group controls-start">
         <GameControls {...props} />
       </span>

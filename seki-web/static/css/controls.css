@@ -100,7 +100,7 @@
 
 /* --- Controls nav row layout --- */
 
-.controls-nav-row {
+.controls-row {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -118,7 +118,7 @@
 }
 
 /* Mobile: hide inline UI controls when tab bar provides the hamburger */
-.game-page-body:has(.mobile-tab-bar) .controls-nav-row > .controls-end {
+.game-page-body:has(.mobile-tab-bar) .controls-row > .controls-end {
   display: none;
 }
 

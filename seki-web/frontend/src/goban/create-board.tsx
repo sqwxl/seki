@@ -8,6 +8,7 @@ import {
   type ScoreData,
 } from "../game/types";
 import { storage } from "../utils/storage";
+import { DESKTOP_BREAKPOINT, DESKTOP_MQ } from "../utils/constants";
 import { Goban } from "./";
 import type { MarkerData, Point, Sign, GhostStoneData } from "./types";
 import { WasmEngine } from "/static/wasm/go_engine_wasm.js";
@@ -15,6 +16,8 @@ import { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 // ---------------------------------------------------------------------------
 // WASM singleton
 // ---------------------------------------------------------------------------
+
+const desktopMQ = window.matchMedia(DESKTOP_MQ);
 
 const koMarker: MarkerData = { type: "triangle", label: "ko" };
 
@@ -42,7 +45,11 @@ export function computeVertexSize(
   rows: number,
   showCoordinates?: boolean,
 ): number {
-  const avail = gobanEl.clientWidth;
+  const w = gobanEl.clientWidth;
+  const h = gobanEl.clientHeight;
+  // On desktop the goban container has a CSS height from the grid row;
+  // on mobile clientHeight is stale content height, so ignore it.
+  const avail = desktopMQ.matches && h > 0 ? Math.min(w, h) : w;
   const extra = 0.8;
   const coordExtra = showCoordinates ? 2 : 0;
   return Math.max(avail / (Math.max(cols, rows) + extra + coordExtra), 12);
@@ -93,11 +100,19 @@ function renderFromEngine(
     }
   }
 
+  // On desktop, reset inline --col-width so we measure against the CSS default
+  const body = desktopMQ.matches
+    ? (gobanEl.closest(".game-page-body") as HTMLElement | null)
+    : null;
+  body?.style.removeProperty("--col-width");
+
+  const vertexSize = computeVertexSize(gobanEl, cols, rows, showCoordinates);
+
   render(
     <Goban
       cols={cols}
       rows={rows}
-      vertexSize={computeVertexSize(gobanEl, cols, rows, showCoordinates)}
+      vertexSize={vertexSize}
       signMap={board}
       markerMap={markerMap}
       ghostStoneMap={ghostStoneMap}
@@ -111,6 +126,14 @@ function renderFromEngine(
     />,
     gobanEl,
   );
+
+  // Sync --col-width to the rendered board width
+  if (body) {
+    const goban = gobanEl.querySelector(".goban") as HTMLElement | null;
+    if (goban) {
+      body.style.setProperty("--col-width", `${goban.offsetWidth}px`);
+    }
+  }
 }
 
 function renderMoveTree(
@@ -474,7 +497,7 @@ class BoardController implements Board {
 
   private resolveTreeDirection(): "horizontal" | "vertical" | undefined {
     if (this.config.moveTreeDirection === "responsive") {
-      return window.innerWidth < 1200 ? "horizontal" : "vertical";
+      return window.innerWidth < DESKTOP_BREAKPOINT ? "horizontal" : "vertical";
     }
     return this.config.moveTreeDirection;
   }
