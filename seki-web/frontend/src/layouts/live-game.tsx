@@ -7,6 +7,7 @@ import { Goban } from "../goban";
 import type { ChatEntry } from "../components/chat";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { createPremove } from "../utils/premove";
+import { storage, gameAnalysisKey } from "../utils/storage";
 import { settingsToSgfTime } from "../utils/format";
 import { joinGame } from "../ws";
 import { createGameChannel } from "../game/channel";
@@ -90,10 +91,47 @@ export function liveGame(
   const moveTreeEl = document.createElement("div");
   moveTreeEl.className = "move-tree";
 
+  // --- Analysis persistence helpers ---
+  const analysisKey = gameAnalysisKey(gameId);
+
+  function saveAnalysis() {
+    if (!board.value) {
+      return;
+    }
+    const tree = board.value.engine.tree_json();
+    const nodeId = board.value.engine.current_node_id();
+    storage.setJson(analysisKey, { tree, nodeId });
+  }
+
+  function restoreAnalysis(): boolean {
+    if (!board.value) {
+      return false;
+    }
+    const saved = storage.getJson<{ tree: string; nodeId: number }>(
+      analysisKey,
+    );
+    if (!saved) {
+      return false;
+    }
+    if (!board.value.engine.replace_tree(saved.tree)) {
+      return false;
+    }
+    if (saved.nodeId >= 0) {
+      board.value.engine.navigate_to(saved.nodeId);
+    } else {
+      board.value.engine.to_start();
+    }
+    return true;
+  }
+
   // --- Mode transition helpers ---
+  let treeBeforeAnalysis = showMoveTree.value;
+
   function enterAnalysis() {
+    treeBeforeAnalysis = showMoveTree.value;
     pm.clear();
     analysisMode.value = true;
+    restoreAnalysis();
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
     doRender();
@@ -104,6 +142,7 @@ export function liveGame(
       exitEstimate();
     }
     pm.clear();
+    saveAnalysis();
     analysisMode.value = false;
     if (board.value) {
       // Sync to active presentation, or fall back to base game moves
@@ -117,7 +156,7 @@ export function liveGame(
         board.value.updateBaseMoves(JSON.stringify(moves.value));
       }
     }
-    showMoveTree.value = false;
+    showMoveTree.value = treeBeforeAnalysis;
     mobileTab.value = "board";
     board.value?.render();
     doRender();
@@ -365,8 +404,20 @@ export function liveGame(
       resetMovesTracker(movesJson);
       board.value.updateBaseMoves(movesJson);
     }
-    board.value.render();
-    doRender();
+    // Auto-restore analysis branches from localStorage
+    if (storage.get(analysisKey)) {
+      enterAnalysis();
+    } else {
+      board.value.render();
+      doRender();
+    }
+  });
+
+  // --- Save analysis on page refresh ---
+  window.addEventListener("beforeunload", () => {
+    if (analysisMode.value) {
+      saveAnalysis();
+    }
   });
 
   // --- Notifications ---
@@ -424,6 +475,21 @@ export function liveGame(
       // Only import if we're a synced viewer (not presenter, not in personal analysis)
       if (!isPresenter.value && !analysisMode.value) {
         board.value?.importSnapshot(snapshot);
+        // Overwrite viewer's stored analysis with the presentation tree
+        try {
+          const parsed = JSON.parse(snapshot) as {
+            tree?: string;
+            activeNodeId?: string;
+          };
+          if (parsed.tree) {
+            storage.setJson(analysisKey, {
+              tree: parsed.tree,
+              nodeId: parseInt(parsed.activeNodeId ?? "-1", 10),
+            });
+          }
+        } catch {
+          // Ignore parse failures
+        }
       }
     },
     onControlChanged: (newPresenterId: number) => {

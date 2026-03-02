@@ -11,6 +11,11 @@ export function analysisTreeKey(size: number): string {
   return `seki:analysis:tree:${size}`;
 }
 
+// Live game analysis
+export function gameAnalysisKey(gameId: number): string {
+  return `seki:game:${gameId}:analysis`;
+}
+
 // Game settings form
 export const GAME_SETTINGS = "seki:game_settings";
 
