@@ -22,7 +22,7 @@ form:not(nav form) {
     border: 1px solid var(--border);
     border-radius: 0.5rem;
     padding: 1em;
-    margin-bottom: 0.5em;
+    margin-bottom: 1em;
 
     > :has(> input[type="checkbox"]) {
       flex-direction: row;
@@ -71,7 +71,7 @@ input[type="password"],
 select {
   padding: 0.5em;
   border: 1px solid var(--border);
-  border-radius: 0.25rem;
+  border-radius: var(--radius-sm);
   background: var(--bg);
   color: var(--fg);
   font: inherit;
