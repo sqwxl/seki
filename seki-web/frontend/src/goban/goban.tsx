@@ -16,7 +16,6 @@ import {
   neighborhood,
   random,
   readjustShifts,
-  vertexEquals,
 } from "./helper";
 import Line from "./line";
 import type {
@@ -273,6 +272,23 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
     }
   }
 
+  // Pre-index dimmed/selected vertices for O(1) lookup in the vertex loop
+  const dimmedSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const [x, y] of dimmedVertices) {
+      s.add(`${x},${y}`);
+    }
+    return s;
+  }, [dimmedVertices]);
+
+  const selectedSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const [x, y] of selectedVertices) {
+      s.add(`${x},${y}`);
+    }
+    return s;
+  }, [selectedVertices]);
+
   return (
     <div
       {...(innerProps as HTMLAttributes<HTMLDivElement>)}
@@ -333,8 +349,8 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
           {Array.from({ length: cols * rows }, (_, i) => {
             const x = i % cols;
             const y = Math.floor(i / cols);
-            const equalsVertex = (v: Point) => vertexEquals(v, [x, y]);
-            const isSelected = selectedVertices.some(equalsVertex);
+            const key = `${x},${y}`;
+            const isSelected = selectedSet.has(key);
             const isTouchPreview =
               !!touchTarget &&
               x === touchTarget[0] &&
@@ -351,7 +367,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
                 heat={heatMap?.[i]}
                 marker={markerMap?.[i]}
                 ghostStone={ghostStoneMap?.[i]}
-                dimmed={isTouchPreview || dimmedVertices.some(equalsVertex)}
+                dimmed={isTouchPreview || dimmedSet.has(key)}
                 animate={animatedSet.has(i)}
                 paint={paintMap?.[i]}
                 paintLeft={x > 0 ? paintMap?.[i - 1] : undefined}
@@ -373,30 +389,10 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
                     : undefined
                 }
                 selected={isSelected}
-                selectedLeft={
-                  isSelected &&
-                  selectedVertices.some((v: Point) =>
-                    vertexEquals(v, [x - 1, y]),
-                  )
-                }
-                selectedRight={
-                  isSelected &&
-                  selectedVertices.some((v: Point) =>
-                    vertexEquals(v, [x + 1, y]),
-                  )
-                }
-                selectedTop={
-                  isSelected &&
-                  selectedVertices.some((v: Point) =>
-                    vertexEquals(v, [x, y - 1]),
-                  )
-                }
-                selectedBottom={
-                  isSelected &&
-                  selectedVertices.some((v: Point) =>
-                    vertexEquals(v, [x, y + 1]),
-                  )
-                }
+                selectedLeft={isSelected && selectedSet.has(`${x - 1},${y}`)}
+                selectedRight={isSelected && selectedSet.has(`${x + 1},${y}`)}
+                selectedTop={isSelected && selectedSet.has(`${x},${y - 1}`)}
+                selectedBottom={isSelected && selectedSet.has(`${x},${y + 1}`)}
                 onClick={props.onVertexClick}
               />
             );

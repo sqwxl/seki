@@ -47,8 +47,8 @@ export type GameMessageDeps = {
   onControlChanged?: (newPresenterId: number) => void;
 };
 
-// Track last-seen moves JSON for change detection
-let prevMovesJson = "[]";
+// Track last-seen move count for cheap change detection
+let prevMoveCount = 0;
 
 // Suppress sound/flash on the first "state" message (initial load)
 let initialStateReceived = false;
@@ -63,8 +63,7 @@ function syncBoardMoves(
     return;
   }
   const currentMoves = moves.value;
-  const newMovesJson = JSON.stringify(currentMoves);
-  if (newMovesJson !== prevMovesJson) {
+  if (currentMoves.length !== prevMoveCount) {
     if (gameStage.value !== GameStage.Completed && playEffects) {
       const lastMove = currentMoves[currentMoves.length - 1];
       if (lastMove?.kind === "play") {
@@ -74,8 +73,8 @@ function syncBoardMoves(
         flashPassEffect(gobanEl);
       }
     }
-    prevMovesJson = newMovesJson;
-    b.updateBaseMoves(prevMovesJson);
+    prevMoveCount = currentMoves.length;
+    b.updateBaseMoves(JSON.stringify(currentMoves));
     b.save();
     onNewMove?.();
   }
@@ -84,9 +83,9 @@ function syncBoardMoves(
   }
 }
 
-/** Reset the prevMovesJson tracker (call when board loads with initial moves). */
-export function resetMovesTracker(json: string): void {
-  prevMovesJson = json;
+/** Reset the move count tracker (call when board loads with initial moves). */
+export function resetMovesTracker(count: number): void {
+  prevMoveCount = count;
   initialStateReceived = false;
 }
 

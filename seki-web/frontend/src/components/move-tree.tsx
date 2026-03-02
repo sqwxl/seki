@@ -1,5 +1,5 @@
 import { h } from "preact";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useMemo, useRef } from "preact/hooks";
 import type { GameTreeData } from "../game/types";
 
 const NODE_RADIUS = 12;
@@ -72,7 +72,10 @@ export function MoveTree({
   onNavigate,
 }: MoveTreeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const layout = layoutTree(tree, branchAfterNodeId);
+  const layout = useMemo(
+    () => layoutTree(tree, branchAfterNodeId),
+    [tree, branchAfterNodeId],
+  );
   const vertical = direction === "vertical";
 
   if (layout.length === 0) {
@@ -80,14 +83,17 @@ export function MoveTree({
   }
 
   // Compute active path: ancestors from current node to root
-  const activePath = new Set<number>();
-  if (currentNodeId >= 0 && currentNodeId < tree.nodes.length) {
-    let id: number | null = currentNodeId;
-    while (id != null) {
-      activePath.add(id);
-      id = tree.nodes[id].parent;
+  const activePath = useMemo(() => {
+    const path = new Set<number>();
+    if (currentNodeId >= 0 && currentNodeId < tree.nodes.length) {
+      let id: number | null = currentNodeId;
+      while (id != null) {
+        path.add(id);
+        id = tree.nodes[id].parent;
+      }
     }
-  }
+    return path;
+  }, [currentNodeId, tree]);
 
   const maxCol = layout.reduce((m, n) => Math.max(m, n.col), 0);
   const maxRow = layout.reduce((m, n) => Math.max(m, n.row), 0);

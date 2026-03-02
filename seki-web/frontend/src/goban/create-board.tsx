@@ -136,6 +136,15 @@ function renderFromEngine(
   }
 }
 
+// Cache for parsed tree data — only re-fetch from WASM when structure changes
+let cachedTree: GameTreeData | undefined;
+let cachedTreeNodeCount = -1;
+
+export function invalidateTreeCache(): void {
+  cachedTree = undefined;
+  cachedTreeNodeCount = -1;
+}
+
 function renderMoveTree(
   engine: WasmEngine,
   moveTreeEl: HTMLElement,
@@ -144,14 +153,24 @@ function renderMoveTree(
   direction?: "horizontal" | "vertical",
   branchAfterNodeId?: number,
 ): void {
-  const treeJson = engine.tree_json();
-  let tree: GameTreeData;
-  try {
-    tree = JSON.parse(treeJson);
-  } catch {
-    console.warn("Failed to parse move tree JSON");
-    return;
+  const nodeCount = engine.tree_node_count();
+  if (nodeCount !== cachedTreeNodeCount || !cachedTree) {
+    try {
+      cachedTree = JSON.parse(engine.tree_json());
+      cachedTreeNodeCount = nodeCount;
+    } catch {
+      console.warn("Failed to parse move tree JSON");
+      return;
+    }
   }
+  // cachedTree is guaranteed non-undefined here: the guard above either
+  // assigns it or returns early on parse failure.
+  const cached = cachedTree!;
+  // Shallow copy so synthetic root injection doesn't mutate the cache
+  const tree: GameTreeData = {
+    nodes: [...cached.nodes],
+    root_children: [...cached.root_children],
+  };
   let currentNodeId = engine.current_node_id();
 
   // Inject synthetic root node for the empty board
@@ -162,7 +181,7 @@ function renderMoveTree(
     children: [...tree.root_children],
   });
   for (const childId of tree.root_children) {
-    tree.nodes[childId].parent = rootId;
+    tree.nodes[childId] = { ...tree.nodes[childId], parent: rootId };
   }
   tree.root_children = [rootId];
   if (currentNodeId === -1) {
@@ -283,6 +302,7 @@ class BoardController implements Board {
   private _baseTipNodeId: number;
   private territoryState: TerritoryState | undefined;
   private finalizedNodes: Map<number, [number, number][]>;
+  private finalizedTerritoryCache: Map<number, TerritoryState>;
   private abortController: AbortController;
 
   get baseTipNodeId(): number {
@@ -309,6 +329,7 @@ class BoardController implements Board {
     this.baseMoveCount = opts.baseMoveCount;
     this._baseTipNodeId = opts.baseTipNodeId;
     this.finalizedNodes = opts.finalizedNodes;
+    this.finalizedTerritoryCache = new Map();
     this.abortController = new AbortController();
   }
 
@@ -510,8 +531,14 @@ class BoardController implements Board {
     let territoryInfo: TerritoryInfo;
 
     if (finalized) {
-      const deadStones = this.finalizedNodes.get(nodeId)!;
-      const ts = this.computeTerritoryState(deadStones);
+      let ts = this.finalizedTerritoryCache.get(nodeId);
+      if (!ts) {
+        const deadStones = this.finalizedNodes.get(nodeId)!;
+        ts = this.computeTerritoryState(deadStones);
+        if (ts) {
+          this.finalizedTerritoryCache.set(nodeId, ts);
+        }
+      }
       if (ts) {
         overlay = this.buildOverlay(ts.deadStones, ts.ownership);
         territoryInfo = {
@@ -694,10 +721,38 @@ class BoardController implements Board {
   // ---- State updates ----
 
   updateBaseMoves(movesJson: string): void {
+    const newCount = (JSON.parse(movesJson) as unknown[]).length;
+    const oldTipId = this._baseTipNodeId;
+    const wasAtBaseTip =
+      oldTipId < 0 || this.engine.current_node_id() === oldTipId;
+
+    if (newCount !== this.baseMoveCount) {
+      // Incremental: merge into existing tree (preserves analysis branches)
+      const newTipId = this.engine.merge_base_moves(movesJson);
+      this._baseTipNodeId = newTipId;
+
+      // Undo: prune the undone move(s) from the tree
+      if (
+        newCount < this.baseMoveCount &&
+        oldTipId >= 0 &&
+        oldTipId !== newTipId
+      ) {
+        this.engine.remove_subtree(oldTipId);
+      }
+
+      // Auto-navigate to new tip if user was watching live play
+      if (wasAtBaseTip) {
+        this.engine.to_latest();
+      }
+    } else {
+      // Same length, different content — full replace (rare: e.g. reconnect glitch)
+      invalidateTreeCache();
+      this.engine.replace_moves(movesJson);
+      this._baseTipNodeId = newCount > 0 ? newCount - 1 : -1;
+    }
+
     this.baseMoves = movesJson;
-    this.baseMoveCount = (JSON.parse(movesJson) as unknown[]).length;
-    this.engine.replace_moves(movesJson);
-    this._baseTipNodeId = this.baseMoveCount > 0 ? this.baseMoveCount - 1 : -1;
+    this.baseMoveCount = newCount;
   }
 
   setShowCoordinates(show: boolean): void {
@@ -721,6 +776,8 @@ class BoardController implements Board {
     }
     this.territoryState = undefined;
     this.finalizedNodes = new Map();
+    this.finalizedTerritoryCache = new Map();
+    invalidateTreeCache();
     this.engine.replace_moves(this.baseMoves);
     this.engine.to_latest();
     this.render();

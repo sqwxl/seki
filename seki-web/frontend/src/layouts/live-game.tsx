@@ -401,7 +401,7 @@ export function liveGame(
     board.value.setMoveTreeEl(moveTreeEl);
     if (moves.value.length > 0) {
       const movesJson = JSON.stringify(moves.value);
-      resetMovesTracker(movesJson);
+      resetMovesTracker(moves.value.length);
       board.value.updateBaseMoves(movesJson);
     }
     // Auto-restore analysis branches from localStorage
