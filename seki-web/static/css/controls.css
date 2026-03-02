@@ -7,12 +7,12 @@
   max-width: 100%;
 }
 
-.controls button.move-tree-toggle {
+.controls .analysis-toggle {
   display: none;
 }
 
 @media (min-width: 1960px) {
-  .controls button.move-tree-toggle {
+  .controls .analysis-toggle {
     display: inline-flex;
   }
 }
@@ -44,12 +44,26 @@
   display: block;
 }
 
+.move-tree-slot {
+  flex: 1;
+  min-height: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.move-tree-slot.hidden {
+  display: none;
+}
+
 .move-tree {
   display: flex;
   flex-direction: column;
-  width: min(90vw, 70vh);
-  max-height: 150px;
-  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  max-width: 100%;
+  overflow: auto;
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 4px;
@@ -170,4 +184,41 @@
   border-color: color-mix(in srgb, var(--border) 40%, transparent);
   background: color-mix(in srgb, var(--bg-muted) 40%, transparent);
   cursor: default;
+}
+
+/* Mobile compact controls in analysis mode */
+@media (max-width: 1959px) {
+  .controls-analysis {
+    gap: 0.25em;
+    margin-top: 0.25em;
+  }
+
+  .controls-analysis .controls-nav-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25em;
+  }
+
+  .controls-analysis .controls-start > :not(.btn-pass),
+  .controls-analysis .controls-end > :not(.btn-estimate):not(.btn-exit-estimate) {
+    display: none;
+  }
+
+  .controls-analysis button,
+  .controls-analysis select {
+    font-size: 1.2em;
+    height: 2.2em;
+    min-width: 2.2em;
+  }
+
+  .controls-analysis .controls-nav {
+    gap: 0.25em;
+  }
+
+  .controls-analysis button.controls-counter {
+    min-width: 5ch;
+    font-size: 1.2em;
+  }
 }

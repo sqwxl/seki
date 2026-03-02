@@ -349,6 +349,10 @@ a:visited {
   display: none !important;
 }
 
+.hidden {
+  display: none;
+}
+
 /* Board view fills available space */
 .game-board-view {
   flex: 1;
@@ -368,9 +372,8 @@ a:visited {
   max-height: 100%;
 }
 
-/* Chat/tree views fill available space */
-.game-chat-view,
-.game-tree-view {
+/* Chat view fills available space */
+.game-chat-view {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -388,39 +391,25 @@ a:visited {
   height: auto;
 }
 
-.game-tree-view .move-tree-slot {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  width: min(90vw, 70vh);
-}
-
-.game-tree-view .move-tree {
-  flex: 1;
-  min-height: 0;
-  max-height: none;
-  width: 100%;
-  overflow: auto !important;
-}
-
 /* Tab bar */
 .mobile-tab-bar {
   display: flex;
   gap: 0.5em;
-  justify-content: center;
-  padding: 0.35em;
+  padding: 0;
   flex-shrink: 0;
 }
 
 .mobile-tab-bar button {
+  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-family: monospace;
-  font-size: 1.3em;
-  height: 2.4em;
-  min-width: 2.4em;
+  font-size: 1.1em;
+  height: 2em;
+  min-width: 2em;
+  border-radius: 4px 4px 0 0;
+  border-bottom: none;
 }
 
 .game-status-slot {
@@ -438,11 +427,11 @@ a:visited {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.25em;
-  padding: 0.5em 0.75em;
+  gap: 0.125em;
+  padding: 0.25em 0.75em;
   border: 1px solid var(--border);
   background: var(--bg);
-  font-size: 1.125rem;
+  font-size: 1rem;
   background-color: var(--bg-muted);
   font-family: monospace;
 }
@@ -453,8 +442,7 @@ a:visited {
 }
 
 @media (min-width: 768px) {
-  .game-status-slot,
-  .game-tree-view .move-tree-slot {
+  .game-status-slot {
     width: min(70vw, 70vh);
   }
 }
@@ -462,8 +450,7 @@ a:visited {
 @media (min-width: 1960px) {
   /* Desktop: view wrappers are transparent, tab bar hidden */
   .game-board-view,
-  .game-chat-view,
-  .game-tree-view {
+  .game-chat-view {
     display: contents !important;
   }
   .mobile-tab-bar {
@@ -506,7 +493,7 @@ a:visited {
     margin: 0 1.5em;
     width: auto;
   }
-  .move-tree-desktop-hidden {
+  .game-page-body .move-tree-slot.hidden {
     display: none;
   }
   .game-page-body .move-tree {

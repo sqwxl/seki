@@ -61,7 +61,6 @@ type MoveTreeProps = {
   branchAfterNodeId?: number;
   direction?: "horizontal" | "vertical";
   onNavigate: (nodeId: number) => void;
-  onReset?: () => void;
 };
 
 export function MoveTree({
@@ -71,7 +70,6 @@ export function MoveTree({
   branchAfterNodeId,
   direction = "horizontal",
   onNavigate,
-  onReset,
 }: MoveTreeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const layout = layoutTree(tree, branchAfterNodeId);
@@ -309,45 +307,24 @@ export function MoveTree({
     );
   }
 
-  const resetBtn = onReset && (
-    <button
-      onClick={onReset}
+  return (
+    <div
+      ref={scrollRef}
       style={{
-        alignSelf: "flex-start",
-        fontSize: "0.75rem",
-        padding: "2px 8px",
-        cursor: "pointer",
-        flexShrink: 0,
+        flex: 1,
+        minHeight: 0,
+        overflow: "auto",
+        scrollBehavior: "smooth",
       }}
     >
-      Reset
-    </button>
-  );
-
-  return (
-    <>
-      {vertical && resetBtn}
-      <div
-        ref={scrollRef}
-        style={{
-          flex: 1,
-          minHeight: 0,
-          overflow: "auto",
-          scrollBehavior: "smooth",
-        }}
+      <svg
+        style={vertical ? { display: "block", marginLeft: "auto" } : undefined}
+        width={svgWidth}
+        height={svgHeight}
       >
-        <svg
-          style={
-            vertical ? { display: "block", marginLeft: "auto" } : undefined
-          }
-          width={svgWidth}
-          height={svgHeight}
-        >
-          {edges}
-          {nodes}
-        </svg>
-      </div>
-      {!vertical && resetBtn}
-    </>
+        {edges}
+        {nodes}
+      </svg>
+    </div>
   );
 }

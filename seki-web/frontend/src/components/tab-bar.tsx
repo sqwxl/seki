@@ -1,12 +1,12 @@
 import { mobileTab, hasUnreadChat } from "../game/state";
-import { IconChat, IconChatUnread, IconStonesBw } from "./icons";
+import { IconAnalysis, IconChat, IconChatUnread, IconStonesBw } from "./icons";
 
-type Tab = "board" | "chat" | "tree";
+type Tab = "board" | "chat" | "analysis";
 
 const tabs: { id: Tab; label: string }[] = [
   { id: "board", label: "Board" },
   { id: "chat", label: "Chat" },
-  { id: "tree", label: "Tree" },
+  { id: "analysis", label: "Analysis" },
 ];
 
 function TabIcon({ id }: { id: Tab }) {
@@ -15,6 +15,9 @@ function TabIcon({ id }: { id: Tab }) {
   }
   if (id === "chat") {
     return hasUnreadChat.value ? <IconChatUnread /> : <IconChat />;
+  }
+  if (id === "analysis") {
+    return <IconAnalysis />;
   }
   return null;
 }
@@ -43,7 +46,6 @@ export function TabBar({ hideTabs }: TabBarProps) {
             }}
           >
             <TabIcon id={t.id} />
-            {t.id === "tree" && t.label}
           </button>
         ))}
     </div>

@@ -120,7 +120,6 @@ function renderMoveTree(
   finalizedNodeIds?: Set<number>,
   direction?: "horizontal" | "vertical",
   branchAfterNodeId?: number,
-  onReset?: () => void,
 ): void {
   const treeJson = engine.tree_json();
   let tree: GameTreeData;
@@ -162,7 +161,6 @@ function renderMoveTree(
         }
         doRender();
       }}
-      onReset={onReset}
     />,
     moveTreeEl,
   );
@@ -476,7 +474,7 @@ class BoardController implements Board {
 
   private resolveTreeDirection(): "horizontal" | "vertical" | undefined {
     if (this.config.moveTreeDirection === "responsive") {
-      return "vertical";
+      return window.innerWidth < 1960 ? "horizontal" : "vertical";
     }
     return this.config.moveTreeDirection;
   }
@@ -610,7 +608,6 @@ class BoardController implements Board {
         fIds,
         this.resolveTreeDirection(),
         branchId,
-        hasAnalysis ? () => this.reset() : undefined,
       );
     }
 

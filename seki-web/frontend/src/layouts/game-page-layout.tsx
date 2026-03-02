@@ -4,7 +4,7 @@ import type { PlayerPanelProps } from "../components/player-panel";
 import type { ControlsProps } from "../components/controls";
 import { Controls } from "./controls";
 import { TabBar } from "../components/tab-bar";
-import { mobileTab } from "../game/state";
+import { mobileTab, analysisMode } from "../game/state";
 
 export type GamePageLayoutProps = {
   header?: ComponentChildren;
@@ -32,7 +32,7 @@ export function GamePageLayout(props: GamePageLayoutProps) {
     <>
       {props.header && <div class="game-header">{props.header}</div>}
       {props.status && <div class="game-status-slot">{props.status}</div>}
-      <div class={`game-board-view ${tab !== "board" ? "tab-hidden" : ""}`}>
+      <div class={`game-board-view ${tab === "chat" ? "tab-hidden" : ""}`}>
         {props.playerTop && (
           <div class="player-label player-top">
             <PlayerPanel {...props.playerTop} />
@@ -51,16 +51,16 @@ export function GamePageLayout(props: GamePageLayoutProps) {
           </div>
         )}
         {props.controls && (
-          <div class="controls">
+          <div
+            class={`controls${analysisMode.value ? " controls-analysis" : ""}`}
+          >
             <Controls {...props.controls} />
           </div>
         )}
+        {props.moveTree}
       </div>
       <div class={`game-chat-view ${tab !== "chat" ? "tab-hidden" : ""}`}>
         {props.chat}
-      </div>
-      <div class={`game-tree-view ${tab !== "tree" ? "tab-hidden" : ""}`}>
-        {props.moveTree}
       </div>
       <TabBar hideTabs={hideTabs} />
     </>

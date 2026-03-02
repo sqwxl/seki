@@ -736,7 +736,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
       }
       moveTree={
         <div
-          class={`move-tree-slot${!showMoveTree.value ? " move-tree-desktop-hidden" : ""}`}
+          class={`move-tree-slot${!showMoveTree.value ? " hidden" : ""}`}
           ref={(el) => {
             if (el && !el.contains(moveTreeEl)) {
               el.appendChild(moveTreeEl);

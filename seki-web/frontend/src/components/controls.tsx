@@ -300,6 +300,7 @@ export function GameControls(props: ControlsProps) {
       )}
       {props.pass && !props.confirmPass && (
         <button
+          class="btn-pass"
           title={props.pass.title ?? "Pass"}
           disabled={props.pass.disabled}
           onClick={props.pass.onClick}
@@ -442,50 +443,53 @@ export function NavControls({ nav }: { nav: ControlsProps["nav"] }) {
 export function UIControls(props: ControlsProps) {
   return (
     <>
-      {props.analyze && props.analyzeChoice && (
-        <>
+      <span class="analysis-toggle">
+        {props.analyze && props.analyzeChoice && (
+          <>
+            <button
+              title={props.analyze.title ?? "Analyze"}
+              disabled={props.analyze.disabled}
+              popovertarget="analyze-choice"
+            >
+              <IconAnalysis />
+            </button>
+            <div id="analyze-choice" popover>
+              {props.analyzeChoice.options.map((opt) => (
+                <button
+                  key={opt.label}
+                  popovertarget={opt.disabled ? undefined : "analyze-choice"}
+                  disabled={opt.disabled}
+                  onClick={opt.onClick}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <button popovertarget="analyze-choice">Cancel</button>
+            </div>
+          </>
+        )}
+        {props.analyze && !props.analyzeChoice && (
           <button
             title={props.analyze.title ?? "Analyze"}
             disabled={props.analyze.disabled}
-            popovertarget="analyze-choice"
+            onClick={props.analyze.onClick}
           >
             <IconAnalysis />
           </button>
-          <div id="analyze-choice" popover>
-            {props.analyzeChoice.options.map((opt) => (
-              <button
-                key={opt.label}
-                popovertarget={opt.disabled ? undefined : "analyze-choice"}
-                disabled={opt.disabled}
-                onClick={opt.onClick}
-              >
-                {opt.label}
-              </button>
-            ))}
-            <button popovertarget="analyze-choice">Cancel</button>
-          </div>
-        </>
-      )}
-      {props.analyze && !props.analyzeChoice && (
-        <button
-          title={props.analyze.title ?? "Analyze"}
-          disabled={props.analyze.disabled}
-          onClick={props.analyze.onClick}
-        >
-          <IconAnalysis />
-        </button>
-      )}
-      {props.exitAnalysis && (
-        <button
-          title="Back to game"
-          disabled={props.exitAnalysis.disabled}
-          onClick={props.exitAnalysis.onClick}
-        >
-          <IconX />
-        </button>
-      )}
+        )}
+        {props.exitAnalysis && (
+          <button
+            title="Back to game"
+            disabled={props.exitAnalysis.disabled}
+            onClick={props.exitAnalysis.onClick}
+          >
+            <IconX />
+          </button>
+        )}
+      </span>
       {props.estimate && (
         <button
+          class="btn-estimate"
           title={props.estimate.title ?? "Estimate score"}
           disabled={props.estimate.disabled}
           onClick={props.estimate.onClick}
@@ -495,6 +499,7 @@ export function UIControls(props: ControlsProps) {
       )}
       {props.exitEstimate && (
         <button
+          class="btn-exit-estimate"
           title={props.exitEstimate.title ?? "Back to game"}
           disabled={props.exitEstimate.disabled}
           onClick={props.exitEstimate.onClick}

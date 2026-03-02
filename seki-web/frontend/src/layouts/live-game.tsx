@@ -96,7 +96,6 @@ export function liveGame(
   function enterAnalysis() {
     pm.clear();
     analysisMode.value = true;
-    showMoveTree.value = true;
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
     doRender();
@@ -121,6 +120,7 @@ export function liveGame(
       }
     }
     showMoveTree.value = false;
+    mobileTab.value = "board";
     board.value?.render();
     doRender();
   }
@@ -467,12 +467,23 @@ export function liveGame(
     return () => timers.forEach(clearTimeout);
   });
 
-  // --- Re-render board when returning to Board tab ---
+  // --- Re-render board when returning from Chat tab ---
   effect(() => {
-    if (mobileTab.value === "board" && board.value) {
+    if (mobileTab.value !== "chat" && board.value) {
       requestAnimationFrame(() => {
         board.value?.render();
       });
+    }
+  });
+
+  // --- Sync analysis mode with mobile tab ---
+  effect(() => {
+    const tab = mobileTab.value;
+    if (tab === "analysis" && !analysisMode.peek()) {
+      showMoveTree.value = true;
+      enterAnalysis();
+    } else if (tab === "board" && analysisMode.peek()) {
+      exitAnalysis();
     }
   });
 
