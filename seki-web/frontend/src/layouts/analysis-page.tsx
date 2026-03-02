@@ -14,7 +14,6 @@ import {
   buildCoordsToggle,
   buildMoveConfirmToggle,
 } from "../utils/shared-controls";
-import type { CoordsToggleState } from "../utils/shared-controls";
 import type { PremoveState } from "../utils/premove";
 import { formatScoreStr } from "../game/ui";
 import { playStoneSound } from "../game/sound";
@@ -59,12 +58,7 @@ function formatSgfDescription(meta: SgfMeta): string {
 
 function AnalysisHeader() {
   const meta = analysisMeta.value;
-  return (
-    <>
-      <h2>Analysis Board</h2>
-      {meta && <p>{formatSgfDescription(meta)}</p>}
-    </>
-  );
+  return <>{meta && <p>{formatSgfDescription(meta)}</p>}</>;
 }
 
 function buildAnalysisPlayerPanel({
@@ -137,13 +131,11 @@ function buildAnalysisPlayerPanel({
 
 function buildAnalysisControls({
   pm,
-  coordsState,
   onSizeChange,
   handleSgfImport,
   handleSgfExport,
 }: {
   pm: PremoveState;
-  coordsState: CoordsToggleState;
   onSizeChange: (size: number) => void;
   handleSgfImport: (input: HTMLInputElement) => void;
   handleSgfExport: () => void;
@@ -155,7 +147,7 @@ function buildAnalysisControls({
   const props: ControlsProps = {
     layout: "analysis",
     nav: buildNavProps(board),
-    coordsToggle: buildCoordsToggle(board, coordsState),
+    coordsToggle: buildCoordsToggle(board),
     moveConfirmToggle: buildMoveConfirmToggle(pm, board),
     sizeSelect: {
       value: analysisSize.value,
@@ -206,7 +198,6 @@ function buildAnalysisControls({
 export type AnalysisPageProps = {
   gobanRef: preact.Ref<HTMLDivElement>;
   pm: PremoveState;
-  coordsState: CoordsToggleState;
   moveTreeEl: HTMLElement;
   onSizeChange: (size: number) => void;
   handleSgfImport: (input: HTMLInputElement) => void;
@@ -217,7 +208,6 @@ export function AnalysisPage(props: AnalysisPageProps) {
   const {
     gobanRef,
     pm,
-    coordsState,
     moveTreeEl,
     onSizeChange,
     handleSgfImport,
@@ -228,7 +218,6 @@ export function AnalysisPage(props: AnalysisPageProps) {
 
   const controlsProps = buildAnalysisControls({
     pm,
-    coordsState,
     onSizeChange,
     handleSgfImport,
     handleSgfExport,

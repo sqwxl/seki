@@ -13,7 +13,6 @@ import type { PremoveState } from "../utils/premove";
 import { storage, SHOW_MOVE_TREE } from "../utils/storage";
 import { GamePageLayout } from "./game-page-layout";
 import { buildCoordsToggle } from "../utils/shared-controls";
-import type { CoordsToggleState } from "../utils/shared-controls";
 import type { PlayerPanelProps } from "../components/player-panel";
 import {
   gameState,
@@ -58,7 +57,6 @@ import {
 export type LiveGamePageProps = {
   channel: GameChannel;
   pm: PremoveState;
-  coordsState: CoordsToggleState;
   moveTreeEl: HTMLElement;
   gobanRef: preact.Ref<HTMLDivElement>;
   enterAnalysis: () => void;
@@ -490,7 +488,6 @@ function buildPresentationControls(
 function buildLiveControls({
   channel,
   pm,
-  coordsState,
   enterAnalysis,
   exitAnalysis,
   enterEstimate,
@@ -502,7 +499,6 @@ function buildLiveControls({
 }: {
   channel: GameChannel;
   pm: PremoveState;
-  coordsState: CoordsToggleState;
   enterAnalysis: () => void;
   exitAnalysis: () => void;
   enterEstimate: () => void;
@@ -525,7 +521,7 @@ function buildLiveControls({
 
   const props: ControlsProps = {
     nav,
-    coordsToggle: buildCoordsToggle(board.value, coordsState),
+    coordsToggle: buildCoordsToggle(board.value),
     moveConfirmToggle:
       ctx.isPlayer && ctx.isPlay
         ? {
@@ -606,7 +602,6 @@ export function LiveGamePage(props: LiveGamePageProps) {
   const {
     channel,
     pm,
-    coordsState,
     moveTreeEl,
     gobanRef,
     enterAnalysis,
@@ -627,7 +622,6 @@ export function LiveGamePage(props: LiveGamePageProps) {
   const controlsProps = buildLiveControls({
     channel,
     pm,
-    coordsState,
     enterAnalysis,
     exitAnalysis,
     enterEstimate,

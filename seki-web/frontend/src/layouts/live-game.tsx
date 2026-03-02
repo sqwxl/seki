@@ -20,7 +20,6 @@ import { markRead } from "../game/unread";
 import { playStoneSound, playPassSound } from "../game/sound";
 import { downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
-import type { CoordsToggleState } from "../utils/shared-controls";
 import {
   initGameState,
   gameState,
@@ -41,6 +40,7 @@ import {
   initialProps as initialPropsSignal,
   estimateScore,
   showMoveTree,
+  showCoordinates,
   moveConfirmEnabled,
   presentationActive,
   isPresenter,
@@ -80,9 +80,7 @@ export function liveGame(
     flagSent: false,
     chatEntry: undefined,
   };
-  const coordsState: CoordsToggleState = {
-    showCoordinates: readShowCoordinates(),
-  };
+  showCoordinates.value = readShowCoordinates();
   const pm = createPremove({
     getSign: () => playerStone.value as Sign,
   });
@@ -245,7 +243,6 @@ export function liveGame(
       <LiveGamePage
         channel={channel}
         pm={pm}
-        coordsState={coordsState}
         moveTreeEl={moveTreeEl}
         gobanRef={gobanRef}
         enterAnalysis={enterAnalysis}
@@ -275,10 +272,10 @@ export function liveGame(
           gobanRef.current,
           gs.cols,
           gs.rows,
-          coordsState.showCoordinates,
+          showCoordinates.value,
         )}
         signMap={gs.board}
-        showCoordinates={coordsState.showCoordinates}
+        showCoordinates={showCoordinates.value}
         fuzzyStonePlacement
       />,
       gobanRef.current,
@@ -298,7 +295,7 @@ export function liveGame(
     cols: gameState.value.cols,
     rows: gameState.value.rows,
     handicap: initialProps.settings.handicap,
-    showCoordinates: coordsState.showCoordinates,
+    showCoordinates: showCoordinates.value,
     gobanEl: gobanRef.current!,
     ghostStone,
     territoryOverlay: getServerTerritory,

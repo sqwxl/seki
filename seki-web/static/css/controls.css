@@ -100,6 +100,51 @@
   }
 }
 
+/* --- Controls menu (hamburger, lives in tab bar) --- */
+
+.controls-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.controls-menu-dropdown {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  padding: 0.5em;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-bottom: 0.25em;
+  overflow: visible;
+}
+
+.controls-menu-dropdown button,
+.controls-menu-dropdown select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-size: 1.3em;
+  height: 2.4em;
+  min-width: 2.4em;
+}
+
+/* Hide hamburger on desktop — inline controls-end takes over */
+@media (min-width: 768px) {
+  .controls-menu {
+    display: none;
+  }
+}
+
+/* --- Controls nav row layout --- */
+
 .controls-nav-row {
   display: flex;
   flex-direction: column;
@@ -115,6 +160,11 @@
 .controls-nav-row > .controls-nav,
 .controls-nav-row > .controls-middle {
   order: -1;
+}
+
+/* Mobile: hide inline UI controls when tab bar provides the hamburger */
+.game-page-body:has(.mobile-tab-bar) .controls-nav-row > .controls-end {
+  display: none;
 }
 
 @media (min-width: 768px) {
@@ -133,10 +183,12 @@
   .controls-nav-row > .controls-nav,
   .controls-nav-row > .controls-middle {
     grid-column: 2;
+    flex: initial;
     order: 0;
   }
 
   .controls-nav-row > .controls-end {
+    display: inline-flex;
     grid-column: 3;
     justify-self: end;
     order: 0;
@@ -181,7 +233,7 @@
   cursor: default;
 }
 
-/* Mobile compact controls in analysis mode */
+/* Compact controls in analysis mode */
 @media (max-width: 1959px) {
   .controls-analysis {
     gap: 0.25em;
@@ -190,15 +242,10 @@
 
   .controls-analysis .controls-nav-row {
     display: flex;
-    flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 0.25em;
-  }
-
-  .controls-analysis .controls-start > :not(.btn-pass),
-  .controls-analysis .controls-end > :not(.btn-estimate):not(.btn-exit-estimate) {
-    display: none;
   }
 
   .controls-analysis button,
@@ -215,5 +262,13 @@
   .controls-analysis button.controls-counter {
     min-width: 5ch;
     font-size: 1.2em;
+  }
+}
+
+/* Desktop analysis: hide extra game/UI controls inline */
+@media (min-width: 768px) and (max-width: 1959px) {
+  .controls-analysis .controls-start > :not(.btn-pass),
+  .controls-analysis .controls-end > :not(.btn-estimate):not(.btn-exit-estimate) {
+    display: none;
   }
 }

@@ -16,7 +16,7 @@ import type {
 import { GameStage as GS, isPlayStage } from "./types";
 import type { Board } from "../goban/create-board";
 import type { ChatEntry } from "../components/chat";
-import { storage, SHOW_MOVE_TREE } from "../utils/storage";
+import { storage, SHOW_MOVE_TREE, SHOW_COORDINATES } from "../utils/storage";
 import { readMoveConfirmation } from "../utils/premove";
 
 // ---------------------------------------------------------------------------
@@ -115,6 +115,7 @@ export const navState = signal({
 });
 export const estimateScore = signal<ScoreData | undefined>(undefined);
 export const showMoveTree = signal(storage.get(SHOW_MOVE_TREE) === "true");
+export const showCoordinates = signal(storage.get(SHOW_COORDINATES) === "true");
 export const moveConfirmEnabled = signal(readMoveConfirmation());
 
 // ---------------------------------------------------------------------------

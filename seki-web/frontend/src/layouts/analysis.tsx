@@ -11,7 +11,6 @@ import {
 } from "../utils/storage";
 import { playStoneSound, playPassSound } from "../game/sound";
 import { createPremove } from "../utils/premove";
-import type { CoordsToggleState } from "../utils/shared-controls";
 import { readFileAsText, downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
 import type { Sign } from "../goban/types";
@@ -21,7 +20,7 @@ import {
   analysisSize,
   analysisTerritoryInfo,
 } from "./analysis-state";
-import { mobileTab } from "../game/state";
+import { mobileTab, showCoordinates } from "../game/state";
 import { AnalysisPage } from "./analysis-page";
 
 const VALID_SIZES = [9, 13, 19];
@@ -44,9 +43,7 @@ export function initAnalysis(root: HTMLElement) {
 
   let sgfText: string | undefined = storage.get(ANALYSIS_SGF_TEXT) ?? undefined;
 
-  const coordsState: CoordsToggleState = {
-    showCoordinates: readShowCoordinates(),
-  };
+  showCoordinates.value = readShowCoordinates();
 
   const pm = createPremove({
     getSign: () =>
@@ -63,7 +60,6 @@ export function initAnalysis(root: HTMLElement) {
       <AnalysisPage
         gobanRef={gobanRef}
         pm={pm}
-        coordsState={coordsState}
         moveTreeEl={moveTreeEl}
         onSizeChange={handleSizeChange}
         handleSgfImport={handleSgfImport}
@@ -98,7 +94,7 @@ export function initAnalysis(root: HTMLElement) {
     const board = await createBoard({
       cols: size,
       rows: size,
-      showCoordinates: coordsState.showCoordinates,
+      showCoordinates: showCoordinates.value,
       gobanEl: gobanRef.current!,
       komi: KOMI,
       moveTreeEl,

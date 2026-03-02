@@ -400,7 +400,8 @@ a:visited {
   align-self: center;
 }
 
-.mobile-tab-bar button {
+.mobile-tab-bar > button,
+.mobile-tab-bar > .controls-menu > button {
   flex: 1;
   display: inline-flex;
   align-items: center;

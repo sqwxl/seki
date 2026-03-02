@@ -26,7 +26,6 @@ export function GamePageLayout(props: GamePageLayoutProps) {
 
   const tab = mobileTab.value;
   const hasChat = !!props.chat;
-  const hideTabs = hasChat ? undefined : (["chat"] as "chat"[]);
 
   return (
     <>
@@ -59,10 +58,12 @@ export function GamePageLayout(props: GamePageLayoutProps) {
         )}
         {props.moveTree}
       </div>
-      <div class={`game-chat-view ${tab !== "chat" ? "tab-hidden" : ""}`}>
-        {props.chat}
-      </div>
-      <TabBar hideTabs={hideTabs} />
+      {hasChat && (
+        <div class={`game-chat-view ${tab !== "chat" ? "tab-hidden" : ""}`}>
+          {props.chat}
+        </div>
+      )}
+      {hasChat && <TabBar controls={props.controls} />}
     </>
   );
 }

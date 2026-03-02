@@ -1,11 +1,8 @@
 import type { Board, NavAction } from "../goban/create-board";
 import type { ControlsProps } from "../components/controls";
+import { showCoordinates } from "../game/state";
 import { toggleShowCoordinates } from "./coord-toggle";
 import type { PremoveState } from "./premove";
-
-export type CoordsToggleState = {
-  showCoordinates: boolean;
-};
 
 export function buildNavProps(board: Board | undefined): ControlsProps["nav"] {
   return {
@@ -19,13 +16,12 @@ export function buildNavProps(board: Board | undefined): ControlsProps["nav"] {
 
 export function buildCoordsToggle(
   board: Board | undefined,
-  state: CoordsToggleState,
 ): ControlsProps["coordsToggle"] {
   return {
-    enabled: state.showCoordinates,
+    enabled: showCoordinates.value,
     onClick: () => {
-      state.showCoordinates = toggleShowCoordinates();
-      board?.setShowCoordinates(state.showCoordinates);
+      showCoordinates.value = toggleShowCoordinates();
+      board?.setShowCoordinates(showCoordinates.value);
     },
   };
 }
