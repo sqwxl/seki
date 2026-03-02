@@ -28,6 +28,13 @@ pub async fn create_game(
     creator: &User,
     params: CreateGameParams,
 ) -> Result<Game, AppError> {
+    // Komi must be a half-integer (e.g. 0.5, 6.5, -3.5) to prevent draws
+    if (params.komi * 2.0).fract() != 0.0 {
+        return Err(AppError::BadRequest(
+            "Komi must be a half-integer (e.g. 0.5, 6.5, -3.5)".to_string(),
+        ));
+    }
+
     let friend = if let Some(ref username) = params.invite_username {
         if !username.is_empty() {
             Some(

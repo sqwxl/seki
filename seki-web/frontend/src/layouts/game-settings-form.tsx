@@ -156,12 +156,10 @@ export function GameSettingsForm({
             type="number"
             name="komi"
             id="komi"
-            min={0.5}
-            max={10.5}
-            step={0.5}
+            step={1}
             value={s.komi}
             onChange={(e) =>
-              set("komi", parseFloat(e.currentTarget.value) || 0.5)
+              set("komi", parseFloat(e.currentTarget.value) || 0)
             }
           />
         </div>

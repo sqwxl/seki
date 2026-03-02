@@ -25,8 +25,10 @@ function formatN(n: number): string {
 }
 
 export function formatPoints(bTotal: number, wTotal: number, komi: number) {
-  const bStr = formatN(bTotal);
-  const wStr = komi ? `${formatN(wTotal)}+${formatN(komi)}` : formatN(wTotal);
+  const bStr =
+    komi < 0 ? `${formatN(bTotal)}+${formatN(-komi)}` : formatN(bTotal);
+  const wStr =
+    komi > 0 ? `${formatN(wTotal)}+${formatN(komi)}` : formatN(wTotal);
   return { bStr, wStr };
 }
 
