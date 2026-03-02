@@ -7,7 +7,6 @@ pre-commit:
       glob: "*.rs"
       run: cargo clippy --all-targets -- -D warnings
     prettier:
-      root: seki-web/frontend/
-      glob: "*.{ts,tsx}"
-      run: pnpm exec prettier --write {staged_files}
+      glob: "seki-web/**/*.{ts,tsx,css}"
+      run: prettier --write {staged_files}
       stage_fixed: true

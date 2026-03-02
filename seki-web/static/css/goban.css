@@ -28,7 +28,6 @@
   filter: brightness(0.8);
 }
 
-
 .player-label {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
