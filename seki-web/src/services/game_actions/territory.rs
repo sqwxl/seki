@@ -20,7 +20,7 @@ pub async fn toggle_chain(
     col: u8,
     row: u8,
 ) -> Result<(), AppError> {
-    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
     require_not_challenge(&gwp)?;
 
@@ -38,9 +38,8 @@ pub async fn toggle_chain(
         .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
 
     let _ = Game::clear_territory_review_deadline(&state.db, game_id).await;
+    gwp.game.territory_review_expires_at = None;
 
-    // Re-fetch so broadcast sees the cleared deadline
-    let gwp = Game::find_with_players(&state.db, game_id).await?;
     broadcast_game_state(state, &gwp, &engine).await;
     Ok(())
 }
@@ -50,7 +49,7 @@ pub async fn approve_territory(
     game_id: i64,
     player_id: i64,
 ) -> Result<(), AppError> {
-    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
     require_not_challenge(&gwp)?;
     let stone = player_stone(&gwp, player_id)?;
@@ -72,12 +71,11 @@ pub async fn approve_territory(
 
     if tr.black_approved && tr.white_approved {
         Game::clear_territory_review_deadline(&state.db, game_id).await?;
-        settle_territory(state, game_id, &gwp, &engine, &tr.dead_stones).await?;
+        settle_territory(state, game_id, gwp, &engine, &tr.dead_stones).await?;
     } else if tr.black_approved || tr.white_approved {
         let deadline = Utc::now() + chrono::Duration::seconds(60);
         Game::set_territory_review_deadline(&state.db, game_id, deadline).await?;
-        // Re-fetch so broadcast sees the new deadline
-        let gwp = Game::find_with_players(&state.db, game_id).await?;
+        gwp.game.territory_review_expires_at = Some(deadline);
         broadcast_game_state(state, &gwp, &engine).await;
     } else {
         broadcast_game_state(state, &gwp, &engine).await;
@@ -89,7 +87,7 @@ pub async fn approve_territory(
 pub async fn settle_territory(
     state: &AppState,
     game_id: i64,
-    gwp: &GameWithPlayers,
+    mut gwp: GameWithPlayers,
     engine: &Engine,
     dead_stones: &HashSet<go_engine::Point>,
 ) -> Result<(), AppError> {
@@ -143,8 +141,8 @@ pub async fn settle_territory(
 
     state.registry.clear_territory_review(game_id).await;
 
-    // Re-fetch so broadcast sees the result
-    let gwp = Game::find_with_players(&state.db, game_id).await?;
+    gwp.game.result = Some(result.clone());
+    gwp.game.stage = "completed".to_string();
 
     broadcast_system_chat(
         state,

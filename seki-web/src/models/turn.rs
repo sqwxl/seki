@@ -73,6 +73,17 @@ impl TurnRow {
         Ok(())
     }
 
+    /// Return the move count for a single game.
+    pub async fn count_by_game_id(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar("SELECT COUNT(*) FROM turns WHERE game_id = $1")
+            .bind(game_id)
+            .fetch_one(executor)
+            .await
+    }
+
     /// Return move counts for multiple games in one query.
     pub async fn count_by_game_ids(
         executor: impl sqlx::PgExecutor<'_>,

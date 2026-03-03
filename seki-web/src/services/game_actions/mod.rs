@@ -2,7 +2,7 @@ mod territory;
 mod undo;
 
 pub use territory::{approve_territory, settle_territory, toggle_chain};
-pub use undo::{UndoResult, request_undo, respond_to_undo};
+pub use undo::{request_undo, respond_to_undo};
 
 use chrono::Utc;
 use go_engine::{Engine, Stage, Stone};
@@ -16,7 +16,6 @@ use crate::models::turn::TurnRow;
 use crate::models::user::User;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
-use crate::templates::UserData;
 
 // -- Return types --
 
@@ -244,12 +243,17 @@ pub async fn accept_challenge(
     }
 
     // Nigiri: randomize colors now that the game is starting
-    if gwp.game.nigiri {
+    let nigiri_swapped = if gwp.game.nigiri {
         use rand::RngExt;
         if rand::rng().random_bool(0.5) {
             Game::swap_players(&state.db, game_id).await?;
+            true
+        } else {
+            false
         }
-    }
+    } else {
+        false
+    };
 
     let start_stage = if gwp.game.handicap >= 2 {
         "white_to_play"
@@ -258,8 +262,14 @@ pub async fn accept_challenge(
     };
     Game::set_stage(&state.db, game_id, start_stage).await?;
 
-    // Reload and broadcast
-    let gwp = Game::find_with_players(&state.db, game_id).await?;
+    // Only reload if nigiri swapped (need updated black/white IDs); otherwise update in-place
+    let gwp = if nigiri_swapped {
+        Game::find_with_players(&state.db, game_id).await?
+    } else {
+        let mut gwp = gwp;
+        gwp.game.stage = start_stage.to_string();
+        gwp
+    };
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
@@ -297,7 +307,9 @@ pub async fn decline_challenge(
     live::notify_game_removed(state, game_id);
 
     // Broadcast updated state to anyone watching
-    let gwp = Game::find_with_players(&state.db, game_id).await?;
+    let mut gwp = gwp;
+    gwp.game.result = Some("Declined".to_string());
+    gwp.game.stage = "declined".to_string();
     if let Ok(engine) = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
@@ -348,13 +360,10 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
 
     broadcast_system_chat(state, game_id, "Game aborted", None).await;
 
-    match state
-        .registry
-        .get_or_init_engine(&state.db, &gwp.game)
-        .await
-    {
-        Ok(engine) => broadcast_game_state(state, &gwp, &engine).await,
-        Err(e) => tracing::warn!("abort: failed to init engine for broadcast: {e}"),
+    if let Some(engine) = state.registry.get_engine(game_id).await {
+        broadcast_game_state(state, &gwp, &engine).await;
+    } else {
+        tracing::warn!("abort: engine not cached for broadcast");
     }
 
     Ok(())
@@ -393,10 +402,11 @@ pub async fn disconnect_abort(
         .get_or_init_engine(&state.db, &gwp.game)
         .await?;
 
-    let opponent_has_moved = engine.moves().iter().any(|t| {
-        let opp_stone = gwp.player_stone(opponent_id);
-        t.stone.to_int() == opp_stone as i8
-    });
+    let opp_stone = gwp.player_stone(opponent_id);
+    let opponent_has_moved = engine
+        .moves()
+        .iter()
+        .any(|t| t.stone.to_int() == opp_stone as i8);
 
     let threshold_secs = if opponent_has_moved { 15 } else { 30 };
     let elapsed = Utc::now() - disconnect_time;
@@ -433,13 +443,10 @@ pub async fn disconnect_abort(
     )
     .await;
 
-    match state
-        .registry
-        .get_or_init_engine(&state.db, &gwp.game)
-        .await
-    {
-        Ok(engine) => broadcast_game_state(state, &gwp, &engine).await,
-        Err(e) => tracing::warn!("disconnect_abort: failed to init engine for broadcast: {e}"),
+    if let Some(engine) = state.registry.get_engine(game_id).await {
+        broadcast_game_state(state, &gwp, &engine).await;
+    } else {
+        tracing::warn!("disconnect_abort: engine not cached for broadcast");
     }
 
     Ok(())
@@ -520,7 +527,7 @@ pub async fn handle_timeout_flag(
         return Ok(());
     }
 
-    end_game_on_time(state, &gwp, active, clock, &tc, now).await
+    end_game_on_time(state, gwp, active, clock, &tc, now).await
 }
 
 /// Handle a client-initiated territory review timeout flag.
@@ -560,13 +567,13 @@ pub async fn handle_territory_timeout_flag(
         .await
         .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
 
-    settle_territory(state, game_id, &gwp, &engine, &tr.dead_stones).await
+    settle_territory(state, game_id, gwp, &engine, &tr.dead_stones).await
 }
 
 /// End a game due to time expiration. Used by both client flag and server sweep.
 pub async fn end_game_on_time(
     state: &AppState,
-    gwp: &GameWithPlayers,
+    mut gwp: GameWithPlayers,
     flagged_stone: Stone,
     mut clock: ClockState,
     tc: &TimeControl,
@@ -596,12 +603,12 @@ pub async fn end_game_on_time(
         })
         .await;
 
+    gwp.game.result = Some(result.to_string());
+    gwp.game.stage = "completed".to_string();
+
     let engine = state.registry.get_engine(game_id).await;
     let move_number = engine.as_ref().map(|e| e.moves().len() as i32);
     broadcast_system_chat(state, game_id, &format!("Game over. {result}"), move_number).await;
-
-    // Re-fetch so broadcast sees the result
-    let gwp = Game::find_with_players(&state.db, game_id).await?;
 
     if let Some(engine) = engine {
         broadcast_game_state(state, &gwp, &engine).await;
@@ -645,13 +652,7 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let online_ids = state.registry.get_online_user_ids(game_id).await;
-    let online_users: Vec<UserData> = User::find_by_ids(&state.db, &online_ids)
-        .await
-        .unwrap_or_default()
-        .iter()
-        .map(UserData::from)
-        .collect();
+    let online_users = state.registry.get_cached_users(game_id).await;
     let game_state = state_serializer::serialize_state(
         gwp,
         engine,
@@ -764,7 +765,7 @@ pub(super) async fn persist_stage(
     Ok(())
 }
 
-async fn rollback_engine(state: &AppState, game_id: i64, game: &Game) {
+pub(super) async fn rollback_engine(state: &AppState, game_id: i64, game: &Game) {
     if let Ok(rebuilt) = engine_builder::build_engine(&state.db, game).await {
         state.registry.replace_engine(game_id, rebuilt).await;
     }

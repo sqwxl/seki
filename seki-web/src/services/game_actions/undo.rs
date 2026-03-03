@@ -1,22 +1,12 @@
-use go_engine::Engine;
+use go_engine::GoError;
 use serde_json::json;
 
 use crate::AppState;
 use crate::error::AppError;
-use crate::models::game::{Game, GameWithPlayers};
+use crate::models::game::Game;
 use crate::models::turn::TurnRow;
-use crate::models::user::User;
-use crate::services::clock::TimeControl;
-use crate::services::{engine_builder, state_serializer};
-use crate::templates::UserData;
 
-use super::{load_game_and_check_player, persist_stage, require_not_challenge};
-
-pub struct UndoResult {
-    pub accepted: bool,
-    pub engine: Engine,
-    pub gwp: GameWithPlayers,
-}
+use super::{load_game_and_check_player, persist_stage, require_not_challenge, rollback_engine};
 
 pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
@@ -99,8 +89,8 @@ pub async fn respond_to_undo(
     game_id: i64,
     player_id: i64,
     accept: bool,
-) -> Result<UndoResult, AppError> {
-    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+) -> Result<(), AppError> {
+    let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if !state.registry.is_undo_requested(game_id).await {
         return Err(AppError::BadRequest("No pending undo request".to_string()));
@@ -125,104 +115,61 @@ pub async fn respond_to_undo(
     // Clear the in-memory request flag regardless of accept/reject
     state.registry.set_undo_requested(game_id, false).await;
 
-    let result = if accept {
-        // Delete turn + rebuild engine + set stage atomically
-        let mut tx = state.db.begin().await?;
-
-        TurnRow::delete_last(&mut *tx, game_id).await?;
-
-        // Rebuild engine within the transaction so reads see the deleted turn
-        let game = Game::find_by_id(&mut *tx, game_id).await?;
-        let db_turns = TurnRow::find_by_game_id(&mut *tx, game_id).await?;
-        let turns = engine_builder::convert_turns(&db_turns);
-        let engine = Engine::with_handicap_and_moves(
-            game.cols as u8,
-            game.rows as u8,
-            game.handicap as u8,
-            turns,
-        );
-
-        persist_stage(&mut *tx, game_id, &engine).await?;
-        engine_builder::cache_engine_state(&mut *tx, game_id, &engine, db_turns.len() as i64, None)
-            .await?;
-
-        tx.commit().await?;
-
-        state.registry.replace_engine(game_id, engine.clone()).await;
-
-        let gwp = Game::find_with_players(&state.db, game_id).await?;
-
-        UndoResult {
-            accepted: true,
-            engine,
-            gwp,
-        }
-    } else {
+    let (kind, engine) = if accept {
+        // Mutate in-memory engine (same pattern as play_move)
         let engine = state
             .registry
-            .get_or_init_engine(&state.db, &gwp.game)
-            .await?;
-
-        Game::set_undo_rejected(&state.db, game_id, true).await?;
-
-        let gwp = Game::find_with_players(&state.db, game_id).await?;
-
-        UndoResult {
-            accepted: false,
-            engine,
-            gwp,
-        }
-    };
-
-    // Notify both users with updated state
-    let kind = if result.accepted {
-        "undo_accepted"
-    } else {
-        "undo_rejected"
-    };
-    let tc = TimeControl::from_game(&result.gwp.game);
-    let clock_data = if !tc.is_none() {
-        state.registry.get_clock(game_id).await.map(|c| (c, tc))
-    } else {
-        None
-    };
-    let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
-
-    let online_ids = state.registry.get_online_user_ids(game_id).await;
-    let online_users: Vec<UserData> = User::find_by_ids(&state.db, &online_ids)
-        .await
-        .unwrap_or_default()
-        .iter()
-        .map(UserData::from)
-        .collect();
-    let game_state = state_serializer::serialize_state(
-        &result.gwp,
-        &result.engine,
-        false,
-        None,
-        None,
-        clock_ref,
-        &online_users,
-    );
-    for pid in [requesting_player_id, player_id] {
-        state
-            .registry
-            .send_to_player(
-                game_id,
-                pid,
-                &json!({
-                    "kind": kind,
-                    "game_id": game_id,
-                    "state": game_state["state"],
-                    "current_turn_stone": game_state["current_turn_stone"],
-                    "moves": game_state["moves"],
-                    "description": game_state["description"],
-                    "undo_rejected": game_state["undo_rejected"],
-                })
-                .to_string(),
-            )
+            .with_engine_mut(game_id, |engine| {
+                engine.pop_move().ok_or(GoError::NoMovesToUndo)?;
+                Ok(())
+            })
             .await;
+        let engine = match engine {
+            Some(Ok(engine)) => engine,
+            Some(Err(e)) => return Err(AppError::BadRequest(e.to_string())),
+            None => {
+                return Err(AppError::Internal("Engine cache unavailable".into()));
+            }
+        };
+
+        // DB: just DELETE + UPDATE stage (writes only, no reads)
+        let mut tx = state.db.begin().await?;
+        if let Err(e) = TurnRow::delete_last(&mut *tx, game_id).await {
+            rollback_engine(state, game_id, &gwp.game).await;
+            return Err(AppError::Internal(e.to_string()));
+        }
+        persist_stage(&mut *tx, game_id, &engine).await?;
+        tx.commit().await?;
+
+        ("undo_accepted", engine)
+    } else {
+        Game::set_undo_rejected(&state.db, game_id, true).await?;
+        gwp.game.undo_rejected = true;
+        ("undo_rejected", engine)
+    };
+
+    // Build response directly from engine data (no serialize_state overhead)
+    let game_state_json = serde_json::to_value(engine.game_state()).unwrap_or_default();
+    let moves_json: Vec<serde_json::Value> = engine
+        .moves()
+        .iter()
+        .map(|t| serde_json::to_value(t).unwrap_or_default())
+        .collect();
+    let current_turn_stone = engine.current_turn_stone().to_int() as i32;
+
+    let msg = json!({
+        "kind": kind,
+        "game_id": game_id,
+        "state": game_state_json,
+        "current_turn_stone": current_turn_stone,
+        "moves": moves_json,
+        "undo_rejected": gwp.game.undo_rejected,
+    })
+    .to_string();
+
+    for pid in [requesting_player_id, player_id] {
+        state.registry.send_to_player(game_id, pid, &msg).await;
     }
 
-    Ok(result)
+    Ok(())
 }
