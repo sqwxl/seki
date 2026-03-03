@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{State, WebSocketUpgrade};
@@ -47,7 +48,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
     }
 
     // Channel for game room messages (registered in registry per game)
-    let (tx, mut rx) = mpsc::unbounded_channel::<String>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<Arc<String>>();
 
     // Subscribe to lobby broadcasts *before* querying DB to avoid missing events
     let mut live_rx = state.live_tx.subscribe();
@@ -66,7 +67,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                 msg = rx.recv() => {
                     match msg {
                         Some(m) => {
-                            if ws_sink.send(Message::Text(m.into())).await.is_err() {
+                            if ws_sink.send(Message::Text((*m).clone().into())).await.is_err() {
                                 break;
                             }
                         }
@@ -114,6 +115,9 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                         .await
                                         .ok()
                                         .map(|u| UserData::from(&u));
+                                    if let Some(ref ud) = user_data {
+                                        state.registry.cache_user(game_id, ud.clone()).await;
+                                    }
                                     state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":true,"user":user_data}).to_string()).await;
 
                                     if let Err(e) = game_channel::send_initial_state(

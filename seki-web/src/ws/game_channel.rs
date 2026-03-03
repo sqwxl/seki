@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use go_engine::Stage;
 use serde_json::json;
 
@@ -7,11 +9,10 @@ use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::state_serializer;
 use crate::services::{game_actions, presentation_actions};
-use crate::templates::UserData;
 use crate::ws::registry::WsSender;
 
 fn send_to_client(tx: &WsSender, msg: &str) {
-    let _ = tx.send(msg.to_string());
+    let _ = tx.send(Arc::new(msg.to_string()));
 }
 
 /// Send the initial game state to a newly connected user.
@@ -105,13 +106,7 @@ pub async fn send_initial_state(
         None
     };
 
-    let online_ids = state.registry.get_online_user_ids(game_id).await;
-    let online_users: Vec<UserData> = User::find_by_ids(&state.db, &online_ids)
-        .await
-        .unwrap_or_default()
-        .iter()
-        .map(UserData::from)
-        .collect();
+    let online_users = state.registry.get_cached_users(game_id).await;
     let game_state = state_serializer::serialize_state(
         &gwp,
         &engine,

@@ -9,8 +9,9 @@ use crate::db::DbPool;
 use crate::models::game::Game;
 use crate::services::clock::ClockState;
 use crate::services::engine_builder;
+use crate::templates::UserData;
 
-pub type WsSender = mpsc::UnboundedSender<String>;
+pub type WsSender = mpsc::UnboundedSender<Arc<String>>;
 
 #[derive(Debug, Clone)]
 pub struct TerritoryReviewState {
@@ -31,6 +32,8 @@ pub struct PresentationState {
 struct GameRoom {
     /// Map of player_id -> list of ws senders (a user may have multiple tabs open).
     players: HashMap<i64, Vec<WsSender>>,
+    /// Cached UserData for connected users (avoids DB query on every broadcast).
+    user_cache: HashMap<i64, UserData>,
     /// In-memory engine, built on first access, then mutated
     engine: Option<Engine>,
     /// Transient: whether an undo request is pending (lost on disconnect, which is fine)
@@ -72,6 +75,29 @@ impl GameRegistry {
         room.players.entry(player_id).or_default().push(sender);
     }
 
+    /// Cache a user's UserData in the game room (called on join).
+    pub async fn cache_user(&self, game_id: i64, user_data: UserData) {
+        let mut rooms = self.rooms.write().await;
+        if let Some(room) = rooms.get_mut(&game_id) {
+            room.user_cache.insert(user_data.id, user_data);
+        }
+    }
+
+    /// Get cached UserData for all users currently connected to a game room.
+    pub async fn get_cached_users(&self, game_id: i64) -> Vec<UserData> {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .map(|room| {
+                room.players
+                    .keys()
+                    .filter_map(|id| room.user_cache.get(id))
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// Remove a user's sender from a game room.
     /// Returns `true` if the user was fully removed (no remaining senders).
     pub async fn leave(&self, game_id: i64, player_id: i64, sender: &WsSender) -> bool {
@@ -103,11 +129,12 @@ impl GameRegistry {
 
     /// Broadcast a message to all users in a game room.
     pub async fn broadcast(&self, game_id: i64, message: &str) {
+        let msg = Arc::new(message.to_string());
         let rooms = self.rooms.read().await;
         if let Some(room) = rooms.get(&game_id) {
             for senders in room.players.values() {
                 for sender in senders {
-                    let _ = sender.send(message.to_string());
+                    let _ = sender.send(Arc::clone(&msg));
                 }
             }
         }
@@ -115,12 +142,13 @@ impl GameRegistry {
 
     /// Send a message to a specific user in a game room.
     pub async fn send_to_player(&self, game_id: i64, player_id: i64, message: &str) {
+        let msg = Arc::new(message.to_string());
         let rooms = self.rooms.read().await;
         if let Some(room) = rooms.get(&game_id)
             && let Some(senders) = room.players.get(&player_id)
         {
             for sender in senders {
-                let _ = sender.send(message.to_string());
+                let _ = sender.send(Arc::clone(&msg));
             }
         }
     }
@@ -389,12 +417,13 @@ impl GameRegistry {
 
     /// Broadcast a message to all users in a game room except one.
     pub async fn broadcast_except(&self, game_id: i64, except_id: i64, message: &str) {
+        let msg = Arc::new(message.to_string());
         let rooms = self.rooms.read().await;
         if let Some(room) = rooms.get(&game_id) {
             for (&player_id, senders) in &room.players {
                 if player_id != except_id {
                     for sender in senders {
-                        let _ = sender.send(message.to_string());
+                        let _ = sender.send(Arc::clone(&msg));
                     }
                 }
             }
