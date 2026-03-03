@@ -42,19 +42,22 @@ cargo run -p seki-web              # http://localhost:3000
 
 ### Gameplay
 
-- [x] Create games (board size, komi, handicap, color choice, private/public)
+- [x] Create games (board size, komi, handicap, color choice, nigiri, private/public)
+- [x] Negative komi support
 - [x] Join open games
 - [x] Play moves, pass, resign
 - [x] Undo/takeback requests (with opponent approval)
 - [x] Territory review (mark dead stones, approve scoring)
 - [x] Ko rule enforcement
 - [ ] Superko detection (prevent repeated board positions)
-- [x] Invite players by email
+- [x] Invite players by email or username
+- [x] Challenge players from profile
 - [x] Abort game (before first move)
 - [x] Game clocks (Fischer, byo-yomi, correspondence)
 - [x] Premove support (queue move during opponent's turn)
-- [ ] Detect player disconnect, pause clock, offer to abort
-- [ ] Rematch option after game (challenge opponent to new game with same settings)
+- [x] Detect player disconnect, pause clock, offer to abort
+- [x] Rematch option after game
+- [x] Monte Carlo dead stone detection
 - [ ] Multiple rulesets (Japanese, Chinese, AGA)
 - [ ] Conditional moves (pre-plan responses, useful for correspondence)
 - [x] Score estimator (territory estimate from analysis mode)
@@ -79,7 +82,8 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] Import/export SGF
 - [ ] Zen mode (board only)
 - [ ] Appearance customization (stones, board)
-- [x] Dark mode (basic, follows system preference)
+- [x] Dark mode with theme toggle (light/dark/auto)
+- [x] Touch crosshair input for mobile
 - [x] Sound effects (stone placement, pass)
 - [ ] Additional sounds (capture, clock, chat)
 
@@ -90,6 +94,8 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] Live games list
 - [ ] Filter games list (unranked, rank range, time, size)
 - [ ] Auto-match system
+- [x] In-app notification system for unread games
+- [x] Post-game collaborative presentation mode
 - [ ] Game playback (replay game as it happened: actions, clock and chat in real time)
 - [ ] Spectator count/list on games
 - [ ] Tournament support (brackets, pairings, scheduling)
@@ -148,6 +154,6 @@ cargo run -p seki-web              # http://localhost:3000
 
 - [ ] Email support (via SES)
 - [ ] Domain registration and deployment
-- [ ] Mobile-responsive design
+- [x] Mobile-responsive design (tabbed layout, hamburger menu)
 
 [^1]: "Seki" is a Japanese go term meaning _mutual life_. It is a situation where two groups of stones share liberties which neither player can fill without dying.
