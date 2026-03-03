@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::models::user::User;
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct UserData {
     pub id: i64,
     pub display_name: String,

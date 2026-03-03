@@ -3,6 +3,9 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+use utoipa::{Modify, OpenApi, ToSchema};
+use utoipa_scalar::{Scalar, Servable};
 
 use crate::AppState;
 use crate::error::{ApiError, AppError};
@@ -16,7 +19,7 @@ use crate::session::ApiUser;
 
 // -- Response types --
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct UserResponse {
     id: i64,
     username: String,
@@ -33,7 +36,7 @@ impl UserResponse {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct GameResponse {
     id: i64,
     cols: i32,
@@ -49,14 +52,18 @@ struct GameResponse {
     started_at: Option<DateTime<Utc>>,
     ended_at: Option<DateTime<Utc>>,
     stage: String,
+    #[schema(value_type = Object)]
     state: serde_json::Value,
     current_turn_stone: i32,
+    #[schema(value_type = Object)]
     negotiations: serde_json::Value,
+    #[schema(value_type = Option<Object>)]
     territory: Option<serde_json::Value>,
+    #[schema(value_type = Option<Object>)]
     clock: Option<serde_json::Value>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct TurnResponse {
     id: i64,
     turn_number: i32,
@@ -68,7 +75,7 @@ struct TurnResponse {
     created_at: DateTime<Utc>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 struct MessageResponse {
     id: i64,
     user_id: Option<i64>,
@@ -79,7 +86,7 @@ struct MessageResponse {
 
 // -- Request types --
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 struct CreateGameRequest {
     cols: Option<i32>,
     rows: Option<i32>,
@@ -96,37 +103,105 @@ struct CreateGameRequest {
     byoyomi_periods: Option<i32>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 struct PlayRequest {
     col: i32,
     row: i32,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 struct UndoResponseRequest {
     response: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 struct ToggleChainRequest {
     col: u8,
     row: u8,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 struct ChatRequest {
     text: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 struct RematchRequest {
     swap_colors: Option<bool>,
 }
 
+// -- OpenAPI doc --
+
+struct BearerAuth;
+
+impl Modify for BearerAuth {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "bearer",
+                SecurityScheme::Http(
+                    HttpBuilder::new()
+                        .scheme(HttpAuthScheme::Bearer)
+                        .bearer_format("token")
+                        .description(Some(
+                            "API token from the /settings page. Pass as `Authorization: Bearer <token>`.",
+                        ))
+                        .build(),
+                ),
+            );
+        }
+    }
+}
+
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "Seki API",
+        description = "API for the Seki Go game server",
+        version = "0.1.0"
+    ),
+    paths(
+        list_games, create_game, get_game, delete_game, join_game,
+        play_move, pass, resign, abort, request_undo, respond_to_undo,
+        toggle_chain, approve_territory, accept_challenge, decline_challenge,
+        rematch_game, get_messages, send_message, get_turns,
+        get_user, get_user_games, get_me
+    ),
+    components(schemas(
+        UserResponse, GameResponse, TurnResponse, MessageResponse,
+        CreateGameRequest, PlayRequest, UndoResponseRequest, ToggleChainRequest,
+        ChatRequest, RematchRequest,
+        crate::services::live::LiveGameItem,
+        crate::services::live::GameSettings,
+        crate::models::game::TimeControlType,
+        crate::templates::UserData
+    )),
+    modifiers(&BearerAuth),
+    tags(
+        (name = "Games", description = "Game CRUD and joining"),
+        (name = "Game Actions", description = "In-game moves, pass, resign, undo, territory"),
+        (name = "Messages", description = "In-game chat"),
+        (name = "Turns", description = "Move history"),
+        (name = "Users", description = "User profiles and game history"),
+        (name = "Auth", description = "Current user info")
+    )
+)]
+pub struct ApiDoc;
+
 // -- Router --
 
 pub fn router() -> Router<AppState> {
+    let spec = ApiDoc::openapi();
+
     Router::new()
+        .route(
+            "/openapi.json",
+            get({
+                let spec = spec.clone();
+                move || async move { Json(spec) }
+            }),
+        )
+        .merge(Scalar::with_url("/docs", spec))
         // Games
         .route("/games", get(list_games).post(create_game))
         .route("/games/{id}", get(get_game).delete(delete_game))
@@ -156,6 +231,14 @@ pub fn router() -> Router<AppState> {
 
 // -- Game handlers --
 
+#[utoipa::path(
+    get,
+    path = "/games",
+    tag = "Games",
+    responses(
+        (status = 200, description = "List of public games", body = Vec<crate::services::live::LiveGameItem>)
+    )
+)]
 async fn list_games(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<crate::services::live::LiveGameItem>>, ApiError> {
@@ -164,6 +247,17 @@ async fn list_games(
     Ok(Json(items))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games",
+    tag = "Games",
+    security(("bearer" = [])),
+    request_body = CreateGameRequest,
+    responses(
+        (status = 200, description = "Created game", body = GameResponse),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn create_game(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -187,8 +281,8 @@ async fn create_game(
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;
-    crate::services::live::notify_game_created(&state, game.id).await;
     let gwp = Game::find_with_players(&state.db, game.id).await?;
+    crate::services::live::notify_game_created(&state, &gwp);
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
@@ -199,6 +293,16 @@ async fn create_game(
     ))
 }
 
+#[utoipa::path(
+    get,
+    path = "/games/{id}",
+    tag = "Games",
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Game details", body = GameResponse),
+        (status = 404, description = "Game not found")
+    )
+)]
 async fn get_game(
     State(state): State<AppState>,
     Path(id): Path<i64>,
@@ -212,6 +316,18 @@ async fn get_game(
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/games/{id}",
+    tag = "Games",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Game deleted", body = Object),
+        (status = 400, description = "Cannot delete"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn delete_game(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -235,6 +351,18 @@ async fn delete_game(
     Ok(Json(serde_json::json!({"deleted": true})))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/join",
+    tag = "Games",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Joined game", body = GameResponse),
+        (status = 400, description = "Already joined or game full"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn join_game(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -271,13 +399,26 @@ async fn join_game(
         .get_or_init_engine(&state.db, &gwp.game)
         .await?;
 
-    crate::services::live::notify_game_created(&state, id).await;
+    crate::services::live::notify_game_created(&state, &gwp);
 
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
 // -- Game action handlers --
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/play",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    request_body = PlayRequest,
+    responses(
+        (status = 200, description = "Move played", body = GameResponse),
+        (status = 400, description = "Illegal move"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn play_move(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -289,6 +430,18 @@ async fn play_move(
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/pass",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Passed", body = GameResponse),
+        (status = 400, description = "Cannot pass"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn pass(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -299,6 +452,18 @@ async fn pass(
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/resign",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Resigned", body = GameResponse),
+        (status = 400, description = "Cannot resign"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn resign(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -309,6 +474,18 @@ async fn resign(
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/abort",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Aborted", body = Object),
+        (status = 400, description = "Cannot abort"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn abort(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -318,6 +495,18 @@ async fn abort(
     Ok(Json(serde_json::json!({ "status": "aborted" })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/accept",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Challenge accepted", body = Object),
+        (status = 400, description = "Cannot accept"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn accept_challenge(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -327,6 +516,18 @@ async fn accept_challenge(
     Ok(Json(serde_json::json!({ "status": "accepted" })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/decline",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Challenge declined", body = Object),
+        (status = 400, description = "Cannot decline"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn decline_challenge(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -336,6 +537,18 @@ async fn decline_challenge(
     Ok(Json(serde_json::json!({ "status": "declined" })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/undo",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Undo requested", body = Object),
+        (status = 400, description = "Cannot request undo"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn request_undo(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -349,6 +562,19 @@ async fn request_undo(
     })))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/undo/respond",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    request_body = UndoResponseRequest,
+    responses(
+        (status = 200, description = "Undo response processed", body = GameResponse),
+        (status = 400, description = "Invalid response"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn respond_to_undo(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -363,14 +589,29 @@ async fn respond_to_undo(
         .into());
     }
 
-    let result =
-        game_actions::respond_to_undo(&state, id, api_user.id, response == "accept").await?;
+    game_actions::respond_to_undo(&state, id, api_user.id, response == "accept").await?;
 
-    Ok(Json(
-        build_game_response(&state, id, &result.gwp, &result.engine).await,
-    ))
+    let gwp = Game::find_with_players(&state.db, id).await?;
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await?;
+    Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/territory/toggle",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    request_body = ToggleChainRequest,
+    responses(
+        (status = 200, description = "Chain toggled", body = GameResponse),
+        (status = 400, description = "Cannot toggle"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn toggle_chain(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -386,6 +627,18 @@ async fn toggle_chain(
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/territory/approve",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "Territory approved", body = GameResponse),
+        (status = 400, description = "Cannot approve"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn approve_territory(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -400,6 +653,19 @@ async fn approve_territory(
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/rematch",
+    tag = "Game Actions",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    request_body = RematchRequest,
+    responses(
+        (status = 200, description = "Rematch created", body = GameResponse),
+        (status = 400, description = "Cannot rematch"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn rematch_game(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -460,9 +726,9 @@ async fn rematch_game(
         tx.commit().await?;
     }
 
-    crate::services::live::notify_game_created(&state, game.id).await;
-
     let gwp = Game::find_with_players(&state.db, game.id).await?;
+    crate::services::live::notify_game_created(&state, &gwp);
+
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
@@ -475,6 +741,16 @@ async fn rematch_game(
 
 // -- Message handlers --
 
+#[utoipa::path(
+    get,
+    path = "/games/{id}/messages",
+    tag = "Messages",
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "List of messages", body = Vec<MessageResponse>),
+        (status = 404, description = "Game not found")
+    )
+)]
 async fn get_messages(
     State(state): State<AppState>,
     Path(id): Path<i64>,
@@ -496,6 +772,19 @@ async fn get_messages(
     Ok(Json(items))
 }
 
+#[utoipa::path(
+    post,
+    path = "/games/{id}/messages",
+    tag = "Messages",
+    security(("bearer" = [])),
+    params(("id" = i64, Path, description = "Game ID")),
+    request_body = ChatRequest,
+    responses(
+        (status = 200, description = "Message sent", body = MessageResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Game not found")
+    )
+)]
 async fn send_message(
     State(state): State<AppState>,
     api_user: ApiUser,
@@ -515,6 +804,16 @@ async fn send_message(
 
 // -- Turn handlers --
 
+#[utoipa::path(
+    get,
+    path = "/games/{id}/turns",
+    tag = "Turns",
+    params(("id" = i64, Path, description = "Game ID")),
+    responses(
+        (status = 200, description = "List of turns", body = Vec<TurnResponse>),
+        (status = 404, description = "Game not found")
+    )
+)]
 async fn get_turns(
     State(state): State<AppState>,
     Path(id): Path<i64>,
@@ -541,6 +840,16 @@ async fn get_turns(
 
 // -- User handlers --
 
+#[utoipa::path(
+    get,
+    path = "/users/{username}",
+    tag = "Users",
+    params(("username" = String, Path, description = "Username")),
+    responses(
+        (status = 200, description = "User profile", body = UserResponse),
+        (status = 404, description = "User not found")
+    )
+)]
 async fn get_user(
     State(state): State<AppState>,
     Path(username): Path<String>,
@@ -551,6 +860,16 @@ async fn get_user(
     Ok(Json(UserResponse::from_user(&user)))
 }
 
+#[utoipa::path(
+    get,
+    path = "/users/{username}/games",
+    tag = "Users",
+    params(("username" = String, Path, description = "Username")),
+    responses(
+        (status = 200, description = "User's games", body = Vec<crate::services::live::LiveGameItem>),
+        (status = 404, description = "User not found")
+    )
+)]
 async fn get_user_games(
     State(state): State<AppState>,
     Path(username): Path<String>,
@@ -565,6 +884,16 @@ async fn get_user_games(
 
 // -- Auth handlers --
 
+#[utoipa::path(
+    get,
+    path = "/me",
+    tag = "Auth",
+    security(("bearer" = [])),
+    responses(
+        (status = 200, description = "Current authenticated user", body = UserResponse),
+        (status = 401, description = "Unauthorized")
+    )
+)]
 async fn get_me(api_user: ApiUser) -> Json<UserResponse> {
     Json(UserResponse::from_user(&api_user))
 }

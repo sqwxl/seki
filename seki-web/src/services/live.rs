@@ -3,12 +3,12 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::db::DbPool;
-use crate::models::game::{Game, GameWithPlayers, TimeControlType};
+use crate::models::game::{GameWithPlayers, TimeControlType};
 use crate::models::turn::TurnRow;
 use crate::services::engine_builder;
 use crate::templates::UserData;
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct GameSettings {
     pub cols: i32,
     pub rows: i32,
@@ -22,7 +22,7 @@ pub struct GameSettings {
 }
 
 /// Full game item sent in lobby `init` and `game_created` messages.
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct LiveGameItem {
     pub id: i64,
     pub creator_id: Option<i64>,
@@ -86,16 +86,8 @@ struct GameUpdate {
 }
 
 /// Notify live clients that a new game appeared (created or joined).
-pub async fn notify_game_created(state: &AppState, game_id: i64) {
-    let gwp = match Game::find_with_players(&state.db, game_id).await {
-        Ok(gwp) => gwp,
-        Err(e) => {
-            tracing::warn!("live::notify_game_created failed to load game {game_id}: {e}");
-            return;
-        }
-    };
-
-    let item = LiveGameItem::from_gwp(&gwp, None);
+pub fn notify_game_created(state: &AppState, gwp: &GameWithPlayers) {
+    let item = LiveGameItem::from_gwp(gwp, None);
     let msg = json!({
         "kind": "game_created",
         "game": item,

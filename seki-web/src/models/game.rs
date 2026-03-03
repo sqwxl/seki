@@ -9,7 +9,9 @@ use go_engine::Stone;
 use crate::db::DbPool;
 use crate::models::user::User;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize, utoipa::ToSchema,
+)]
 #[sqlx(type_name = "time_control_type", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
@@ -486,6 +488,35 @@ impl Game {
         )
         .fetch_all(executor)
         .await
+    }
+}
+
+impl Game {
+    /// Build a GameWithPlayers from an already-loaded Game, fetching only the users.
+    pub async fn with_players(self, pool: &DbPool) -> Result<GameWithPlayers, sqlx::Error> {
+        let mut user_ids: Vec<i64> = [self.creator_id, self.black_id, self.white_id]
+            .into_iter()
+            .flatten()
+            .collect();
+        user_ids.sort_unstable();
+        user_ids.dedup();
+
+        let users_map: HashMap<i64, User> = if user_ids.is_empty() {
+            HashMap::new()
+        } else {
+            User::find_by_ids(pool, &user_ids)
+                .await?
+                .into_iter()
+                .map(|u| (u.id, u))
+                .collect()
+        };
+
+        Ok(GameWithPlayers {
+            creator: self.creator_id.and_then(|id| users_map.get(&id).cloned()),
+            black: self.black_id.and_then(|id| users_map.get(&id).cloned()),
+            white: self.white_id.and_then(|id| users_map.get(&id).cloned()),
+            game: self,
+        })
     }
 }
 
