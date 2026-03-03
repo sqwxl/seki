@@ -7,6 +7,7 @@ pub enum GoError {
     Suicide,
     NotOnBoard,
     KoViolation,
+    NoMovesToUndo,
 }
 
 impl fmt::Display for GoError {
@@ -17,6 +18,7 @@ impl fmt::Display for GoError {
             GoError::Suicide => write!(f, "suicide"),
             GoError::NotOnBoard => write!(f, "not on board"),
             GoError::KoViolation => write!(f, "ko violation"),
+            GoError::NoMovesToUndo => write!(f, "no moves to undo"),
         }
     }
 }

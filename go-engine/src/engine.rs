@@ -90,15 +90,7 @@ impl Engine {
     }
 
     fn create(cols: u8, rows: u8, handicap: u8, moves: Vec<Turn>) -> Self {
-        let mut goban = Goban::with_dimensions(cols, rows);
-        if handicap >= 2
-            && let Some(pts) = handicap::handicap_points(cols, rows, handicap)
-        {
-            for pt in pts {
-                goban.set_stone(pt, Stone::Black);
-            }
-        }
-        let goban = goban.replay_moves(&moves);
+        let goban = Self::rebuild_goban(cols, rows, handicap, &moves);
         let result = Self::result_from_moves(&moves);
         Engine {
             cols,
@@ -108,6 +100,18 @@ impl Engine {
             goban,
             result,
         }
+    }
+
+    fn rebuild_goban(cols: u8, rows: u8, handicap: u8, moves: &[Turn]) -> Goban {
+        let mut goban = Goban::with_dimensions(cols, rows);
+        if handicap >= 2
+            && let Some(pts) = handicap::handicap_points(cols, rows, handicap)
+        {
+            for pt in pts {
+                goban.set_stone(pt, Stone::Black);
+            }
+        }
+        goban.replay_moves(moves)
     }
 
     fn result_from_moves(moves: &[Turn]) -> Option<String> {
@@ -205,6 +209,13 @@ impl Engine {
             self.result = Some(format!("{}+R", stone.opp().letter()));
         }
         self.stage()
+    }
+
+    pub fn pop_move(&mut self) -> Option<Turn> {
+        let turn = self.moves.pop()?;
+        self.goban = Self::rebuild_goban(self.cols, self.rows, self.handicap, &self.moves);
+        self.result = Self::result_from_moves(&self.moves);
+        Some(turn)
     }
 
     pub fn is_legal(&self, point: Point, stone: Stone) -> bool {
@@ -516,6 +527,73 @@ mod tests {
 
         assert_eq!(engine.stone_captures(Stone::Black), 1);
         assert_eq!(engine.stone_captures(Stone::White), 0);
+    }
+
+    // -- Pop move --
+
+    #[test]
+    fn pop_move_empty_returns_none() {
+        let mut engine = Engine::new(4, 4);
+        assert!(engine.pop_move().is_none());
+    }
+
+    #[test]
+    fn pop_move_restores_empty_board() {
+        let mut engine = Engine::new(4, 4);
+        engine.try_play(Stone::Black, (2, 2)).unwrap();
+        assert_eq!(engine.stone_at((2, 2)), Some(Stone::Black));
+
+        let popped = engine.pop_move().unwrap();
+        assert_eq!(popped.stone, Stone::Black);
+        assert_eq!(popped.pos, Some((2, 2)));
+        assert!(engine.board().iter().all(|&s| s == 0));
+        assert_eq!(engine.moves().len(), 0);
+        assert_eq!(engine.stage(), Stage::Unstarted);
+    }
+
+    #[test]
+    fn pop_move_preserves_handicap() {
+        // Handicap 2 on 19x19: stones at (15,3) and (3,15)
+        let mut engine =
+            Engine::with_handicap_and_moves(19, 19, 2, vec![Turn::play(Stone::White, (0, 0))]);
+        assert_eq!(engine.stone_at((0, 0)), Some(Stone::White));
+
+        engine.pop_move().unwrap();
+        assert_eq!(engine.stone_at((0, 0)), None);
+        // Handicap stones should still be present
+        assert_eq!(engine.stone_at((15, 3)), Some(Stone::Black));
+        assert_eq!(engine.stone_at((3, 15)), Some(Stone::Black));
+        assert_eq!(engine.current_turn_stone(), Stone::White);
+    }
+
+    #[test]
+    fn pop_move_recalculates_captures() {
+        let mut engine = Engine::new(4, 4);
+        // Black surrounds (0,0), White plays into it, Black captures
+        engine.try_play(Stone::Black, (0, 1)).unwrap();
+        engine.try_play(Stone::White, (0, 0)).unwrap();
+        engine.try_play(Stone::Black, (1, 0)).unwrap(); // captures white at (0,0)
+        assert_eq!(engine.captures().black, 1);
+
+        // Pop the capturing move
+        engine.pop_move().unwrap();
+        // White stone should be back, no captures
+        assert_eq!(engine.stone_at((0, 0)), Some(Stone::White));
+        assert_eq!(engine.captures().black, 0);
+    }
+
+    #[test]
+    fn pop_move_restores_turn_order() {
+        let mut engine = Engine::new(4, 4);
+        engine.try_play(Stone::Black, (0, 0)).unwrap();
+        engine.try_play(Stone::White, (1, 0)).unwrap();
+        assert_eq!(engine.current_turn_stone(), Stone::Black);
+
+        engine.pop_move().unwrap();
+        assert_eq!(engine.current_turn_stone(), Stone::White);
+
+        engine.pop_move().unwrap();
+        assert_eq!(engine.current_turn_stone(), Stone::Black);
     }
 
     // -- Game state access --
