@@ -16,6 +16,14 @@ globalThis.localStorage = {
   key: (index: number) => [...store.keys()][index] ?? null,
 };
 
+// Stub document for modules that access DOM at import time (e.g. ui.ts favicon).
+// @ts-expect-error -- partial stub
+globalThis.document = globalThis.document ?? {
+  getElementById: () => null,
+  title: "",
+  hidden: false,
+};
+
 // Stub window.matchMedia used by move-confirm.ts at import time.
 // @ts-expect-error -- partial stub, only what's needed for module init
 globalThis.window = globalThis.window ?? {};
