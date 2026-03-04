@@ -5,7 +5,9 @@
     "build": "node build.mjs",
     "build:wasm": "wasm-pack build ../../go-engine-wasm --target web --out-dir ../seki-web/static/wasm",
     "dev": "node build.mjs --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@preact/signals": "^1.3",
@@ -14,6 +16,7 @@
   },
   "devDependencies": {
     "esbuild": "^0.x",
-    "typescript": "5.x"
+    "typescript": "5.x",
+    "vitest": "^4.0.18"
   }
 }
