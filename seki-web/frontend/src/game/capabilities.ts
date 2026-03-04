@@ -9,6 +9,7 @@ import { formatScoreStr } from "./ui";
 import { clockDisplay } from "./clock";
 import { gamePhase } from "./phase";
 import type { GamePhase } from "./phase";
+import { analysisTerritoryInfo } from "../layouts/analysis-state";
 import {
   gameState,
   gameStage,
@@ -511,5 +512,41 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     hasUnreadChat: hasUnreadChat.value,
 
     nav,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// Analysis capabilities (minimal — engine-derived state stays in the page)
+// ---------------------------------------------------------------------------
+
+/**
+ * Capabilities for the standalone analysis page.
+ * Only derives control-related booleans from `analysisTerritoryInfo` signal.
+ * Engine-dependent state (panels, nav, status, clock) stays in the page
+ * component because the WASM engine mutates in place — a computed signal
+ * can't react to those changes.
+ */
+export type AnalysisCapabilities = {
+  canPass: boolean;
+  canEstimate: boolean;
+  canPlayMove: boolean;
+  showTerritoryReady: boolean;
+  showTerritoryExit: boolean;
+  showSgfImport: boolean;
+  showSgfExport: boolean;
+};
+
+export const analysisCapabilities = computed((): AnalysisCapabilities => {
+  const { reviewing, finalized } = analysisTerritoryInfo.value;
+  const canPlay = !reviewing && !finalized;
+
+  return {
+    canPass: canPlay,
+    canEstimate: canPlay,
+    canPlayMove: canPlay,
+    showTerritoryReady: reviewing,
+    showTerritoryExit: reviewing,
+    showSgfImport: canPlay,
+    showSgfExport: canPlay,
   };
 });
