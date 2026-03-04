@@ -77,7 +77,7 @@
 
 - [ ] Only creator should be able to abort pending challenge; opponent can abort via API `[test: backend:integration]`
 - [ ] "Game aborted" system chat message should include username ("Game aborted by $user") `[test: e2e:ws]`
-- [ ] Player should not be able to abort as soon as player reconnects (UI should immediately update) `[test: e2e:ws]`
+- [x] Player should not be able to abort as soon as player reconnects (UI should immediately update) `[test: e2e:ws]` *(disconnect.rs: disconnect_abort_threshold + capabilities.test.ts: disconnect abort timing)* **NOTE: significant frontend lag observed showing disconnected status updates — server-side thresholds are tested but UI responsiveness is not**
 
 ## 10. Undo / Takeback
 
@@ -123,12 +123,12 @@
 - [ ] Real-time countdown in final hour
 
 ### Clock Pausing
-- [ ] Opponent clock pauses as soon as opponent disconnects `[test: e2e:ws]`
-- [ ] Clock resumes when opponent reconnects `[test: e2e:ws]`
+- [x] Opponent clock pauses as soon as opponent disconnects `[test: e2e:ws]` *(disconnect.rs: clock_pauses_on_disconnect)*
+- [x] Clock resumes when opponent reconnects `[test: e2e:ws]` *(disconnect.rs: reconnect_broadcasts_player_reconnected)*
 
 ### Edge Cases
 - [ ] Very fast moves: increment still applied correctly (not tested) `[test: backend:unit]`
-- [ ] Disconnect during opponent's turn: their clock paused `[test: e2e:ws]`
+- [x] Disconnect during opponent's turn: their clock paused `[test: e2e:ws]` *(disconnect.rs: move_while_opponent_disconnected_keeps_clock_paused)*
 
 ## 13. Chat
 
@@ -176,23 +176,23 @@
 - [ ] "Analyze" button on finished game starts presentation `[test: e2e:ws]`
 - [ ] Only available on finished games `[test: e2e:ws]`
 - [ ] Originator enters analysis mode `[test: e2e:ws]`
-- [ ] All connected users receive `presentation_started` `[test: e2e:ws]`
-- [ ] Presenter's board state broadcast to all viewers `[test: e2e:ws]`
-- [ ] Viewers see real-time board updates as presenter navigates `[test: e2e:ws]`
+- [x] All connected users receive `presentation_started` `[test: e2e:ws]` *(presentation.rs: start_and_end_presentation)*
+- [x] Presenter's board state broadcast to all viewers `[test: e2e:ws]` *(presentation.rs: presenter_sends_snapshots)*
+- [x] Viewers see real-time board updates as presenter navigates `[test: e2e:ws]` *(presentation.rs: presenter_sends_snapshots)*
 - [ ] Move tree position synced for synced viewers `[test: e2e:ws]`
-- [ ] Originator can give control to another user `[test: e2e:ws]`
-- [ ] Non-originator can request control `[test: e2e:ws]`
+- [x] Originator can give control to another user `[test: e2e:ws]` *(presentation.rs: give_control)*
+- [x] Non-originator can request control `[test: e2e:ws]` *(presentation.rs: request_control)*
 - [ ] Originator sees request popover with give/dismiss buttons
-- [ ] Control request can be cancelled `[test: e2e:ws]`
-- [ ] Control request can be rejected `[test: e2e:ws]`
-- [ ] Only originator can `take_control` back `[test: e2e:ws]`
+- [x] Control request can be cancelled `[test: e2e:ws]` *(presentation.rs: cancel_request)*
+- [x] Control request can be rejected `[test: e2e:ws]` *(presentation.rs: reject_request)*
+- [x] Only originator can `take_control` back `[test: e2e:ws]` *(presentation.rs: non_originator_cannot_take_control)*
 - [ ] Delegated presenter: exiting analysis gives control back to originator `[test: e2e:ws]`
 - [ ] Viewers can choose: follow presentation or analyze locally `[test: e2e:ws]`
 - [ ] Local analysis doesn't affect presentation `[test: e2e:ws]`
 - [ ] Switching to local analysis un-syncs from presentation `[test: e2e:ws]`
 - [ ] Can re-sync to presentation `[test: e2e:ws]`
-- [ ] Originator exits analysis to end presentation `[test: e2e:ws]`
-- [ ] All viewers receive `presentation_ended` `[test: e2e:ws]`
+- [x] Originator exits analysis to end presentation `[test: e2e:ws]` *(presentation.rs: start_and_end_presentation)*
+- [x] All viewers receive `presentation_ended` `[test: e2e:ws]` *(presentation.rs: start_and_end_presentation)*
 - [ ] Board returns to last game position for viewers `[test: e2e:ws]`
 
 ## 17. Rematch
@@ -202,7 +202,7 @@
 ## 18. UI / Display
 
 ### Player Panels
-- [ ] Opponent always in top panel (also for open games) `[test: frontend:unit]`
+- [x] Opponent always in top panel (also for open games) `[test: frontend:unit]` *(capabilities.test.ts: player panel ordering)*
 - [ ] Territory for completed games with territory `[test: e2e]`
 
 ### Mobile / Responsive
@@ -222,11 +222,11 @@
 ## 20. WebSocket Connection
 
 - [ ] Pending messages queued and sent on reconnect (untested) `[test: e2e:ws]`
-- [ ] Online user list updated on connect/disconnect `[test: e2e:ws]`
+- [x] Online user list updated on connect/disconnect `[test: e2e:ws]` *(presence.rs: join_broadcasts_presence, disconnect_broadcasts_offline)*
 - [ ] Multiple tabs maintain separate connections `[test: e2e:ws]`
 - [ ] Graceful handling of server restart `[test: e2e:ws]`
 - [ ] Disconnected client optimistically shows played move if disconnected during player's turn
-- [ ] Presence indicators update immediately for all subscribers `[test: e2e:ws]`
+- [x] Presence indicators update immediately for all subscribers `[test: e2e:ws]` *(presence.rs: multiple_connections_no_false_offline)*
 
 ## 21. REST API — Needs Thorough Automated Testing
 
