@@ -316,3 +316,7 @@ export function clearPresentation(): void {
     controlRequest.value = undefined;
   });
 }
+
+// Re-export phase for convenience
+export { gamePhase } from "./phase";
+export type { GamePhase } from "./phase";
