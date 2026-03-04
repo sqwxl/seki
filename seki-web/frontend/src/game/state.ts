@@ -84,9 +84,9 @@ export const hasUnreadChat = signal(false);
 // UI mode flags
 // ---------------------------------------------------------------------------
 export const mobileTab = signal<"board" | "chat" | "analysis">("board");
-export const analysisMode = signal(false);
-export const estimateMode = signal(false);
 export const undoResponseNeeded = signal(false);
+
+// analysisMode and estimateMode are derived from gamePhase (see below)
 
 // ---------------------------------------------------------------------------
 // Presentation state (post-game collaborative analysis)
@@ -318,5 +318,5 @@ export function clearPresentation(): void {
 }
 
 // Re-export phase for convenience
-export { gamePhase } from "./phase";
+export { gamePhase, analysisMode, estimateMode } from "./phase";
 export type { GamePhase } from "./phase";

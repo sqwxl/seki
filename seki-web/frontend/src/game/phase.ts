@@ -1,5 +1,5 @@
-import { signal, batch } from "@preact/signals";
-import { analysisMode, estimateMode, presentationActive } from "./state";
+import { signal, computed } from "@preact/signals";
+import { presentationActive, presenterId, currentUserId } from "./state";
 
 export type GamePhase =
   | { phase: "live" }
@@ -12,19 +12,45 @@ export type GamePhase =
 
 export const gamePhase = signal<GamePhase>({ phase: "live" });
 
-// --- Transition functions ---
-// Each validates the current phase and dual-writes to old booleans
-// for backwards compatibility during migration.
+/** True when the user is in an analysis-capable mode (analysis, presenter, local-analysis). */
+export const analysisMode = computed(() => isAnalysisCapable(gamePhase.value));
+
+/** True when the user is in the score-estimate phase. */
+export const estimateMode = computed(
+  () => gamePhase.value.phase === "estimate",
+);
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** True for phases where analysis-style interaction is available. */
+function isAnalysisCapable(p: GamePhase): boolean {
+  return (
+    p.phase === "analysis" ||
+    (p.phase === "presentation" &&
+      (p.role === "presenter" || p.role === "local-analysis"))
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Transition functions
+// ---------------------------------------------------------------------------
 
 export function toAnalysis(): void {
   const cur = gamePhase.value;
-  if (cur.phase !== "live") {
+  if (cur.phase === "analysis") {
     return;
   }
-  batch(() => {
-    gamePhase.value = { phase: "analysis" };
-    analysisMode.value = true;
-  });
+  // Allow from live, or from presentation-local-analysis (when presentation ends
+  // but user was in personal analysis — they stay in analysis)
+  if (
+    cur.phase !== "live" &&
+    !(cur.phase === "presentation" && cur.role === "local-analysis")
+  ) {
+    return;
+  }
+  gamePhase.value = { phase: "analysis" };
 }
 
 export function toLive(): void {
@@ -32,25 +58,19 @@ export function toLive(): void {
   if (cur.phase === "live") {
     return;
   }
-  batch(() => {
-    gamePhase.value = { phase: "live" };
-    analysisMode.value = false;
-    estimateMode.value = false;
-  });
+  gamePhase.value = { phase: "live" };
 }
 
 export function toEstimate(): void {
   const cur = gamePhase.value;
-  if (cur.phase !== "live" && cur.phase !== "analysis") {
+  if (cur.phase === "estimate") {
     return;
   }
-  batch(() => {
-    gamePhase.value = {
-      phase: "estimate",
-      fromAnalysis: cur.phase === "analysis",
-    };
-    estimateMode.value = true;
-  });
+  const fromAnalysis = isAnalysisCapable(cur);
+  if (cur.phase !== "live" && !fromAnalysis) {
+    return;
+  }
+  gamePhase.value = { phase: "estimate", fromAnalysis };
 }
 
 export function exitEstimate(): void {
@@ -58,24 +78,24 @@ export function exitEstimate(): void {
   if (cur.phase !== "estimate") {
     return;
   }
-  batch(() => {
-    estimateMode.value = false;
-    if (cur.fromAnalysis) {
-      gamePhase.value = { phase: "analysis" };
+  if (cur.fromAnalysis) {
+    // Restore to the correct analysis-capable phase
+    if (presentationActive.value) {
+      const isPresenting = presenterId.value === currentUserId.value;
+      gamePhase.value = {
+        phase: "presentation",
+        role: isPresenting ? "presenter" : "local-analysis",
+      };
     } else {
-      gamePhase.value = { phase: "live" };
+      gamePhase.value = { phase: "analysis" };
     }
-  });
+  } else {
+    gamePhase.value = { phase: "live" };
+  }
 }
 
 export function toPresentation(role: "presenter" | "synced-viewer"): void {
-  batch(() => {
-    gamePhase.value = { phase: "presentation", role };
-    presentationActive.value = true;
-    if (role === "presenter") {
-      analysisMode.value = true;
-    }
-  });
+  gamePhase.value = { phase: "presentation", role };
 }
 
 export function toPresentationLocalAnalysis(): void {
@@ -83,10 +103,7 @@ export function toPresentationLocalAnalysis(): void {
   if (cur.phase !== "presentation" || cur.role !== "synced-viewer") {
     return;
   }
-  batch(() => {
-    gamePhase.value = { phase: "presentation", role: "local-analysis" };
-    analysisMode.value = true;
-  });
+  gamePhase.value = { phase: "presentation", role: "local-analysis" };
 }
 
 export function toPresentationSyncedViewer(): void {
@@ -94,10 +111,7 @@ export function toPresentationSyncedViewer(): void {
   if (cur.phase !== "presentation" || cur.role !== "local-analysis") {
     return;
   }
-  batch(() => {
-    gamePhase.value = { phase: "presentation", role: "synced-viewer" };
-    analysisMode.value = false;
-  });
+  gamePhase.value = { phase: "presentation", role: "synced-viewer" };
 }
 
 export function exitPresentation(): void {
@@ -105,20 +119,10 @@ export function exitPresentation(): void {
   if (cur.phase !== "presentation") {
     return;
   }
-  batch(() => {
-    gamePhase.value = { phase: "live" };
-    presentationActive.value = false;
-    analysisMode.value = false;
-    estimateMode.value = false;
-  });
+  gamePhase.value = { phase: "live" };
 }
 
-/** Reset to live phase (e.g. on new game state that invalidates current mode). */
+/** Reset to live phase (e.g. on reconnect or presentation end). */
 export function resetPhase(): void {
-  batch(() => {
-    gamePhase.value = { phase: "live" };
-    analysisMode.value = false;
-    estimateMode.value = false;
-    presentationActive.value = false;
-  });
+  gamePhase.value = { phase: "live" };
 }

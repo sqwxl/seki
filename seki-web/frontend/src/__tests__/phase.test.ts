@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   gamePhase,
+  analysisMode,
+  estimateMode,
   toAnalysis,
   toLive,
   toEstimate,
@@ -11,7 +13,6 @@ import {
   exitPresentation,
   resetPhase,
 } from "../game/phase";
-import { analysisMode, estimateMode, presentationActive } from "../game/state";
 
 beforeEach(() => {
   resetPhase();
@@ -89,7 +90,7 @@ describe("GamePhase transitions", () => {
         phase: "presentation",
         role: "synced-viewer",
       });
-      expect(presentationActive.value).toBe(true);
+      expect(analysisMode.value).toBe(false);
     });
 
     it("live -> presentation(presenter)", () => {
@@ -126,7 +127,6 @@ describe("GamePhase transitions", () => {
       toPresentation("presenter");
       exitPresentation();
       expect(gamePhase.value).toEqual({ phase: "live" });
-      expect(presentationActive.value).toBe(false);
       expect(analysisMode.value).toBe(false);
     });
 

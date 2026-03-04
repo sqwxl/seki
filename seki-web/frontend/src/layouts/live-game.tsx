@@ -49,6 +49,16 @@ import {
   navState,
   mobileTab,
 } from "../game/state";
+import {
+  gamePhase,
+  toAnalysis,
+  toLive,
+  toEstimate,
+  exitEstimate as phaseExitEstimate,
+  toPresentation,
+  toPresentationLocalAnalysis,
+  toPresentationSyncedViewer,
+} from "../game/phase";
 import { LiveGamePage, getServerTerritory } from "./live-game-page";
 
 export function liveGame(
@@ -129,9 +139,14 @@ export function liveGame(
   let treeBeforeAnalysis = showMoveTree.value;
 
   function enterAnalysis() {
+    const cur = gamePhase.value;
     treeBeforeAnalysis = showMoveTree.value;
     mc.clear();
-    analysisMode.value = true;
+    if (cur.phase === "presentation" && cur.role === "synced-viewer") {
+      toPresentationLocalAnalysis();
+    } else {
+      toAnalysis();
+    }
     restoreAnalysis();
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
@@ -139,21 +154,20 @@ export function liveGame(
   }
 
   function exitAnalysis() {
-    if (estimateMode.value) {
-      exitEstimate();
+    if (gamePhase.value.phase === "estimate") {
+      doExitEstimate();
     }
     mc.clear();
     saveAnalysis();
-    analysisMode.value = false;
-    if (board.value) {
-      // Sync to active presentation, or fall back to base game moves
-      if (
-        presentationActive.value &&
-        !isPresenter.value &&
-        lastPresentationSnapshot
-      ) {
+    const cur = gamePhase.value;
+    if (cur.phase === "presentation" && cur.role === "local-analysis") {
+      toPresentationSyncedViewer();
+      if (lastPresentationSnapshot && board.value) {
         board.value.importSnapshot(lastPresentationSnapshot);
-      } else {
+      }
+    } else {
+      toLive();
+      if (board.value) {
         board.value.updateBaseMoves(JSON.stringify(moves.value));
       }
     }
@@ -164,9 +178,10 @@ export function liveGame(
   }
 
   function enterEstimate() {
+    const wasAnalysis = analysisMode.value;
     mc.clear();
-    estimateMode.value = true;
-    if (settledTerritory.value && !analysisMode.value) {
+    toEstimate();
+    if (settledTerritory.value && !wasAnalysis) {
       // Static overlay for finished games — just toggle and re-render
       board.value?.render();
       doRender();
@@ -175,10 +190,15 @@ export function liveGame(
     }
   }
 
-  function exitEstimate() {
-    estimateMode.value = false;
+  function doExitEstimate() {
+    const cur = gamePhase.value;
+    if (cur.phase !== "estimate") {
+      return;
+    }
+    const wasFromAnalysis = cur.fromAnalysis;
+    phaseExitEstimate();
     estimateScore.value = undefined;
-    if (settledTerritory.value && !analysisMode.value) {
+    if (settledTerritory.value && !wasFromAnalysis) {
       board.value?.render();
       doRender();
     } else {
@@ -292,7 +312,7 @@ export function liveGame(
         enterAnalysis={enterAnalysis}
         exitAnalysis={exitAnalysis}
         enterEstimate={enterEstimate}
-        exitEstimate={exitEstimate}
+        exitEstimate={doExitEstimate}
         handleSgfExport={handleSgfExport}
         enterPresentation={enterPresentation}
         exitPresentation={exitPresentation}
@@ -362,7 +382,7 @@ export function liveGame(
     onRender: (engine, territoryInfo) => {
       // Auto-exit estimate when territory review gets cleared (e.g. by navigation)
       if (estimateMode.value && !territoryInfo.reviewing) {
-        estimateMode.value = false;
+        phaseExitEstimate();
         estimateScore.value = undefined;
       }
       // Auto-enter estimate when board enters territory review in analysis
@@ -372,7 +392,7 @@ export function liveGame(
         territoryInfo.reviewing &&
         !estimateMode.value
       ) {
-        estimateMode.value = true;
+        toEstimate();
       }
       // Capture estimate score for status display
       if (estimateMode.value && territoryInfo.score) {
@@ -440,26 +460,36 @@ export function liveGame(
     onNewMove: () => {
       if (analysisMode.value) {
         exitAnalysis();
-      }
-      if (estimateMode.value) {
-        exitEstimate();
+      } else if (estimateMode.value) {
+        doExitEstimate();
       }
     },
     onPresentationStarted: (snapshot: string) => {
       if (isPresenter.value) {
-        enterAnalysis();
+        treeBeforeAnalysis = showMoveTree.value;
+        mc.clear();
+        toPresentation("presenter");
+        restoreAnalysis();
+        board.value?.setMoveTreeEl(moveTreeEl);
       } else {
-        // Exit personal analysis to sync with the presentation.
-        // Handles the reconnect race where auto-analysis fires before
-        // presentationActive is set by the later presentation_started message.
-        if (analysisMode.value) {
-          exitAnalysis();
+        // Clean up any active mode before syncing with presentation
+        const wasInEstimate = estimateMode.value;
+        const wasInAnalysis = analysisMode.value;
+        if (wasInEstimate) {
+          estimateScore.value = undefined;
+          board.value?.exitTerritoryReview();
         }
+        if (wasInAnalysis) {
+          mc.clear();
+          saveAnalysis();
+        }
+        toPresentation("synced-viewer");
         if (snapshot) {
           lastPresentationSnapshot = snapshot;
           board.value?.importSnapshot(snapshot);
         }
       }
+      board.value?.render();
       doRender();
     },
     onPresentationEnded: (wasPresenter: boolean) => {
@@ -467,12 +497,20 @@ export function liveGame(
       if (wasPresenter) {
         // Presenter: exit analysis (also clears estimate if active)
         exitAnalysis();
-      } else if (!analysisMode.value && board.value) {
-        // Synced viewer: reset board to base game state
-        board.value.updateBaseMoves(JSON.stringify(moves.value));
-        board.value.render();
+      } else {
+        const cur = gamePhase.value;
+        if (cur.phase === "presentation" && cur.role === "local-analysis") {
+          // Local-analysis viewer: transition to standalone analysis
+          toAnalysis();
+        } else {
+          // Synced viewer: reset to live
+          toLive();
+          if (board.value) {
+            board.value.updateBaseMoves(JSON.stringify(moves.value));
+            board.value.render();
+          }
+        }
       }
-      // Viewers in personal analysis: unaffected
       doRender();
     },
     onPresentationUpdate: (snapshot: string) => {
@@ -501,13 +539,29 @@ export function liveGame(
     onControlChanged: (newPresenterId: number) => {
       if (newPresenterId === currentUserId.value) {
         // We just became the presenter
-        if (!analysisMode.value) {
-          enterAnalysis();
+        const wasAnalysis = analysisMode.value;
+        toPresentation("presenter");
+        if (!wasAnalysis) {
+          treeBeforeAnalysis = showMoveTree.value;
+          mc.clear();
+          restoreAnalysis();
+          board.value?.setMoveTreeEl(moveTreeEl);
         }
-      } else if (analysisMode.value) {
-        // We lost control — exit analysis so we sync with the new presenter
-        exitAnalysis();
+      } else {
+        // We lost control — exit to synced viewer
+        const wasInEstimate = estimateMode.value;
+        if (wasInEstimate) {
+          estimateScore.value = undefined;
+          board.value?.exitTerritoryReview();
+        }
+        mc.clear();
+        saveAnalysis();
+        toPresentation("synced-viewer");
+        if (lastPresentationSnapshot && board.value) {
+          board.value.importSnapshot(lastPresentationSnapshot);
+        }
       }
+      board.value?.render();
       doRender();
     },
   };
