@@ -6,7 +6,7 @@ import { createBoard, computeVertexSize } from "../goban/create-board";
 import { Goban } from "../goban";
 import type { ChatEntry } from "../components/chat";
 import { readShowCoordinates } from "../utils/coord-toggle";
-import { createPremove } from "../utils/premove";
+import { createMoveConfirm } from "../utils/move-confirm";
 import { storage, gameAnalysisKey } from "../utils/storage";
 import { settingsToSgfTime } from "../utils/format";
 import { joinGame } from "../ws";
@@ -82,10 +82,10 @@ export function liveGame(
     chatEntry: undefined,
   };
   showCoordinates.value = readShowCoordinates();
-  const pm = createPremove({
+  const mc = createMoveConfirm({
     getSign: () => playerStone.value as Sign,
   });
-  moveConfirmEnabled.value = pm.enabled;
+  moveConfirmEnabled.value = mc.enabled;
 
   // --- Move tree element ---
   const moveTreeEl = document.createElement("div");
@@ -129,7 +129,7 @@ export function liveGame(
 
   function enterAnalysis() {
     treeBeforeAnalysis = showMoveTree.value;
-    pm.clear();
+    mc.clear();
     analysisMode.value = true;
     restoreAnalysis();
     board.value?.setMoveTreeEl(moveTreeEl);
@@ -141,7 +141,7 @@ export function liveGame(
     if (estimateMode.value) {
       exitEstimate();
     }
-    pm.clear();
+    mc.clear();
     saveAnalysis();
     analysisMode.value = false;
     if (board.value) {
@@ -163,7 +163,7 @@ export function liveGame(
   }
 
   function enterEstimate() {
-    pm.clear();
+    mc.clear();
     estimateMode.value = true;
     if (settledTerritory.value && !analysisMode.value) {
       // Static overlay for finished games — just toggle and re-render
@@ -255,14 +255,14 @@ export function liveGame(
     }
     const isMyTurn = currentTurn.value === playerStone.value;
     if (isMyTurn) {
-      if (!pm.enabled) {
-        pm.clear();
+      if (!mc.enabled) {
+        mc.clear();
         channel.play(col, row);
-      } else if (pm.value && pm.value[0] === col && pm.value[1] === row) {
-        pm.clear();
+      } else if (mc.value && mc.value[0] === col && mc.value[1] === row) {
+        mc.clear();
         channel.play(col, row);
       } else {
-        pm.value = [col, row];
+        mc.value = [col, row];
         board.value.render();
         doRender();
       }
@@ -281,7 +281,7 @@ export function liveGame(
     render(
       <LiveGamePage
         channel={channel}
-        pm={pm}
+        mc={mc}
         moveTreeEl={moveTreeEl}
         gobanRef={gobanRef}
         enterAnalysis={enterAnalysis}
@@ -326,7 +326,7 @@ export function liveGame(
     if (analysisMode.value || estimateMode.value) {
       return undefined;
     }
-    return pm.getGhostStone();
+    return mc.getGhostStone();
   }
 
   // --- WASM board (async) ---
@@ -429,7 +429,7 @@ export function liveGame(
     clockState,
     territoryCountdown,
     channel,
-    premove: pm,
+    pendingMove: mc,
     notificationState,
     onNewMove: () => {
       if (analysisMode.value) {

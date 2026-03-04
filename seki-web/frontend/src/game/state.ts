@@ -17,7 +17,7 @@ import { GameStage as GS, isPlayStage } from "./types";
 import type { Board } from "../goban/create-board";
 import type { ChatEntry } from "../components/chat";
 import { storage, SHOW_MOVE_TREE, SHOW_COORDINATES } from "../utils/storage";
-import { readMoveConfirmation } from "../utils/premove";
+import { readMoveConfirmation } from "../utils/move-confirm";
 
 // ---------------------------------------------------------------------------
 // Config signals (set once at page load)

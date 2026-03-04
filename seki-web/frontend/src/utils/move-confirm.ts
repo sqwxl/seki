@@ -9,21 +9,21 @@ export function readMoveConfirmation(): boolean {
   return window.matchMedia("(max-width: 1199px)").matches;
 }
 
-export type PremoveState = {
+export type MoveConfirmState = {
   value: Point | undefined;
   enabled: boolean;
   getGhostStone: () => { col: number; row: number; sign: Sign } | undefined;
   clear: () => void;
 };
 
-type PremoveConfig = {
+type MoveConfirmConfig = {
   getSign: () => Sign;
 };
 
-export function createPremove(config: PremoveConfig): PremoveState {
+export function createMoveConfirm(config: MoveConfirmConfig): MoveConfirmState {
   let enabled = readMoveConfirmation();
 
-  const state: PremoveState = {
+  const state: MoveConfirmState = {
     value: undefined,
     get enabled() {
       return enabled;

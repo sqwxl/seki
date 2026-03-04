@@ -14,11 +14,11 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 
 Cargo workspace with three crates:
 
-| Crate | Purpose |
-|---|---|
-| `go-engine` | Pure game logic library (board state, rules, scoring, SGF, game tree) |
-| `go-engine-wasm` | Thin wasm-bindgen shell for browser use |
-| `seki-web` | Axum web app (routes, models, services, WebSocket, templates, Preact frontend) |
+| Crate            | Purpose                                                                        |
+| ---------------- | ------------------------------------------------------------------------------ |
+| `go-engine`      | Pure game logic library (board state, rules, scoring, SGF, game tree)          |
+| `go-engine-wasm` | Thin wasm-bindgen shell for browser use                                        |
+| `seki-web`       | Axum web app (routes, models, services, WebSocket, templates, Preact frontend) |
 
 ## Getting Started
 
@@ -64,6 +64,7 @@ cargo run -p seki-web              # http://localhost:3000
 - [ ] Vacation/pause system (for correspondence games)
 - [x] Turn notification (tab title flash when it's your turn)
 - [ ] Turn notifications (email/push)
+- [ ] Players can agree to postpone timed game
 
 ### Board & Navigation
 

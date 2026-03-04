@@ -132,10 +132,11 @@ struct RematchRequest {
 
 // -- OpenAPI doc --
 
-struct BearerAuth;
+struct ApiModifier;
 
-impl Modify for BearerAuth {
+impl Modify for ApiModifier {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        // Add bearer auth security scheme
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_scheme(
                 "bearer",
@@ -150,6 +151,13 @@ impl Modify for BearerAuth {
                 ),
             );
         }
+
+        // Prefix all paths with /api (router is nested under /api in lib.rs)
+        let old = std::mem::take(&mut openapi.paths.paths);
+        openapi.paths.paths = old
+            .into_iter()
+            .map(|(path, item)| (format!("/api{path}"), item))
+            .collect();
     }
 }
 
@@ -176,7 +184,7 @@ impl Modify for BearerAuth {
         crate::models::game::TimeControlType,
         crate::templates::UserData
     )),
-    modifiers(&BearerAuth),
+    modifiers(&ApiModifier),
     tags(
         (name = "Games", description = "Game CRUD and joining"),
         (name = "Game Actions", description = "In-game moves, pass, resign, undo, territory"),
@@ -187,6 +195,19 @@ impl Modify for BearerAuth {
     )
 )]
 pub struct ApiDoc;
+
+const SCALAR_HTML: &str = r#"<!doctype html>
+<html>
+<head>
+  <title>Seki API</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+</head>
+<body>
+  <script id="api-reference" data-configuration='{"agent":{"disabled":true}}' type="application/json">$spec</script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>"#;
 
 // -- Router --
 
@@ -201,7 +222,7 @@ pub fn router() -> Router<AppState> {
                 move || async move { Json(spec) }
             }),
         )
-        .merge(Scalar::with_url("/docs", spec))
+        .merge(Scalar::with_url("/docs", spec).custom_html(SCALAR_HTML))
         // Games
         .route("/games", get(list_games).post(create_game))
         .route("/games/{id}", get(get_game).delete(delete_game))

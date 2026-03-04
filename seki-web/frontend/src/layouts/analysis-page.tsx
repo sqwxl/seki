@@ -9,12 +9,8 @@ import {
   formatSgfTime,
   formatTime,
 } from "../utils/format";
-import {
-  buildNavProps,
-  buildCoordsToggle,
-  buildMoveConfirmToggle,
-} from "../utils/shared-controls";
-import type { PremoveState } from "../utils/premove";
+import { buildNavProps, buildCoordsToggle } from "../utils/shared-controls";
+import type { MoveConfirmState } from "../utils/move-confirm";
 import { formatScoreStr } from "../game/ui";
 import { playStoneSound } from "../game/sound";
 import type { SgfMeta } from "../utils/sgf";
@@ -130,12 +126,12 @@ function buildAnalysisPlayerPanel({
 }
 
 function buildAnalysisControls({
-  pm,
+  mc,
   onSizeChange,
   handleSgfImport,
   handleSgfExport,
 }: {
-  pm: PremoveState;
+  mc: MoveConfirmState;
   onSizeChange: (size: number) => void;
   handleSgfImport: (input: HTMLInputElement) => void;
   handleSgfExport: () => void;
@@ -148,7 +144,14 @@ function buildAnalysisControls({
     layout: "analysis",
     nav: buildNavProps(board),
     coordsToggle: buildCoordsToggle(board),
-    moveConfirmToggle: buildMoveConfirmToggle(pm, board),
+    moveConfirmToggle: {
+      enabled: mc.enabled,
+      onClick: () => {
+        mc.enabled = !mc.enabled;
+        mc.clear();
+        board?.render();
+      },
+    },
     sizeSelect: {
       value: analysisSize.value,
       options: [9, 13, 19],
@@ -172,12 +175,12 @@ function buildAnalysisControls({
     props.territoryExit = undefined;
   }
 
-  if (pm.value) {
+  if (mc.value) {
     props.confirmMove = {
       onClick: () => {
-        if (pm.value && board) {
-          const [col, row] = pm.value;
-          pm.clear();
+        if (mc.value && board) {
+          const [col, row] = mc.value;
+          mc.clear();
           if (board.engine.try_play(col, row)) {
             playStoneSound();
             board.save();
@@ -197,7 +200,7 @@ function buildAnalysisControls({
 
 export type AnalysisPageProps = {
   gobanRef: preact.Ref<HTMLDivElement>;
-  pm: PremoveState;
+  mc: MoveConfirmState;
   moveTreeEl: HTMLElement;
   onSizeChange: (size: number) => void;
   handleSgfImport: (input: HTMLInputElement) => void;
@@ -207,7 +210,7 @@ export type AnalysisPageProps = {
 export function AnalysisPage(props: AnalysisPageProps) {
   const {
     gobanRef,
-    pm,
+    mc,
     moveTreeEl,
     onSizeChange,
     handleSgfImport,
@@ -217,7 +220,7 @@ export function AnalysisPage(props: AnalysisPageProps) {
   const size = analysisSize.value;
 
   const controlsProps = buildAnalysisControls({
-    pm,
+    mc,
     onSizeChange,
     handleSgfImport,
     handleSgfExport,

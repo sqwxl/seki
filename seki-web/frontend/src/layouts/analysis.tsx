@@ -10,7 +10,7 @@ import {
   analysisTreeKey,
 } from "../utils/storage";
 import { playStoneSound, playPassSound } from "../game/sound";
-import { createPremove } from "../utils/premove";
+import { createMoveConfirm } from "../utils/move-confirm";
 import { readFileAsText, downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
 import type { Sign } from "../goban/types";
@@ -45,13 +45,13 @@ export function initAnalysis(root: HTMLElement) {
 
   showCoordinates.value = readShowCoordinates();
 
-  const pm = createPremove({
+  const mc = createMoveConfirm({
     getSign: () =>
       (analysisBoard.value?.engine.current_turn_stone() ?? 1) as Sign,
   });
 
   function ghostStone() {
-    return pm.getGhostStone();
+    return mc.getGhostStone();
   }
 
   // --- Render ---
@@ -59,7 +59,7 @@ export function initAnalysis(root: HTMLElement) {
     render(
       <AnalysisPage
         gobanRef={gobanRef}
-        pm={pm}
+        mc={mc}
         moveTreeEl={moveTreeEl}
         onSizeChange={handleSizeChange}
         handleSgfImport={handleSgfImport}
@@ -85,7 +85,7 @@ export function initAnalysis(root: HTMLElement) {
     if (analysisBoard.value) {
       analysisBoard.value.destroy();
     }
-    pm.clear();
+    mc.clear();
     analysisBoard.value = undefined;
 
     // Render layout first so the goban div exists
@@ -102,25 +102,25 @@ export function initAnalysis(root: HTMLElement) {
       storageKey: analysisTreeKey(size),
       ghostStone,
       onVertexClick: (col, row) => {
-        if (!pm.enabled) {
+        if (!mc.enabled) {
           return false;
         }
-        if (pm.value && pm.value[0] === col && pm.value[1] === row) {
-          pm.clear();
+        if (mc.value && mc.value[0] === col && mc.value[1] === row) {
+          mc.clear();
           doRender();
           return false;
         }
-        pm.value = [col, row];
+        mc.value = [col, row];
         doRender();
         analysisBoard.value?.render();
         return true;
       },
       onStonePlay: () => {
-        pm.clear();
+        mc.clear();
         playStoneSound();
       },
       onPass: () => {
-        pm.clear();
+        mc.clear();
         playPassSound();
       },
       onRender: (_engine, territoryInfo) => {

@@ -9,7 +9,7 @@ import { LobbyControls, ChallengePopover } from "../components/controls";
 import type { GameChannel } from "../game/channel";
 import { formatScoreStr } from "../game/ui";
 import { clockDisplay } from "../game/clock";
-import type { PremoveState } from "../utils/premove";
+import type { MoveConfirmState } from "../utils/move-confirm";
 import { storage, SHOW_MOVE_TREE } from "../utils/storage";
 import { GamePageLayout } from "./game-page-layout";
 import { buildCoordsToggle } from "../utils/shared-controls";
@@ -56,7 +56,7 @@ import {
 
 export type LiveGamePageProps = {
   channel: GameChannel;
-  pm: PremoveState;
+  mc: MoveConfirmState;
   moveTreeEl: HTMLElement;
   gobanRef: preact.Ref<HTMLDivElement>;
   enterAnalysis: () => void;
@@ -485,7 +485,7 @@ function buildPresentationControls(
 
 function buildLiveControls({
   channel,
-  pm,
+  mc,
   enterAnalysis,
   exitAnalysis,
   enterEstimate,
@@ -496,7 +496,7 @@ function buildLiveControls({
   setMoveTree,
 }: {
   channel: GameChannel;
-  pm: PremoveState;
+  mc: MoveConfirmState;
   enterAnalysis: () => void;
   exitAnalysis: () => void;
   enterEstimate: () => void;
@@ -525,9 +525,9 @@ function buildLiveControls({
         ? {
             enabled: moveConfirmEnabled.value,
             onClick: () => {
-              pm.enabled = !pm.enabled;
-              moveConfirmEnabled.value = pm.enabled;
-              pm.clear();
+              mc.enabled = !mc.enabled;
+              moveConfirmEnabled.value = mc.enabled;
+              mc.clear();
               board.value?.render();
             },
           }
@@ -577,12 +577,12 @@ function buildLiveControls({
   }
 
   // Confirm move button
-  if (pm.value && ctx.isMyTurn && !ctx.inAnalysis) {
+  if (mc.value && ctx.isMyTurn && !ctx.inAnalysis) {
     props.confirmMove = {
       onClick: () => {
-        if (pm.value) {
-          const [col, row] = pm.value;
-          pm.clear();
+        if (mc.value) {
+          const [col, row] = mc.value;
+          mc.clear();
           channel.play(col, row);
         }
       },
@@ -599,7 +599,7 @@ function buildLiveControls({
 export function LiveGamePage(props: LiveGamePageProps) {
   const {
     channel,
-    pm,
+    mc,
     moveTreeEl,
     gobanRef,
     enterAnalysis,
@@ -619,7 +619,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
 
   const controlsProps = buildLiveControls({
     channel,
-    pm,
+    mc,
     enterAnalysis,
     exitAnalysis,
     enterEstimate,

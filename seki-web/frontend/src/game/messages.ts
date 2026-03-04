@@ -2,7 +2,7 @@ import { GameStage, isPlayStage, type IncomingMessage } from "./types";
 import type { GameChannel } from "./channel";
 import type { ClockState } from "./clock";
 import { syncClock } from "./clock";
-import type { PremoveState } from "../utils/premove";
+import type { MoveConfirmState } from "../utils/move-confirm";
 import { updateTurnFlash, syncTerritoryCountdown } from "./ui";
 import type { TerritoryCountdown } from "./ui";
 import { notifyTurn, type NotificationState } from "./notifications";
@@ -12,11 +12,9 @@ import {
   board,
   moves,
   gameStage,
-  gameState,
   gameId,
   playerStone,
   analysisMode,
-  currentTurn,
   undoResponseNeeded,
   territory,
   opponentDisconnected,
@@ -38,7 +36,7 @@ export type GameMessageDeps = {
   clockState: ClockState;
   territoryCountdown: TerritoryCountdown;
   channel: GameChannel;
-  premove: PremoveState;
+  pendingMove: MoveConfirmState;
   notificationState: NotificationState;
   onNewMove?: () => void;
   onPresentationStarted?: (snapshot: string) => void;
@@ -98,7 +96,7 @@ export function handleGameMessage(
     clockState,
     territoryCountdown,
     channel,
-    premove,
+    pendingMove,
     notificationState,
     onNewMove,
   } = deps;
@@ -137,18 +135,7 @@ export function handleGameMessage(
       );
 
       if (!isPlayStage(gameStage.value)) {
-        premove.clear();
-      } else if (premove.value && currentTurn.value === playerStone.value) {
-        const [col, row] = premove.value;
-        premove.clear();
-        const gs = gameState.value;
-        if (gs.board[row * gs.cols + col] === 0) {
-          channel.play(col, row);
-        }
-        const b = board.value;
-        if (b && !analysisMode.value && b.engine.is_at_latest()) {
-          b.render();
-        }
+        pendingMove.clear();
       }
       break;
     }
@@ -168,7 +155,7 @@ export function handleGameMessage(
     }
     case "undo_accepted":
     case "undo_rejected": {
-      premove.clear();
+      pendingMove.clear();
       applyUndo(data);
       if (data.state && data.moves) {
         syncBoardMoves(false, deps.gobanEl());
