@@ -1,38 +1,33 @@
 import type { Point } from "../goban/types";
-import { GameStage, isPlayStage } from "../game/types";
-import type { TerritoryOverlay } from "../goban/create-board";
+import type { NavAction, TerritoryOverlay } from "../goban/create-board";
+import { GameStage } from "../game/types";
 import { Chat } from "../components/chat";
 import { GameInfo } from "../components/game-info";
-import { GameStatus, getStatusText } from "../components/game-status";
+import { GameStatus } from "../components/game-status";
 import type { ControlsProps } from "../components/controls";
 import { LobbyControls, ChallengePopover } from "../components/controls";
 import type { GameChannel } from "../game/channel";
-import { formatScoreStr } from "../game/ui";
-import { clockDisplay } from "../game/clock";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { storage, SHOW_MOVE_TREE } from "../utils/storage";
 import { GamePageLayout } from "./game-page-layout";
 import { buildCoordsToggle } from "../utils/shared-controls";
-import type { PlayerPanelProps } from "../components/player-panel";
+import type { UiCapabilities } from "../game/capabilities";
+import {
+  liveGameCapabilities,
+  buildTerritoryOverlay,
+} from "../game/capabilities";
 import {
   gameState,
   gameStage,
-  currentTurn,
   moves,
   black,
   white,
   result,
   territory,
   settledTerritory,
-  onlineUsers,
-  undoRejected,
-  allowUndo,
   chatMessages,
-  analysisMode,
-  estimateMode,
   undoResponseNeeded,
-  opponentDisconnected,
-  nigiri,
+  estimateMode,
   board,
   playerStone,
   initialProps,
@@ -40,14 +35,9 @@ import {
   estimateScore,
   showMoveTree,
   moveConfirmEnabled,
-  presentationActive,
-  isPresenter,
-  isOriginator,
-  originatorId,
-  currentUserId,
-  controlRequest,
-  presenterDisplayName,
-  navState,
+  nigiri,
+  allowUndo,
+  onlineUsers,
 } from "../game/state";
 
 // ---------------------------------------------------------------------------
@@ -66,158 +56,50 @@ export type LiveGamePageProps = {
   handleSgfExport: () => void;
   enterPresentation: () => void;
   exitPresentation: () => void;
+  returnControl: () => void;
 };
 
 // ---------------------------------------------------------------------------
 // Territory overlay helpers (used by board callbacks, exported for mount)
 // ---------------------------------------------------------------------------
 
-function buildTerritoryOverlay(data: {
-  ownership: number[];
-  dead_stones: [number, number][];
-}): TerritoryOverlay {
-  const paintMap = data.ownership.map((v) => (v === 0 ? null : v));
-  const dimmedVertices: Point[] = data.dead_stones.map(
-    ([c, r]) => [c, r] as Point,
-  );
-  return { paintMap, dimmedVertices };
-}
-
 export function getServerTerritory(): TerritoryOverlay | undefined {
   if (gameStage.value === GameStage.TerritoryReview && territory.value) {
     return buildTerritoryOverlay(territory.value);
   }
   // Settled territory overlay for finished games (not in analysis — WASM handles that)
-  if (estimateMode.value && settledTerritory.value && !analysisMode.value) {
+  if (estimateMode.value && settledTerritory.value) {
     return buildTerritoryOverlay(settledTerritory.value);
   }
   return undefined;
 }
 
 // ---------------------------------------------------------------------------
-// Connected wrapper components
+// Controls builder — maps capabilities + callbacks to ControlsProps
 // ---------------------------------------------------------------------------
 
-function buildLivePlayerPanel({ position }: { position: "top" | "bottom" }) {
-  const b = black.value;
-  const w = white.value;
-  const bName = b ? b.display_name : "...";
-  const wName = w ? w.display_name : "...";
-  const bUrl = b ? `/users/${b.display_name}` : undefined;
-  const wUrl = w ? `/users/${w.display_name}` : undefined;
-  const online = onlineUsers.value;
-  const bOnline = b ? online.has(b.id) : false;
-  const wOnline = w ? online.has(w.id) : false;
+function buildControls(
+  caps: UiCapabilities,
+  props: LiveGamePageProps,
+): ControlsProps {
+  const { channel, mc } = props;
 
-  const score =
-    estimateScore.value ??
-    territory.value?.score ??
-    settledTerritory.value?.score;
-  const komi = initialProps.value.komi;
-
-  const { bStr, wStr } = formatScoreStr(
-    komi,
-    score,
-    gameState.value.captures.black,
-    gameState.value.captures.white,
-  );
-
-  const cd = clockDisplay.value;
-
-  // Nigiri pending: colors not yet assigned (game hasn't started)
-  const isNigiriPending =
-    nigiri.value && !isPlayStage(gameStage.value) && !result.value;
-
-  const blackPanel: PlayerPanelProps = {
-    name: bName,
-    captures: bStr,
-    stone: isNigiriPending ? "nigiri" : "black",
-    clock: cd.blackText || undefined,
-    clockLowTime: cd.blackLow,
-    profileUrl: bUrl,
-    isOnline: bOnline,
-  };
-  const whitePanel: PlayerPanelProps = {
-    name: wName,
-    captures: wStr,
-    stone: isNigiriPending ? "nigiri" : "white",
-    clock: cd.whiteText || undefined,
-    clockLowTime: cd.whiteLow,
-    profileUrl: wUrl,
-    isOnline: wOnline,
+  const controlsProps: ControlsProps = {
+    nav: {
+      ...caps.nav,
+      onNavigate: (action: NavAction) => board.value?.navigate(action),
+    },
+    coordsToggle: buildCoordsToggle(board.value),
   };
 
-  const isWhitePlayer = playerStone.value === -1;
-  if (position === "top") {
-    return isWhitePlayer ? blackPanel : whitePanel;
-  }
-  return isWhitePlayer ? whitePanel : blackPanel;
-}
-
-// ---------------------------------------------------------------------------
-// Shared state snapshot for controls builders
-// ---------------------------------------------------------------------------
-
-type GameCtx = {
-  isPlayer: boolean;
-  isChallenge: boolean;
-  isPlay: boolean;
-  isReview: boolean;
-  isMyTurn: boolean;
-  inAnalysis: boolean;
-  inEstimate: boolean;
-  modeActive: boolean;
-};
-
-function readGameCtx(): GameCtx {
-  const inAnalysis = analysisMode.value;
-  const inEstimate = estimateMode.value;
-  return {
-    isPlayer: playerStone.value !== 0,
-    isChallenge: gameStage.value === GameStage.Challenge,
-    isPlay: isPlayStage(gameStage.value),
-    isReview: gameStage.value === GameStage.TerritoryReview,
-    isMyTurn: currentTurn.value === playerStone.value,
-    inAnalysis,
-    inEstimate,
-    modeActive: inAnalysis || inEstimate,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Controls sub-builders (each returns a partial ControlsProps)
-// ---------------------------------------------------------------------------
-
-/** Pass, undo request, resign, abort. */
-function buildGameActions(
-  channel: GameChannel,
-  ctx: GameCtx,
-): Partial<ControlsProps> {
-  const out: Partial<ControlsProps> = {};
-  const {
-    isPlayer,
-    isChallenge,
-    isPlay,
-    isMyTurn,
-    inAnalysis,
-    inEstimate,
-    modeActive,
-  } = ctx;
-
-  if (isPlayer && (isPlay || isChallenge)) {
-    if (inAnalysis && !inEstimate) {
-      out.pass = {
-        onClick: () => {
-          board.value?.pass();
-        },
-      };
+  // --- Pass ---
+  if (caps.showPass) {
+    if (caps.passIsAnalysisPass) {
+      controlsProps.pass = { onClick: () => board.value?.pass() };
     } else {
-      out.pass = {
-        onClick: () => {},
-        disabled: modeActive || isChallenge || !isMyTurn,
-      };
-      if (!modeActive && !isChallenge) {
-        out.confirmPass = {
+      controlsProps.pass = { onClick: () => {}, disabled: !caps.canPass };
+      if (caps.confirmPassRequired) {
+        controlsProps.confirmPass = {
           message: "Pass your turn?",
           onConfirm: () => channel.pass(),
         };
@@ -225,80 +107,65 @@ function buildGameActions(
     }
   }
 
-  if (isPlayer && allowUndo.value && (isPlay || isChallenge)) {
-    const canUndo =
-      !isChallenge &&
-      moves.value.length > 0 &&
-      !isMyTurn &&
-      !undoRejected.value;
-    out.requestUndo = {
+  // --- Undo ---
+  if (caps.undoTooltip) {
+    controlsProps.requestUndo = {
       onClick: () => channel.requestUndo(),
-      disabled: modeActive || !canUndo,
-      title: isChallenge
-        ? "Challenge not yet accepted"
-        : undoRejected.value
-          ? "Undo was rejected for this move"
-          : moves.value.length === 0
-            ? "No moves to undo"
-            : isMyTurn
-              ? "Cannot undo on your turn"
-              : "Request to undo your last move",
+      disabled: !caps.canRequestUndo,
+      title: caps.undoTooltip,
     };
   }
 
-  if (isPlayer && (isPlay || isChallenge)) {
-    out.resign = {
+  // --- Undo response (ephemeral — read from signal) ---
+  if (undoResponseNeeded.value) {
+    controlsProps.undoResponse = {
+      onAccept: () => {
+        undoResponseNeeded.value = false;
+        channel.acceptUndo();
+      },
+      onReject: () => {
+        undoResponseNeeded.value = false;
+        channel.rejectUndo();
+      },
+    };
+  }
+
+  // --- Resign ---
+  if (caps.showResign) {
+    controlsProps.resign = {
       message: "Resign this game?",
       onConfirm: () => channel.resign(),
-      disabled: isChallenge,
+      disabled: !caps.canResign,
     };
   }
 
-  if (isPlayer && moves.value.length === 0 && !result.value) {
-    const myId = playerStone.value === 1 ? black.value?.id : white.value?.id;
-    const isCreator = myId != null && myId === initialProps.value.creator_id;
-    // During challenge: only creator can abort. After accepted: both players can.
-    if (!isChallenge || isCreator) {
-      out.abort = {
-        message: "Abort this game?",
-        onConfirm: () => channel.abort(),
-      };
-    }
-  }
-
-  // Analysis pass button for finished games (no stage → no pass from above)
-  if (result.value && ctx.inAnalysis && !ctx.inEstimate) {
-    out.pass = {
-      onClick: () => {
-        board.value?.pass();
-      },
+  // --- Abort ---
+  if (caps.canAbort) {
+    controlsProps.abort = {
+      message: "Abort this game?",
+      onConfirm: () => channel.abort(),
     };
   }
 
-  return out;
-}
-
-/** Invite link, join, challenge accept/decline, territory accept. */
-function buildLobbyControls(
-  channel: GameChannel,
-  ctx: GameCtx,
-): Partial<ControlsProps> {
-  const out: Partial<ControlsProps> = {};
-  const { isPlayer, isChallenge, isReview, modeActive } = ctx;
-  const hasOpenSlot = !black.value || !white.value;
-
-  const token = initialProps.value.invite_token;
-  if (token && hasOpenSlot && isPlayer) {
-    out.copyInviteLink = {
-      onClick: () => {
-        const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
-        navigator.clipboard.writeText(url);
-      },
+  // --- Territory accept ---
+  if (caps.canAcceptTerritory) {
+    controlsProps.acceptTerritory = {
+      message: "Accept territory?",
+      onConfirm: () => channel.approveTerritory(),
     };
   }
 
-  if (!isPlayer && hasOpenSlot && !initialProps.value.settings.is_private) {
-    out.joinGame = {
+  // --- Disconnect abort ---
+  if (caps.canDisconnectAbort) {
+    controlsProps.disconnectAbort = {
+      message: "Abort game? (Opponent disconnected)",
+      onConfirm: () => channel.disconnectAbort(),
+    };
+  }
+
+  // --- Join game ---
+  if (caps.canJoinGame) {
+    controlsProps.joinGame = {
       message: "Join this game?",
       onConfirm: () => {
         const form = document.createElement("form");
@@ -310,36 +177,20 @@ function buildLobbyControls(
     };
   }
 
-  if (isReview && isPlayer) {
-    const oppDisconnected = !!opponentDisconnected.value;
-    const alreadyApproved =
-      (playerStone.value === 1 && territory.value?.black_approved) ||
-      (playerStone.value === -1 && territory.value?.white_approved);
-    out.acceptTerritory = {
-      message: "Accept territory?",
-      onConfirm: () => channel.approveTerritory(),
-      disabled: !!alreadyApproved || oppDisconnected,
+  // --- Invite link ---
+  if (caps.showInviteLink) {
+    controlsProps.copyInviteLink = {
+      onClick: () => {
+        const token = initialProps.value.invite_token;
+        const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
+        navigator.clipboard.writeText(url);
+      },
     };
   }
 
-  // Disconnect abort: show after threshold
-  if (isPlayer && !result.value && opponentDisconnected.value) {
-    const elapsed = Date.now() - opponentDisconnected.value.since.getTime();
-    const hasOpponentMoved = moves.value.some((m) => {
-      const oppStone = playerStone.value === 1 ? -1 : 1;
-      return m.stone === oppStone;
-    });
-    const thresholdMs = hasOpponentMoved ? 15_000 : 30_000;
-    if (elapsed >= thresholdMs) {
-      out.disconnectAbort = {
-        message: "Abort game? (Opponent disconnected)",
-        onConfirm: () => channel.disconnectAbort(),
-      };
-    }
-  }
-
-  if (result.value && isPlayer) {
-    out.rematch = {
+  // --- Rematch ---
+  if (caps.canRematch) {
+    controlsProps.rematch = {
       onConfirm: (swapColors) => {
         const form = document.createElement("form");
         form.method = "POST";
@@ -355,230 +206,120 @@ function buildLobbyControls(
     };
   }
 
-  return out;
-}
-
-/** Analyze/estimate mode toggles and SGF export. */
-function buildModeControls(
-  ctx: GameCtx,
-  callbacks: {
-    enterAnalysis: () => void;
-    exitAnalysis: () => void;
-    enterEstimate: () => void;
-    exitEstimate: () => void;
-    handleSgfExport: () => void;
-  },
-): Partial<ControlsProps> {
-  const out: Partial<ControlsProps> = {};
-  const { isPlay, isReview, inAnalysis, inEstimate } = ctx;
-
-  if (inAnalysis) {
-    out.exitAnalysis = {
-      onClick: callbacks.exitAnalysis,
-      disabled: inEstimate,
-    };
-  } else if (!isReview) {
-    out.analyze = { onClick: callbacks.enterAnalysis, disabled: inEstimate };
-  }
-
-  out.sgfExport = { onClick: callbacks.handleSgfExport, disabled: inEstimate };
-
-  if (inEstimate) {
-    out.exitEstimate = {
-      onClick: callbacks.exitEstimate,
-      title: inAnalysis ? "Back to analysis" : undefined,
-    };
-  } else if (isPlay && !isReview) {
-    out.estimate = { onClick: callbacks.enterEstimate };
-  } else if (result.value && settledTerritory.value) {
-    out.estimate = {
-      onClick: callbacks.enterEstimate,
-      title: "Show territory",
+  // --- Analysis / Presentation toggle ---
+  // Exit buttons (priority: presentation overrides > analysis)
+  if (caps.canReturnControl) {
+    controlsProps.exitAnalysis = { onClick: props.returnControl };
+  } else if (caps.canExitPresentation) {
+    controlsProps.exitAnalysis = { onClick: props.exitPresentation };
+  } else if (caps.canExitAnalysis) {
+    controlsProps.exitAnalysis = {
+      onClick: props.exitAnalysis,
+      disabled: caps.canExitEstimate,
     };
   }
 
-  return out;
-}
-
-/** Presentation overrides: analyze triggers presentation, viewer choice popover, control request modal. */
-function buildPresentationControls(
-  channel: GameChannel,
-  ctx: GameCtx,
-  callbacks: {
-    enterAnalysis: () => void;
-    enterPresentation: () => void;
-    exitPresentation: () => void;
-  },
-): Partial<ControlsProps> {
-  const out: Partial<ControlsProps> = {};
-
-  // Game done + no active presentation: analyze button starts presentation
-  if (result.value && !presentationActive.value) {
-    out.analyze = { onClick: callbacks.enterPresentation };
-  }
-
-  if (!presentationActive.value) {
-    return out;
-  }
-
-  // Control request popover: originator always handles requests
-  if (isOriginator.value && controlRequest.value) {
-    out.controlRequestResponse = {
-      displayName: controlRequest.value.displayName,
-      onGive: () => channel.giveControl(controlRequest.value!.userId),
-      onDismiss: () => channel.rejectControlRequest(),
-    };
-  }
-
-  // Presenter: exit analysis ends the presentation or returns control
-  if (isPresenter.value) {
-    out.exitAnalysis = isOriginator.value
-      ? { onClick: callbacks.exitPresentation }
-      : { onClick: () => channel.giveControl(originatorId.value) };
-  } else if (!ctx.inAnalysis) {
-    // Viewer (not in personal analysis): analyze button opens choice popover
+  // Enter buttons (priority: presentation > analyzeChoice > analysis)
+  if (caps.showAnalyzeChoice) {
     const options: Array<{
       label: string;
       onClick: () => void;
       disabled?: boolean;
     }> = [];
 
-    if (isOriginator.value) {
+    if (caps.canTakeControl) {
       options.push({
         label: "Take control",
         onClick: () => channel.takeControl(),
       });
-    } else {
-      const myRequest = controlRequest.value?.userId === currentUserId.value;
-      if (myRequest) {
-        options.push({
-          label: "Cancel request",
-          onClick: () => channel.cancelControlRequest(),
-        });
-      } else if (controlRequest.value) {
-        options.push({
-          label: `${controlRequest.value.displayName} request pending`,
-          onClick: () => {},
-          disabled: true,
-        });
-      } else {
-        options.push({
-          label: "Request control",
-          onClick: () => channel.requestControl(),
-        });
-      }
+    } else if (caps.canCancelControlRequest) {
+      options.push({
+        label: "Cancel request",
+        onClick: () => channel.cancelControlRequest(),
+      });
+    } else if (caps.controlRequestPending) {
+      options.push({
+        label: `${caps.controlRequestDisplayName} request pending`,
+        onClick: () => {},
+        disabled: true,
+      });
+    } else if (caps.canRequestControl) {
+      options.push({
+        label: "Request control",
+        onClick: () => channel.requestControl(),
+      });
     }
     options.push({
       label: "Analyze (local)",
-      onClick: callbacks.enterAnalysis,
+      onClick: props.enterAnalysis,
     });
 
-    out.analyzeChoice = { options };
+    controlsProps.analyzeChoice = { options };
+    controlsProps.analyze = { onClick: () => {} };
+  } else if (caps.canEnterPresentation) {
+    controlsProps.analyze = { onClick: props.enterPresentation };
+  } else if (caps.canEnterAnalysis) {
+    controlsProps.analyze = {
+      onClick: props.enterAnalysis,
+      disabled: caps.canExitEstimate,
+    };
   }
 
-  return out;
-}
+  // --- Estimate ---
+  if (caps.canExitEstimate) {
+    controlsProps.exitEstimate = {
+      onClick: props.exitEstimate,
+      title: caps.exitEstimateTitle,
+    };
+  } else if (caps.canEnterEstimate) {
+    controlsProps.estimate = {
+      onClick: props.enterEstimate,
+      title: caps.estimateTitle,
+    };
+  }
 
-// ---------------------------------------------------------------------------
-// Main controls builder (orchestrates sub-builders)
-// ---------------------------------------------------------------------------
-
-function buildLiveControls({
-  channel,
-  mc,
-  enterAnalysis,
-  exitAnalysis,
-  enterEstimate,
-  exitEstimate,
-  handleSgfExport,
-  enterPresentation,
-  exitPresentation,
-  setMoveTree,
-}: {
-  channel: GameChannel;
-  mc: MoveConfirmState;
-  enterAnalysis: () => void;
-  exitAnalysis: () => void;
-  enterEstimate: () => void;
-  exitEstimate: () => void;
-  handleSgfExport: () => void;
-  enterPresentation: () => void;
-  exitPresentation: () => void;
-  setMoveTree: (visible: boolean) => void;
-}): ControlsProps {
-  const ctx = readGameCtx();
-
-  const ns = navState.value;
-  const nav: ControlsProps["nav"] = {
-    atStart: ns.atStart,
-    atLatest: ns.atLatest,
-    atMainEnd: ns.atMainEnd,
-    counter: ns.counter,
-    onNavigate: (action) => board.value?.navigate(action),
+  // --- SGF export ---
+  controlsProps.sgfExport = {
+    onClick: props.handleSgfExport,
+    disabled: caps.canExitEstimate,
   };
 
-  const props: ControlsProps = {
-    nav,
-    coordsToggle: buildCoordsToggle(board.value),
-    moveConfirmToggle:
-      ctx.isPlayer && ctx.isPlay
-        ? {
-            enabled: moveConfirmEnabled.value,
-            onClick: () => {
-              mc.enabled = !mc.enabled;
-              moveConfirmEnabled.value = mc.enabled;
-              mc.clear();
-              board.value?.render();
-            },
-          }
-        : undefined,
-    moveTreeToggle: {
-      enabled: showMoveTree.value,
-      onClick: () => setMoveTree(!showMoveTree.value),
+  // --- Move confirm toggle ---
+  if (caps.showMoveConfirmToggle) {
+    controlsProps.moveConfirmToggle = {
+      enabled: mc.enabled,
+      onClick: () => {
+        mc.enabled = !mc.enabled;
+        moveConfirmEnabled.value = mc.enabled;
+        mc.clear();
+        board.value?.render();
+      },
+    };
+  }
+
+  // --- Move tree toggle ---
+  controlsProps.moveTreeToggle = {
+    enabled: caps.showMoveTree,
+    onClick: () => {
+      const next = !showMoveTree.value;
+      showMoveTree.value = next;
+      storage.set(SHOW_MOVE_TREE, String(next));
+      board.value?.render();
     },
-    ...buildGameActions(channel, ctx),
-    ...buildLobbyControls(channel, ctx),
-    ...buildModeControls(ctx, {
-      enterAnalysis,
-      exitAnalysis,
-      enterEstimate,
-      exitEstimate,
-      handleSgfExport,
-    }),
-    ...buildPresentationControls(channel, ctx, {
-      enterAnalysis,
-      enterPresentation,
-      exitPresentation,
-    }),
   };
 
-  // Disable nav for viewers watching a presentation (not in personal analysis)
-  if (presentationActive.value && !isPresenter.value && !ctx.inAnalysis) {
-    props.nav = {
-      ...props.nav,
-      atStart: true,
-      atLatest: true,
-      atMainEnd: true,
+  // --- Control request response ---
+  if (caps.showControlRequestResponse && caps.controlRequestUserId != null) {
+    controlsProps.controlRequestResponse = {
+      displayName: caps.controlRequestDisplayName,
+      onGive: () => channel.giveControl(caps.controlRequestUserId!),
+      onDismiss: () => channel.rejectControlRequest(),
     };
   }
 
-  // Undo response popover
-  if (undoResponseNeeded.value && ctx.isPlayer) {
-    props.undoResponse = {
-      onAccept: () => {
-        undoResponseNeeded.value = false;
-        channel.acceptUndo();
-      },
-      onReject: () => {
-        undoResponseNeeded.value = false;
-        channel.rejectUndo();
-      },
-    };
-  }
-
-  // Confirm move button
-  if (mc.value && ctx.isMyTurn && !ctx.inAnalysis) {
-    props.confirmMove = {
+  // --- Confirm move (ephemeral — read from mc state) ---
+  if (mc.value) {
+    controlsProps.confirmMove = {
       onClick: () => {
         if (mc.value) {
           const [col, row] = mc.value;
@@ -589,7 +330,7 @@ function buildLiveControls({
     };
   }
 
-  return props;
+  return controlsProps;
 }
 
 // ---------------------------------------------------------------------------
@@ -597,80 +338,25 @@ function buildLiveControls({
 // ---------------------------------------------------------------------------
 
 export function LiveGamePage(props: LiveGamePageProps) {
-  const {
-    channel,
-    mc,
-    moveTreeEl,
-    gobanRef,
-    enterAnalysis,
-    exitAnalysis,
-    enterEstimate,
-    exitEstimate,
-    handleSgfExport,
-    enterPresentation,
-    exitPresentation,
-  } = props;
-
-  function setMoveTree(visible: boolean) {
-    showMoveTree.value = visible;
-    storage.set(SHOW_MOVE_TREE, String(visible));
-    board.value?.render();
-  }
-
-  const controlsProps = buildLiveControls({
-    channel,
-    mc,
-    enterAnalysis,
-    exitAnalysis,
-    enterEstimate,
-    exitEstimate,
-    handleSgfExport,
-    enterPresentation,
-    exitPresentation,
-    setMoveTree,
-  });
+  const { channel, mc, moveTreeEl, gobanRef } = props;
+  const caps = liveGameCapabilities.value;
+  const controlsProps = buildControls(caps, props);
 
   const creatorId = initialProps.value.creator_id;
-  const myId = playerStone.value === 1 ? black.value?.id : white.value?.id;
-  const isChallengee =
-    gameStage.value === GameStage.Challenge &&
-    playerStone.value !== 0 &&
-    myId != null &&
-    myId !== creatorId;
-  const challengee = black.value?.id !== creatorId ? black.value : white.value;
 
-  const lastMove = moves.value[moves.value.length - 1];
-  let statusText = getStatusText({
-    stage: gameStage.value,
-    result: result.value ?? undefined,
-    komi: initialProps.value.komi,
-    estimateScore: estimateMode.value ? estimateScore.value : undefined,
-    territoryScore: territory.value?.score,
-    lastMoveWasPass: lastMove?.kind === "pass",
-    isChallengeCreator: myId != null && myId === creatorId,
-    challengeWaitingFor: challengee?.display_name,
-    hasOpenSlot: !black.value || !white.value,
-  });
-
-  if (statusText && presentationActive.value) {
-    if (isPresenter.value) {
-      statusText += " (You are presenting)";
-    } else if (presenterDisplayName.value) {
-      statusText += ` (${presenterDisplayName.value} presenting)`;
-    }
-  }
+  const fullStatusText = caps.statusText + caps.presentationStatusSuffix;
 
   return (
     <GamePageLayout
       gobanRef={gobanRef}
-      gobanStyle={`aspect-ratio: ${gameState.value.cols}/${gameState.value.rows}`}
-      playerTop={buildLivePlayerPanel({ position: "top" })}
-      playerBottom={buildLivePlayerPanel({ position: "bottom" })}
+      gobanStyle={`aspect-ratio: ${caps.boardAspectRatio}`}
+      playerTop={caps.topPanel}
+      playerBottom={caps.bottomPanel}
       controls={controlsProps}
       status={
         <>
-          {statusText && (
-            <GameStatus text={statusText}>
+          {fullStatusText && (
+            <GameStatus text={fullStatusText}>
               <GameInfo
                 settings={initialProps.value.settings}
                 komi={initialProps.value.komi}
@@ -690,7 +376,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
             </GameStatus>
           )}
           <LobbyControls {...controlsProps} />
-          {isChallengee && (
+          {caps.showChallengePopover && (
             <ChallengePopover
               settings={initialProps.value.settings}
               komi={initialProps.value.komi}
@@ -727,7 +413,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
       }
       moveTree={
         <div
-          class={`move-tree-slot${!showMoveTree.value ? " hidden" : ""}`}
+          class={`move-tree-slot${!caps.showMoveTree ? " hidden" : ""}`}
           ref={(el) => {
             if (el && !el.contains(moveTreeEl)) {
               el.appendChild(moveTreeEl);

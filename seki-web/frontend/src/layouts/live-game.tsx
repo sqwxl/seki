@@ -45,6 +45,7 @@ import {
   moveConfirmEnabled,
   presentationActive,
   isPresenter,
+  originatorId,
   navState,
   mobileTab,
 } from "../game/state";
@@ -208,6 +209,10 @@ export function liveGame(
     channel.endPresentation();
   }
 
+  function returnControl() {
+    channel.giveControl(originatorId.value);
+  }
+
   // --- SGF export ---
   function handleSgfExport() {
     if (!board.value) {
@@ -291,6 +296,7 @@ export function liveGame(
         handleSgfExport={handleSgfExport}
         enterPresentation={enterPresentation}
         exitPresentation={exitPresentation}
+        returnControl={returnControl}
       />,
       root,
     );

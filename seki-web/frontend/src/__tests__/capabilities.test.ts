@@ -738,7 +738,10 @@ describe("mode transitions", () => {
     });
     toPresentation("synced-viewer");
     toPresentationLocalAnalysis();
-    expect(caps().canExitPresentation).toBe(true);
+    // Local-analysis viewers exit via canExitAnalysis, not canExitPresentation
+    // (canExitPresentation is only for originator-presenters ending the session)
+    expect(caps().canExitPresentation).toBe(false);
+    expect(caps().canExitAnalysis).toBe(true);
   });
 
   it("cannot exit presentation for synced viewer", () => {

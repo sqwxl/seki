@@ -44,10 +44,12 @@ import {
 // ---------------------------------------------------------------------------
 
 export type UiCapabilities = {
-  // Game actions
+  // Game actions — "can" = fully enabled, "show" = visible (possibly disabled)
   canPass: boolean;
+  showPass: boolean;
   canRequestUndo: boolean;
   canResign: boolean;
+  showResign: boolean;
   canAbort: boolean;
   canAcceptTerritory: boolean;
   canToggleDeadStones: boolean;
@@ -66,6 +68,7 @@ export type UiCapabilities = {
   canExitEstimate: boolean;
   canEnterPresentation: boolean;
   canExitPresentation: boolean;
+  canReturnControl: boolean;
 
   // Navigation
   canNavigate: boolean;
@@ -75,6 +78,8 @@ export type UiCapabilities = {
   undoTooltip: string;
   passIsAnalysisPass: boolean;
   confirmPassRequired: boolean;
+  estimateTitle: string | undefined;
+  exitEstimateTitle: string | undefined;
 
   // Presentation-specific
   showAnalyzeChoice: boolean;
@@ -83,6 +88,8 @@ export type UiCapabilities = {
   canCancelControlRequest: boolean;
   controlRequestPending: boolean;
   controlRequestDisplayName: string;
+  controlRequestUserId: number | undefined;
+  showControlRequestResponse: boolean;
 
   // Player panels
   topPanel: PlayerPanelProps;
@@ -263,8 +270,9 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   // --- Game actions ---
 
   const canPass = isPlayer && isPlay && isMyTurn && !inEstimate && !inAnalysis;
-  const passIsAnalysisPass =
-    (inAnalysis && !inEstimate) || (!!res && inAnalysis);
+  const passIsAnalysisPass = inAnalysis && !inEstimate;
+  const showPass =
+    (isPlayer && (isPlay || isChallenge) && !inEstimate) || passIsAnalysisPass;
   const confirmPassRequired = canPass && !inAnalysis;
 
   // Undo
@@ -294,6 +302,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   }
 
   const canResign = isPlayer && isPlay && !isChallenge;
+  const showResign = isPlayer && (isPlay || isChallenge);
 
   // Abort: player + no moves + not done + (not challenge OR is creator)
   const myId = stone === 1 ? b?.id : w?.id;
@@ -346,15 +355,21 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
   const canEnterEstimate =
     !inEstimate && !isReview && (isPlay || (isDone && !!settled));
+  const estimateTitle = isDone && !!settled ? "Show territory" : undefined;
 
   const canExitEstimate = inEstimate;
+  const exitEstimateTitle = inAnalysis ? "Back to analysis" : undefined;
 
   const canEnterPresentation = isDone && !inPresentation;
 
+  // Originator-presenter can end the presentation; local-analysis viewers
+  // exit via canExitAnalysis instead (their exitAnalysis re-syncs with the stream).
   const canExitPresentation =
-    inPresentation &&
-    (isPresenter.value ||
-      (phase.phase === "presentation" && phase.role === "local-analysis"));
+    inPresentation && isPresenter.value && isOriginator.value;
+
+  // Non-originator presenter returns control instead of ending presentation.
+  const canReturnControl =
+    inPresentation && isPresenter.value && !isOriginator.value;
 
   // --- Navigation ---
 
@@ -389,6 +404,9 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     !myControlRequest;
 
   const controlRequestDisplayName = controlRequest.value?.displayName ?? "";
+  const controlRequestUserId = controlRequest.value?.userId;
+  const showControlRequestResponse =
+    inPresentation && isOriginator.value && !!controlRequest.value;
 
   // --- Player panels ---
 
@@ -462,8 +480,10 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
   return {
     canPass,
+    showPass,
     canRequestUndo,
     canResign,
+    showResign,
     canAbort,
     canAcceptTerritory,
     canToggleDeadStones,
@@ -480,6 +500,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     canExitEstimate,
     canEnterPresentation,
     canExitPresentation,
+    canReturnControl,
 
     canNavigate,
     showMoveConfirmToggle,
@@ -487,6 +508,8 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     undoTooltip,
     passIsAnalysisPass,
     confirmPassRequired,
+    estimateTitle,
+    exitEstimateTitle,
 
     showAnalyzeChoice,
     canTakeControl,
@@ -494,6 +517,8 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     canCancelControlRequest,
     controlRequestPending,
     controlRequestDisplayName,
+    controlRequestUserId,
+    showControlRequestResponse,
 
     topPanel,
     bottomPanel,
