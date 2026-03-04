@@ -15,6 +15,8 @@ import { formatScoreStr } from "../game/ui";
 import { playStoneSound } from "../game/sound";
 import type { SgfMeta } from "../utils/sgf";
 import { GamePageLayout } from "./game-page-layout";
+import type { AnalysisCapabilities } from "../game/capabilities";
+import { analysisCapabilities } from "../game/capabilities";
 import {
   analysisBoard,
   analysisMeta,
@@ -57,6 +59,10 @@ function AnalysisHeader() {
   return <>{meta && <p>{formatSgfDescription(meta)}</p>}</>;
 }
 
+/**
+ * Player panels read from WASM engine state (captures, move time) which
+ * doesn't trigger signal updates — must be called during render.
+ */
 function buildAnalysisPlayerPanel({
   position,
 }: {
@@ -70,8 +76,7 @@ function buildAnalysisPlayerPanel({
   }
 
   const engine = board.engine;
-  const { reviewing, finalized, score } = analysisTerritoryInfo.value;
-  const isBlackTurn = engine.current_turn_stone() === 1;
+  const { score } = analysisTerritoryInfo.value;
 
   const { bStr, wStr } = formatScoreStr(
     KOMI,
@@ -125,22 +130,18 @@ function buildAnalysisPlayerPanel({
   return position === "top" ? whitePanel : blackPanel;
 }
 
-function buildAnalysisControls({
-  mc,
-  onSizeChange,
-  handleSgfImport,
-  handleSgfExport,
-}: {
-  mc: MoveConfirmState;
-  onSizeChange: (size: number) => void;
-  handleSgfImport: (input: HTMLInputElement) => void;
-  handleSgfExport: () => void;
-}) {
-  const board = analysisBoard.value;
-  const reviewing = board?.isTerritoryReview() ?? false;
-  const finalized = board?.isFinalized() ?? false;
+// ---------------------------------------------------------------------------
+// Controls builder — maps capabilities + callbacks to ControlsProps
+// ---------------------------------------------------------------------------
 
-  const props: ControlsProps = {
+function buildAnalysisControls(
+  caps: AnalysisCapabilities,
+  props: AnalysisPageProps,
+): ControlsProps {
+  const { mc, onSizeChange, handleSgfImport, handleSgfExport } = props;
+  const board = analysisBoard.value;
+
+  const controlsProps: ControlsProps = {
     layout: "analysis",
     nav: buildNavProps(board),
     coordsToggle: buildCoordsToggle(board),
@@ -159,24 +160,37 @@ function buildAnalysisControls({
     },
   };
 
-  if (reviewing) {
-    props.territoryReady = {
+  // Territory review controls
+  if (caps.showTerritoryReady) {
+    controlsProps.territoryReady = {
       onClick: () => board?.finalizeTerritoryReview(),
     };
-    props.territoryExit = {
+  }
+  if (caps.showTerritoryExit) {
+    controlsProps.territoryExit = {
       onClick: () => board?.exitTerritoryReview(),
     };
-  } else if (!finalized) {
-    props.pass = { onClick: () => board?.pass() };
-    props.estimate = { onClick: () => board?.enterTerritoryReview() };
-    props.sgfImport = { onFileChange: handleSgfImport };
-    props.sgfExport = { onClick: handleSgfExport };
-    props.territoryReady = undefined;
-    props.territoryExit = undefined;
   }
 
+  // Play controls (hidden during territory review/finalized)
+  if (caps.canPass) {
+    controlsProps.pass = { onClick: () => board?.pass() };
+  }
+  if (caps.canEstimate) {
+    controlsProps.estimate = {
+      onClick: () => board?.enterTerritoryReview(),
+    };
+  }
+  if (caps.showSgfImport) {
+    controlsProps.sgfImport = { onFileChange: handleSgfImport };
+  }
+  if (caps.showSgfExport) {
+    controlsProps.sgfExport = { onClick: handleSgfExport };
+  }
+
+  // Confirm move (ephemeral)
   if (mc.value) {
-    props.confirmMove = {
+    controlsProps.confirmMove = {
       onClick: () => {
         if (mc.value && board) {
           const [col, row] = mc.value;
@@ -191,7 +205,7 @@ function buildAnalysisControls({
     };
   }
 
-  return props;
+  return controlsProps;
 }
 
 // ---------------------------------------------------------------------------
@@ -208,23 +222,11 @@ export type AnalysisPageProps = {
 };
 
 export function AnalysisPage(props: AnalysisPageProps) {
-  const {
-    gobanRef,
-    mc,
-    moveTreeEl,
-    onSizeChange,
-    handleSgfImport,
-    handleSgfExport,
-  } = props;
-
+  const { gobanRef, moveTreeEl } = props;
+  const caps = analysisCapabilities.value;
   const size = analysisSize.value;
 
-  const controlsProps = buildAnalysisControls({
-    mc,
-    onSizeChange,
-    handleSgfImport,
-    handleSgfExport,
-  });
+  const controlsProps = buildAnalysisControls(caps, props);
 
   const board = analysisBoard.value;
   const { reviewing, finalized, score } = analysisTerritoryInfo.value;
