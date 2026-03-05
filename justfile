@@ -7,13 +7,28 @@ db:
     docker compose up db -d
 
 wasm-hot:
-    cargo watch -w go-engine -w go-engine-wasm -s 'wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm'
+    watchexec -w go-engine -w go-engine-wasm -- wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm
 
 frontend-hot:
     cd seki-web/frontend && pnpm run dev
 
 server-hot:
-    cargo watch -i .claude/worktrees -x 'run -p seki-web'
+    watchexec -i .claude/worktrees -- cargo run -p seki-web
 
 server:
     cargo run -p seki-web
+
+setup: deps
+    cargo build -p seki-web && cd seki-web/frontend && pnpm install && pnpm run build
+
+deps:
+    cargo binstall wasm-pack && cargo binstall watchexec-cli
+
+build-rs:
+    cargo build -p seki-web
+
+build-frontend:
+    cd seki-web/frontend && pnpm install && pnpm run build
+
+build-wasm:
+    wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm
