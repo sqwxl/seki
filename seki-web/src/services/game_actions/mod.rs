@@ -35,7 +35,7 @@ pub async fn play_move(
     row: i32,
 ) -> Result<Engine, AppError> {
     if col < 0 || row < 0 {
-        return Err(AppError::BadRequest("Invalid coordinates".to_string()));
+        return Err(AppError::UnprocessableEntity("Invalid coordinates".to_string()));
     }
 
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
@@ -43,7 +43,18 @@ pub async fn play_move(
     require_not_challenge(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::BadRequest("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+    }
+
+    // Cannot play during territory review
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await?;
+    if engine.stage() == Stage::TerritoryReview {
+        return Err(AppError::UnprocessableEntity(
+            "Cannot play moves during territory review".to_string(),
+        ));
     }
 
     let stone = player_stone(&gwp, player_id)?;
@@ -100,7 +111,18 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
     require_not_challenge(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::BadRequest("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+    }
+
+    // Cannot pass during territory review
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await?;
+    if engine.stage() == Stage::TerritoryReview {
+        return Err(AppError::UnprocessableEntity(
+            "Cannot pass during territory review".to_string(),
+        ));
     }
 
     let stone = player_stone(&gwp, player_id)?;
@@ -173,7 +195,18 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
     require_not_challenge(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::BadRequest("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+    }
+
+    // Cannot resign before first move - use abort instead
+    let engine = state
+        .registry
+        .get_or_init_engine(&state.db, &gwp.game)
+        .await?;
+    if engine.moves().is_empty() {
+        return Err(AppError::UnprocessableEntity(
+            "Cannot resign before the first move. Use abort instead.".to_string(),
+        ));
     }
 
     let stone = player_stone(&gwp, player_id)?;
@@ -229,15 +262,15 @@ pub async fn accept_challenge(
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::BadRequest("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
     }
     if gwp.game.stage != "challenge" {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Game is not in challenge state".to_string(),
         ));
     }
     if gwp.game.creator_id == Some(player_id) {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Only the challenged player can accept".to_string(),
         ));
     }
@@ -289,15 +322,15 @@ pub async fn decline_challenge(
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::BadRequest("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
     }
     if gwp.game.stage != "challenge" {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Game is not in challenge state".to_string(),
         ));
     }
     if gwp.game.creator_id == Some(player_id) {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Only the challenged player can decline".to_string(),
         ));
     }
@@ -325,7 +358,7 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
     let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::BadRequest("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
     }
 
     let engine = state
@@ -333,8 +366,15 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
         .get_or_init_engine(&state.db, &gwp.game)
         .await?;
     if !engine.moves().is_empty() {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Cannot abort after the first move".to_string(),
+        ));
+    }
+
+    // Only creator can abort before first move
+    if gwp.game.creator_id != Some(player_id) {
+        return Err(AppError::UnprocessableEntity(
+            "Only the game creator can abort".to_string(),
         ));
     }
 
@@ -380,21 +420,21 @@ pub async fn disconnect_abort(
     require_both_players(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::BadRequest("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
     }
 
     // Find the opponent
     let opponent_id = gwp
         .opponent_of(player_id)
         .map(|u| u.id)
-        .ok_or_else(|| AppError::BadRequest("Cannot determine opponent".to_string()))?;
+        .ok_or_else(|| AppError::UnprocessableEntity("Cannot determine opponent".to_string()))?;
 
     // Verify opponent is disconnected
     let disconnect_time = state
         .registry
         .disconnect_time(game_id, opponent_id)
         .await
-        .ok_or_else(|| AppError::BadRequest("Opponent is not disconnected".to_string()))?;
+        .ok_or_else(|| AppError::UnprocessableEntity("Opponent is not disconnected".to_string()))?;
 
     // Check threshold: 30s before opponent's first move, 15s after
     let engine = state
@@ -411,7 +451,7 @@ pub async fn disconnect_abort(
     let threshold_secs = if opponent_has_moved { 15 } else { 30 };
     let elapsed = Utc::now() - disconnect_time;
     if elapsed.num_seconds() < threshold_secs {
-        return Err(AppError::BadRequest(format!(
+        return Err(AppError::UnprocessableEntity(format!(
             "Opponent must be disconnected for at least {threshold_secs}s"
         )));
     }
@@ -460,19 +500,26 @@ pub async fn send_chat(
 ) -> Result<ChatSent, AppError> {
     let text = text.trim();
     if text.is_empty() {
-        return Err(AppError::BadRequest("Message cannot be empty".to_string()));
+        return Err(AppError::UnprocessableEntity("Message cannot be empty".to_string()));
     }
     if text.len() > 1000 {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Message too long (max 1000 characters)".to_string(),
         ));
     }
 
-    let game = Game::find_by_id(&state.db, game_id).await?;
+    let gwp = Game::find_with_players(&state.db, game_id).await?;
+
+    // Private game chat requires being a player
+    if gwp.game.is_private && !gwp.has_player(player_id) {
+        return Err(AppError::UnprocessableEntity(
+            "Cannot chat in a private game you're not part of".to_string(),
+        ));
+    }
 
     let user = User::find_by_id(&state.db, player_id).await?;
 
-    let move_number = current_move_number(state, &game).await;
+    let move_number = current_move_number(state, &gwp.game).await;
 
     let msg = Message::create(&state.db, game_id, Some(player_id), text, move_number).await?;
 
@@ -707,7 +754,7 @@ pub(super) async fn load_game_and_check_player(
     let gwp = Game::find_with_players(&state.db, game_id).await?;
 
     if !gwp.has_player(player_id) {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Only players can perform this action".to_string(),
         ));
     }
@@ -717,7 +764,7 @@ pub(super) async fn load_game_and_check_player(
 
 pub(super) fn require_both_players(gwp: &GameWithPlayers) -> Result<(), AppError> {
     if gwp.is_open() {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Waiting for opponent to join".to_string(),
         ));
     }
@@ -726,7 +773,7 @@ pub(super) fn require_both_players(gwp: &GameWithPlayers) -> Result<(), AppError
 
 pub(super) fn require_not_challenge(gwp: &GameWithPlayers) -> Result<(), AppError> {
     if gwp.game.stage == "challenge" {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Challenge must be accepted before playing".to_string(),
         ));
     }
@@ -735,7 +782,7 @@ pub(super) fn require_not_challenge(gwp: &GameWithPlayers) -> Result<(), AppErro
 
 pub(super) fn player_stone(gwp: &GameWithPlayers, player_id: i64) -> Result<Stone, AppError> {
     Stone::from_int(gwp.player_stone(player_id) as i8)
-        .ok_or_else(|| AppError::BadRequest("You are not a user in this game".to_string()))
+        .ok_or_else(|| AppError::UnprocessableEntity("You are not a user in this game".to_string()))
 }
 
 async fn apply_engine_mutation<F>(
@@ -751,7 +798,7 @@ where
 
     match state.registry.with_engine_mut(game_id, f).await {
         Some(Ok(engine)) => Ok(engine),
-        Some(Err(e)) => Err(AppError::BadRequest(e.to_string())),
+        Some(Err(e)) => Err(AppError::UnprocessableEntity(e.to_string())),
         None => Err(AppError::Internal("Engine cache unavailable".to_string())),
     }
 }

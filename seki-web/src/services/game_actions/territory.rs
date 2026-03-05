@@ -61,6 +61,19 @@ pub async fn approve_territory(
 
     require_territory_review(&engine, state, &gwp, game_id, player_id).await?;
 
+    // Check if already approved
+    if let Some(tr) = state.registry.get_territory_review(game_id).await {
+        let already_approved = match stone {
+            go_engine::Stone::Black => tr.black_approved,
+            go_engine::Stone::White => tr.white_approved,
+        };
+        if already_approved {
+            return Err(AppError::UnprocessableEntity(
+                "You have already approved the territory".to_string(),
+            ));
+        }
+    }
+
     state.registry.set_approved(game_id, stone, true).await;
 
     let tr = state
@@ -164,12 +177,12 @@ async fn require_territory_review(
     player_id: i64,
 ) -> Result<(), AppError> {
     if engine.stage() != Stage::TerritoryReview {
-        return Err(AppError::BadRequest("Not in territory review".to_string()));
+        return Err(AppError::UnprocessableEntity("Not in territory review".to_string()));
     }
     if let Some(opp) = gwp.opponent_of(player_id)
         && state.registry.is_player_disconnected(game_id, opp.id).await
     {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Opponent disconnected, territory review paused".to_string(),
         ));
     }

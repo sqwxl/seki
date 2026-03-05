@@ -1,73 +1,4 @@
-use std::sync::Arc;
-
-use argon2::password_hash::SaltString;
-use argon2::password_hash::rand_core::OsRng;
-use argon2::{Argon2, PasswordHasher};
-use reqwest::cookie::CookieStore;
-
-use crate::common::{TestServer, WsClient};
-
-/// Helper: create a third user (spectator), log them in, and return (id, WsClient).
-async fn create_spectator(ts: &TestServer) -> (i64, WsClient) {
-    let salt = SaltString::generate(&mut OsRng);
-    let password_hash = Argon2::default()
-        .hash_password(b"testpassword", &salt)
-        .unwrap()
-        .to_string();
-
-    let spectator_id: i64 = sqlx::query_scalar(
-        "INSERT INTO users (session_token, username, password_hash, api_token) \
-         VALUES ($1, $2, $3, $4) RETURNING id",
-    )
-    .bind("spectator-session-token")
-    .bind("test-spectator")
-    .bind(&password_hash)
-    .bind("test-spectator-api-token")
-    .fetch_one(&ts.pool)
-    .await
-    .unwrap();
-
-    let jar = Arc::new(reqwest::cookie::Jar::default());
-    let client = reqwest::Client::builder()
-        .cookie_provider(jar.clone())
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .unwrap();
-
-    let base = format!("http://{}", ts.addr);
-    client.get(format!("{base}/login")).send().await.unwrap();
-    client
-        .post(format!("{base}/login"))
-        .form(&[("username", "test-spectator"), ("password", "testpassword")])
-        .send()
-        .await
-        .unwrap();
-
-    let url = format!("ws://{}/ws", ts.addr);
-    let req_url = reqwest::Url::parse(&format!("http://{}", ts.addr)).unwrap();
-    let cookie_header = jar
-        .cookies(&req_url)
-        .map(|c: axum::http::HeaderValue| c.to_str().unwrap().to_string())
-        .unwrap_or_default();
-    let request = tokio_tungstenite::tungstenite::http::Request::builder()
-        .uri(&url)
-        .header("Cookie", cookie_header)
-        .header("Host", &ts.addr)
-        .header("Connection", "Upgrade")
-        .header("Upgrade", "websocket")
-        .header("Sec-WebSocket-Version", "13")
-        .header(
-            "Sec-WebSocket-Key",
-            tokio_tungstenite::tungstenite::handshake::client::generate_key(),
-        )
-        .body(())
-        .unwrap();
-    let (stream, _) = tokio_tungstenite::connect_async(request).await.unwrap();
-    let (sink, stream_half) = futures_util::StreamExt::split(stream);
-    let ws = WsClient::from_parts(sink, stream_half);
-
-    (spectator_id, ws)
-}
+use crate::common::TestServer;
 
 /// Helper: create a game, play two passes, approve territory on both sides,
 /// then close both WS connections. Returns game_id with both clients disconnected.
@@ -360,7 +291,8 @@ async fn has_had_presentation_set_on_end() {
     let ts = TestServer::start().await;
     let game_id = finish_game(&ts).await;
 
-    let (spectator_id, mut spectator) = create_spectator(&ts).await;
+    let spectator_id = ts.spectator_id;
+    let mut spectator = ts.ws_spectator().await;
 
     // Spectator joins the game room
     let _ = spectator.join_game(game_id).await;
@@ -432,7 +364,8 @@ async fn reject_control_request_by_originator_while_not_presenting() {
     let ts = TestServer::start().await;
     let game_id = finish_game(&ts).await;
 
-    let (spectator_id, mut spectator) = create_spectator(&ts).await;
+    let spectator_id = ts.spectator_id;
+    let mut spectator = ts.ws_spectator().await;
 
     let mut black = ts.ws_black().await;
     let mut white = ts.ws_white().await;
@@ -563,7 +496,8 @@ async fn originator_gives_control_when_not_presenting() {
     let ts = TestServer::start().await;
     let game_id = finish_game(&ts).await;
 
-    let (spectator_id, mut spectator) = create_spectator(&ts).await;
+    let spectator_id = ts.spectator_id;
+    let mut spectator = ts.ws_spectator().await;
 
     let mut black = ts.ws_black().await;
     let mut white = ts.ws_white().await;
@@ -609,7 +543,8 @@ async fn spectator_presenter_disconnect_falls_back_to_originator() {
     let ts = TestServer::start().await;
     let game_id = finish_game(&ts).await;
 
-    let (spectator_id, mut spectator) = create_spectator(&ts).await;
+    let spectator_id = ts.spectator_id;
+    let mut spectator = ts.ws_spectator().await;
 
     let mut black = ts.ws_black().await;
     let mut white = ts.ws_white().await;
@@ -717,7 +652,7 @@ async fn non_authorized_user_cannot_reject_control_request() {
     let ts = TestServer::start().await;
     let game_id = finish_game(&ts).await;
 
-    let (_spectator_id, mut spectator) = create_spectator(&ts).await;
+    let mut spectator = ts.ws_spectator().await;
 
     let mut black = ts.ws_black().await;
     let mut white = ts.ws_white().await;
@@ -753,7 +688,8 @@ async fn originator_disconnect_while_spectator_presents() {
     let ts = TestServer::start().await;
     let game_id = finish_game(&ts).await;
 
-    let (spectator_id, mut spectator) = create_spectator(&ts).await;
+    let spectator_id = ts.spectator_id;
+    let mut spectator = ts.ws_spectator().await;
 
     let mut black = ts.ws_black().await;
     let mut white = ts.ws_white().await;

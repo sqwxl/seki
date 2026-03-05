@@ -106,3 +106,41 @@ impl FromRequestParts<crate::AppState> for ApiUser {
         Ok(ApiUser { user })
     }
 }
+
+/// Optional API user extractor - returns None if no auth header or invalid token.
+/// Unlike ApiUser, this doesn't reject the request on missing/invalid auth.
+pub struct OptionalApiUser(pub Option<User>);
+
+impl std::ops::Deref for OptionalApiUser {
+    type Target = Option<User>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl FromRequestParts<crate::AppState> for OptionalApiUser {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &crate::AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let Some(header) = parts
+            .headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "))
+            .map(|t| t.to_string())
+        else {
+            return Ok(OptionalApiUser(None));
+        };
+
+        let user = User::find_by_api_token(&state.db, &header)
+            .await
+            .ok()
+            .flatten()
+            .filter(|u| u.is_registered());
+
+        Ok(OptionalApiUser(user))
+    }
+}

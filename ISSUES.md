@@ -16,23 +16,23 @@
 
 ### Board Size
 
-- [ ] Size outside 5-19 range rejected `[test: backend:integration]`
-- [ ] API should not accept negative board dimensions (apparent overflow) `[test: backend:integration]`
-- [ ] API should not accept 0x0 board dimensions `[test: backend:integration]`
+- [x] Size outside 5-19 range rejected `[test: backend:integration]` _(validation.rs)_
+- [x] API should not accept negative board dimensions (apparent overflow) `[test: backend:integration]` _(validation.rs)_
+- [x] API should not accept 0x0 board dimensions `[test: backend:integration]` _(validation.rs)_
 - [ ] API should not accept arbitrary board dimensions; should be clamped `[test: backend:integration]`
 
 ### Komi
 
 - [ ] Default komi works (6.5 for no handicap) `[test: backend:unit]`
-- [ ] Integer komi rejected (0, 1, -1) `[test: backend:integration]`
+- [x] Integer komi rejected (0, 1, -1) `[test: backend:integration]` _(validation.rs)_
 - [ ] Default komi in form is 0.5; consider changing default with board size
-- [ ] Integer komi should be rejected via both web and API `[test: backend:integration]`
+- [x] Integer komi should be rejected via both web and API `[test: backend:integration]` _(validation.rs: komi must be half-integer)_
 
 ### Handicap
 
-- [ ] API should not accept negative handicap `[test: backend:integration]`
-- [ ] API should not accept arbitrary handicap `[test: backend:integration]`
-- [ ] API should not accept illegal handicap for board size `[test: backend:integration]`
+- [x] API should not accept negative handicap `[test: backend:integration]` _(validation.rs)_
+- [x] API should not accept handicap of 1 (minimum is 2) `[test: backend:integration]` _(validation.rs)_
+- [x] API should not accept illegal handicap for board size `[test: backend:integration]` _(validation.rs)_
 - [ ] UI should show 0 and 1 to avoid confusion
 
 ### Time Control
@@ -44,7 +44,7 @@
 
 ### Visibility
 
-- [ ] Private game should only be visible to participants (challengee, or via invite token); currently visible to anyone with the game ID `[test: backend:integration]`
+- [x] Private game should only be visible to participants (challengee, or via invite token) `[test: backend:integration]` _(security.rs)_
 
 ### Invitations
 
@@ -61,8 +61,8 @@
 
 ## 4. Joining Games
 
-- [ ] Cannot join private game without invite token `[test: backend:integration]`
-- [ ] Cannot join a game that is already finished/aborted `[test: backend:integration]`
+- [x] Cannot join private game without invite token `[test: backend:integration]` _(security.rs)_
+- [x] Cannot join a game that is already finished/aborted `[test: backend:integration]` _(security.rs)_
 
 ## 5. Challenges
 
@@ -84,11 +84,12 @@
 ## 8. Resigning
 
 - [ ] System chat message "Game over. {result}" broadcast on resign `[test: e2e:ws]`
-- [ ] Resign button should be disabled until the first move is played; currently possible to resign after accepting/joining, leading to broken state (result not set, GameStatus not shown, game still playable) `[test: backend:integration]`
+- [x] Cannot resign before first move (backend guard); use abort instead `[test: backend:integration]` _(state_guards.rs)_
+- [ ] Resign button should be disabled until the first move is played (frontend)
 
 ## 9. Aborting
 
-- [ ] Only creator should be able to abort pending challenge; opponent can abort via API `[test: backend:integration]`
+- [x] Only creator can abort pending challenge `[test: backend:integration]` _(security.rs)_
 - [ ] "Game aborted" system chat message should include username ("Game aborted by $user") `[test: e2e:ws]`
 - [x] Player should not be able to abort as soon as player reconnects (UI should immediately update) `[test: e2e:ws]` _(disconnect.rs: disconnect_abort_threshold + capabilities.test.ts: disconnect abort timing)_ **NOTE: significant frontend lag observed showing disconnected status updates — server-side thresholds are tested but UI responsiveness is not**
 
@@ -115,7 +116,8 @@
 
 ### Entry
 
-- [ ] Moves should not be playable from territory review; currently sometimes possible, leading to out-of-sync board states `[test: backend:integration, e2e:ws]`
+- [x] Moves/passes cannot be played during territory review (backend guard) `[test: backend:integration]` _(state_guards.rs)_
+- [ ] Frontend should disable move input during territory review `[test: e2e:ws]`
 - [ ] Player stones in UserLabel should remain unchanged during territory review (currently reverts to BW icon) `[test: frontend:unit]`
 
 ### Dead Stone Toggling
@@ -125,7 +127,7 @@
 ### Territory Approval
 
 - [ ] System message reads: "Territory will be auto-confirmed in $TIME" `[test: e2e:ws]`
-- [ ] Cannot approve if already approved (should not be possible via web or API) `[test: backend:integration]`
+- [x] Cannot approve if already approved `[test: backend:integration]` _(state_guards.rs)_
 - [ ] Clicking empty vertex (not a stone) during territory review: no action (currently resets approval and countdown timer) `[test: e2e:ws]`
 - [ ] Move tree shows branch terminator node which shows territory highlight and final player scores
 
@@ -158,7 +160,7 @@
 
 ## 13. Chat
 
-- [ ] Users require invite token to post to private game chat `[test: backend:integration]`
+- [x] Non-participants cannot chat in private games `[test: backend:integration]` _(security.rs)_
 
 ## 14. Move Navigation
 
@@ -309,7 +311,7 @@
 ## 22. Cross-Cutting Edge Cases
 
 - [ ] Two players play simultaneously — race condition on turns (needs automated test) `[test: backend:integration]`
-- [ ] Game with 0 komi disallowed `[test: backend:integration]`
+- [x] Game with 0 komi disallowed (komi must be half-integer) `[test: backend:integration]` _(validation.rs)_
 - [ ] Very long game (300+ moves): performance acceptable (untested) `[test: backend:integration]`
 - [ ] Rapid-fire moves: server handles correctly, no state corruption (needs automated test) `[test: backend:integration]`
 - [ ] Network partition during move: move either fully applied or fully rolled back (needs automated test) `[test: backend:integration]`

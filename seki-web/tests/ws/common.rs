@@ -15,16 +15,19 @@ use testcontainers_modules::postgres::Postgres;
 use tokio::net::TcpListener;
 use tokio_tungstenite::tungstenite;
 
-/// A running test server with two pre-authenticated users.
+/// A running test server with three pre-authenticated users.
 pub struct TestServer {
     pub addr: String,
     pub pool: PgPool,
     pub black_id: i64,
     pub white_id: i64,
+    pub spectator_id: i64,
     pub client_black: reqwest::Client,
     pub client_white: reqwest::Client,
+    pub client_spectator: reqwest::Client,
     jar_black: Arc<Jar>,
     jar_white: Arc<Jar>,
+    jar_spectator: Arc<Jar>,
     // Keep the container alive for the lifetime of the test
     _container: testcontainers::ContainerAsync<Postgres>,
 }
@@ -74,6 +77,18 @@ impl TestServer {
         .await
         .unwrap();
 
+        let spectator_id: i64 = sqlx::query_scalar(
+            "INSERT INTO users (session_token, username, password_hash, api_token) \
+             VALUES ($1, $2, $3, $4) RETURNING id",
+        )
+        .bind("spectator-session-token")
+        .bind("test-spectator")
+        .bind(&password_hash)
+        .bind("test-spectator-api-token-99999")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
         // Build and spawn the server (zero grace period for instant disconnect in tests)
         let presence =
             seki_web::ws::presence::UserPresence::with_grace_period(Duration::from_millis(0));
@@ -111,6 +126,13 @@ impl TestServer {
             .build()
             .unwrap();
 
+        let jar_spectator = Arc::new(Jar::default());
+        let client_spectator = reqwest::Client::builder()
+            .cookie_provider(jar_spectator.clone())
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap();
+
         let base = format!("http://{addr}");
 
         // Log in black user:
@@ -141,15 +163,31 @@ impl TestServer {
             .await
             .unwrap();
 
+        // Log in spectator user
+        client_spectator
+            .get(format!("{base}/login"))
+            .send()
+            .await
+            .unwrap();
+        client_spectator
+            .post(format!("{base}/login"))
+            .form(&[("username", "test-spectator"), ("password", "testpassword")])
+            .send()
+            .await
+            .unwrap();
+
         TestServer {
             addr,
             pool,
             black_id,
             white_id,
+            spectator_id,
             client_black,
             client_white,
+            client_spectator,
             jar_black,
             jar_white,
+            jar_spectator,
             _container: container,
         }
     }
@@ -183,6 +221,7 @@ impl TestServer {
             .client_white
             .post(format!("http://{}/api/games/{game_id}/join", self.addr))
             .header("Authorization", "Bearer test-white-api-token-67890")
+            .json(&json!({}))
             .send()
             .await
             .unwrap();
@@ -241,6 +280,78 @@ impl TestServer {
     /// Open a WebSocket connection authenticated as the white user.
     pub async fn ws_white(&self) -> WsClient {
         self.ws_connect(&self.jar_white).await
+    }
+
+    /// Open a WebSocket connection authenticated as the spectator user.
+    pub async fn ws_spectator(&self) -> WsClient {
+        self.ws_connect(&self.jar_spectator).await
+    }
+
+    /// Create a private 9x9 game via the API (black is creator, plays black).
+    pub async fn create_private_game(&self) -> i64 {
+        self.create_game_with(json!({"is_private": true})).await
+    }
+
+    /// Get the invite token for a game.
+    pub async fn get_invite_token(&self, game_id: i64) -> String {
+        sqlx::query_scalar::<_, String>("SELECT invite_token FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap()
+    }
+
+    /// Have the spectator user attempt to join an existing game via the API.
+    pub async fn join_game_as_spectator(&self, game_id: i64) -> reqwest::Response {
+        self.client_spectator
+            .post(format!("http://{}/api/games/{game_id}/join", self.addr))
+            .header("Authorization", "Bearer test-spectator-api-token-99999")
+            .json(&json!({}))
+            .send()
+            .await
+            .unwrap()
+    }
+
+    /// Have the spectator user attempt to join a private game with a token.
+    pub async fn join_private_game_as_spectator(
+        &self,
+        game_id: i64,
+        token: &str,
+    ) -> reqwest::Response {
+        self.client_spectator
+            .post(format!("http://{}/api/games/{game_id}/join", self.addr))
+            .header("Authorization", "Bearer test-spectator-api-token-99999")
+            .json(&json!({"token": token}))
+            .send()
+            .await
+            .unwrap()
+    }
+
+    /// Have the spectator user attempt to get a game via the API.
+    pub async fn get_game_as_spectator(&self, game_id: i64) -> reqwest::Response {
+        self.client_spectator
+            .get(format!("http://{}/api/games/{game_id}", self.addr))
+            .header("Authorization", "Bearer test-spectator-api-token-99999")
+            .send()
+            .await
+            .unwrap()
+    }
+
+    /// Create a game via the API expecting an error.
+    pub async fn try_create_game_with(&self, opts: Value) -> reqwest::Response {
+        let mut body = json!({"cols": 9, "rows": 9, "color": "black"});
+        if let Some(obj) = opts.as_object() {
+            for (k, v) in obj {
+                body[k] = v.clone();
+            }
+        }
+        self.client_black
+            .post(format!("http://{}/api/games", self.addr))
+            .header("Authorization", "Bearer test-black-api-token-12345")
+            .json(&body)
+            .send()
+            .await
+            .unwrap()
     }
 
     async fn ws_connect(&self, jar: &Arc<Jar>) -> WsClient {

@@ -15,7 +15,7 @@ use crate::models::turn::TurnRow;
 use crate::models::user::User;
 use crate::services::live::build_live_items;
 use crate::services::{game_actions, game_creator, state_serializer};
-use crate::session::ApiUser;
+use crate::session::{ApiUser, OptionalApiUser};
 
 // -- Response types --
 
@@ -130,6 +130,12 @@ struct RematchRequest {
     swap_colors: Option<bool>,
 }
 
+#[derive(Deserialize, ToSchema)]
+struct JoinGameRequest {
+    /// Invite token for private games
+    token: Option<String>,
+}
+
 // -- OpenAPI doc --
 
 struct ApiModifier;
@@ -178,7 +184,7 @@ impl Modify for ApiModifier {
     components(schemas(
         UserResponse, GameResponse, TurnResponse, MessageResponse,
         CreateGameRequest, PlayRequest, UndoResponseRequest, ToggleChainRequest,
-        ChatRequest, RematchRequest,
+        ChatRequest, RematchRequest, JoinGameRequest,
         crate::services::live::LiveGameItem,
         crate::services::live::GameSettings,
         crate::models::game::TimeControlType,
@@ -318,6 +324,7 @@ async fn create_game(
     get,
     path = "/games/{id}",
     tag = "Games",
+    security((), ("bearer" = [])),
     params(("id" = i64, Path, description = "Game ID")),
     responses(
         (status = 200, description = "Game details", body = GameResponse),
@@ -326,9 +333,19 @@ async fn create_game(
 )]
 async fn get_game(
     State(state): State<AppState>,
+    OptionalApiUser(api_user): OptionalApiUser,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
+
+    // Private game access check
+    if gwp.game.is_private {
+        let user_id = api_user.as_ref().map(|u| u.id);
+        if !user_id.is_some_and(|uid| gwp.has_player(uid)) {
+            return Err(AppError::NotFound("Game not found".to_string()).into());
+        }
+    }
+
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
@@ -358,12 +375,12 @@ async fn delete_game(
 
     if game.creator_id != Some(api_user.id) {
         return Err(
-            AppError::BadRequest("Only the creator can delete this game".to_string()).into(),
+            AppError::UnprocessableEntity("Only the creator can delete this game".to_string()).into(),
         );
     }
     if game.started_at.is_some() {
         return Err(
-            AppError::BadRequest("Cannot delete a game that has started".to_string()).into(),
+            AppError::UnprocessableEntity("Cannot delete a game that has started".to_string()).into(),
         );
     }
 
@@ -378,6 +395,7 @@ async fn delete_game(
     tag = "Games",
     security(("bearer" = [])),
     params(("id" = i64, Path, description = "Game ID")),
+    request_body = JoinGameRequest,
     responses(
         (status = 200, description = "Joined game", body = GameResponse),
         (status = 400, description = "Already joined or game full"),
@@ -388,11 +406,36 @@ async fn join_game(
     State(state): State<AppState>,
     api_user: ApiUser,
     Path(id): Path<i64>,
+    Json(body): Json<JoinGameRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
 
+    // Cannot join finished or aborted games
+    if gwp.game.result.is_some() {
+        return Err(AppError::UnprocessableEntity(
+            "Cannot join a finished or aborted game".to_string(),
+        )
+        .into());
+    }
+
     if gwp.has_player(api_user.id) {
-        return Err(AppError::BadRequest("Already in this game".to_string()).into());
+        return Err(AppError::UnprocessableEntity("Already in this game".to_string()).into());
+    }
+
+    // Private game requires valid invite token
+    if gwp.game.is_private {
+        let valid_token = gwp.game.invite_token.as_ref();
+        match (&body.token, valid_token) {
+            (Some(provided), Some(expected)) if provided == expected => {
+                // Valid token, allow join
+            }
+            _ => {
+                return Err(AppError::UnprocessableEntity(
+                    "Private game requires valid invite token".to_string(),
+                )
+                .into());
+            }
+        }
     }
 
     let mut tx = state.db.begin().await?;
@@ -401,7 +444,7 @@ async fn join_game(
     } else if gwp.game.white_id.is_none() {
         Game::set_white(&mut *tx, id, api_user.id).await?;
     } else {
-        return Err(AppError::BadRequest("Game is full".to_string()).into());
+        return Err(AppError::UnprocessableEntity("Game is full".to_string()).into());
     }
     let started = gwp.game.stage == "unstarted";
     let start_stage = if gwp.game.handicap >= 2 {
@@ -604,7 +647,7 @@ async fn respond_to_undo(
 ) -> Result<Json<GameResponse>, ApiError> {
     let response = body.response.trim().to_lowercase();
     if response != "accept" && response != "reject" {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Invalid response. Must be 'accept' or 'reject'".to_string(),
         )
         .into());
@@ -696,10 +739,10 @@ async fn rematch_game(
     let gwp = Game::find_with_players(&state.db, id).await?;
 
     if gwp.game.result.is_none() {
-        return Err(AppError::BadRequest("Game is not finished".to_string()).into());
+        return Err(AppError::UnprocessableEntity("Game is not finished".to_string()).into());
     }
     if !gwp.has_player(api_user.id) {
-        return Err(AppError::BadRequest("You are not a player in this game".to_string()).into());
+        return Err(AppError::UnprocessableEntity("You are not a player in this game".to_string()).into());
     }
 
     let swap = body.swap_colors.unwrap_or(false);

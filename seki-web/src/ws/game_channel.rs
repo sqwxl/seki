@@ -255,12 +255,12 @@ async fn handle_play(
     let col = data
         .get("col")
         .and_then(|v| v.as_i64())
-        .ok_or_else(|| crate::error::AppError::BadRequest("Missing col".to_string()))?
+        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing col".to_string()))?
         as i32;
     let row = data
         .get("row")
         .and_then(|v| v.as_i64())
-        .ok_or_else(|| crate::error::AppError::BadRequest("Missing row".to_string()))?
+        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing row".to_string()))?
         as i32;
 
     game_actions::play_move(state, game_id, player_id, col, row).await?;
@@ -287,12 +287,12 @@ async fn handle_toggle_chain(
     let col = data
         .get("col")
         .and_then(|v| v.as_u64())
-        .ok_or_else(|| crate::error::AppError::BadRequest("Missing col".to_string()))?
+        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing col".to_string()))?
         as u8;
     let row = data
         .get("row")
         .and_then(|v| v.as_u64())
-        .ok_or_else(|| crate::error::AppError::BadRequest("Missing row".to_string()))?
+        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing row".to_string()))?
         as u8;
 
     game_actions::toggle_chain(state, game_id, player_id, col, row).await
@@ -312,7 +312,7 @@ async fn handle_respond_to_undo(
         .to_lowercase();
 
     if response != "accept" && response != "reject" {
-        return Err(crate::error::AppError::BadRequest(
+        return Err(crate::error::AppError::UnprocessableEntity(
             "Invalid response. Must be 'accept' or 'reject'".to_string(),
         ));
     }
@@ -345,7 +345,7 @@ async fn handle_give_control(
     let target_user_id = data
         .get("target_user_id")
         .and_then(|v| v.as_i64())
-        .ok_or_else(|| crate::error::AppError::BadRequest("Missing target_user_id".to_string()))?;
+        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing target_user_id".to_string()))?;
 
     presentation_actions::give_control(state, game_id, player_id, target_user_id).await
 }

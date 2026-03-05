@@ -14,12 +14,12 @@ pub async fn start_presentation(
 
     // Game must be finished
     if gwp.game.result.is_none() {
-        return Err(AppError::BadRequest("Game is not finished".to_string()));
+        return Err(AppError::UnprocessableEntity("Game is not finished".to_string()));
     }
 
     // No active presentation
     if state.registry.get_presentation(game_id).await.is_some() {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "A presentation is already active".to_string(),
         ));
     }
@@ -35,7 +35,7 @@ pub async fn start_presentation(
             .is_some_and(|ended| (Utc::now() - ended).num_hours() >= 24);
 
         if !has_had && !neither_player_in_room && !game_old_enough {
-            return Err(AppError::BadRequest(
+            return Err(AppError::UnprocessableEntity(
                 "Not eligible to start a presentation".to_string(),
             ));
         }
@@ -70,10 +70,10 @@ pub async fn end_presentation(
         .registry
         .get_presentation(game_id)
         .await
-        .ok_or_else(|| AppError::BadRequest("No active presentation".to_string()))?;
+        .ok_or_else(|| AppError::UnprocessableEntity("No active presentation".to_string()))?;
 
     if pres.presenter_id != user_id {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Only the presenter can end the presentation".to_string(),
         ));
     }
@@ -105,10 +105,10 @@ pub async fn update_snapshot(
         .registry
         .get_presentation(game_id)
         .await
-        .ok_or_else(|| AppError::BadRequest("No active presentation".to_string()))?;
+        .ok_or_else(|| AppError::UnprocessableEntity("No active presentation".to_string()))?;
 
     if pres.presenter_id != user_id {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Only the presenter can send state".to_string(),
         ));
     }
@@ -146,16 +146,16 @@ pub async fn give_control(
         .registry
         .get_presentation(game_id)
         .await
-        .ok_or_else(|| AppError::BadRequest("No active presentation".to_string()))?;
+        .ok_or_else(|| AppError::UnprocessableEntity("No active presentation".to_string()))?;
 
     if pres.presenter_id != user_id && pres.originator_id != user_id {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Only the presenter or originator can give control".to_string(),
         ));
     }
 
     if !state.registry.is_in_room(game_id, target_user_id).await {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Target user is not in the room".to_string(),
         ));
     }
@@ -183,10 +183,10 @@ pub async fn take_control(state: &AppState, game_id: i64, user_id: i64) -> Resul
         .registry
         .get_presentation(game_id)
         .await
-        .ok_or_else(|| AppError::BadRequest("No active presentation".to_string()))?;
+        .ok_or_else(|| AppError::UnprocessableEntity("No active presentation".to_string()))?;
 
     if pres.originator_id != user_id {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Only the originator can take control".to_string(),
         ));
     }
@@ -219,16 +219,16 @@ pub async fn request_control(
         .registry
         .get_presentation(game_id)
         .await
-        .ok_or_else(|| AppError::BadRequest("No active presentation".to_string()))?;
+        .ok_or_else(|| AppError::UnprocessableEntity("No active presentation".to_string()))?;
 
     if pres.presenter_id == user_id {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "You are already the presenter".to_string(),
         ));
     }
 
     if pres.control_request.is_some() {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "A control request is already pending".to_string(),
         ));
     }
@@ -264,10 +264,10 @@ pub async fn cancel_control_request(
         .registry
         .get_presentation(game_id)
         .await
-        .ok_or_else(|| AppError::BadRequest("No active presentation".to_string()))?;
+        .ok_or_else(|| AppError::UnprocessableEntity("No active presentation".to_string()))?;
 
     if pres.control_request != Some(user_id) {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "You don't have a pending control request".to_string(),
         ));
     }
@@ -298,16 +298,16 @@ pub async fn reject_control_request(
         .registry
         .get_presentation(game_id)
         .await
-        .ok_or_else(|| AppError::BadRequest("No active presentation".to_string()))?;
+        .ok_or_else(|| AppError::UnprocessableEntity("No active presentation".to_string()))?;
 
     if pres.originator_id != user_id && pres.presenter_id != user_id {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Not authorized to reject control request".to_string(),
         ));
     }
 
     if pres.control_request.is_none() {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "No pending control request".to_string(),
         ));
     }

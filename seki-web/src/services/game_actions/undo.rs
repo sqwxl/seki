@@ -13,37 +13,37 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
     require_not_challenge(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::BadRequest("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
     }
 
     if !gwp.game.allow_undo {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Takebacks are not allowed in this game".into(),
         ));
     }
 
     if state.registry.is_undo_requested(game_id).await {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "An undo request is already pending".to_string(),
         ));
     }
 
     if gwp.game.undo_rejected {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Undo was already rejected for the current move".to_string(),
         ));
     }
 
     let last_turn = TurnRow::last_turn(&state.db, game_id).await?;
     let last_turn =
-        last_turn.ok_or_else(|| AppError::BadRequest("No turns to undo".to_string()))?;
+        last_turn.ok_or_else(|| AppError::UnprocessableEntity("No turns to undo".to_string()))?;
     if last_turn.user_id != player_id {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Can only undo your own turn".to_string(),
         ));
     }
     if last_turn.kind != "play" {
-        return Err(AppError::BadRequest("Can only undo play turns".to_string()));
+        return Err(AppError::UnprocessableEntity("Can only undo play turns".to_string()));
     }
 
     state.registry.set_undo_requested(game_id, true).await;
@@ -93,7 +93,7 @@ pub async fn respond_to_undo(
     let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if !state.registry.is_undo_requested(game_id).await {
-        return Err(AppError::BadRequest("No pending undo request".to_string()));
+        return Err(AppError::UnprocessableEntity("No pending undo request".to_string()));
     }
 
     // The requesting user is the one who played last (out of turn now)
@@ -107,7 +107,7 @@ pub async fn respond_to_undo(
         .ok_or_else(|| AppError::Internal("Cannot determine requesting user".to_string()))?;
 
     if requesting_player_id == player_id {
-        return Err(AppError::BadRequest(
+        return Err(AppError::UnprocessableEntity(
             "Cannot respond to your own undo request".to_string(),
         ));
     }
@@ -126,7 +126,7 @@ pub async fn respond_to_undo(
             .await;
         let engine = match engine {
             Some(Ok(engine)) => engine,
-            Some(Err(e)) => return Err(AppError::BadRequest(e.to_string())),
+            Some(Err(e)) => return Err(AppError::UnprocessableEntity(e.to_string())),
             None => {
                 return Err(AppError::Internal("Engine cache unavailable".into()));
             }

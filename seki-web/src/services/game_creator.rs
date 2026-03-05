@@ -29,10 +29,47 @@ pub async fn create_game(
     params: CreateGameParams,
 ) -> Result<Game, AppError> {
     // Komi must be a half-integer (e.g. 0.5, 6.5, -3.5) to prevent draws
-    if (params.komi * 2.0).fract() != 0.0 {
-        return Err(AppError::BadRequest(
+    if params.komi.fract().abs() != 0.5 {
+        return Err(AppError::UnprocessableEntity(
             "Komi must be a half-integer (e.g. 0.5, 6.5, -3.5)".to_string(),
         ));
+    }
+
+    // Board size validation
+    if params.cols < 5 || params.cols > 19 {
+        return Err(AppError::UnprocessableEntity(
+            "Board width must be between 5 and 19".to_string(),
+        ));
+    }
+    if params.rows < 5 || params.rows > 19 {
+        return Err(AppError::UnprocessableEntity(
+            "Board height must be between 5 and 19".to_string(),
+        ));
+    }
+
+    // Handicap validation
+    if params.handicap < 0 {
+        return Err(AppError::UnprocessableEntity(
+            "Handicap cannot be negative".to_string(),
+        ));
+    }
+    if params.handicap == 1 {
+        return Err(AppError::UnprocessableEntity(
+            "Handicap of 1 is not allowed (minimum is 2)".to_string(),
+        ));
+    }
+    // Check max handicap for board size
+    let max_hc = go_engine::handicap::max_handicap(params.cols as u8, params.rows as u8);
+    if params.handicap > 0 && max_hc == 0 {
+        return Err(AppError::UnprocessableEntity(
+            "Handicap is not supported for this board size".to_string(),
+        ));
+    }
+    if params.handicap > max_hc as i32 {
+        return Err(AppError::UnprocessableEntity(format!(
+            "Maximum handicap for {}x{} board is {}",
+            params.cols, params.rows, max_hc
+        )));
     }
 
     let friend = if let Some(ref username) = params.invite_username {
@@ -40,7 +77,7 @@ pub async fn create_game(
             Some(
                 User::find_by_username(pool, username)
                     .await?
-                    .ok_or_else(|| AppError::BadRequest(format!("User '{username}' not found")))?,
+                    .ok_or_else(|| AppError::UnprocessableEntity(format!("User '{username}' not found")))?,
             )
         } else {
             None
