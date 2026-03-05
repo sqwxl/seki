@@ -36,14 +36,14 @@ pub async fn create_game(
     }
 
     // Board size validation
-    if params.cols < 5 || params.cols > 19 {
+    if params.cols < 2 || params.cols > 41 {
         return Err(AppError::UnprocessableEntity(
-            "Board width must be between 5 and 19".to_string(),
+            "Board width must be between 2 and 41".to_string(),
         ));
     }
-    if params.rows < 5 || params.rows > 19 {
+    if params.rows < 2 || params.rows > 41 {
         return Err(AppError::UnprocessableEntity(
-            "Board height must be between 5 and 19".to_string(),
+            "Board height must be between 2 and 41".to_string(),
         ));
     }
 

@@ -8,12 +8,12 @@ use crate::common::TestServer;
 async fn reject_board_size_below_minimum() {
     let server = TestServer::start().await;
 
-    let resp = server.try_create_game_with(json!({"cols": 4, "rows": 9})).await;
+    let resp = server.try_create_game_with(json!({"cols": 1, "rows": 9})).await;
     assert_eq!(resp.status(), 422);
     let body: serde_json::Value = resp.json().await.unwrap();
     assert!(body["error"].as_str().unwrap().contains("width"));
 
-    let resp = server.try_create_game_with(json!({"cols": 9, "rows": 4})).await;
+    let resp = server.try_create_game_with(json!({"cols": 9, "rows": 1})).await;
     assert_eq!(resp.status(), 422);
     let body: serde_json::Value = resp.json().await.unwrap();
     assert!(body["error"].as_str().unwrap().contains("height"));
@@ -23,12 +23,12 @@ async fn reject_board_size_below_minimum() {
 async fn reject_board_size_above_maximum() {
     let server = TestServer::start().await;
 
-    let resp = server.try_create_game_with(json!({"cols": 20, "rows": 19})).await;
+    let resp = server.try_create_game_with(json!({"cols": 42, "rows": 19})).await;
     assert_eq!(resp.status(), 422);
     let body: serde_json::Value = resp.json().await.unwrap();
     assert!(body["error"].as_str().unwrap().contains("width"));
 
-    let resp = server.try_create_game_with(json!({"cols": 19, "rows": 25})).await;
+    let resp = server.try_create_game_with(json!({"cols": 19, "rows": 50})).await;
     assert_eq!(resp.status(), 422);
     let body: serde_json::Value = resp.json().await.unwrap();
     assert!(body["error"].as_str().unwrap().contains("height"));
@@ -61,12 +61,16 @@ async fn accept_valid_board_sizes() {
     let server = TestServer::start().await;
 
     // Minimum size
-    let resp = server.try_create_game_with(json!({"cols": 5, "rows": 5})).await;
-    assert!(resp.status().is_success(), "5x5 board should be valid");
+    let resp = server.try_create_game_with(json!({"cols": 2, "rows": 2})).await;
+    assert!(resp.status().is_success(), "2x2 board should be valid");
 
-    // Maximum size
+    // Standard sizes
     let resp = server.try_create_game_with(json!({"cols": 19, "rows": 19})).await;
     assert!(resp.status().is_success(), "19x19 board should be valid");
+
+    // Maximum size
+    let resp = server.try_create_game_with(json!({"cols": 41, "rows": 41})).await;
+    assert!(resp.status().is_success(), "41x41 board should be valid");
 
     // Rectangular board
     let resp = server.try_create_game_with(json!({"cols": 9, "rows": 13})).await;

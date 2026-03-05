@@ -289,7 +289,7 @@ async fn create_game(
     State(state): State<AppState>,
     api_user: ApiUser,
     Json(body): Json<CreateGameRequest>,
-) -> Result<Json<GameResponse>, ApiError> {
+) -> Result<(axum::http::StatusCode, Json<GameResponse>), ApiError> {
     let params = game_creator::CreateGameParams {
         cols: body.cols.unwrap_or(19),
         rows: body.rows.unwrap_or(19),
@@ -315,8 +315,9 @@ async fn create_game(
         .get_or_init_engine(&state.db, &gwp.game)
         .await?;
 
-    Ok(Json(
-        build_game_response(&state, game.id, &gwp, &engine).await,
+    Ok((
+        axum::http::StatusCode::CREATED,
+        Json(build_game_response(&state, game.id, &gwp, &engine).await),
     ))
 }
 

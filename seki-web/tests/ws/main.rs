@@ -1,5 +1,6 @@
 mod common;
 
+mod api;
 mod chat;
 mod disconnect;
 mod game_lifecycle;

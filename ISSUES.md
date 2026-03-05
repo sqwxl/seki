@@ -9,17 +9,17 @@
 ## 1. Auth & Sessions
 
 - [ ] Logout should redirect just like login `[test: backend:integration]`
-- [ ] Bearer token works on all authenticated API endpoints (untested) `[test: backend:integration]`
+- [x] Bearer token works on all authenticated API endpoints `[test: backend:integration]` _(api.rs: missing_auth_returns_401, invalid_token_returns_401)_
 - [ ] Token always shown on settings page — potential security issue
 
 ## 2. Game Creation
 
 ### Board Size
 
-- [x] Size outside 5-19 range rejected `[test: backend:integration]` _(validation.rs)_
+- [x] Size outside 2-41 range rejected `[test: backend:integration]` _(validation.rs)_
 - [x] API should not accept negative board dimensions (apparent overflow) `[test: backend:integration]` _(validation.rs)_
 - [x] API should not accept 0x0 board dimensions `[test: backend:integration]` _(validation.rs)_
-- [ ] API should not accept arbitrary board dimensions; should be clamped `[test: backend:integration]`
+- [x] API should not accept arbitrary board dimensions; clamped to 2-41 `[test: backend:integration]` _(api.rs: reject_board_dimensions_outside_range, accept_board_dimensions_within_range)_
 
 ### Komi
 
@@ -271,40 +271,40 @@
 
 ### Public Endpoints
 
-- [ ] `GET /api/games` lists public games (no auth needed) `[test: backend:integration]`
-- [ ] `GET /api/games/:id` returns game state `[test: backend:integration]`
-- [ ] `GET /api/games/:id/messages` returns chat messages `[test: backend:integration]`
-- [ ] `GET /api/games/:id/turns` returns move history `[test: backend:integration]`
-- [ ] `GET /api/users/:username` returns user info `[test: backend:integration]`
-- [ ] `GET /api/users/:username/games` returns user's games `[test: backend:integration]`
+- [x] `GET /api/games` lists public games (no auth needed) `[test: backend:integration]` _(api.rs: list_games_returns_public_games, list_games_no_auth_required)_
+- [x] `GET /api/games/:id` returns game state `[test: backend:integration]` _(api.rs: get_game_returns_game_state, get_game_no_auth_for_public_game)_
+- [x] `GET /api/games/:id/messages` returns chat messages `[test: backend:integration]` _(api.rs: get_messages_returns_empty_initially, send_and_get_chat_messages)_
+- [x] `GET /api/games/:id/turns` returns move history `[test: backend:integration]` _(api.rs: get_turns_returns_empty_initially, get_turns_after_moves)_
+- [x] `GET /api/users/:username` returns user info `[test: backend:integration]` _(api.rs: get_user_returns_profile)_
+- [x] `GET /api/users/:username/games` returns user's games `[test: backend:integration]` _(api.rs: get_user_games_returns_list)_
 
 ### Authenticated Endpoints
 
-- [ ] `POST /api/games` creates game `[test: backend:integration]`
-- [ ] `DELETE /api/games/:id` deletes unstarted game (creator only) `[test: backend:integration]`
-- [ ] `POST /api/games/:id/join` joins game `[test: backend:integration]`
-- [ ] `POST /api/games/:id/play` with `{col, row}` plays move `[test: backend:integration]`
-- [ ] `POST /api/games/:id/pass` passes `[test: backend:integration]`
-- [ ] `POST /api/games/:id/resign` resigns `[test: backend:integration]`
-- [ ] `POST /api/games/:id/abort` aborts `[test: backend:integration]`
-- [ ] `POST /api/games/:id/undo` requests undo `[test: backend:integration]`
-- [ ] `POST /api/games/:id/undo/respond` accepts/rejects undo `[test: backend:integration]`
+- [x] `POST /api/games` creates game `[test: backend:integration]` _(api.rs: create_game_via_api)_
+- [x] `DELETE /api/games/:id` deletes unstarted game (creator only) `[test: backend:integration]` _(api.rs: delete_unstarted_game, delete_game_only_by_creator, delete_started_game_fails)_
+- [x] `POST /api/games/:id/join` joins game `[test: backend:integration]` _(api.rs: join_game_via_api)_
+- [x] `POST /api/games/:id/play` with `{col, row}` plays move `[test: backend:integration]` _(api.rs: play_move_via_api)_
+- [x] `POST /api/games/:id/pass` passes `[test: backend:integration]` _(api.rs: pass_via_api)_
+- [x] `POST /api/games/:id/resign` resigns `[test: backend:integration]` _(api.rs: resign_via_api)_
+- [x] `POST /api/games/:id/abort` aborts `[test: backend:integration]` _(api.rs: abort_via_api)_
+- [x] `POST /api/games/:id/undo` requests undo `[test: backend:integration]` _(api.rs: request_undo_via_api)_
+- [x] `POST /api/games/:id/undo/respond` accepts/rejects undo `[test: backend:integration]` _(api.rs: respond_to_undo_via_api, respond_to_undo_reject)_
 - [ ] `POST /api/games/:id/territory/toggle` toggles dead chain `[test: backend:integration]`
 - [ ] `POST /api/games/:id/territory/approve` approves territory `[test: backend:integration]`
 - [ ] `POST /api/games/:id/accept` accepts challenge `[test: backend:integration]`
 - [ ] `POST /api/games/:id/decline` declines challenge `[test: backend:integration]`
-- [ ] `POST /api/games/:id/rematch` creates rematch `[test: backend:integration]`
-- [ ] `POST /api/games/:id/messages` sends chat `[test: backend:integration]`
-- [ ] `GET /api/me` returns current authenticated user `[test: backend:integration]`
-- [ ] Create endpoints should return 201 `[test: backend:integration]`
+- [x] `POST /api/games/:id/rematch` creates rematch `[test: backend:integration]` _(api.rs: rematch_via_api, rematch_unfinished_game_fails)_
+- [x] `POST /api/games/:id/messages` sends chat `[test: backend:integration]` _(api.rs: send_and_get_chat_messages)_
+- [x] `GET /api/me` returns current authenticated user `[test: backend:integration]` _(api.rs: get_me_returns_current_user)_
+- [x] Create endpoints should return 201 `[test: backend:integration]` _(api.rs: create_game_via_api)_
 
 ### Error Handling
 
-- [ ] 401 for missing/invalid token on authenticated endpoints `[test: backend:integration]`
-- [ ] 400 for invalid game actions (wrong turn, game over, etc.) `[test: backend:integration]`
+- [x] 401 for missing/invalid token on authenticated endpoints `[test: backend:integration]` _(api.rs: missing_auth_returns_401, invalid_token_returns_401)_
+- [x] 400 for invalid game actions (wrong turn, game over, etc.) `[test: backend:integration]` _(api.rs: wrong_turn_returns_error, non_player_cannot_play)_
 - [ ] 422 for invalid data (wrong type) `[test: backend:integration]`
-- [ ] 404 for nonexistent game/user `[test: backend:integration]`
-- [ ] JSON error responses with meaningful messages `[test: backend:integration]`
+- [x] 404 for nonexistent game/user `[test: backend:integration]` _(api.rs: get_game_404_for_nonexistent, get_user_404_for_nonexistent, play_on_nonexistent_game_returns_404, etc.)_
+- [x] JSON error responses with meaningful messages `[test: backend:integration]` _(api.rs: json_error_responses_have_error_field)_
 - [ ] Error messages have inconsistent formatting `[test: backend:integration]`
 - [ ] Error messages lack machine-readable error codes `[test: backend:integration]`
 
