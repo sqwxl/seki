@@ -291,8 +291,8 @@
 - [x] `POST /api/games/:id/undo/respond` accepts/rejects undo `[test: backend:integration]` _(api.rs: respond_to_undo_via_api, respond_to_undo_reject)_
 - [ ] `POST /api/games/:id/territory/toggle` toggles dead chain `[test: backend:integration]`
 - [ ] `POST /api/games/:id/territory/approve` approves territory `[test: backend:integration]`
-- [ ] `POST /api/games/:id/accept` accepts challenge `[test: backend:integration]`
-- [ ] `POST /api/games/:id/decline` declines challenge `[test: backend:integration]`
+- [x] `POST /api/games/:id/accept` accepts challenge `[test: backend:integration]` _(api.rs: accept_challenge_via_api, accept_challenge_game_is_playable, creator_cannot_accept_own_challenge, non_participant_cannot_accept_challenge, cannot_accept_non_challenge_game, cannot_accept_already_accepted_challenge, cannot_accept_declined_challenge, accept_challenge_on_nonexistent_game_returns_404, accept_challenge_requires_auth)_
+- [x] `POST /api/games/:id/decline` declines challenge `[test: backend:integration]` _(api.rs: decline_challenge_via_api, creator_cannot_decline_own_challenge, non_participant_cannot_decline_challenge, cannot_decline_non_challenge_game, cannot_decline_already_declined_challenge, decline_challenge_on_nonexistent_game_returns_404, decline_challenge_requires_auth)_
 - [x] `POST /api/games/:id/rematch` creates rematch `[test: backend:integration]` _(api.rs: rematch_via_api, rematch_unfinished_game_fails)_
 - [x] `POST /api/games/:id/messages` sends chat `[test: backend:integration]` _(api.rs: send_and_get_chat_messages)_
 - [x] `GET /api/me` returns current authenticated user `[test: backend:integration]` _(api.rs: get_me_returns_current_user)_

@@ -272,6 +272,13 @@ impl TestServer {
         game_id
     }
 
+    /// Create a challenge game (black invites white). Returns the game id.
+    /// The game starts in "challenge" stage — white must accept or decline.
+    pub async fn create_challenge(&self) -> i64 {
+        self.create_game_with(json!({"invite_username": "test-white"}))
+            .await
+    }
+
     /// Open a WebSocket connection authenticated as the black user.
     pub async fn ws_black(&self) -> WsClient {
         self.ws_connect(&self.jar_black).await

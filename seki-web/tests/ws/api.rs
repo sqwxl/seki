@@ -883,3 +883,357 @@ async fn accept_board_dimensions_within_range() {
     let resp = server.try_create_game_with(json!({"cols": 7, "rows": 11})).await;
     assert!(resp.status().is_success(), "7x11 should be accepted");
 }
+
+// ============================================================
+// Challenge Accept / Decline
+// ============================================================
+
+#[tokio::test]
+async fn accept_challenge_via_api() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // White (the challenged player) accepts
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_success(),
+        "accept_challenge failed: {}",
+        resp.status()
+    );
+    let body: Value = resp.json().await.unwrap();
+    assert_eq!(body["status"], "accepted");
+
+    // Verify the game is now in a playing stage
+    let resp = server
+        .client_black
+        .get(format!("http://{}/api/games/{game_id}", server.addr))
+        .send()
+        .await
+        .unwrap();
+    let game: Value = resp.json().await.unwrap();
+    let stage = game["stage"].as_str().unwrap();
+    assert!(
+        stage == "black_to_play" || stage == "white_to_play",
+        "Expected playing stage after accept, got: {stage}"
+    );
+}
+
+#[tokio::test]
+async fn accept_challenge_game_is_playable() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // Accept the challenge
+    server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+
+    // Black should be able to play a move
+    let resp = server
+        .client_black
+        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .json(&json!({"col": 4, "row": 4}))
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_success(),
+        "Should be able to play after accepting challenge: {}",
+        resp.status()
+    );
+}
+
+#[tokio::test]
+async fn creator_cannot_accept_own_challenge() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // Black (creator) tries to accept
+    let resp = server
+        .client_black
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "Creator should not be able to accept own challenge"
+    );
+}
+
+#[tokio::test]
+async fn non_participant_cannot_accept_challenge() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // Spectator tries to accept
+    let resp = server
+        .client_spectator
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-spectator-api-token-99999")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "Non-participant should not be able to accept challenge"
+    );
+}
+
+#[tokio::test]
+async fn cannot_accept_non_challenge_game() {
+    let server = TestServer::start().await;
+    // create_and_join creates a game where white joins (not a challenge)
+    let game_id = server.create_and_join().await;
+
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "Should not accept a game that is not in challenge state"
+    );
+}
+
+#[tokio::test]
+async fn cannot_accept_already_accepted_challenge() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // Accept once
+    server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+
+    // Try to accept again
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "Should not accept an already accepted challenge"
+    );
+}
+
+#[tokio::test]
+async fn decline_challenge_via_api() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // White (the challenged player) declines
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_success(),
+        "decline_challenge failed: {}",
+        resp.status()
+    );
+    let body: Value = resp.json().await.unwrap();
+    assert_eq!(body["status"], "declined");
+
+    // Verify the game is now in declined state
+    let resp = server
+        .client_black
+        .get(format!("http://{}/api/games/{game_id}", server.addr))
+        .send()
+        .await
+        .unwrap();
+    let game: Value = resp.json().await.unwrap();
+    assert_eq!(game["stage"], "declined");
+    assert_eq!(game["result"], "Declined");
+}
+
+#[tokio::test]
+async fn creator_cannot_decline_own_challenge() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // Black (creator) tries to decline
+    let resp = server
+        .client_black
+        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "Creator should not be able to decline own challenge"
+    );
+}
+
+#[tokio::test]
+async fn non_participant_cannot_decline_challenge() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // Spectator tries to decline
+    let resp = server
+        .client_spectator
+        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .header("Authorization", "Bearer test-spectator-api-token-99999")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "Non-participant should not be able to decline challenge"
+    );
+}
+
+#[tokio::test]
+async fn cannot_decline_non_challenge_game() {
+    let server = TestServer::start().await;
+    let game_id = server.create_and_join().await;
+
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "Should not decline a game that is not in challenge state"
+    );
+}
+
+#[tokio::test]
+async fn cannot_decline_already_declined_challenge() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // Decline once
+    server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+
+    // Try to decline again
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "Should not decline an already declined challenge"
+    );
+}
+
+#[tokio::test]
+async fn cannot_accept_declined_challenge() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    // Decline first
+    server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+
+    // Try to accept
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "Should not accept an already declined challenge"
+    );
+}
+
+#[tokio::test]
+async fn accept_challenge_on_nonexistent_game_returns_404() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/99999/accept", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 404);
+}
+
+#[tokio::test]
+async fn decline_challenge_on_nonexistent_game_returns_404() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/99999/decline", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 404);
+}
+
+#[tokio::test]
+async fn accept_challenge_requires_auth() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    let resp = reqwest::Client::new()
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 401);
+}
+
+#[tokio::test]
+async fn decline_challenge_requires_auth() {
+    let server = TestServer::start().await;
+    let game_id = server.create_challenge().await;
+
+    let resp = reqwest::Client::new()
+        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 401);
+}
