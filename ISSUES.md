@@ -289,8 +289,8 @@
 - [x] `POST /api/games/:id/abort` aborts `[test: backend:integration]` _(api.rs: abort_via_api)_
 - [x] `POST /api/games/:id/undo` requests undo `[test: backend:integration]` _(api.rs: request_undo_via_api)_
 - [x] `POST /api/games/:id/undo/respond` accepts/rejects undo `[test: backend:integration]` _(api.rs: respond_to_undo_via_api, respond_to_undo_reject)_
-- [ ] `POST /api/games/:id/territory/toggle` toggles dead chain `[test: backend:integration]`
-- [ ] `POST /api/games/:id/territory/approve` approves territory `[test: backend:integration]`
+- [x] `POST /api/games/:id/territory/toggle` toggles dead chain `[test: backend:integration]` _(api.rs: toggle_chain_via_api, toggle_chain_outside_territory_review, toggle_resets_approval, non_player_cannot_toggle_chain, toggle_chain_requires_auth)_
+- [x] `POST /api/games/:id/territory/approve` approves territory `[test: backend:integration]` _(api.rs: approve_territory_via_api, approve_territory_outside_territory_review, approve_territory_twice_returns_error, non_player_cannot_approve_territory, approve_territory_requires_auth)_
 - [x] `POST /api/games/:id/accept` accepts challenge `[test: backend:integration]` _(api.rs: accept_challenge_via_api, accept_challenge_game_is_playable, creator_cannot_accept_own_challenge, non_participant_cannot_accept_challenge, cannot_accept_non_challenge_game, cannot_accept_already_accepted_challenge, cannot_accept_declined_challenge, accept_challenge_on_nonexistent_game_returns_404, accept_challenge_requires_auth)_
 - [x] `POST /api/games/:id/decline` declines challenge `[test: backend:integration]` _(api.rs: decline_challenge_via_api, creator_cannot_decline_own_challenge, non_participant_cannot_decline_challenge, cannot_decline_non_challenge_game, cannot_decline_already_declined_challenge, decline_challenge_on_nonexistent_game_returns_404, decline_challenge_requires_auth)_
 - [x] `POST /api/games/:id/rematch` creates rematch `[test: backend:integration]` _(api.rs: rematch_via_api, rematch_unfinished_game_fails)_

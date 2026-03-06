@@ -361,6 +361,42 @@ impl TestServer {
             .unwrap()
     }
 
+    /// Create a game, have white join, then both pass to enter territory review.
+    /// Returns the game id.
+    pub async fn enter_territory_review(&self) -> i64 {
+        let game_id = self.create_and_join().await;
+
+        // Black passes
+        let resp = self
+            .client_black
+            .post(format!("http://{}/api/games/{game_id}/pass", self.addr))
+            .header("Authorization", "Bearer test-black-api-token-12345")
+            .send()
+            .await
+            .unwrap();
+        assert!(
+            resp.status().is_success(),
+            "black pass failed: {}",
+            resp.status()
+        );
+
+        // White passes — triggers territory review
+        let resp = self
+            .client_white
+            .post(format!("http://{}/api/games/{game_id}/pass", self.addr))
+            .header("Authorization", "Bearer test-white-api-token-67890")
+            .send()
+            .await
+            .unwrap();
+        assert!(
+            resp.status().is_success(),
+            "white pass failed: {}",
+            resp.status()
+        );
+
+        game_id
+    }
+
     async fn ws_connect(&self, jar: &Arc<Jar>) -> WsClient {
         let url = format!("ws://{}/ws", self.addr);
         let req_url = reqwest::Url::parse(&format!("http://{}", self.addr)).unwrap();

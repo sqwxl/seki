@@ -103,7 +103,10 @@ async fn get_messages_returns_empty_initially() {
 
     let resp = server
         .client_black
-        .get(format!("http://{}/api/games/{game_id}/messages", server.addr))
+        .get(format!(
+            "http://{}/api/games/{game_id}/messages",
+            server.addr
+        ))
         .send()
         .await
         .unwrap();
@@ -713,14 +716,12 @@ async fn missing_auth_returns_401() {
     let client = reqwest::Client::new();
     for (method, url) in endpoints {
         let resp = match method {
-            "POST" => {
-                client
-                    .post(&url)
-                    .json(&json!({"cols": 9, "rows": 9}))
-                    .send()
-                    .await
-                    .unwrap()
-            }
+            "POST" => client
+                .post(&url)
+                .json(&json!({"cols": 9, "rows": 9}))
+                .send()
+                .await
+                .unwrap(),
             _ => client.get(&url).send().await.unwrap(),
         };
         assert_eq!(resp.status(), 401, "Expected 401 for {method} {url}");
@@ -831,9 +832,7 @@ async fn json_error_responses_have_error_field() {
     );
 
     // 422
-    let resp = server
-        .try_create_game_with(json!({"komi": 0}))
-        .await;
+    let resp = server.try_create_game_with(json!({"komi": 0})).await;
     let body: Value = resp.json().await.unwrap();
     assert!(
         body["error"].is_string(),
@@ -850,21 +849,31 @@ async fn reject_board_dimensions_outside_range() {
     let server = TestServer::start().await;
 
     // Below minimum
-    let resp = server.try_create_game_with(json!({"cols": 1, "rows": 9})).await;
+    let resp = server
+        .try_create_game_with(json!({"cols": 1, "rows": 9}))
+        .await;
     assert_eq!(resp.status(), 422);
 
-    let resp = server.try_create_game_with(json!({"cols": 9, "rows": 0})).await;
+    let resp = server
+        .try_create_game_with(json!({"cols": 9, "rows": 0}))
+        .await;
     assert_eq!(resp.status(), 422);
 
     // Above maximum
-    let resp = server.try_create_game_with(json!({"cols": 42, "rows": 9})).await;
+    let resp = server
+        .try_create_game_with(json!({"cols": 42, "rows": 9}))
+        .await;
     assert_eq!(resp.status(), 422);
 
-    let resp = server.try_create_game_with(json!({"cols": 9, "rows": 42})).await;
+    let resp = server
+        .try_create_game_with(json!({"cols": 9, "rows": 42}))
+        .await;
     assert_eq!(resp.status(), 422);
 
     // Negative
-    let resp = server.try_create_game_with(json!({"cols": -1, "rows": 9})).await;
+    let resp = server
+        .try_create_game_with(json!({"cols": -1, "rows": 9}))
+        .await;
     assert_eq!(resp.status(), 422);
 }
 
@@ -873,14 +882,20 @@ async fn accept_board_dimensions_within_range() {
     let server = TestServer::start().await;
 
     // Boundaries
-    let resp = server.try_create_game_with(json!({"cols": 2, "rows": 2})).await;
+    let resp = server
+        .try_create_game_with(json!({"cols": 2, "rows": 2}))
+        .await;
     assert!(resp.status().is_success(), "2x2 should be accepted");
 
-    let resp = server.try_create_game_with(json!({"cols": 41, "rows": 41})).await;
+    let resp = server
+        .try_create_game_with(json!({"cols": 41, "rows": 41}))
+        .await;
     assert!(resp.status().is_success(), "41x41 should be accepted");
 
     // Unconventional size within range
-    let resp = server.try_create_game_with(json!({"cols": 7, "rows": 11})).await;
+    let resp = server
+        .try_create_game_with(json!({"cols": 7, "rows": 11}))
+        .await;
     assert!(resp.status().is_success(), "7x11 should be accepted");
 }
 
@@ -1047,7 +1062,10 @@ async fn decline_challenge_via_api() {
     // White (the challenged player) declines
     let resp = server
         .client_white
-        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/decline",
+            server.addr
+        ))
         .header("Authorization", "Bearer test-white-api-token-67890")
         .send()
         .await
@@ -1080,7 +1098,10 @@ async fn creator_cannot_decline_own_challenge() {
     // Black (creator) tries to decline
     let resp = server
         .client_black
-        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/decline",
+            server.addr
+        ))
         .header("Authorization", "Bearer test-black-api-token-12345")
         .send()
         .await
@@ -1099,7 +1120,10 @@ async fn non_participant_cannot_decline_challenge() {
     // Spectator tries to decline
     let resp = server
         .client_spectator
-        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/decline",
+            server.addr
+        ))
         .header("Authorization", "Bearer test-spectator-api-token-99999")
         .send()
         .await
@@ -1117,7 +1141,10 @@ async fn cannot_decline_non_challenge_game() {
 
     let resp = server
         .client_white
-        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/decline",
+            server.addr
+        ))
         .header("Authorization", "Bearer test-white-api-token-67890")
         .send()
         .await
@@ -1136,7 +1163,10 @@ async fn cannot_decline_already_declined_challenge() {
     // Decline once
     server
         .client_white
-        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/decline",
+            server.addr
+        ))
         .header("Authorization", "Bearer test-white-api-token-67890")
         .send()
         .await
@@ -1145,7 +1175,10 @@ async fn cannot_decline_already_declined_challenge() {
     // Try to decline again
     let resp = server
         .client_white
-        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/decline",
+            server.addr
+        ))
         .header("Authorization", "Bearer test-white-api-token-67890")
         .send()
         .await
@@ -1164,7 +1197,10 @@ async fn cannot_accept_declined_challenge() {
     // Decline first
     server
         .client_white
-        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/decline",
+            server.addr
+        ))
         .header("Authorization", "Bearer test-white-api-token-67890")
         .send()
         .await
@@ -1231,7 +1267,299 @@ async fn decline_challenge_requires_auth() {
     let game_id = server.create_challenge().await;
 
     let resp = reqwest::Client::new()
-        .post(format!("http://{}/api/games/{game_id}/decline", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/decline",
+            server.addr
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 401);
+}
+
+// ============================================================
+// Territory Review
+// ============================================================
+
+#[tokio::test]
+async fn toggle_chain_via_api() {
+    let server = TestServer::start().await;
+    let game_id = server.enter_territory_review().await;
+
+    // Toggle a chain (the board is empty, but the endpoint should still succeed)
+    let resp = server
+        .client_black
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/toggle",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .json(&json!({"col": 0, "row": 0}))
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_success(),
+        "toggle_chain failed: {}",
+        resp.status()
+    );
+    let body: Value = resp.json().await.unwrap();
+    assert_eq!(body["stage"], "territory_review");
+    assert!(
+        body["territory"].is_object(),
+        "expected territory in response"
+    );
+    // After toggle, both approvals should be reset
+    assert_eq!(body["territory"]["black_approved"], false);
+    assert_eq!(body["territory"]["white_approved"], false);
+}
+
+#[tokio::test]
+async fn approve_territory_via_api() {
+    let server = TestServer::start().await;
+    let game_id = server.enter_territory_review().await;
+
+    // Black approves
+    let resp = server
+        .client_black
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/approve",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_success(),
+        "black approve failed: {}",
+        resp.status()
+    );
+    let body: Value = resp.json().await.unwrap();
+    assert_eq!(body["territory"]["black_approved"], true);
+    assert_eq!(body["territory"]["white_approved"], false);
+    assert_eq!(body["stage"], "territory_review");
+
+    // White approves — game should settle
+    let resp = server
+        .client_white
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/approve",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_success(),
+        "white approve failed: {}",
+        resp.status()
+    );
+    let body: Value = resp.json().await.unwrap();
+    assert_eq!(body["stage"], "completed");
+    assert!(
+        body["result"].is_string(),
+        "expected result after settlement"
+    );
+}
+
+#[tokio::test]
+async fn toggle_resets_approval() {
+    let server = TestServer::start().await;
+    let game_id = server.enter_territory_review().await;
+
+    // Black approves
+    server
+        .client_black
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/approve",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .send()
+        .await
+        .unwrap();
+
+    // White toggles a chain — should reset both approvals
+    let resp = server
+        .client_white
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/toggle",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .json(&json!({"col": 0, "row": 0}))
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success());
+    let body: Value = resp.json().await.unwrap();
+    assert_eq!(body["territory"]["black_approved"], false);
+    assert_eq!(body["territory"]["white_approved"], false);
+    assert_eq!(body["stage"], "territory_review");
+}
+
+#[tokio::test]
+async fn toggle_chain_outside_territory_review() {
+    let server = TestServer::start().await;
+    let game_id = server.create_and_join().await;
+
+    // Game is in play stage, not territory review
+    let resp = server
+        .client_black
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/toggle",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .json(&json!({"col": 0, "row": 0}))
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "toggle should fail outside territory review"
+    );
+    let body: Value = resp.json().await.unwrap();
+    assert!(
+        body["error"].as_str().unwrap().contains("territory review"),
+        "expected territory review error, got: {}",
+        body["error"]
+    );
+}
+
+#[tokio::test]
+async fn approve_territory_outside_territory_review() {
+    let server = TestServer::start().await;
+    let game_id = server.create_and_join().await;
+
+    let resp = server
+        .client_black
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/approve",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "approve should fail outside territory review"
+    );
+}
+
+#[tokio::test]
+async fn approve_territory_twice_returns_error() {
+    let server = TestServer::start().await;
+    let game_id = server.enter_territory_review().await;
+
+    // Black approves once
+    server
+        .client_black
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/approve",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .send()
+        .await
+        .unwrap();
+
+    // Black tries to approve again
+    let resp = server
+        .client_black
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/approve",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "double approve should fail"
+    );
+    let body: Value = resp.json().await.unwrap();
+    assert!(
+        body["error"].as_str().unwrap().contains("already approved"),
+        "expected already approved error, got: {}",
+        body["error"]
+    );
+}
+
+#[tokio::test]
+async fn non_player_cannot_toggle_chain() {
+    let server = TestServer::start().await;
+    let game_id = server.enter_territory_review().await;
+
+    let resp = server
+        .client_spectator
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/toggle",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-spectator-api-token-99999")
+        .json(&json!({"col": 0, "row": 0}))
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "non-player should not be able to toggle chain"
+    );
+}
+
+#[tokio::test]
+async fn non_player_cannot_approve_territory() {
+    let server = TestServer::start().await;
+    let game_id = server.enter_territory_review().await;
+
+    let resp = server
+        .client_spectator
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/approve",
+            server.addr
+        ))
+        .header("Authorization", "Bearer test-spectator-api-token-99999")
+        .send()
+        .await
+        .unwrap();
+    assert!(
+        resp.status().is_client_error(),
+        "non-player should not be able to approve territory"
+    );
+}
+
+#[tokio::test]
+async fn toggle_chain_requires_auth() {
+    let server = TestServer::start().await;
+    let game_id = server.enter_territory_review().await;
+
+    let resp = reqwest::Client::new()
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/toggle",
+            server.addr
+        ))
+        .json(&json!({"col": 0, "row": 0}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 401);
+}
+
+#[tokio::test]
+async fn approve_territory_requires_auth() {
+    let server = TestServer::start().await;
+    let game_id = server.enter_territory_review().await;
+
+    let resp = reqwest::Client::new()
+        .post(format!(
+            "http://{}/api/games/{game_id}/territory/approve",
+            server.addr
+        ))
         .send()
         .await
         .unwrap();
