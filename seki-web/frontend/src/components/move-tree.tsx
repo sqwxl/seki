@@ -212,7 +212,9 @@ export function MoveTree({
     const isCurrent = node.id === currentNodeId;
     const stone = treeNode.turn.stone;
     const isPass = treeNode.turn.kind === "pass";
-    const isFinalized = finalizedNodeIds?.has(node.id) ?? false;
+    const isScoreAgreed = treeNode.turn.kind === "score_agreed";
+    const isFinalized =
+      isScoreAgreed || (finalizedNodeIds?.has(node.id) ?? false);
 
     const isRoot = stone === 0;
     const onPath = isRoot || activePath.has(node.id);

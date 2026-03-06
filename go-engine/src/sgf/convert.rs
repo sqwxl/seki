@@ -251,8 +251,9 @@ fn build_sgf_line(tree: &GameTree, start: NodeId) -> (Vec<sgf::Node>, Vec<sgf::G
 
     loop {
         let node = tree.node(current);
-        let sgf_node = turn_to_sgf_node(&node.turn);
-        nodes.push(sgf_node);
+        if let Some(sgf_node) = turn_to_sgf_node(&node.turn) {
+            nodes.push(sgf_node);
+        }
 
         let children = tree.children_of(Some(current));
         match children.len() {
@@ -292,17 +293,20 @@ fn build_sgf_line(tree: &GameTree, start: NodeId) -> (Vec<sgf::Node>, Vec<sgf::G
     }
 }
 
-/// Convert a Turn into an SGF Node.
-fn turn_to_sgf_node(turn: &Turn) -> sgf::Node {
+/// Convert a Turn into an SGF Node. Returns None for non-move turns (e.g. ScoreAgreed).
+fn turn_to_sgf_node(turn: &Turn) -> Option<sgf::Node> {
+    if turn.is_score_agreed() {
+        return None;
+    }
     let prop = match (turn.stone, turn.pos) {
         (Stone::Black, Some(pt)) => Property::Black(Some(pt)),
         (Stone::Black, None) => Property::Black(None),
         (Stone::White, Some(pt)) => Property::White(Some(pt)),
         (Stone::White, None) => Property::White(None),
     };
-    sgf::Node {
+    Some(sgf::Node {
         properties: vec![prop],
-    }
+    })
 }
 
 #[cfg(test)]

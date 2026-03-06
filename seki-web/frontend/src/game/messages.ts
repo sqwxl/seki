@@ -17,6 +17,7 @@ import {
   analysisMode,
   undoResponseNeeded,
   territory,
+  settledTerritory,
   opponentDisconnected,
   black,
   white,
@@ -122,6 +123,11 @@ export function handleGameMessage(
       }
 
       syncBoardMoves(isLiveUpdate, deps.gobanEl(), onNewMove);
+      // Append score_agreed terminator when territory is settled
+      if (settledTerritory.value && board.value) {
+        board.value.appendScoreAgreed(settledTerritory.value.dead_stones);
+        board.value.render();
+      }
       markRead(gameId.value);
       if (isLiveUpdate) {
         updateTurnFlash();

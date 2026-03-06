@@ -79,7 +79,7 @@ impl Replay {
             Move::Pass => {
                 let _ = self.engine.try_pass(turn.stone);
             }
-            Move::Resign => {}
+            Move::Resign | Move::ScoreAgreed => {}
         }
     }
 
@@ -235,6 +235,18 @@ impl Replay {
         } else {
             false
         }
+    }
+
+    /// Add a score-agreed marker node as a child of the current node.
+    /// Returns the new node ID, or None if not in territory review.
+    pub fn score_agreed(&mut self) -> Option<NodeId> {
+        let stone = self.engine.current_turn_stone();
+        let turn = Turn::score_agreed(stone);
+        self.history.push(self.engine.clone());
+        let new_id = self.tree.add_child(self.current, turn);
+        self.current = Some(new_id);
+        self.path = self.tree.path_to(new_id);
+        Some(new_id)
     }
 
     /// Remove a node and all its descendants from the tree.

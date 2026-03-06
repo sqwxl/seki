@@ -55,6 +55,11 @@ impl WasmEngine {
         self.inner.undo()
     }
 
+    /// Add a score-agreed marker node. Returns the new node ID, or -1 on failure.
+    pub fn score_agreed(&mut self) -> i32 {
+        self.inner.score_agreed().map_or(-1, |id| id as i32)
+    }
+
     // -- Navigation (delegate to Replay) --
 
     pub fn back(&mut self) -> bool {

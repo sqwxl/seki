@@ -225,7 +225,7 @@ impl Engine {
     pub fn stage(&self) -> Stage {
         if self.moves.is_empty() {
             Stage::Unstarted
-        } else if self.result.is_some() {
+        } else if self.result.is_some() || self.moves.last().is_some_and(|t| t.is_score_agreed()) {
             Stage::Completed
         } else if matches!(
             self.moves.as_slice(),

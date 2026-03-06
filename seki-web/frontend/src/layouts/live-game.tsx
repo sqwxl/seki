@@ -433,6 +433,10 @@ export function liveGame(
       resetMovesTracker(moves.value.length);
       board.value.updateBaseMoves(movesJson);
     }
+    // Append score_agreed terminator for games that ended via territory
+    if (settledTerritory.value) {
+      board.value.appendScoreAgreed(settledTerritory.value.dead_stones);
+    }
     // Auto-restore analysis branches from localStorage
     if (storage.get(analysisKey)) {
       enterAnalysis();

@@ -275,6 +275,7 @@ export type Board = {
   finalizeTerritoryReview: () => ScoreData | undefined;
   isTerritoryReview: () => boolean;
   isFinalized: () => boolean;
+  appendScoreAgreed: (deadStones: [number, number][]) => void;
   exportSnapshot: () => string;
   importSnapshot: (json: string) => void;
   destroy: () => void;
@@ -493,16 +494,30 @@ class BoardController implements Board {
     if (!this.territoryState) {
       return undefined;
     }
-    const nodeId = this.engine.current_node_id();
-    if (nodeId < 0) {
+    const score = this.territoryState.score;
+    const deadStones = this.territoryState.deadStones;
+    // Create a score_agreed node as a child of the current node
+    const newNodeId = this.engine.score_agreed();
+    if (newNodeId < 0) {
       return undefined;
     }
-    const score = this.territoryState.score;
-    this.finalizedNodes.set(nodeId, this.territoryState.deadStones);
+    this.finalizedNodes.set(newNodeId, deadStones);
     this.saveFinalizedNodes();
     this.territoryState = undefined;
+    invalidateTreeCache();
+    this.save();
     this.render();
     return score;
+  }
+
+  appendScoreAgreed(deadStones: [number, number][]): void {
+    const newNodeId = this.engine.score_agreed();
+    if (newNodeId < 0) {
+      return;
+    }
+    this.finalizedNodes.set(newNodeId, deadStones);
+    this.saveFinalizedNodes();
+    invalidateTreeCache();
   }
 
   isTerritoryReview(): boolean {
