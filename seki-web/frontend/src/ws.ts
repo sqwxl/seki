@@ -163,4 +163,19 @@ function isGameActive(gameId: number): boolean {
   return gameHandlers.has(gameId);
 }
 
-export { ensureConnected, subscribe, send, joinGame, isGameActive };
+/**
+ * Subscribe to presence updates for specific user IDs.
+ * Server responds with "presence_state" and pushes "presence_changed" thereafter.
+ */
+function subscribePresence(userIds: number[]): void {
+  send({ action: "subscribe_presence", user_ids: userIds });
+}
+
+export {
+  ensureConnected,
+  subscribe,
+  send,
+  joinGame,
+  isGameActive,
+  subscribePresence,
+};

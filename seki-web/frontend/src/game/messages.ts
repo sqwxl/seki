@@ -170,10 +170,6 @@ export function handleGameMessage(
       undoResponseNeeded.value = true;
       break;
     }
-    case "presence": {
-      setPresence(data.player_id, data.online, data.user);
-      break;
-    }
     case "player_disconnected": {
       setPresence(data.user_id, false);
       if (isOpponent(data.user_id)) {

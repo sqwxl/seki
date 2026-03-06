@@ -129,14 +129,17 @@ export type StateMessage = {
   territory?: TerritoryData;
   settled_territory?: SettledTerritoryData;
   clock?: ClockData;
-  online_users?: UserData[];
 };
 
-export type PresenceMessage = {
-  kind: "presence";
-  player_id: number;
+export type PresenceChangedMessage = {
+  kind: "presence_changed";
+  user_id: number;
   online: boolean;
-  user?: UserData;
+};
+
+export type PresenceStateMessage = {
+  kind: "presence_state";
+  users: Record<string, boolean>;
 };
 
 export type ChatMessage = {
@@ -241,7 +244,6 @@ export type IncomingMessage =
   | StateMessage
   | ChatMessage
   | ErrorMessage
-  | PresenceMessage
   | UndoAcceptedMessage
   | UndoRejectedMessage
   | UndoRequestSentMessage

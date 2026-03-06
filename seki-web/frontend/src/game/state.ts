@@ -215,21 +215,6 @@ export function applyGameStateMessage(data: StateMessage): void {
         playerStone.value = -1;
       }
     }
-    if (data.online_users) {
-      const map = new Map<number, UserData>();
-      for (const u of data.online_users) {
-        map.set(u.id, u);
-      }
-      onlineUsers.value = map;
-      // Reconcile: clear disconnect signal if opponent is back online
-      if (opponentDisconnected.value) {
-        const oppId =
-          playerStone.value === 1 ? white.value?.id : black.value?.id;
-        if (oppId != null && map.has(oppId)) {
-          opponentDisconnected.value = undefined;
-        }
-      }
-    }
     if (approvalMessages.length > 0) {
       chatMessages.value = [...chatMessages.value, ...approvalMessages];
     }

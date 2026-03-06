@@ -9,7 +9,7 @@ import { readShowCoordinates } from "../utils/coord-toggle";
 import { createMoveConfirm } from "../utils/move-confirm";
 import { storage, gameAnalysisKey } from "../utils/storage";
 import { settingsToSgfTime } from "../utils/format";
-import { joinGame } from "../ws";
+import { joinGame, subscribe, subscribePresence } from "../ws";
 import { createGameChannel } from "../game/channel";
 import { updateTurnFlash, updateTitle } from "../game/ui";
 import type { TerritoryCountdown } from "../game/ui";
@@ -21,6 +21,7 @@ import { markRead } from "../game/unread";
 import { playStoneSound, playPassSound } from "../game/sound";
 import { downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
+import type { UserData } from "../game/types";
 import {
   initGameState,
   gameState,
@@ -35,6 +36,7 @@ import {
   analysisMode,
   estimateMode,
   opponentDisconnected,
+  onlineUsers,
   board,
   playerStone,
   currentUserId,
@@ -48,6 +50,7 @@ import {
   originatorId,
   navState,
   mobileTab,
+  setPresence,
 } from "../game/state";
 import {
   gamePhase,
@@ -567,6 +570,50 @@ export function liveGame(
   };
   markRead(gameId);
   joinGame(gameId, (raw) => handleGameMessage(raw, deps));
+
+  // --- Presence subscriptions (lobby-level, no game_id) ---
+  subscribe<{ users: Record<string, boolean> }>("presence_state", (data) => {
+    const map = new Map<number, UserData>();
+    for (const [idStr, online] of Object.entries(data.users)) {
+      const id = Number(idStr);
+      if (online) {
+        const userData =
+          black.value?.id === id
+            ? black.value
+            : white.value?.id === id
+              ? white.value
+              : undefined;
+        if (userData) {
+          map.set(id, userData);
+        }
+      }
+    }
+    onlineUsers.value = map;
+  });
+  subscribe<{ user_id: number; online: boolean }>(
+    "presence_changed",
+    (data) => {
+      const userData =
+        black.value?.id === data.user_id
+          ? black.value
+          : white.value?.id === data.user_id
+            ? white.value
+            : undefined;
+      setPresence(data.user_id, data.online, userData ?? undefined);
+      if (data.online) {
+        const myStone = playerStone.value;
+        const oppId =
+          myStone === 1
+            ? white.value?.id
+            : myStone === -1
+              ? black.value?.id
+              : undefined;
+        if (oppId === data.user_id) {
+          opponentDisconnected.value = undefined;
+        }
+      }
+    },
+  );
 
   // --- Disconnect abort timer ---
   // Re-render after each possible abort threshold so the button appears
