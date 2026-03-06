@@ -1,104 +1,123 @@
 use std::time::Duration;
 
+use serde_json::json;
+
 use crate::common::TestServer;
 
 #[tokio::test]
-async fn join_broadcasts_presence() {
+async fn subscribe_presence_returns_current_state() {
     let server = TestServer::start().await;
-    let game_id = server.create_and_join().await;
 
-    // Black connects and joins the game room.
     let mut black = server.ws_black().await;
-    let _init_b = black.recv_kind("init").await;
-    let _state_b = black.join_game(game_id).await;
-    // Note: black's own presence(online=true) was broadcast on join, but
-    // join_game() internally calls recv_kind("state") which skips past it.
+    let _init = black.recv_kind("init").await;
 
-    // White connects and joins.
-    let mut white = server.ws_white().await;
-    let _init_w = white.recv_kind("init").await;
-    let _state_w = white.join_game(game_id).await;
+    // Subscribe to white's presence (white is offline)
+    black
+        .send(json!({"action": "subscribe_presence", "user_ids": [server.white_id]}))
+        .await;
+    let state = black.recv_kind("presence_state").await;
+    assert_eq!(state["users"][server.white_id.to_string()], false);
 
-    // Black should receive a presence message for white coming online.
-    let presence = black.recv_kind("presence").await;
-    assert_eq!(presence["player_id"], server.white_id);
-    assert_eq!(presence["online"], true);
+    // White connects
+    let _white = server.ws_white().await;
+
+    // Black should get presence_changed(online)
+    let changed = black.recv_kind("presence_changed").await;
+    assert_eq!(changed["user_id"], server.white_id);
+    assert_eq!(changed["online"], true);
 }
 
 #[tokio::test]
-async fn disconnect_broadcasts_offline() {
+async fn disconnect_notifies_subscribers() {
+    let server = TestServer::start().await;
+
+    let mut black = server.ws_black().await;
+    let _init_b = black.recv_kind("init").await;
+
+    let white = server.ws_white().await;
+
+    // Subscribe to white's presence (white is online)
+    black
+        .send(json!({"action": "subscribe_presence", "user_ids": [server.white_id]}))
+        .await;
+    let state = black.recv_kind("presence_state").await;
+    assert_eq!(state["users"][server.white_id.to_string()], true);
+
+    // Drop white
+    drop(white);
+
+    // Black should get presence_changed(offline)
+    let changed = black.recv_kind("presence_changed").await;
+    assert_eq!(changed["user_id"], server.white_id);
+    assert_eq!(changed["online"], false);
+}
+
+#[tokio::test]
+async fn join_game_auto_subscribes_to_players() {
     let server = TestServer::start().await;
     let game_id = server.create_and_join().await;
 
-    // Both players connect and join.
+    // Black connects and joins the game room — auto-subscribes to both players
     let mut black = server.ws_black().await;
-    let mut white = server.ws_white().await;
-    let _init_b = black.recv_kind("init").await;
-    let _init_w = white.recv_kind("init").await;
-    let _state_b = black.join_game(game_id).await;
-    let _state_w = white.join_game(game_id).await;
+    let _init = black.recv_kind("init").await;
+    let _state = black.join_game(game_id).await;
 
-    // Drain the presence message black received when white joined.
-    let _ = black.recv_kind("presence").await;
+    // Should receive presence_state from auto-subscribe
+    let ps = black.recv_kind("presence_state").await;
+    assert!(ps["users"].is_object());
+    // Black is online (we're connected), white is offline (not connected via WS)
+    assert_eq!(ps["users"][server.black_id.to_string()], true);
+    assert_eq!(ps["users"][server.white_id.to_string()], false);
 
-    // Drop white to disconnect.
-    drop(white);
+    // White connects
+    let mut _white = server.ws_white().await;
 
-    // Black should receive an offline presence for white.
-    let presence = black.recv_kind("presence").await;
-    assert_eq!(presence["player_id"], server.white_id);
-    assert_eq!(presence["online"], false);
+    // Black should get presence_changed for white coming online
+    let changed = black.recv_kind("presence_changed").await;
+    assert_eq!(changed["user_id"], server.white_id);
+    assert_eq!(changed["online"], true);
 }
 
 #[tokio::test]
 async fn multiple_connections_no_false_offline() {
     let server = TestServer::start().await;
-    let game_id = server.create_and_join().await;
 
-    // White connects first as the observer.
-    let mut white = server.ws_white().await;
-    let _init_w = white.recv_kind("init").await;
-    let _state_w = white.join_game(game_id).await;
+    let mut observer = server.ws_black().await;
+    let _init = observer.recv_kind("init").await;
 
-    // Black connects twice (simulating two browser tabs).
-    let mut black1 = server.ws_black().await;
-    let _init_b1 = black1.recv_kind("init").await;
-    let _state_b1 = black1.join_game(game_id).await;
+    // Subscribe to white
+    observer
+        .send(json!({"action": "subscribe_presence", "user_ids": [server.white_id]}))
+        .await;
+    let _ = observer.recv_kind("presence_state").await;
 
-    // White receives presence(black, online=true) from black1 joining.
-    let p = white.recv_kind("presence").await;
-    assert_eq!(p["player_id"], server.black_id);
-    assert_eq!(p["online"], true);
+    // White connects — observer gets presence_changed(online)
+    let white1 = server.ws_white().await;
+    let changed = observer.recv_kind("presence_changed").await;
+    assert_eq!(changed["user_id"], server.white_id);
+    assert_eq!(changed["online"], true);
 
-    let mut black2 = server.ws_black().await;
-    let _init_b2 = black2.recv_kind("init").await;
-    let _state_b2 = black2.join_game(game_id).await;
+    // White connects second tab — observer gets another presence_changed(online)
+    let white2 = server.ws_white().await;
+    let changed2 = observer.recv_kind("presence_changed").await;
+    assert_eq!(changed2["user_id"], server.white_id);
+    assert_eq!(changed2["online"], true);
 
-    // White receives another presence(black, online=true) from black2 joining.
-    let p = white.recv_kind("presence").await;
-    assert_eq!(p["player_id"], server.black_id);
-    assert_eq!(p["online"], true);
-
-    // Drop the first black connection.
-    drop(black1);
-
-    // White should NOT receive an offline presence because black2 is still connected.
-    // Verify by waiting briefly and confirming no message arrives.
+    // Drop first connection — no offline expected because second is still alive
+    drop(white1);
     let no_msg = tokio::time::timeout(
-        Duration::from_millis(500),
-        white.recv_timeout(Duration::from_secs(3)),
+        Duration::from_millis(200),
+        observer.recv_timeout(Duration::from_secs(1)),
     )
     .await;
     assert!(
         no_msg.is_err(),
-        "should not receive offline while second connection exists"
+        "should not get offline while second tab exists"
     );
 
-    // Drop the second (last) black connection.
-    drop(black2);
-
-    // NOW white should receive presence(black, online=false).
-    let p = white.recv_kind("presence").await;
-    assert_eq!(p["player_id"], server.black_id);
-    assert_eq!(p["online"], false);
+    // Drop second (last) connection — offline expected
+    drop(white2);
+    let changed = observer.recv_kind("presence_changed").await;
+    assert_eq!(changed["user_id"], server.white_id);
+    assert_eq!(changed["online"], false);
 }
