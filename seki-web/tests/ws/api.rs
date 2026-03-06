@@ -1565,3 +1565,40 @@ async fn approve_territory_requires_auth() {
         .unwrap();
     assert_eq!(resp.status(), 401);
 }
+
+// ============================================================
+// Auth: Logout
+// ============================================================
+
+#[tokio::test]
+async fn logout_html_redirects() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .client_black
+        .post(format!("http://{}/logout", server.addr))
+        .send()
+        .await
+        .unwrap();
+    // Should be a 303 See Other redirect (client has redirect policy none)
+    assert_eq!(resp.status(), 303);
+}
+
+#[tokio::test]
+async fn logout_json_returns_redirect_field() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .client_black
+        .post(format!("http://{}/logout", server.addr))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.unwrap();
+    assert!(
+        body["redirect"].is_string(),
+        "expected redirect field in JSON response"
+    );
+}

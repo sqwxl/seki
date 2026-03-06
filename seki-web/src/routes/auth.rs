@@ -305,9 +305,14 @@ pub async fn logout(
             .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
     }
 
+    let json = wants_json(&headers);
     let redirect = referer_path(&headers);
     let target = if redirect.is_empty() { "/" } else { &redirect };
-    let mut response = Redirect::to(target).into_response();
+    let mut response = if json {
+        axum::Json(json!({"redirect": target})).into_response()
+    } else {
+        Redirect::to(target).into_response()
+    };
     // Clear the anon cookie regardless
     response.headers_mut().insert(
         axum::http::header::SET_COOKIE,

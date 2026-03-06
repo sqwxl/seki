@@ -8,7 +8,7 @@
 
 ## 1. Auth & Sessions
 
-- [ ] Logout should redirect just like login `[test: backend:integration]`
+- [x] Logout should redirect just like login `[test: backend:integration]` _(api.rs: logout_html_redirects, logout_json_returns_redirect_field)_
 - [x] Bearer token works on all authenticated API endpoints `[test: backend:integration]` _(api.rs: missing_auth_returns_401, invalid_token_returns_401)_
 - [ ] Token always shown on settings page — potential security issue
 
