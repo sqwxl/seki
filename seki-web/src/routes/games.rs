@@ -333,16 +333,7 @@ pub async fn join_game(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let online_users = crate::ws::game_channel::get_online_players(&state, &gwp).await;
-    let game_state = state_serializer::serialize_state(
-        &gwp,
-        &engine,
-        false,
-        None,
-        None,
-        clock_ref,
-        &online_users,
-    );
+    let game_state = state_serializer::serialize_state(&gwp, &engine, false, None, None, clock_ref);
     state.registry.broadcast(id, &game_state.to_string()).await;
 
     crate::services::live::notify_game_created(&state, &gwp);

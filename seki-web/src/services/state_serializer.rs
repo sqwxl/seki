@@ -89,7 +89,6 @@ pub fn serialize_state(
     territory: Option<&TerritoryData>,
     settled_territory: Option<&SettledTerritoryData>,
     clock: Option<(&ClockState, &TimeControl)>,
-    online_users: &[UserData],
 ) -> serde_json::Value {
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
     // for terminal states (done), challenges, and started-but-no-moves games.
@@ -173,8 +172,6 @@ pub fn serialize_state(
         let active_stone = clock::active_stone_from_stage(&stage_str);
         val["clock"] = clock_state.to_json(time_control, active_stone);
     }
-
-    val["online_users"] = json!(online_users);
 
     val
 }
