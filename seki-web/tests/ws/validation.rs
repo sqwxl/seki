@@ -248,3 +248,52 @@ async fn accept_half_integer_komi() {
     let resp = server.try_create_game_with(json!({"komi": -0.5})).await;
     assert!(resp.status().is_success(), "komi -0.5 should be valid");
 }
+
+// -- Required Fields --
+
+#[tokio::test]
+async fn missing_komi_rejected() {
+    let server = TestServer::start().await;
+
+    // Send without komi — should fail deserialization
+    let resp = server
+        .client_black
+        .post(format!("http://{}/api/games", server.addr))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .json(&json!({"cols": 9, "handicap": 0, "color": "black"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 422);
+}
+
+#[tokio::test]
+async fn rows_defaults_to_cols() {
+    let server = TestServer::start().await;
+
+    let resp = server.try_create_game_with(json!({"cols": 13})).await;
+    assert!(resp.status().is_success());
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(body["cols"], 13);
+    assert_eq!(body["rows"], 13, "rows should default to cols");
+}
+
+#[tokio::test]
+async fn is_private_defaults_to_false() {
+    let server = TestServer::start().await;
+
+    let resp = server.try_create_game_with(json!({})).await;
+    assert!(resp.status().is_success());
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(body["is_private"], false);
+}
+
+#[tokio::test]
+async fn allow_undo_defaults_to_true() {
+    let server = TestServer::start().await;
+
+    let resp = server.try_create_game_with(json!({})).await;
+    assert!(resp.status().is_success());
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(body["allow_undo"], true);
+}

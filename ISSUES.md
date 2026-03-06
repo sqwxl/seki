@@ -23,9 +23,8 @@
 
 ### Komi
 
-- [ ] Default komi works (6.5 for no handicap) `[test: backend:unit]`
+- [x] Komi is a required parameter; frontend defaults to 6.5 `[test: backend:integration]` _(validation.rs: missing_komi_rejected)_
 - [x] Integer komi rejected (0, 1, -1) `[test: backend:integration]` _(validation.rs)_
-- [ ] Default komi in form is 0.5; consider changing default with board size
 - [x] Integer komi should be rejected via both web and API `[test: backend:integration]` _(validation.rs: komi must be half-integer)_
 
 ### Handicap

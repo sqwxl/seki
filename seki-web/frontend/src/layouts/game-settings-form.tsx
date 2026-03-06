@@ -36,7 +36,7 @@ type Settings = {
 
 const DEFAULTS: Settings = {
   cols: 19,
-  komi: 0.5,
+  komi: 6.5,
   handicap: 1,
   color: "black",
   allowUndo: false,

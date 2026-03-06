@@ -68,9 +68,9 @@ pub async fn list_games(
 
 #[derive(Deserialize)]
 pub struct CreateGameForm {
-    pub cols: Option<i32>,
-    pub komi: Option<f64>,
-    pub handicap: Option<i32>,
+    pub cols: i32,
+    pub komi: f64,
+    pub handicap: i32,
     pub is_private: Option<String>,
     pub allow_undo: Option<String>,
     pub color: Option<String>,
@@ -90,7 +90,7 @@ pub async fn create_game(
     current_user: CurrentUser,
     Form(form): Form<CreateGameForm>,
 ) -> Result<Response, AppError> {
-    let cols = form.cols.unwrap_or(19);
+    let cols = form.cols;
     let time_control = match form.time_control.as_deref() {
         Some("fischer") => TimeControlType::Fischer,
         Some("byoyomi") => TimeControlType::Byoyomi,
@@ -121,8 +121,8 @@ pub async fn create_game(
     let params = CreateGameParams {
         cols,
         rows: cols, // TODO: support non-square boards?
-        komi: form.komi.unwrap_or(0.5),
-        handicap: form.handicap.unwrap_or(0),
+        komi: form.komi,
+        handicap: form.handicap,
         is_private: form.is_private.as_deref() == Some("true"),
         allow_undo: form.allow_undo.as_deref() == Some("true"),
         color: form.color.unwrap_or_else(|| "black".to_string()),

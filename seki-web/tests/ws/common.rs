@@ -200,7 +200,8 @@ impl TestServer {
             .header("Authorization", "Bearer test-black-api-token-12345")
             .json(&json!({
                 "cols": 9,
-                "rows": 9,
+                "komi": 6.5,
+                "handicap": 0,
                 "color": "black",
             }))
             .send()
@@ -235,7 +236,9 @@ impl TestServer {
 
     /// Create a game with custom settings via the API.
     pub async fn create_game_with(&self, opts: Value) -> i64 {
-        let mut body = json!({"cols": 9, "rows": 9, "color": "black"});
+        let mut body = json!({
+            "cols": 9, "komi": 6.5, "handicap": 0, "color": "black",
+        });
         if let Some(obj) = opts.as_object() {
             for (k, v) in obj {
                 body[k] = v.clone();
@@ -346,7 +349,9 @@ impl TestServer {
 
     /// Create a game via the API expecting an error.
     pub async fn try_create_game_with(&self, opts: Value) -> reqwest::Response {
-        let mut body = json!({"cols": 9, "rows": 9, "color": "black"});
+        let mut body = json!({
+            "cols": 9, "komi": 6.5, "handicap": 0, "color": "black",
+        });
         if let Some(obj) = opts.as_object() {
             for (k, v) in obj {
                 body[k] = v.clone();

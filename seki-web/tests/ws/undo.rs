@@ -116,8 +116,9 @@ async fn reject_undo() {
 #[tokio::test]
 async fn undo_disabled() {
     let server = TestServer::start().await;
-    // Default settings: allow_undo is false
-    let game_id = server.create_and_join().await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": false}))
+        .await;
 
     let mut black = server.ws_black().await;
     let mut white = server.ws_white().await;

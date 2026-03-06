@@ -141,10 +141,10 @@ async fn both_approve_game_ends() {
         result_b.contains('+'),
         "result should be a score like 'W+0.5', got: {result_b}"
     );
-    // Default komi is 0.5, empty board → W+0.5
+    // Default komi is 6.5, empty board → W+6.5
     assert_eq!(
-        result_b, "W+0.5",
-        "empty board with 0.5 komi should be W+0.5"
+        result_b, "W+6.5",
+        "empty board with 6.5 komi should be W+6.5"
     );
 
     let result_w = state_w["result"]

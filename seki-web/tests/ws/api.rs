@@ -262,7 +262,7 @@ async fn create_game_via_api() {
         .client_black
         .post(format!("http://{}/api/games", server.addr))
         .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"cols": 9, "rows": 9, "color": "black"}))
+        .json(&json!({"cols": 9, "komi": 6.5, "handicap": 0, "color": "black"}))
         .send()
         .await
         .unwrap();

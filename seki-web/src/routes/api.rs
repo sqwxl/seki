@@ -44,6 +44,7 @@ struct GameResponse {
     komi: f64,
     handicap: i32,
     is_private: bool,
+    allow_undo: bool,
     result: Option<String>,
     black: Option<UserResponse>,
     white: Option<UserResponse>,
@@ -84,23 +85,37 @@ struct MessageResponse {
     created_at: DateTime<Utc>,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 // -- Request types --
 
 #[derive(Deserialize, ToSchema)]
 struct CreateGameRequest {
-    cols: Option<i32>,
+    cols: i32,
+    #[serde(default)]
     rows: Option<i32>,
-    komi: Option<f64>,
-    handicap: Option<i32>,
-    is_private: Option<bool>,
-    allow_undo: Option<bool>,
-    color: Option<String>,
+    komi: f64,
+    handicap: i32,
+    #[serde(default)]
+    is_private: bool,
+    #[serde(default = "default_true")]
+    allow_undo: bool,
+    color: String,
+    #[serde(default)]
     invite_email: Option<String>,
+    #[serde(default)]
     invite_username: Option<String>,
+    #[serde(default)]
     time_control: Option<crate::models::game::TimeControlType>,
+    #[serde(default)]
     main_time_secs: Option<i32>,
+    #[serde(default)]
     increment_secs: Option<i32>,
+    #[serde(default)]
     byoyomi_time_secs: Option<i32>,
+    #[serde(default)]
     byoyomi_periods: Option<i32>,
 }
 
@@ -292,13 +307,13 @@ async fn create_game(
     Json(body): Json<CreateGameRequest>,
 ) -> Result<(axum::http::StatusCode, Json<GameResponse>), ApiError> {
     let params = game_creator::CreateGameParams {
-        cols: body.cols.unwrap_or(19),
-        rows: body.rows.unwrap_or(19),
-        komi: body.komi.unwrap_or(0.5),
-        handicap: body.handicap.unwrap_or(0),
-        is_private: body.is_private.unwrap_or(false),
-        allow_undo: body.allow_undo.unwrap_or(false),
-        color: body.color.unwrap_or_else(|| "black".to_string()),
+        cols: body.cols,
+        rows: body.rows.unwrap_or(body.cols),
+        komi: body.komi,
+        handicap: body.handicap,
+        is_private: body.is_private,
+        allow_undo: body.allow_undo,
+        color: body.color,
         invite_email: body.invite_email,
         invite_username: body.invite_username,
         time_control: body.time_control.unwrap_or_default(),
@@ -1034,6 +1049,7 @@ async fn build_game_response(
         komi: gwp.game.komi,
         handicap: gwp.game.handicap,
         is_private: gwp.game.is_private,
+        allow_undo: gwp.game.allow_undo,
         result: gwp.game.result.clone(),
         black: gwp.black.as_ref().map(UserResponse::from_user),
         white: gwp.white.as_ref().map(UserResponse::from_user),
