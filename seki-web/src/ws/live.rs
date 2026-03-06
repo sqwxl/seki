@@ -47,6 +47,9 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
         handle_reconnect(&state, user_id).await;
     }
 
+    // Notify presence subscribers that this user is online
+    state.presence_subs.notify(user_id, true).await;
+
     // Channel for game room messages (registered in registry per game)
     let (tx, mut rx) = mpsc::unbounded_channel::<Arc<String>>();
 
@@ -130,6 +133,25 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                         );
                                     }
 
+                                    // Auto-subscribe to both players' presence
+                                    if let Ok(gwp) =
+                                        Game::find_with_players(&state.db, game_id).await
+                                    {
+                                        for user in [&gwp.black, &gwp.white].into_iter().flatten() {
+                                            state
+                                                .presence_subs
+                                                .subscribe(user.id, tx.clone())
+                                                .await;
+                                        }
+                                        let mut statuses = Vec::new();
+                                        for user in [&gwp.black, &gwp.white].into_iter().flatten() {
+                                            let online = state.presence.is_connected(user.id).await;
+                                            statuses.push((user.id, online));
+                                        }
+                                        let msg = crate::ws::presence_subscriptions::build_presence_state_msg(&statuses);
+                                        let _ = tx.send(std::sync::Arc::new(msg));
+                                    }
+
                                     // Mark game as read at current move count
                                     let mc = TurnRow::count_by_game_ids(&state.db, &[game_id])
                                         .await
@@ -153,6 +175,26 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                     )
                                     .await;
                                 }
+                            }
+                        }
+                        "subscribe_presence" => {
+                            if let Some(user_ids) = data.get("user_ids").and_then(|v| v.as_array())
+                            {
+                                let ids: Vec<i64> =
+                                    user_ids.iter().filter_map(|v| v.as_i64()).collect();
+                                for &uid in &ids {
+                                    state.presence_subs.subscribe(uid, tx.clone()).await;
+                                }
+                                let mut statuses = Vec::with_capacity(ids.len());
+                                for &uid in &ids {
+                                    let online = state.presence.is_connected(uid).await;
+                                    statuses.push((uid, online));
+                                }
+                                let msg =
+                                    crate::ws::presence_subscriptions::build_presence_state_msg(
+                                        &statuses,
+                                    );
+                                let _ = tx.send(std::sync::Arc::new(msg));
                             }
                         }
                         _ => {
@@ -179,6 +221,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
             presentation_actions::handle_presenter_left(&state, *game_id, user_id).await;
         }
     }
+    state.presence_subs.remove_sender(&tx).await;
     send_task.abort();
 
     // -- Global presence: deregister connection --
@@ -264,6 +307,9 @@ async fn handle_disconnect(state: &AppState, user_id: i64) {
             )
             .await;
     }
+
+    // Notify presence subscribers that this user went offline
+    state.presence_subs.notify(user_id, false).await;
 }
 
 /// Called when a user reconnects after being disconnected: resume clocks and broadcast.
