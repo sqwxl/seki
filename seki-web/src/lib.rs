@@ -23,6 +23,7 @@ pub struct AppState {
     pub db: db::DbPool,
     pub registry: ws::registry::GameRegistry,
     pub presence: ws::presence::UserPresence,
+    pub presence_subs: ws::presence_subscriptions::PresenceSubscriptions,
     pub live_tx: broadcast::Sender<String>,
 }
 
@@ -51,6 +52,7 @@ pub async fn build_router_with_presence(
         db: pool,
         registry: ws::registry::GameRegistry::new(),
         presence,
+        presence_subs: ws::presence_subscriptions::PresenceSubscriptions::new(),
         live_tx,
     };
 
