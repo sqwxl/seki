@@ -118,7 +118,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                     if let Some(ref ud) = user_data {
                                         state.registry.cache_user(game_id, ud.clone()).await;
                                     }
-                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":true,"user":user_data}).to_string()).await;
+                                    state.registry.broadcast(game_id, &json!({"kind":"presence","game_id":game_id,"player_id":user_id,"online":true,"user":user_data}).to_string()).await;
 
                                     if let Err(e) = game_channel::send_initial_state(
                                         &state, game_id, user_id, &tx,
@@ -148,7 +148,6 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                 let removed = state.registry.leave(game_id, user_id, &tx).await;
                                 subscribed_games.remove(&game_id);
                                 if removed {
-                                    state.registry.broadcast(game_id, &json!({"kind":"presence","player_id":user_id,"online":false}).to_string()).await;
                                     presentation_actions::handle_presenter_left(
                                         &state, game_id, user_id,
                                     )
@@ -177,13 +176,6 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
     for game_id in &subscribed_games {
         let removed = state.registry.leave(*game_id, user_id, &tx).await;
         if removed {
-            state
-                .registry
-                .broadcast(
-                    *game_id,
-                    &json!({"kind":"presence","player_id":user_id,"online":false}).to_string(),
-                )
-                .await;
             presentation_actions::handle_presenter_left(&state, *game_id, user_id).await;
         }
     }
@@ -214,10 +206,10 @@ fn register_disconnect(state: &AppState, user_id: i64) {
 
 /// Called after grace period expires: pause clocks and broadcast disconnect.
 async fn handle_disconnect(state: &AppState, user_id: i64) {
-    let game_ids = match Game::active_timed_game_ids(&state.db, user_id).await {
+    let game_ids = match Game::active_game_ids(&state.db, user_id).await {
         Ok(ids) => ids,
         Err(e) => {
-            tracing::error!("Failed to query active timed games for disconnect: {e}");
+            tracing::error!("Failed to query active games for disconnect: {e}");
             return;
         }
     };

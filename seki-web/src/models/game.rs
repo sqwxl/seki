@@ -164,16 +164,13 @@ impl Game {
 
     /// Find active timed non-correspondence game IDs where the user is a player.
     /// "Active" = result IS NULL, stage is a play stage or territory_review.
-    pub async fn active_timed_game_ids(
-        pool: &DbPool,
-        user_id: i64,
-    ) -> Result<Vec<i64>, sqlx::Error> {
+    /// All active (in-progress) game IDs where the user is a player.
+    pub async fn active_game_ids(pool: &DbPool, user_id: i64) -> Result<Vec<i64>, sqlx::Error> {
         sqlx::query_scalar(
             "SELECT id FROM games \
              WHERE (black_id = $1 OR white_id = $1) \
              AND result IS NULL \
-             AND stage IN ('black_to_play', 'white_to_play', 'territory_review') \
-             AND time_control IN ('fischer', 'byoyomi')",
+             AND stage IN ('black_to_play', 'white_to_play', 'territory_review')",
         )
         .bind(user_id)
         .fetch_all(pool)

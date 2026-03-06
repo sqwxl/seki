@@ -717,7 +717,7 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let online_users = state.registry.get_cached_users(game_id).await;
+    let online_users = crate::ws::game_channel::get_online_players(state, gwp).await;
     let game_state = state_serializer::serialize_state(
         gwp,
         engine,

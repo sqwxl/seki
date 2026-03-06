@@ -3,8 +3,8 @@
 ## 0. Misc
 
 - [ ] Reloading live game page always returns to latest live mode position
-- [ ] Presence indicator updates as soon as a player connects or disconnects (currently has significant lag before updating)
-- [ ] Presence indicator correctly reflects player presence
+- [x] Presence indicator updates as soon as a player connects or disconnects _(fix: presence WS messages were missing `game_id` field, causing frontend routing to drop them)_
+- [x] Presence indicator correctly reflects player presence _(same root cause)_
 
 ## 1. Auth & Sessions
 
@@ -29,10 +29,11 @@
 
 ### Handicap
 
+- [ ] Handicap inputs of 0 or 1 are equivalent (no handicap; black plays first)
 - [x] API should not accept negative handicap `[test: backend:integration]` _(validation.rs)_
-- [x] API should not accept handicap of 1 (minimum is 2) `[test: backend:integration]` _(validation.rs)_
+- [ ] API should accept handicaps greater than or equal to 0 `[test: backend:integration]` _(validation.rs)_
 - [x] API should not accept illegal handicap for board size `[test: backend:integration]` _(validation.rs)_
-- [ ] UI should show 0 and 1 to avoid confusion
+- [ ] UI should skip 1 to avoid confusion: ie input skips from 0 to 2
 
 ### Time Control
 

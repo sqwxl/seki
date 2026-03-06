@@ -4,12 +4,24 @@ use go_engine::Stage;
 use serde_json::json;
 
 use crate::AppState;
-use crate::models::game::Game;
+use crate::models::game::{Game, GameWithPlayers};
 use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::state_serializer;
 use crate::services::{game_actions, presentation_actions};
+use crate::templates::UserData;
 use crate::ws::registry::WsSender;
+
+/// Build online_users list from global presence for the game's players.
+pub async fn get_online_players(state: &AppState, gwp: &GameWithPlayers) -> Vec<UserData> {
+    let mut online = Vec::new();
+    for user in [&gwp.black, &gwp.white].into_iter().flatten() {
+        if state.presence.is_connected(user.id).await {
+            online.push(UserData::from(user));
+        }
+    }
+    online
+}
 
 fn send_to_client(tx: &WsSender, msg: &str) {
     let _ = tx.send(Arc::new(msg.to_string()));
@@ -106,7 +118,7 @@ pub async fn send_initial_state(
         None
     };
 
-    let online_users = state.registry.get_cached_users(game_id).await;
+    let online_users = get_online_players(state, &gwp).await;
     let game_state = state_serializer::serialize_state(
         &gwp,
         &engine,

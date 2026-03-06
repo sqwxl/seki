@@ -175,12 +175,23 @@ export function handleGameMessage(
       break;
     }
     case "player_disconnected": {
+      setPresence(data.user_id, false);
       if (isOpponent(data.user_id)) {
         opponentDisconnected.value = { since: new Date(data.timestamp) };
       }
       break;
     }
     case "player_reconnected": {
+      // Look up user data from black/white signals
+      const userData =
+        black.value?.id === data.user_id
+          ? black.value
+          : white.value?.id === data.user_id
+            ? white.value
+            : undefined;
+      if (userData) {
+        setPresence(data.user_id, true, userData);
+      }
       if (isOpponent(data.user_id)) {
         opponentDisconnected.value = undefined;
       }
