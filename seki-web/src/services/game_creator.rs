@@ -77,7 +77,9 @@ pub async fn create_game(
             Some(
                 User::find_by_username(pool, username)
                     .await?
-                    .ok_or_else(|| AppError::UnprocessableEntity(format!("User '{username}' not found")))?,
+                    .ok_or_else(|| {
+                        AppError::UnprocessableEntity(format!("User '{username}' not found"))
+                    })?,
             )
         } else {
             None

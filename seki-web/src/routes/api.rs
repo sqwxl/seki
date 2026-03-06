@@ -376,14 +376,16 @@ async fn delete_game(
     let game = Game::find_by_id(&state.db, id).await?;
 
     if game.creator_id != Some(api_user.id) {
-        return Err(
-            AppError::UnprocessableEntity("Only the creator can delete this game".to_string()).into(),
-        );
+        return Err(AppError::UnprocessableEntity(
+            "Only the creator can delete this game".to_string(),
+        )
+        .into());
     }
     if game.started_at.is_some() {
-        return Err(
-            AppError::UnprocessableEntity("Cannot delete a game that has started".to_string()).into(),
-        );
+        return Err(AppError::UnprocessableEntity(
+            "Cannot delete a game that has started".to_string(),
+        )
+        .into());
     }
 
     Game::delete(&state.db, id).await?;
@@ -744,7 +746,9 @@ async fn rematch_game(
         return Err(AppError::UnprocessableEntity("Game is not finished".to_string()).into());
     }
     if !gwp.has_player(api_user.id) {
-        return Err(AppError::UnprocessableEntity("You are not a player in this game".to_string()).into());
+        return Err(
+            AppError::UnprocessableEntity("You are not a player in this game".to_string()).into(),
+        );
     }
 
     let swap = body.swap_colors.unwrap_or(false);

@@ -35,7 +35,9 @@ pub async fn play_move(
     row: i32,
 ) -> Result<Engine, AppError> {
     if col < 0 || row < 0 {
-        return Err(AppError::UnprocessableEntity("Invalid coordinates".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "Invalid coordinates".to_string(),
+        ));
     }
 
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
@@ -43,7 +45,9 @@ pub async fn play_move(
     require_not_challenge(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "The game is over".to_string(),
+        ));
     }
 
     // Cannot play during territory review
@@ -111,7 +115,9 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
     require_not_challenge(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "The game is over".to_string(),
+        ));
     }
 
     // Cannot pass during territory review
@@ -195,7 +201,9 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
     require_not_challenge(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "The game is over".to_string(),
+        ));
     }
 
     // Cannot resign before first move - use abort instead
@@ -262,7 +270,9 @@ pub async fn accept_challenge(
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "The game is over".to_string(),
+        ));
     }
     if gwp.game.stage != "challenge" {
         return Err(AppError::UnprocessableEntity(
@@ -322,7 +332,9 @@ pub async fn decline_challenge(
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "The game is over".to_string(),
+        ));
     }
     if gwp.game.stage != "challenge" {
         return Err(AppError::UnprocessableEntity(
@@ -358,7 +370,9 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
     let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "The game is over".to_string(),
+        ));
     }
 
     let engine = state
@@ -420,7 +434,9 @@ pub async fn disconnect_abort(
     require_both_players(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "The game is over".to_string(),
+        ));
     }
 
     // Find the opponent
@@ -500,7 +516,9 @@ pub async fn send_chat(
 ) -> Result<ChatSent, AppError> {
     let text = text.trim();
     if text.is_empty() {
-        return Err(AppError::UnprocessableEntity("Message cannot be empty".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "Message cannot be empty".to_string(),
+        ));
     }
     if text.len() > 1000 {
         return Err(AppError::UnprocessableEntity(

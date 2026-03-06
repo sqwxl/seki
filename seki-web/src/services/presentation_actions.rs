@@ -14,7 +14,9 @@ pub async fn start_presentation(
 
     // Game must be finished
     if gwp.game.result.is_none() {
-        return Err(AppError::UnprocessableEntity("Game is not finished".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "Game is not finished".to_string(),
+        ));
     }
 
     // No active presentation

@@ -42,7 +42,10 @@ async fn can_resign_after_first_move() {
     ws_black.resign(game_id).await;
 
     let msg = ws_black.recv_kind("state").await;
-    assert!(msg["result"].as_str().is_some(), "Game should be finished after resign");
+    assert!(
+        msg["result"].as_str().is_some(),
+        "Game should be finished after resign"
+    );
     assert!(msg["result"].as_str().unwrap().contains("W+"));
 }
 
@@ -74,7 +77,10 @@ async fn cannot_play_move_during_territory_review() {
 
     let msg = ws_black.recv_kind("error").await;
     assert!(
-        msg["message"].as_str().unwrap_or("").contains("territory review"),
+        msg["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("territory review"),
         "Expected error about territory review, got: {:?}",
         msg
     );
@@ -106,7 +112,10 @@ async fn cannot_pass_during_territory_review() {
 
     let msg = ws_black.recv_kind("error").await;
     assert!(
-        msg["message"].as_str().unwrap_or("").contains("territory review"),
+        msg["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("territory review"),
         "Expected error about territory review, got: {:?}",
         msg
     );
@@ -145,7 +154,10 @@ async fn cannot_approve_territory_twice() {
 
     let msg = ws_black.recv_kind("error").await;
     assert!(
-        msg["message"].as_str().unwrap_or("").contains("already approved"),
+        msg["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("already approved"),
         "Expected error about already approved, got: {:?}",
         msg
     );

@@ -12,7 +12,11 @@ async fn private_game_not_visible_to_non_participant() {
 
     // Spectator (non-participant) tries to view the private game
     let resp = server.get_game_as_spectator(game_id).await;
-    assert_eq!(resp.status(), 404, "Private game should not be visible to non-participant");
+    assert_eq!(
+        resp.status(),
+        404,
+        "Private game should not be visible to non-participant"
+    );
 }
 
 #[tokio::test]
@@ -29,7 +33,10 @@ async fn private_game_visible_to_creator() {
         .send()
         .await
         .unwrap();
-    assert!(resp.status().is_success(), "Creator should see their private game");
+    assert!(
+        resp.status().is_success(),
+        "Creator should see their private game"
+    );
 }
 
 #[tokio::test]
@@ -62,7 +69,10 @@ async fn private_game_visible_to_player() {
         .send()
         .await
         .unwrap();
-    assert!(resp.status().is_success(), "Player should see the private game");
+    assert!(
+        resp.status().is_success(),
+        "Player should see the private game"
+    );
 }
 
 // -- Private Game Join --
@@ -157,7 +167,10 @@ async fn non_participant_cannot_chat_in_private_game() {
     // Spectator tries to send a chat message to the private game via API
     let resp = server
         .client_spectator
-        .post(format!("http://{}/api/games/{game_id}/messages", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/messages",
+            server.addr
+        ))
         .header("Authorization", "Bearer test-spectator-api-token-99999")
         .json(&json!({"text": "Hello!"}))
         .send()
@@ -178,14 +191,20 @@ async fn participant_can_chat_in_private_game() {
     // Creator (participant) can chat
     let resp = server
         .client_black
-        .post(format!("http://{}/api/games/{game_id}/messages", server.addr))
+        .post(format!(
+            "http://{}/api/games/{game_id}/messages",
+            server.addr
+        ))
         .header("Authorization", "Bearer test-black-api-token-12345")
         .json(&json!({"text": "Hello!"}))
         .send()
         .await
         .unwrap();
 
-    assert!(resp.status().is_success(), "Participant should be able to chat");
+    assert!(
+        resp.status().is_success(),
+        "Participant should be able to chat"
+    );
 }
 
 // -- Join Finished Game --

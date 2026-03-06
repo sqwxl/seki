@@ -345,7 +345,9 @@ async fn handle_give_control(
     let target_user_id = data
         .get("target_user_id")
         .and_then(|v| v.as_i64())
-        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing target_user_id".to_string()))?;
+        .ok_or_else(|| {
+            crate::error::AppError::UnprocessableEntity("Missing target_user_id".to_string())
+        })?;
 
     presentation_actions::give_control(state, game_id, player_id, target_user_id).await
 }

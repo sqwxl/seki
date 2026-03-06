@@ -378,12 +378,16 @@ pub async fn invitation(
     // Verify token
     let game_token = gwp.game.invite_token.as_deref().unwrap_or("");
     if game_token != query.token {
-        return Err(AppError::UnprocessableEntity("Invalid invitation token".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "Invalid invitation token".to_string(),
+        ));
     }
 
     // Check game not full
     if gwp.black.is_some() && gwp.white.is_some() {
-        return Err(AppError::UnprocessableEntity("Game is already full".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "Game is already full".to_string(),
+        ));
     }
 
     // Find the invited user by email
@@ -416,7 +420,9 @@ pub async fn rematch_game(
     let gwp = Game::find_with_players(&state.db, id).await?;
 
     if gwp.game.result.is_none() {
-        return Err(AppError::UnprocessableEntity("Game is not finished".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "Game is not finished".to_string(),
+        ));
     }
     if !gwp.has_player(current_user.id) {
         return Err(AppError::UnprocessableEntity(

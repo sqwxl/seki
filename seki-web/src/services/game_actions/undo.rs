@@ -13,7 +13,9 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
     require_not_challenge(&gwp)?;
 
     if gwp.game.result.is_some() {
-        return Err(AppError::UnprocessableEntity("The game is over".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "The game is over".to_string(),
+        ));
     }
 
     if !gwp.game.allow_undo {
@@ -43,7 +45,9 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
         ));
     }
     if last_turn.kind != "play" {
-        return Err(AppError::UnprocessableEntity("Can only undo play turns".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "Can only undo play turns".to_string(),
+        ));
     }
 
     state.registry.set_undo_requested(game_id, true).await;
@@ -93,7 +97,9 @@ pub async fn respond_to_undo(
     let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
     if !state.registry.is_undo_requested(game_id).await {
-        return Err(AppError::UnprocessableEntity("No pending undo request".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "No pending undo request".to_string(),
+        ));
     }
 
     // The requesting user is the one who played last (out of turn now)

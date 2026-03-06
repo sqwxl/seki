@@ -177,7 +177,9 @@ async fn require_territory_review(
     player_id: i64,
 ) -> Result<(), AppError> {
     if engine.stage() != Stage::TerritoryReview {
-        return Err(AppError::UnprocessableEntity("Not in territory review".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "Not in territory review".to_string(),
+        ));
     }
     if let Some(opp) = gwp.opponent_of(player_id)
         && state.registry.is_player_disconnected(game_id, opp.id).await
