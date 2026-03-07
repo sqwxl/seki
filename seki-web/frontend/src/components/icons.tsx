@@ -32,12 +32,16 @@ export const capturesNofillSvg =
 // Dark-mode-aware Preact components
 // NOTE: dangerouslySetInnerHTML is safe here - SVG content is hardcoded constants, not user input
 
+type IconProps = { title?: string };
+
 function darkModeIcon(lightSvg: string, darkSvg: string) {
-  return function DarkModeIconComponent() {
+  return function DarkModeIconComponent(props: IconProps) {
     const dark = useDarkMode();
+    // Safe: SVG content is hardcoded constants, not user input
     return (
       <span
         class="icon"
+        title={props.title}
         dangerouslySetInnerHTML={{ __html: dark ? darkSvg : lightSvg }}
       />
     );
@@ -195,8 +199,15 @@ export const xSvg = `${svgOpen}<path d="M480-424 284-228q-11 11-28 11t-28-11q-11
 // NOTE: dangerouslySetInnerHTML is safe - SVG content is hardcoded constants, not user input
 
 function icon(svg: string) {
-  return function IconComponent() {
-    return <span class="icon" dangerouslySetInnerHTML={{ __html: svg }} />;
+  return function IconComponent(props: IconProps) {
+    // Safe: SVG content is hardcoded constants, not user input
+    return (
+      <span
+        class="icon"
+        title={props.title}
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    );
   };
 }
 

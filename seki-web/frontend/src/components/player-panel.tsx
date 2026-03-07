@@ -35,14 +35,18 @@ export function PlayerPanel(props: PlayerPanelProps) {
               <>
                 {props.territory}
                 <span class="territory-icon">
-                  <IconGrid3x3 />
+                  <IconGrid3x3 title="Territory" />
                 </span>
               </>
             )}
             {formatN(props.captures)}
             {props.komi ? `+${formatN(props.komi)}` : ""}
             <span class="captures-icon">
-              {props.stone === "black" ? <CapturesBlack /> : <CapturesWhite />}
+              {props.stone === "black" ? (
+                <CapturesBlack title="Captures" />
+              ) : (
+                <CapturesWhite title="Captures" />
+              )}
             </span>
           </>
         )}

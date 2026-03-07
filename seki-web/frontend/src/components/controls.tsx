@@ -100,7 +100,7 @@ function ConfirmPopover({
   children,
 }: {
   id: string;
-  icon: preact.ComponentType;
+  icon: preact.ComponentType<{ title?: string }>;
   message: string;
   onConfirm: () => void;
   onCancel?: () => void;
@@ -166,7 +166,7 @@ function ConfirmButton({
   children,
 }: {
   id: string;
-  icon: preact.ComponentType;
+  icon: preact.ComponentType<{ title?: string }>;
   title: string;
   disabled?: boolean;
   confirm: ConfirmDef;
@@ -502,7 +502,7 @@ export function UIControls(
       )}
       {props.sizeSelect && (
         <span class="size-select-group">
-          <IconGrid4x4 />
+          <IconGrid4x4 title="Board size" />
           <SizeSelect {...props.sizeSelect} />
         </span>
       )}
