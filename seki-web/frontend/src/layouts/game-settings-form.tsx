@@ -107,7 +107,9 @@ export function GameSettingsForm({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [recentOpponents, setRecentOpponents] = useState<SearchResult[]>([]);
-  const [selectedOpponent, setSelectedOpponent] = useState("");
+  const [selectedOpponent, setSelectedOpponent] = useState<SearchResult | null>(
+    null,
+  );
   const [recentsFetched, setRecentsFetched] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -159,7 +161,7 @@ export function GameSettingsForm({
 
   function onSearchInput(value: string) {
     setSearchQuery(value);
-    setSelectedOpponent("");
+    setSelectedOpponent(null);
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
@@ -196,6 +198,8 @@ export function GameSettingsForm({
       : opponent
         ? "Challenge"
         : submitLabel;
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div ref={rootRef}>
@@ -568,39 +572,56 @@ export function GameSettingsForm({
 
             {s.opponentMode === "challenge" && (
               <div class="opponent-challenge">
-                <input
-                  type="text"
-                  placeholder="Search by username..."
-                  value={searchQuery}
-                  onInput={(e) => onSearchInput(e.currentTarget.value)}
-                  autocomplete="off"
-                />
-                {displayResults.length > 0 && (
-                  <ul class="opponent-search-results">
-                    {displayResults.map((r) => (
-                      <li
-                        key={r.username}
-                        class={
-                          selectedOpponent === r.username ? "selected" : ""
-                        }
-                        onClick={() => {
-                          setSelectedOpponent(r.username);
-                          setSearchQuery(r.username);
-                        }}
-                      >
-                        <UserLabel
-                          name={r.username}
-                          isOnline={r.is_online}
-                          showRegistered={r.is_registered}
-                        />
-                      </li>
-                    ))}
-                  </ul>
+                {selectedOpponent ? (
+                  <span
+                    class="selected-opponent"
+                    onClick={() => {
+                      setSelectedOpponent(null);
+                      setSearchQuery("");
+                      setSearchResults([]);
+                      requestAnimationFrame(() => {
+                        searchInputRef.current?.focus();
+                      });
+                    }}
+                  >
+                    <UserLabel
+                      name={selectedOpponent.username}
+                      isOnline={selectedOpponent.is_online}
+                      showRegistered={selectedOpponent.is_registered}
+                    />
+                  </span>
+                ) : (
+                  <>
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      placeholder="Search by username..."
+                      value={searchQuery}
+                      onInput={(e) => onSearchInput(e.currentTarget.value)}
+                      autocomplete="off"
+                    />
+                    {displayResults.length > 0 && (
+                      <ul class="opponent-search-results">
+                        {displayResults.map((r) => (
+                          <li
+                            key={r.username}
+                            onClick={() => setSelectedOpponent(r)}
+                          >
+                            <UserLabel
+                              name={r.username}
+                              isOnline={r.is_online}
+                              showRegistered={r.is_registered}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 )}
                 <input
                   type="hidden"
                   name="invite_username"
-                  value={selectedOpponent}
+                  value={selectedOpponent?.username ?? ""}
                 />
               </div>
             )}

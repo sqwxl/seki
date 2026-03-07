@@ -219,9 +219,13 @@ input[type="radio"] {
   background: var(--bg-hover, color-mix(in srgb, var(--fg) 8%, var(--bg)));
 }
 
-.opponent-search-results li.selected {
-  background: var(--accent, AccentColor);
-  color: var(--bg);
+.selected-opponent {
+  cursor: pointer;
+  padding: 0.4em 0.6em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
 }
 
 /* Time control sub-panels: stack fields vertically */
