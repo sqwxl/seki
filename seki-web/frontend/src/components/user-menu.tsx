@@ -15,14 +15,24 @@ import {
   board,
 } from "../game/state";
 import { analysisBoard } from "../layouts/analysis-state";
-import { themeMode, cycleTheme, getThemeLabel } from "../utils/theme";
+import {
+  themeMode,
+  cycleTheme,
+  getThemeLabel,
+  getThemeIcon,
+} from "../utils/theme";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
 import { savePref } from "../utils/preferences";
 
 function ThemeButton() {
   const mode = themeMode.value;
+  // NOTE: dangerouslySetInnerHTML is safe here — SVG content is hardcoded constants, not user input
   return (
     <button type="button" class="user-menu-item" onClick={cycleTheme}>
+      <span
+        class="icon"
+        dangerouslySetInnerHTML={{ __html: getThemeIcon(mode) }}
+      />{" "}
       Theme: {getThemeLabel(mode)}
     </button>
   );

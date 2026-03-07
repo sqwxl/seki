@@ -1,4 +1,5 @@
 import { signal } from "@preact/signals";
+import { themeLightSvg, themeDarkSvg, themeAutoSvg } from "../components/icons";
 import { storage, THEME } from "./storage";
 import { savePref } from "./preferences";
 
@@ -16,6 +17,12 @@ const LABELS: Record<ThemeMode, string> = {
   auto: "Auto",
   light: "Light",
   dark: "Dark",
+};
+
+const ICONS: Record<ThemeMode, string> = {
+  light: themeLightSvg,
+  dark: themeDarkSvg,
+  auto: themeAutoSvg,
 };
 
 export function getMode(): ThemeMode {
@@ -45,6 +52,10 @@ function applyTheme(mode: ThemeMode): void {
 
 export function getThemeLabel(mode: ThemeMode): string {
   return LABELS[mode];
+}
+
+export function getThemeIcon(mode: ThemeMode): string {
+  return ICONS[mode];
 }
 
 export function cycleTheme(): void {
