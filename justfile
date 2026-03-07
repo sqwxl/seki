@@ -13,7 +13,7 @@ frontend-hot:
     cd seki-web/frontend && pnpm run dev
 
 server-hot:
-    watchexec -i .claude/worktrees -- cargo run -p seki-web
+    watchexec -w seki-web/src -w seki-web/templates -w seki-web/migrations -w seki-web/static -w go-engine/src -- cargo run -p seki-web
 
 server:
     cargo run -p seki-web

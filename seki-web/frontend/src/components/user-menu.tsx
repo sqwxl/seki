@@ -28,7 +28,7 @@ function ThemeButton() {
   const mode = themeMode.value;
   // NOTE: dangerouslySetInnerHTML is safe here — SVG content is hardcoded constants, not user input
   return (
-    <button type="button" class="user-menu-item" onClick={cycleTheme}>
+    <button type="button" class="nav-dropdown-item" onClick={cycleTheme}>
       <span
         class="icon"
         dangerouslySetInnerHTML={{ __html: getThemeIcon(mode) }}
@@ -82,7 +82,7 @@ function UserMenu() {
   }, [open]);
 
   return (
-    <div class="user-menu" ref={ref}>
+    <div class="nav-dropdown-wrapper" ref={ref}>
       <button
         type="button"
         class="user-menu-trigger"
@@ -91,11 +91,11 @@ function UserMenu() {
         {username}
       </button>
       {open && (
-        <div class="user-menu-dropdown">
+        <div class="nav-dropdown">
           {isRegistered && (
-            <div class="user-menu-section">
+            <div class="nav-dropdown-section">
               <a
-                class="user-menu-item"
+                class="nav-dropdown-item"
                 href={`/users/${username}`}
                 onClick={() => setOpen(false)}
               >
@@ -103,24 +103,24 @@ function UserMenu() {
               </a>
             </div>
           )}
-          <div class="user-menu-section">
-            <div class="user-menu-section-label">Settings</div>
+          <div class="nav-dropdown-section">
+            <div class="nav-dropdown-section-label">Settings</div>
             <ThemeButton />
-            <div class="user-menu-item">
+            <div class="nav-dropdown-item">
               <ToggleButton
                 on={moveConfirmEnabled.value}
                 label="Move confirmation"
                 onToggle={handleMoveConfirmToggle}
               />
             </div>
-            <div class="user-menu-item">
+            <div class="nav-dropdown-item">
               <ToggleButton
                 on={showCoordinates.value}
                 label="Coordinates"
                 onToggle={handleCoordsToggle}
               />
             </div>
-            <div class="user-menu-item">
+            <div class="nav-dropdown-item">
               <ToggleButton
                 on={showMoveTree.value}
                 label="Move tree"
@@ -128,11 +128,11 @@ function UserMenu() {
               />
             </div>
           </div>
-          <div class="user-menu-section">
+          <div class="nav-dropdown-section">
             {isRegistered ? (
               <button
                 type="button"
-                class="user-menu-item"
+                class="nav-dropdown-item"
                 onClick={() => {
                   fetch("/logout", { method: "POST" }).then(() =>
                     location.replace("/"),
@@ -144,14 +144,14 @@ function UserMenu() {
             ) : (
               <>
                 <a
-                  class="user-menu-item"
+                  class="nav-dropdown-item"
                   href="/login"
                   onClick={() => setOpen(false)}
                 >
                   Log in
                 </a>
                 <a
-                  class="user-menu-item"
+                  class="nav-dropdown-item"
                   href="/register"
                   onClick={() => setOpen(false)}
                 >

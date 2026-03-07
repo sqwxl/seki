@@ -70,7 +70,7 @@ function NotificationBell() {
   const games = [...unreadGames.value.values()];
 
   return (
-    <div class="notification-bell" ref={ref}>
+    <div class="nav-dropdown-wrapper" ref={ref}>
       <button
         type="button"
         class="nav-icon"
@@ -80,36 +80,40 @@ function NotificationBell() {
         <BellIcon />
       </button>
       {open && (
-        <div class="notification-dropdown">
-          {games.length > 0 ? (
-            <ul>
-              {games.map((g) => {
+        <div class="nav-dropdown">
+          <div class="nav-dropdown-section">
+            {games.length > 0 ? (
+              games.map((g) => {
                 const label = gameLabel(g);
                 return (
-                  <li key={g.id}>
-                    <a
-                      href={`/games/${g.id}`}
-                      onClick={() => {
-                        markRead(g.id);
-                        setOpen(false);
-                      }}
-                    >
-                      {label}
-                    </a>
-                  </li>
+                  <a
+                    key={g.id}
+                    class="nav-dropdown-item"
+                    href={`/games/${g.id}`}
+                    onClick={() => {
+                      markRead(g.id);
+                      setOpen(false);
+                    }}
+                  >
+                    {label}
+                  </a>
                 );
-              })}
-            </ul>
-          ) : (
-            <div class="notification-dropdown-empty">No unread games</div>
-          )}
+              })
+            ) : (
+              <div class="nav-dropdown-empty nav-dropdown-item">
+                No unread games
+              </div>
+            )}
+          </div>
           {isNotifSupported() && (
-            <div class="notification-dropdown-footer">
-              <ToggleButton
-                on={notifOn}
-                label="OS notifications"
-                onToggle={handleToggleNotifications}
-              />
+            <div class="nav-dropdown-section">
+              <div class="nav-dropdown-item">
+                <ToggleButton
+                  on={notifOn}
+                  label="OS notifications"
+                  onToggle={handleToggleNotifications}
+                />
+              </div>
             </div>
           )}
         </div>
