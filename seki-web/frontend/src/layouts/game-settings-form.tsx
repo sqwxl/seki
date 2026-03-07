@@ -10,6 +10,7 @@ import {
   IconBell,
   IconHandicap,
   IconSettings,
+  IconPrivate,
   StoneBlack,
   StoneWhite,
 } from "../components/icons";
@@ -239,7 +240,9 @@ export function GameSettingsForm({
         </div>
         {showPrivate && (
           <div>
-            <label for="is_private">Private</label>
+            <label for="is_private">
+              <IconPrivate /> Private
+            </label>
             <input
               type="checkbox"
               name="is_private"
