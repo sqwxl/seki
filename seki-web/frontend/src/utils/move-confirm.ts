@@ -46,3 +46,47 @@ export function createMoveConfirm(config: MoveConfirmConfig): MoveConfirmState {
 
   return state;
 }
+
+/**
+ * Handle a vertex click with move confirmation logic.
+ * Returns whether the move was "set as pending" (true) or "confirmed/rejected" (false).
+ * The caller decides what to do with the return value (e.g. play the stone).
+ */
+export function handleMoveConfirmClick(
+  mc: MoveConfirmState,
+  col: number,
+  row: number,
+  isLegal: boolean,
+): "confirm" | "set" | "clear" {
+  if (mc.value && mc.value[0] === col && mc.value[1] === row) {
+    mc.clear();
+    return "confirm";
+  }
+  if (isLegal) {
+    mc.value = [col, row];
+    return "set";
+  }
+  mc.clear();
+  return "clear";
+}
+
+/**
+ * Register a pointerdown listener that clears the pending move confirmation
+ * when clicking outside the goban element.
+ */
+export function dismissMoveConfirmOnClickOutside(
+  mc: MoveConfirmState,
+  gobanEl: () => HTMLElement | null | undefined,
+  onDismiss: () => void,
+): void {
+  document.addEventListener("pointerdown", (e) => {
+    if (!mc.value) {
+      return;
+    }
+    if (gobanEl()?.contains(e.target as Node)) {
+      return;
+    }
+    mc.clear();
+    onDismiss();
+  });
+}

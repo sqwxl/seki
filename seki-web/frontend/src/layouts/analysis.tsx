@@ -10,7 +10,11 @@ import {
   analysisTreeKey,
 } from "../utils/storage";
 import { playStoneSound, playPassSound } from "../game/sound";
-import { createMoveConfirm } from "../utils/move-confirm";
+import {
+  createMoveConfirm,
+  handleMoveConfirmClick,
+  dismissMoveConfirmOnClickOutside,
+} from "../utils/move-confirm";
 import { readFileAsText, downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
 import type { Sign } from "../goban/types";
@@ -105,19 +109,16 @@ export function initAnalysis(root: HTMLElement) {
         if (!mc.enabled) {
           return false;
         }
-        if (mc.value && mc.value[0] === col && mc.value[1] === row) {
-          mc.clear();
-          doRender();
+        const action = handleMoveConfirmClick(
+          mc,
+          col,
+          row,
+          !!analysisBoard.value?.engine.is_legal(col, row),
+        );
+        doRender();
+        if (action === "confirm") {
           return false;
         }
-        if (!analysisBoard.value?.engine.is_legal(col, row)) {
-          mc.clear();
-          doRender();
-          analysisBoard.value?.render();
-          return true;
-        }
-        mc.value = [col, row];
-        doRender();
         analysisBoard.value?.render();
         return true;
       },
@@ -230,17 +231,14 @@ export function initAnalysis(root: HTMLElement) {
   });
 
   // --- Dismiss pending move confirmation on click outside goban ---
-  document.addEventListener("pointerdown", (e) => {
-    if (!mc.value) {
-      return;
-    }
-    if (gobanRef.current?.contains(e.target as Node)) {
-      return;
-    }
-    mc.clear();
-    analysisBoard.value?.render();
-    doRender();
-  });
+  dismissMoveConfirmOnClickOutside(
+    mc,
+    () => gobanRef.current,
+    () => {
+      analysisBoard.value?.render();
+      doRender();
+    },
+  );
 
   initBoard(analysisSize.value);
 }

@@ -6,7 +6,11 @@ import { createBoard, computeVertexSize } from "../goban/create-board";
 import { Goban } from "../goban";
 import type { ChatEntry } from "../components/chat";
 import { readShowCoordinates } from "../utils/coord-toggle";
-import { createMoveConfirm } from "../utils/move-confirm";
+import {
+  createMoveConfirm,
+  handleMoveConfirmClick,
+  dismissMoveConfirmOnClickOutside,
+} from "../utils/move-confirm";
 import { storage, gameAnalysisKey } from "../utils/storage";
 import { settingsToSgfTime } from "../utils/format";
 import { joinGame, subscribe, subscribePresence } from "../ws";
@@ -291,17 +295,19 @@ export function liveGame(
       if (!mc.enabled) {
         mc.clear();
         channel.play(col, row);
-      } else if (mc.value && mc.value[0] === col && mc.value[1] === row) {
-        mc.clear();
-        channel.play(col, row);
-      } else if (board.value.engine.is_legal(col, row)) {
-        mc.value = [col, row];
-        board.value.render();
-        doRender();
       } else {
-        mc.clear();
-        board.value.render();
-        doRender();
+        const action = handleMoveConfirmClick(
+          mc,
+          col,
+          row,
+          board.value.engine.is_legal(col, row),
+        );
+        if (action === "confirm") {
+          channel.play(col, row);
+        } else {
+          board.value.render();
+          doRender();
+        }
       }
     }
     return true;
@@ -467,17 +473,14 @@ export function liveGame(
   });
 
   // --- Dismiss pending move confirmation on click outside goban ---
-  document.addEventListener("pointerdown", (e) => {
-    if (!mc.value) {
-      return;
-    }
-    if (gobanRef.current?.contains(e.target as Node)) {
-      return;
-    }
-    mc.clear();
-    board.value?.render();
-    doRender();
-  });
+  dismissMoveConfirmOnClickOutside(
+    mc,
+    () => gobanRef.current,
+    () => {
+      board.value?.render();
+      doRender();
+    },
+  );
 
   // --- Notifications ---
   const notificationState = createNotificationState();
