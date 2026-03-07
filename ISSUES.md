@@ -135,6 +135,7 @@
 
 - [ ] Dead stones counted as captures for opponent (not verified) `[test: backend:unit]`
 - [ ] Player panel shows territory and (captures + dead stones) `[test: e2e:ws]`
+- [ ] System chat message "Game over. {result}" broadcast once per game (currently duplicated) `[test: e2e:ws]`
 
 ## 12. Clock / Timer
 
