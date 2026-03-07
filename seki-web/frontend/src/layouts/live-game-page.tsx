@@ -8,9 +8,7 @@ import type { ControlsProps } from "../components/controls";
 import { LobbyControls, ChallengePopover } from "../components/controls";
 import type { GameChannel } from "../game/channel";
 import type { MoveConfirmState } from "../utils/move-confirm";
-import { storage, SHOW_MOVE_TREE } from "../utils/storage";
 import { GamePageLayout } from "./game-page-layout";
-import { buildCoordsToggle } from "../utils/shared-controls";
 import type { UiCapabilities } from "../game/capabilities";
 import {
   liveGameCapabilities,
@@ -34,7 +32,6 @@ import {
   gameId,
   estimateScore,
   showMoveTree,
-  moveConfirmEnabled,
   nigiri,
   allowUndo,
   onlineUsers,
@@ -89,7 +86,6 @@ function buildControls(
       ...caps.nav,
       onNavigate: (action: NavAction) => board.value?.navigate(action),
     },
-    coordsToggle: buildCoordsToggle(board.value),
   };
 
   // --- Pass ---
@@ -282,30 +278,6 @@ function buildControls(
   controlsProps.sgfExport = {
     onClick: props.handleSgfExport,
     disabled: caps.canExitEstimate,
-  };
-
-  // --- Move confirm toggle ---
-  if (caps.showMoveConfirmToggle) {
-    controlsProps.moveConfirmToggle = {
-      enabled: mc.enabled,
-      onClick: () => {
-        mc.enabled = !mc.enabled;
-        moveConfirmEnabled.value = mc.enabled;
-        mc.clear();
-        board.value?.render();
-      },
-    };
-  }
-
-  // --- Move tree toggle ---
-  controlsProps.moveTreeToggle = {
-    enabled: caps.showMoveTree,
-    onClick: () => {
-      const next = !showMoveTree.value;
-      showMoveTree.value = next;
-      storage.set(SHOW_MOVE_TREE, String(next));
-      board.value?.render();
-    },
   };
 
   // --- Control request response ---

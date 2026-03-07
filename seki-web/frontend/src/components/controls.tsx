@@ -15,9 +15,6 @@ import {
   IconFileExport,
   IconCheck,
   IconX,
-  IconTouchSingle,
-  IconTouchDouble,
-  IconGraph,
   IconRepeat,
   IconStonesBw,
   IconCancel,
@@ -80,9 +77,6 @@ export type ControlsProps = {
   territoryReady?: ButtonDef;
   territoryExit?: ButtonDef;
 
-  coordsToggle?: { enabled: boolean; onClick: () => void };
-  moveConfirmToggle?: { enabled: boolean; onClick: () => void };
-  moveTreeToggle?: { enabled: boolean; onClick: () => void };
   confirmMove?: ButtonDef;
 
   // Presentation
@@ -335,23 +329,6 @@ export function GameControls(props: ControlsProps) {
           confirm={props.acceptTerritory}
         />
       )}
-      {props.moveConfirmToggle && (
-        <button
-          title={
-            props.moveConfirmToggle.enabled
-              ? "Move confirmation: ON (click to disable)"
-              : "Move confirmation: OFF (click to enable)"
-          }
-          aria-pressed={props.moveConfirmToggle.enabled}
-          onClick={props.moveConfirmToggle.onClick}
-        >
-          {props.moveConfirmToggle.enabled ? (
-            <IconTouchDouble />
-          ) : (
-            <IconTouchSingle />
-          )}
-        </button>
-      )}
       {props.confirmMove && (
         <button
           id="confirm-move-btn"
@@ -521,27 +498,6 @@ export function UIControls(
           onClick={props.sgfExport.onClick}
         >
           <IconFileExport />
-        </button>
-      )}
-      {props.coordsToggle && (
-        <button
-          title="Toggle coordinates"
-          aria-pressed={props.coordsToggle.enabled}
-          onClick={props.coordsToggle.onClick}
-        >
-          A1
-        </button>
-      )}
-      {props.moveTreeToggle && (
-        <button
-          class="move-tree-toggle"
-          title={
-            props.moveTreeToggle.enabled ? "Hide move tree" : "Show move tree"
-          }
-          aria-pressed={props.moveTreeToggle.enabled}
-          onClick={props.moveTreeToggle.onClick}
-        >
-          <IconGraph />
         </button>
       )}
       {props.sizeSelect && (

@@ -9,7 +9,7 @@ import {
   formatSgfTime,
   formatTime,
 } from "../utils/format";
-import { buildNavProps, buildCoordsToggle } from "../utils/shared-controls";
+import { buildNavProps } from "../utils/shared-controls";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { formatScoreStr } from "../game/ui";
 import { playStoneSound } from "../game/sound";
@@ -144,15 +144,6 @@ function buildAnalysisControls(
   const controlsProps: ControlsProps = {
     layout: "analysis",
     nav: buildNavProps(board),
-    coordsToggle: buildCoordsToggle(board),
-    moveConfirmToggle: {
-      enabled: mc.enabled,
-      onClick: () => {
-        mc.enabled = !mc.enabled;
-        mc.clear();
-        board?.render();
-      },
-    },
     sizeSelect: {
       value: analysisSize.value,
       options: [9, 13, 19],

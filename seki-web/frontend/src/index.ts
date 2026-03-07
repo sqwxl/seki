@@ -7,14 +7,16 @@ import { initNotificationBell } from "./components/notification-bell";
 import { initNewGameForm } from "./layouts/game-settings-form";
 import type { InitialGameProps } from "./game/types";
 import { parseDatasetJson } from "./utils/format";
-import { initThemeToggle } from "./utils/theme";
+import { initTheme } from "./utils/theme";
+import { initUserMenu } from "./components/user-menu";
 import { initFormValidation } from "./utils/form-validation";
 import { ensureConnected } from "./ws";
 
 // Connect WS on every page for global presence tracking
 ensureConnected();
 
-initThemeToggle();
+initTheme();
+initUserMenu();
 initFormValidation();
 initUnreadTracking();
 initNotificationBell();
