@@ -51,6 +51,8 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] Ko rule enforcement
 - [ ] Superko detection (prevent repeated board positions)
 - [x] Invite players by email or username
+- [x] Challenge players (user search with presence indicators)
+- [x] Open game restrictions (anyone, registered only)
 - [x] Challenge players from profile
 - [x] Abort game (before first move)
 - [x] Game clocks (Fischer, byo-yomi, correspondence)
@@ -110,7 +112,7 @@ cargo run -p seki-web              # http://localhost:3000
 - [ ] User profile (avatar, flag, bio, game history, rank history)
 - [ ] User profile customization
 - [ ] Display names
-- [ ] User online status
+- [x] User online status (presence indicators in game, chat, and user search)
 - [ ] Friends list
 - [ ] Ranking system (ELO, kyu/dan)
   - [ ] Ranked/unranked game option

@@ -51,7 +51,7 @@
 - [ ] Invite by email: must send invite (needs local services to test)
 - [ ] Invite link `/games/:id?token=...` must grant access to private game `[test: backend:integration]`
 - [ ] Invite link must be required to join private games `[test: backend:integration]`
-- [ ] New game form allows invite by username (via user search)
+- [x] New game form allows invite by username (via user search) _(opponent fieldset with Open/Challenge/Invite modes, live search with presence, open_to restrictions)_
 
 ## 3. Game Lobby / Games List
 
