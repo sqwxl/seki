@@ -21,7 +21,7 @@ import {
   getThemeLabel,
   getThemeIcon,
 } from "../utils/theme";
-import { IconLogin, IconLogout } from "./icons";
+import { IconLogin, IconLogout, IconRegister } from "./icons";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
 import { savePref } from "../utils/preferences";
 
@@ -148,7 +148,7 @@ function UserMenu() {
                   href="/register"
                   onClick={() => setOpen(false)}
                 >
-                  Register
+                  <IconRegister /> Register
                 </a>
               </>
             )}
