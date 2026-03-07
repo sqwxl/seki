@@ -75,6 +75,10 @@ export function getStatusText(input: StatusInput): string | undefined {
     return "Territory review";
   }
 
+  if (stage === GameStage.Declined) {
+    return "Challenge declined";
+  }
+
   if (
     (stage === GameStage.Completed || stage === GameStage.Aborted) &&
     input.result

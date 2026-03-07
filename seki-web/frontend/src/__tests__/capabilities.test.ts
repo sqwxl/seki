@@ -345,9 +345,15 @@ describe("undo", () => {
 // 4. Resign
 // ===========================================================================
 describe("resign", () => {
-  it("enabled during play", () => {
+  it("enabled during play with moves", () => {
     setupPlayingGame();
+    moves.value = [{ kind: "play", stone: 1, pos: [3, 3] }];
     expect(caps().canResign).toBe(true);
+  });
+
+  it("disabled before first move", () => {
+    setupPlayingGame();
+    expect(caps().canResign).toBe(false);
   });
 
   it("disabled during challenge", () => {
@@ -601,6 +607,14 @@ describe("player panels", () => {
   it("normal stones when nigiri resolved and game in play", () => {
     setupPlayingGame();
     nigiri.value = true; // nigiri flag still set, but game is in play
+    expect(caps().topPanel.stone).toBe("white");
+    expect(caps().bottomPanel.stone).toBe("black");
+  });
+
+  it("normal stones during territory review with nigiri flag", () => {
+    setupPlayingGame();
+    nigiri.value = true;
+    gameStage.value = GameStage.TerritoryReview;
     expect(caps().topPanel.stone).toBe("white");
     expect(caps().bottomPanel.stone).toBe("black");
   });

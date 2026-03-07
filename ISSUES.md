@@ -65,7 +65,7 @@
 
 ## 5. Challenges
 
-- [ ] Declined status must show in GameStatus component `[test: frontend:unit]`
+- [x] Declined status must show in GameStatus component `[test: frontend:unit]` _(game-status.tsx: getStatusText handles GameStage.Declined)_
 
 ## 6. Playing Moves
 
@@ -84,7 +84,7 @@
 
 - [ ] System chat message "Game over. {result}" must be broadcast on resign `[test: e2e:ws]`
 - [x] Cannot resign before first move (backend guard); use abort instead `[test: backend:integration]` _(state_guards.rs)_
-- [ ] Resign button must be disabled before the first move is played
+- [x] Resign button must be disabled before the first move is played _(capabilities.ts: canResign requires mvs.length > 0)_
 
 ## 9. Aborting
 
@@ -116,7 +116,7 @@
 
 - [x] Moves/passes cannot be played during territory review (backend guard) `[test: backend:integration]` _(state_guards.rs)_
 - [ ] Frontend must disable move input during territory review `[test: e2e:ws]`
-- [ ] Player stone icons in player panels must not change once set (currently reverts to BW icon in territory review) `[test: frontend:unit]`
+- [x] Player stone icons in player panels must not change once set (currently reverts to BW icon in territory review) `[test: frontend:unit]` _(capabilities.ts: isNigiriPending excludes territory review)_
 - [ ] Player territory must be shown next to captures in player panels `[test: e2e:ws]`
 
 ### Dead Stone Toggling

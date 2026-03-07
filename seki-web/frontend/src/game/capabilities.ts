@@ -301,7 +301,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     }
   }
 
-  const canResign = isPlayer && isPlay && !isChallenge;
+  const canResign = isPlayer && isPlay && !isChallenge && mvs.length > 0;
   const showResign = isPlayer && (isPlay || isChallenge);
 
   // Abort: player + no moves + not done + (not challenge OR is creator)
@@ -410,7 +410,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
   // --- Player panels ---
 
-  const isNigiriPending = nigiri.value && !isPlay && !res;
+  const isNigiriPending = nigiri.value && !isPlay && !isReview && !res;
   const score = estimateScore.value ?? terr?.score ?? settled?.score;
 
   const panelOpts = {
