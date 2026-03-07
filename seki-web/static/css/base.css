@@ -252,6 +252,13 @@ a:visited {
   opacity: 0.5;
 }
 
+.nav-dropdown-item .icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 1lh;
+}
+
 .nav-dropdown-item {
   display: flex;
   align-items: center;
