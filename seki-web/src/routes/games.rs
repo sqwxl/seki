@@ -119,6 +119,7 @@ pub async fn create_game(
         ),
         TimeControlType::None => (None, None, None, None),
     };
+    let invite_email = form.invite_email.clone();
     let params = CreateGameParams {
         cols,
         rows: cols, // TODO: support non-square boards?
@@ -141,6 +142,19 @@ pub async fn create_game(
         Ok(game) => {
             if let Ok(gwp) = Game::find_with_players(&state.db, game.id).await {
                 crate::services::live::notify_game_created(&state, &gwp);
+            }
+            if let (Some(email), Some(token)) = (&invite_email, &game.invite_token) {
+                let mailer = state.mailer.clone();
+                let email = email.clone();
+                let token = token.clone();
+                let base_url =
+                    std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:3000".into());
+                let game_id = game.id;
+                tokio::spawn(async move {
+                    mailer
+                        .send_invitation(&email, game_id, &token, &base_url)
+                        .await;
+                });
             }
             Ok(Redirect::to(&format!("/games/{}", game.id)).into_response())
         }
@@ -236,6 +250,7 @@ pub async fn show_game(
             byoyomi_time_secs: gwp.game.byoyomi_time_secs,
             byoyomi_periods: gwp.game.byoyomi_periods,
             is_private: gwp.game.is_private,
+            invite_only: gwp.game.invite_only,
         },
         moves: engine.moves().to_vec(),
         current_turn_stone: engine.current_turn_stone().to_int() as i32,
@@ -292,6 +307,12 @@ pub async fn join_game(
 
     if gwp.has_player(current_user.id) {
         return Ok(Redirect::to(&format!("/games/{id}")).into_response());
+    }
+
+    if gwp.game.invite_only {
+        return Err(AppError::UnprocessableEntity(
+            "This game requires an invitation link to join".to_string(),
+        ));
     }
 
     if gwp.game.open_to.as_deref() == Some("registered") && !current_user.is_registered() {
@@ -357,7 +378,6 @@ pub struct RematchForm {
 #[derive(Deserialize)]
 pub struct InvitationQuery {
     pub token: String,
-    pub email: String,
 }
 
 // GET /games/:id/invitation
@@ -389,17 +409,12 @@ pub async fn invitation(
         ));
     }
 
-    // Find the invited user by email
-    let guest = crate::models::user::User::find_by_email(&state.db, &query.email)
-        .await?
-        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
-
-    // Add guest to game
+    // Add the current user to the open slot
     let mut tx = state.db.begin().await?;
     if gwp.black.is_none() {
-        Game::set_black(&mut *tx, id, guest.id).await?;
+        Game::set_black(&mut *tx, id, current_user.id).await?;
     } else if gwp.white.is_none() {
-        Game::set_white(&mut *tx, id, guest.id).await?;
+        Game::set_white(&mut *tx, id, current_user.id).await?;
     }
     if gwp.game.stage == "unstarted" {
         Game::set_stage(&mut *tx, id, "challenge").await?;

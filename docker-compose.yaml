@@ -13,14 +13,25 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - '8025:8025'
+      - '1025:1025'
   web:
     build: .
     ports: ['${PORT:-3000}:${PORT:-3000}']
     environment:
       DATABASE_URL: postgres://seki:seki@db:5432/seki
       STATIC_DIR: /app/static
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_FROM: noreply@seki.local
+      BASE_URL: http://localhost:${PORT:-3000}
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 volumes:
   pgdata:

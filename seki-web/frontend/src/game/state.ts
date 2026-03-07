@@ -41,6 +41,7 @@ export const initialProps = signal<InitialGameProps>({
     byoyomi_time_secs: undefined,
     byoyomi_periods: undefined,
     is_private: false,
+    invite_only: false,
   },
   moves: [],
   current_turn_stone: 0,

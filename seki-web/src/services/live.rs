@@ -19,6 +19,7 @@ pub struct GameSettings {
     pub byoyomi_time_secs: Option<i32>,
     pub byoyomi_periods: Option<i32>,
     pub is_private: bool,
+    pub invite_only: bool,
 }
 
 /// Full game item sent in lobby `init` and `game_created` messages.
@@ -53,6 +54,7 @@ impl LiveGameItem {
                 byoyomi_time_secs: gwp.game.byoyomi_time_secs,
                 byoyomi_periods: gwp.game.byoyomi_periods,
                 is_private: gwp.game.is_private,
+                invite_only: gwp.game.invite_only,
             },
             move_count,
         }

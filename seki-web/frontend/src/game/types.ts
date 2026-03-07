@@ -96,6 +96,7 @@ export type GameSettings = {
   byoyomi_time_secs: number | undefined;
   byoyomi_periods: number | undefined;
   is_private: boolean;
+  invite_only: boolean;
 };
 
 // Baked into the #game element dataset as JSON on initial render

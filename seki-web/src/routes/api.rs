@@ -44,6 +44,7 @@ struct GameResponse {
     komi: f64,
     handicap: i32,
     is_private: bool,
+    invite_only: bool,
     allow_undo: bool,
     result: Option<String>,
     black: Option<UserResponse>,
@@ -308,6 +309,7 @@ async fn create_game(
     api_user: ApiUser,
     Json(body): Json<CreateGameRequest>,
 ) -> Result<(axum::http::StatusCode, Json<GameResponse>), ApiError> {
+    let invite_email = body.invite_email.clone();
     let params = game_creator::CreateGameParams {
         cols: body.cols,
         rows: body.rows.unwrap_or(body.cols),
@@ -329,6 +331,18 @@ async fn create_game(
     let game = game_creator::create_game(&state.db, &api_user, params).await?;
     let gwp = Game::find_with_players(&state.db, game.id).await?;
     crate::services::live::notify_game_created(&state, &gwp);
+    if let (Some(email), Some(token)) = (&invite_email, &game.invite_token) {
+        let mailer = state.mailer.clone();
+        let email = email.clone();
+        let token = token.clone();
+        let base_url = std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:3000".into());
+        let game_id = game.id;
+        tokio::spawn(async move {
+            mailer
+                .send_invitation(&email, game_id, &token, &base_url)
+                .await;
+        });
+    }
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
@@ -452,8 +466,8 @@ async fn join_game(
         .into());
     }
 
-    // Private game requires valid invite token
-    if gwp.game.is_private {
+    // Private or invite-only games require a valid invite token
+    if gwp.game.is_private || gwp.game.invite_only {
         let valid_token = gwp.game.invite_token.as_ref();
         match (&body.token, valid_token) {
             (Some(provided), Some(expected)) if provided == expected => {
@@ -461,7 +475,7 @@ async fn join_game(
             }
             _ => {
                 return Err(AppError::UnprocessableEntity(
-                    "Private game requires valid invite token".to_string(),
+                    "This game requires a valid invite token to join".to_string(),
                 )
                 .into());
             }
@@ -1060,6 +1074,7 @@ async fn build_game_response(
         komi: gwp.game.komi,
         handicap: gwp.game.handicap,
         is_private: gwp.game.is_private,
+        invite_only: gwp.game.invite_only,
         allow_undo: gwp.game.allow_undo,
         result: gwp.game.result.clone(),
         black: gwp.black.as_ref().map(UserResponse::from_user),

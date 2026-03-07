@@ -25,6 +25,7 @@ pub struct AppState {
     pub presence: ws::presence::UserPresence,
     pub presence_subs: ws::presence_subscriptions::PresenceSubscriptions,
     pub live_tx: broadcast::Sender<String>,
+    pub mailer: services::mailer::Mailer,
 }
 
 pub async fn build_router(pool: db::DbPool, session_secure: bool) -> (Router, AppState) {
@@ -48,12 +49,14 @@ pub async fn build_router_with_presence(
         .with_expiry(Expiry::OnInactivity(Duration::days(30)));
 
     let (live_tx, _) = broadcast::channel::<String>(256);
+    let mailer = services::mailer::Mailer::from_env();
     let state = AppState {
         db: pool,
         registry: ws::registry::GameRegistry::new(),
         presence,
         presence_subs: ws::presence_subscriptions::PresenceSubscriptions::new(),
         live_tx,
+        mailer,
     };
 
     let app = Router::new()

@@ -4,5 +4,6 @@ pub mod engine_builder;
 pub mod game_actions;
 pub mod game_creator;
 pub mod live;
+pub mod mailer;
 pub mod presentation_actions;
 pub mod state_serializer;

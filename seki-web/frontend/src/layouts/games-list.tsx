@@ -150,6 +150,7 @@ function GamesList({ initial }: { initial?: InitMessage }) {
     (g) =>
       !isMyGame(g) &&
       !g.settings.is_private &&
+      !g.settings.invite_only &&
       isVisible(g) &&
       (!g.black || !g.white),
   );

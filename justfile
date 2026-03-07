@@ -1,10 +1,10 @@
 set shell := ["fish", "-c"]
 
 [parallel]
-dev: db wasm-hot server-hot frontend-hot
+dev: services wasm-hot server-hot frontend-hot
 
-db:
-    docker compose up db -d
+services:
+    docker compose up -d db mailpit
 
 wasm-hot:
     watchexec -w go-engine -w go-engine-wasm -- wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm

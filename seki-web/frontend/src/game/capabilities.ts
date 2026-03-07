@@ -351,7 +351,11 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
   // --- Lobby / lifecycle ---
 
-  const canJoinGame = !isPlayer && hasOpenSlot && !props.settings.is_private;
+  const canJoinGame =
+    !isPlayer &&
+    hasOpenSlot &&
+    !props.settings.is_private &&
+    !props.settings.invite_only;
 
   const showInviteLink = !!props.invite_token && hasOpenSlot && isPlayer;
 

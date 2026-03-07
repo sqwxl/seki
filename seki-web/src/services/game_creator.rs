@@ -82,13 +82,19 @@ pub async fn create_game(
         }
     } else if let Some(ref email) = params.invite_email {
         if !email.is_empty() {
-            Some(User::find_or_create_by_email(pool, email).await?)
+            // If a user with this email exists, create a challenge with them.
+            // Otherwise leave the slot empty — they join via the invitation link.
+            User::find_by_email(pool, email).await?
         } else {
             None
         }
     } else {
         None
     };
+
+    // Email invite with no matching user: mark invite-only so only the token holder can join
+    let invite_only =
+        params.invite_email.as_ref().is_some_and(|e| !e.is_empty()) && friend.is_none();
 
     let friend_id = friend.as_ref().map(|f| f.id);
 
@@ -135,6 +141,7 @@ pub async fn create_game(
         initial_clock.as_ref().map(|c| c.white_periods),
         nigiri,
         params.open_to.as_deref(),
+        invite_only,
     )
     .await?;
 

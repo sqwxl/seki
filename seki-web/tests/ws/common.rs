@@ -34,11 +34,28 @@ pub struct TestServer {
 
 impl TestServer {
     pub async fn start() -> Self {
-        // Start ephemeral Postgres via testcontainers
-        let container = Postgres::default().start().await.unwrap();
-        let host = container.get_host().await.unwrap();
-        let port = container.get_host_port_ipv4(5432).await.unwrap();
-        let database_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
+        // Start ephemeral Postgres via testcontainers (retry to avoid PortNotExposed race)
+        let (container, database_url) = {
+            let mut attempts = 0;
+            loop {
+                let c = Postgres::default().start().await.unwrap();
+                match (c.get_host().await, c.get_host_port_ipv4(5432).await) {
+                    (Ok(host), Ok(port)) => {
+                        break (
+                            c,
+                            format!("postgres://postgres:postgres@{host}:{port}/postgres"),
+                        );
+                    }
+                    _ => {
+                        attempts += 1;
+                        if attempts >= 3 {
+                            panic!("Failed to get container port after {attempts} attempts");
+                        }
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                    }
+                }
+            }
+        };
 
         let pool = sqlx::PgPool::connect(&database_url).await.unwrap();
 
