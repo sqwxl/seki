@@ -5,7 +5,6 @@ import type { TerritoryOverlay } from "../goban/create-board";
 import type { Point } from "../goban/types";
 import { GameStage, isPlayStage } from "./types";
 import type { TerritoryData, SettledTerritoryData, UserData } from "./types";
-import { formatScoreStr } from "./ui";
 import { clockDisplay } from "./clock";
 import { gamePhase } from "./phase";
 import type { GamePhase } from "./phase";
@@ -152,12 +151,7 @@ function deriveTerritoryOverlay(
   return undefined;
 }
 
-export function derivePlayerPanel(opts: {
-  position: "top" | "bottom";
-  stone: number;
-  blackUser: UserData | undefined;
-  whiteUser: UserData | undefined;
-  online: Map<number, UserData>;
+type ScoreInput = {
   komi: number;
   captures: { black: number; white: number };
   score:
@@ -166,6 +160,41 @@ export function derivePlayerPanel(opts: {
         white: { territory: number; captures: number };
       }
     | undefined;
+};
+
+type PanelScoreFields = Pick<
+  PlayerPanelProps,
+  "captures" | "komi" | "territory"
+>;
+
+export function buildPlayerPanels(input: ScoreInput): {
+  black: PanelScoreFields;
+  white: PanelScoreFields;
+} {
+  const { komi, captures, score } = input;
+  return {
+    black: {
+      captures: score ? score.black.captures : captures.black,
+      komi: komi < 0 ? -komi : undefined,
+      territory: score?.black.territory,
+    },
+    white: {
+      captures: score ? score.white.captures : captures.white,
+      komi: komi > 0 ? komi : undefined,
+      territory: score?.white.territory,
+    },
+  };
+}
+
+export function derivePlayerPanel(opts: {
+  position: "top" | "bottom";
+  stone: number;
+  blackUser: UserData | undefined;
+  whiteUser: UserData | undefined;
+  online: Map<number, UserData>;
+  komi: number;
+  captures: { black: number; white: number };
+  score: ScoreInput["score"];
   cd: {
     blackText: string;
     whiteText: string;
@@ -193,16 +222,11 @@ export function derivePlayerPanel(opts: {
   const bOnline = blackUser ? online.has(blackUser.id) : false;
   const wOnline = whiteUser ? online.has(whiteUser.id) : false;
 
-  const { bStr, wStr } = formatScoreStr(
-    komi,
-    score,
-    captures.black,
-    captures.white,
-  );
+  const panels = buildPlayerPanels({ komi, captures, score });
 
   const blackPanel: PlayerPanelProps = {
+    ...panels.black,
     name: bName,
-    captures: bStr,
     stone: isNigiriPending ? "nigiri" : "black",
     clock: cd.blackText || undefined,
     clockLowTime: cd.blackLow,
@@ -210,8 +234,8 @@ export function derivePlayerPanel(opts: {
     isOnline: bOnline,
   };
   const whitePanel: PlayerPanelProps = {
+    ...panels.white,
     name: wName,
-    captures: wStr,
     stone: isNigiriPending ? "nigiri" : "white",
     clock: cd.whiteText || undefined,
     clockLowTime: cd.whiteLow,

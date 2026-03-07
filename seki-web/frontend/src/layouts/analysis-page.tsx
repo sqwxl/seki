@@ -11,12 +11,11 @@ import {
 } from "../utils/format";
 import { buildNavProps } from "../utils/shared-controls";
 import type { MoveConfirmState } from "../utils/move-confirm";
-import { formatScoreStr } from "../game/ui";
 import { playStoneSound } from "../game/sound";
 import type { SgfMeta } from "../utils/sgf";
 import { GamePageLayout } from "./game-page-layout";
 import type { AnalysisCapabilities } from "../game/capabilities";
-import { analysisCapabilities } from "../game/capabilities";
+import { analysisCapabilities, buildPlayerPanels } from "../game/capabilities";
 import {
   analysisBoard,
   analysisMeta,
@@ -78,13 +77,6 @@ function buildAnalysisPlayerPanel({
   const engine = board.engine;
   const { score } = analysisTerritoryInfo.value;
 
-  const { bStr, wStr } = formatScoreStr(
-    KOMI,
-    score,
-    engine.captures_black(),
-    engine.captures_white(),
-  );
-
   const whiteName = meta?.white_name ?? "White";
   const blackName = meta?.black_name ?? "Black";
 
@@ -113,15 +105,24 @@ function buildAnalysisPlayerPanel({
     wClock = fallback;
   }
 
+  const panels = buildPlayerPanels({
+    komi: KOMI,
+    captures: {
+      black: engine.captures_black(),
+      white: engine.captures_white(),
+    },
+    score,
+  });
+
   const whitePanel: PlayerPanelProps = {
+    ...panels.white,
     name: whiteName,
-    captures: wStr,
     stone: "white",
     clock: wClock,
   };
   const blackPanel: PlayerPanelProps = {
+    ...panels.black,
     name: blackName,
-    captures: bStr,
     stone: "black",
     clock: bClock,
   };

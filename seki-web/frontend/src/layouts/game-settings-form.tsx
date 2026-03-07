@@ -4,7 +4,7 @@ import { storage, GAME_SETTINGS } from "../utils/storage";
 import {
   IconBalance,
   IconNigiri,
-  IconGrid,
+  IconGrid4x4,
   IconUndo,
   IconTimer,
   IconBell,
@@ -131,7 +131,7 @@ export function GameSettingsForm({
         </legend>
         <div>
           <label for="cols">
-            <IconGrid /> Board size
+            <IconGrid4x4 /> Board size
           </label>
           <input
             type="number"

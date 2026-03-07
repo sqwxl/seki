@@ -20,7 +20,7 @@ export function whiteSymbol(): string {
   return darkQuery.matches ? "●" : "○";
 }
 
-function formatN(n: number): string {
+export function formatN(n: number): string {
   return n % 1 === 0 ? String(n) : n.toFixed(1);
 }
 

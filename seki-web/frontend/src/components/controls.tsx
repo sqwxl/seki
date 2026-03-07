@@ -19,7 +19,7 @@ import {
   IconStonesBw,
   IconCancel,
   IconJoin,
-  IconGrid,
+  IconGrid4x4,
 } from "./icons";
 import { UserLabel } from "./user-label";
 
@@ -502,7 +502,7 @@ export function UIControls(
       )}
       {props.sizeSelect && (
         <span class="size-select-group">
-          <IconGrid />
+          <IconGrid4x4 />
           <SizeSelect {...props.sizeSelect} />
         </span>
       )}

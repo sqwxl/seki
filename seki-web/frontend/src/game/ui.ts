@@ -1,6 +1,5 @@
-import type { ScoreData } from "./types";
 import type { ChatEntry } from "../components/chat";
-import { formatGameDescription, formatPoints } from "../utils/format";
+import { formatGameDescription } from "../utils/format";
 import {
   isMyTurn,
   gameStage,
@@ -76,25 +75,6 @@ export function updateTitle(): void {
   } else {
     savedTitle = desc;
   }
-}
-
-/**
- * Format score strings for player panels.
- * If `score` is provided, uses territory + captures totals.
- * Otherwise, falls back to raw `blackCaptures` / `whiteCaptures`.
- */
-export function formatScoreStr(
-  komi: number,
-  score?: ScoreData,
-  blackCaptures?: number,
-  whiteCaptures?: number,
-): { bStr: string; wStr: string } {
-  if (score) {
-    const bTotal = score.black.territory + score.black.captures;
-    const wTotal = score.white.territory + score.white.captures;
-    return formatPoints(bTotal, wTotal, komi);
-  }
-  return formatPoints(blackCaptures ?? 0, whiteCaptures ?? 0, komi);
 }
 
 export type TerritoryCountdown = {

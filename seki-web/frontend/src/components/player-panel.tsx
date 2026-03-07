@@ -1,9 +1,12 @@
-import { CapturesBlack, CapturesWhite } from "./icons";
+import { formatN } from "../utils/format";
+import { CapturesBlack, CapturesWhite, IconGrid3x3 } from "./icons";
 import { UserLabel } from "./user-label";
 
 export type PlayerPanelProps = {
   name: string;
-  captures: string;
+  captures: number;
+  komi?: number;
+  territory?: number;
   stone: "black" | "white" | "nigiri";
   clock?: string;
   clockLowTime?: boolean;
@@ -28,7 +31,16 @@ export function PlayerPanel(props: PlayerPanelProps) {
       <span class="player-captures">
         {props.stone !== "nigiri" && (
           <>
-            {props.captures}
+            {props.territory != null && (
+              <>
+                {props.territory}
+                <span class="territory-icon">
+                  <IconGrid3x3 />
+                </span>
+              </>
+            )}
+            {formatN(props.captures)}
+            {props.komi ? `+${formatN(props.komi)}` : ""}
             <span class="captures-icon">
               {props.stone === "black" ? <CapturesBlack /> : <CapturesWhite />}
             </span>

@@ -117,11 +117,11 @@
 - [x] Moves/passes cannot be played during territory review (backend guard) `[test: backend:integration]` _(state_guards.rs)_
 - [ ] Frontend must disable move input during territory review `[test: e2e:ws]`
 - [x] Player stone icons in player panels must not change once set (currently reverts to BW icon in territory review) `[test: frontend:unit]` _(capabilities.ts: isNigiriPending excludes territory review)_
-- [ ] Player territory must be shown next to captures in player panels `[test: e2e:ws]`
+- [x] Player territory must be shown next to captures in player panels `[test: e2e:ws]`
 
 ### Dead Stone Toggling
 
-- [ ] Capture counts must be updated with dead stones in player panels `[test: e2e:ws]`
+- [x] Capture counts must be updated with dead stones in player panels `[test: e2e:ws]`
 
 ### Territory Approval
 
@@ -129,6 +129,7 @@
 - [x] Cannot approve if already approved `[test: backend:integration]` _(state_guards.rs)_
 - [ ] Clicking empty vertex (not a stone) during territory review must have no action (currently resets approval and countdown timer) `[test: e2e:ws]`
 - [x] Move tree shows branch terminator node which shows territory highlight and final player scores
+- [ ] Territory terminator node should only appear once (current bug exists where an extra terminator node is appended to the active node after initial game load)
 
 ### Scoring
 
