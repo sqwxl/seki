@@ -35,7 +35,7 @@ export function Controls(props: ControlsProps) {
         <GameControls {...props} />
       </span>
       <span class="btn-group controls-middle">
-        <NavControls nav={props.nav} />
+        <NavControls nav={props.nav} confirmMove={props.confirmMove} />
       </span>
       <span class="btn-group controls-end">
         <UIControls {...props} />

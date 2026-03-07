@@ -329,16 +329,6 @@ export function GameControls(props: ControlsProps) {
           confirm={props.acceptTerritory}
         />
       )}
-      {props.confirmMove && (
-        <button
-          id="confirm-move-btn"
-          title="Confirm move"
-          disabled={props.confirmMove.disabled}
-          onClick={props.confirmMove.onClick}
-        >
-          <IconCheck />
-        </button>
-      )}
       {props.rematch && (
         <ConfirmButton
           id="rematch-btn"
@@ -374,7 +364,14 @@ export function GameControls(props: ControlsProps) {
   );
 }
 
-export function NavControls({ nav }: { nav: ControlsProps["nav"] }) {
+export function NavControls({
+  nav,
+  confirmMove,
+}: {
+  nav: ControlsProps["nav"];
+  confirmMove?: ButtonDef;
+}) {
+  const confirming = !!confirmMove;
   return (
     <div class="controls-nav">
       <button
@@ -392,12 +389,16 @@ export function NavControls({ nav }: { nav: ControlsProps["nav"] }) {
         <IconPlaybackPrev />
       </button>
       <button
-        class="controls-counter"
-        title="Go to end of main line"
-        disabled={nav.atMainEnd}
-        onClick={() => nav.onNavigate("main-end")}
+        class={
+          confirming ? "controls-counter controls-confirm" : "controls-counter"
+        }
+        title={confirming ? "Confirm move" : "Go to end of main line"}
+        disabled={confirming ? confirmMove.disabled : nav.atMainEnd}
+        onClick={
+          confirming ? confirmMove.onClick : () => nav.onNavigate("main-end")
+        }
       >
-        {nav.counter}
+        {confirming ? <IconCheck /> : nav.counter}
       </button>
       <button
         title="Forward"

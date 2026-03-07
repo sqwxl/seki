@@ -53,9 +53,10 @@
   padding: 0.25rem;
 }
 
-#confirm-move-btn {
-  font-size: 2em;
-  padding: 0.1em 0.4em;
+.controls button.controls-confirm {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--bg);
 }
 
 .controls-group {
