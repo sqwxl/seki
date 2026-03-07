@@ -2,7 +2,7 @@
 
 ## 0. Misc
 
-- [ ] Reloading live game page always returns to latest live mode position
+- [ ] Reloading live game page must always return to latest live mode position
 - [x] Presence indicator updates as soon as a player connects or disconnects _(fix: presence WS messages were missing `game_id` field, causing frontend routing to drop them)_
 - [x] Presence indicator correctly reflects player presence _(same root cause)_
 
@@ -10,7 +10,7 @@
 
 - [x] Logout should redirect just like login `[test: backend:integration]` _(api.rs: logout_html_redirects, logout_json_returns_redirect_field)_
 - [x] Bearer token works on all authenticated API endpoints `[test: backend:integration]` _(api.rs: missing_auth_returns_401, invalid_token_returns_401)_
-- [ ] Token always shown on settings page — potential security issue
+- [ ] Token currently shown in clear on settings page — potential security issue
 
 ## 2. Game Creation
 
@@ -37,27 +37,26 @@
 
 ### Time Control
 
-- [ ] Timer appears to skip a second when starting periods (should round up) `[test: frontend:unit]`
-- [ ] Restored time control choice in game form should correctly set radio input (shows settings but "None" is selected)
-- [ ] Timer color switches to red for t < 10s
-- [ ] Timer format switches to seconds.millis for last t < 10s `[test: frontend:unit]`
+- [ ] Timer should not appear to skip a second when starting periods (should round up) `[test: frontend:unit]`
+- [ ] Restored time control choice in game form should correctly set radio input (shows time settings but "None" is selected)
+- [ ] Timer color must switch to red when t < 10s
+- [ ] Timer format must switch to seconds.millis when t < 10s `[test: frontend:unit]`
 
 ### Visibility
 
-- [x] Private game should only be visible to participants (challengee, or via invite token) `[test: backend:integration]` _(security.rs)_
+- [x] Private game must only be visible to participants (challengee, or via invite token) `[test: backend:integration]` _(security.rs)_
 
 ### Invitations
 
-- [ ] Invite by email: sends invite (if email support active)
-- [ ] Invite link `/games/:id?token=...` grants access to private game `[test: backend:integration]`
-- [ ] Invite link required to join private games `[test: backend:integration]`
-- [ ] New game form needs invite by username (via user search)
-- [ ] Email invite and notification (needs local service to test)
+- [ ] Invite by email: must send invite (needs local services to test)
+- [ ] Invite link `/games/:id?token=...` must grant access to private game `[test: backend:integration]`
+- [ ] Invite link must be required to join private games `[test: backend:integration]`
+- [ ] New game form allows invite by username (via user search)
 
 ## 3. Game Lobby / Games List
 
-- [ ] Pending outgoing challenges should appear in Challenges section; currently only visible for the challengee `[test: e2e:ws]`
-- [ ] Newly created game appears in list, but not in same order as full refresh `[test: e2e:ws]`
+- [ ] Pending outgoing challenges must appear in Challenges section; currently only visible for the challengee `[test: e2e:ws]`
+- [ ] Games list order must be always be the same (ie, live updates insert in the right place) `[test: e2e:ws]`)
 
 ## 4. Joining Games
 
@@ -66,16 +65,16 @@
 
 ## 5. Challenges
 
-- [ ] Declined status should show in GameStatus component `[test: frontend:unit]`
+- [ ] Declined status must show in GameStatus component `[test: frontend:unit]`
 
 ## 6. Playing Moves
 
 ### Move Confirmation Mode
 
-- [ ] Premove cleared on pass or turn change `[test: frontend:unit]`
+- [ ] Premove must be cleared on pass or turn change `[test: frontend:unit]`
 - [ ] "Confirm move" button should not shift layout
-- [ ] Premove ghost should be cleared on pass or turn change `[test: frontend:unit]`
-- [ ] Premove ghost should not trigger immediate move on turn change; premove context is only relevant during a player's turn `[test: frontend:unit]`
+- [ ] Premove ghost must be cleared on pass or turn change `[test: frontend:unit]`
+- [ ] Premove ghost must not trigger immediate move on turn change; premove context is only relevant during a player's turn `[test: frontend:unit]`
 
 ## 7. Passing
 
@@ -83,71 +82,69 @@
 
 ## 8. Resigning
 
-- [ ] System chat message "Game over. {result}" broadcast on resign `[test: e2e:ws]`
+- [ ] System chat message "Game over. {result}" must be broadcast on resign `[test: e2e:ws]`
 - [x] Cannot resign before first move (backend guard); use abort instead `[test: backend:integration]` _(state_guards.rs)_
-- [ ] Resign button should be disabled until the first move is played (frontend)
+- [ ] Resign button must be disabled before the first move is played
 
 ## 9. Aborting
 
 - [x] Only creator can abort pending challenge `[test: backend:integration]` _(security.rs)_
-- [ ] "Game aborted" system chat message should include username ("Game aborted by $user") `[test: e2e:ws]`
+- [ ] "Game aborted" system chat message must include username ("Game aborted by $user") `[test: e2e:ws]`
 - [x] Player should not be able to abort as soon as player reconnects (UI should immediately update) `[test: e2e:ws]` _(disconnect.rs: disconnect_abort_threshold + capabilities.test.ts: disconnect abort timing)_ **NOTE: significant frontend lag observed showing disconnected status updates — server-side thresholds are tested but UI responsiveness is not**
 
 ## 10. Undo / Takeback
 
 ### Requesting
 
-- [ ] Requester sees "undo_request_sent" (button disabled) `[test: e2e:ws]`
-- [ ] Undo button should be disabled with "Request pending" tooltip while outgoing request is pending `[test: e2e:ws]`
-- [ ] Undo requested dialogue should be dismissed if own move played via API `[test: e2e:ws]`
-- [ ] Undo button should be disabled after a pass `[test: frontend:unit]`
-- [ ] Undo button should be re-enabled if state now allows undo request for player `[test: frontend:unit]`
+- [ ] Undo button must be disabled with "Request pending" tooltip while outgoing request is pending `[test: e2e:ws]`
+- [ ] Undo requested dialogue must be dismissed if own move played via API `[test: e2e:ws]`
+- [ ] Undo button must be disabled after a pass `[test: frontend:unit]`
+- [ ] Undo button must be re-enabled if state now allows undo request for player `[test: frontend:unit]`
 - [ ] Undo button not visible in live-view on finished game
 
 ### Responding
 
-- [ ] Both clocks should reset to time when undone move was played `[test: e2e:ws]`
+- [ ] Both clocks must reset to time when undone move was played `[test: e2e:ws]`
 
 ### Edge Cases
 
-- [ ] Multiple rapid undo requests handled correctly (unclear how to test) `[test: backend:integration]`
+- [ ] Multiple rapid undo requests must be handled correctly (unclear how to test) `[test: backend:integration]`
 
 ## 11. Territory Review
 
 ### Entry
 
 - [x] Moves/passes cannot be played during territory review (backend guard) `[test: backend:integration]` _(state_guards.rs)_
-- [ ] Frontend should disable move input during territory review `[test: e2e:ws]`
-- [ ] Player stones in UserLabel should remain unchanged during territory review (currently reverts to BW icon) `[test: frontend:unit]`
+- [ ] Frontend must disable move input during territory review `[test: e2e:ws]`
+- [ ] Player stone icons in player panels must not change once set (currently reverts to BW icon in territory review) `[test: frontend:unit]`
+- [ ] Player territory must be shown next to captures in player panels `[test: e2e:ws]`
 
 ### Dead Stone Toggling
 
-- [ ] Captures and territory for each player updated in player panels `[test: e2e:ws]`
+- [ ] Capture counts must be updated with dead stones in player panels `[test: e2e:ws]`
 
 ### Territory Approval
 
-- [ ] System message reads: "Territory will be auto-confirmed in $TIME" `[test: e2e:ws]`
+- [ ] System message must read: "Territory will be auto-confirmed in $TIME" `[test: e2e:ws]`
 - [x] Cannot approve if already approved `[test: backend:integration]` _(state_guards.rs)_
-- [ ] Clicking empty vertex (not a stone) during territory review: no action (currently resets approval and countdown timer) `[test: e2e:ws]`
-- [ ] Move tree shows branch terminator node which shows territory highlight and final player scores
+- [ ] Clicking empty vertex (not a stone) during territory review must have no action (currently resets approval and countdown timer) `[test: e2e:ws]`
+- [x] Move tree shows branch terminator node which shows territory highlight and final player scores
 
 ### Scoring
 
 - [ ] Dead stones counted as captures for opponent (not verified) `[test: backend:unit]`
-- [ ] Player panel shows territory and (captures + dead stones) `[test: e2e:ws]`
-- [ ] System chat message "Game over. {result}" broadcast once per game (currently duplicated) `[test: e2e:ws]`
+- [ ] System chat message ("Game over. {result}") must be broadcast only once per game (currently duplicated) `[test: e2e:ws]`
 
 ## 12. Clock / Timer
 
 ### Byo-yomi
 
-- [ ] Each period resets if move made within period time `[test: backend:unit]`
-- [ ] Last period is '(1)' — no zero-th period after `[test: backend:unit, frontend:unit]`
+- [ ] Last period must show as '(1)' — no zero-th period`[test: backend:unit, frontend:unit]`
 
 ### Correspondence
 
-- [ ] No real-time countdown (async play)
-- [ ] Real-time countdown in final hour
+- [ ] There should not be any real-time countdown (async play)
+- [ ] There should be real-time countdown in final hour
 
 ### Clock Pausing
 
@@ -156,7 +153,7 @@
 
 ### Edge Cases
 
-- [ ] Very fast moves: increment still applied correctly (not tested) `[test: backend:unit]`
+- [ ] Very fast moves: increment must still be applied correctly (not tested) `[test: backend:unit]`
 - [x] Disconnect during opponent's turn: their clock paused `[test: e2e:ws]` _(disconnect.rs: move_while_opponent_disconnected_keeps_clock_paused)_
 
 ## 13. Chat
@@ -167,89 +164,89 @@
 
 ### Keyboard
 
-- [ ] Up arrow: jump to start (empty board) `[test: frontend:unit]`
-- [ ] Down arrow: jump to latest move `[test: frontend:unit]`
+- [ ] Up arrow must jump to start (empty board) `[test: frontend:unit]`
+- [ ] Down arrow must jump to last node in branch`[test: frontend:unit]`
 
 ### Button Controls
 
-- [ ] Client should not crash when navigating after returning from chat or analysis tab (infinite recursion in live-game.tsx) `[test: e2e]`
+- [ ] Client must not crash when navigating after returning from chat or analysis tab (infinite recursion in live-game.tsx) `[test: e2e]`
 
 ### Move Tree
 
-- [ ] Current position highlighted `[test: frontend:unit]`
-- [ ] Active path highlighted `[test: frontend:unit]`
-- [ ] Branches show final territory node with territories on settled games
-- [ ] Auto-scroll to keep current node visible
+- [ ] Current position must be highlighted `[test: frontend:unit]`
+- [ ] Active path must be highlighted `[test: frontend:unit]`
+- [x] Branches must show final territory node with territories on settled games
+- [ ] Container must auto-scroll to keep current node visible
 
 ## 15. Analysis Mode
 
 ### In-Game Analysis
 
-- [ ] Analysis tree restored on refresh `[test: e2e]`
-- [ ] Load local move tree + live state on load into live game `[test: e2e]`
-- [ ] Move confirmation works in analysis mode `[test: e2e]`
+- [ ] Analysis tree must be restored on refresh `[test: e2e]`
+- [ ] Refreshing in-progress live game must always return to latest node on main branch. `[test: e2e]`
+- [ ] Refreshing settled game must always return to last viewed node. `[test: e2e]`
+- [ ] Move confirmation input must work in analysis mode `[test: e2e]`
 
 ### Standalone Analysis Page
 
-- [ ] Player names editable
+- [ ] Player names must be editable (direct click-to-edit UX)
 
 ### Score Estimator
 
-- [ ] Exit estimate returns to normal board view `[test: e2e]`
-- [ ] "Accept" ends branch with final territory node
-- [ ] "Estimate score" button on node before final territory simply moves to that node (bypass review flow)
+- [ ] Exit estimate must return to normal board view `[test: e2e]`
+- [ ] Clicking "Accept" must end branch with final territory node (like accepting after double-pass)
+- [ ] Clicking "Estimate score" button on a node which precedes an accepted estimate/territory simply moves to that node (bypass review flow)
 
 ### SGF Import
 
-- [ ] Non-square board SGF rejected with error (untested) `[test: backend:unit, frontend:unit]`
-- [ ] Unsupported board sizes rejected (untested) `[test: backend:unit, frontend:unit]`
+- [ ] Non-square board SGF must be rejected with error (untested) `[test: backend:unit, frontend:unit]`
+- [ ] Unsupported board sizes must be rejected (untested) `[test: backend:unit, frontend:unit]`
 
 ### SGF Export
 
-- [ ] Filename: "{YYYYMMDD}-{Black}-vs-{White}.sgf" for games, "analysis.sgf" standalone without set names `[test: frontend:unit]`
+- [ ] Filename must be: "{YYYYMMDD}-{Black}-vs-{White}.sgf" live for games or analysis board with set player names; "analysis.sgf" for standalone without set names `[test: frontend:unit]`
 
 ## 16. Presentation Mode (Post-Game) — Currently Broken
 
-- [ ] "Analyze" button on finished game starts presentation `[test: e2e:ws]`
-- [ ] Only available on finished games `[test: e2e:ws]`
-- [ ] Originator enters analysis mode `[test: e2e:ws]`
-- [x] All connected users receive `presentation_started` `[test: e2e:ws]` _(presentation.rs: start_and_end_presentation)_
-- [x] Presenter's board state broadcast to all viewers `[test: e2e:ws]` _(presentation.rs: presenter_sends_snapshots)_
-- [x] Viewers see real-time board updates as presenter navigates `[test: e2e:ws]` _(presentation.rs: presenter_sends_snapshots)_
-- [ ] Move tree position synced for synced viewers `[test: e2e:ws]`
-- [x] Originator can give control to another user `[test: e2e:ws]` _(presentation.rs: give_control)_
+- [ ] "Analyze" button on finished game must start presentation `[test: e2e:ws]`
+- [ ] Must only be available on finished games `[test: e2e:ws]`
+- [ ] Originator must enter analysis mode `[test: e2e:ws]`
+- [x] All connected users must receive `presentation_started` `[test: e2e:ws]` _(presentation.rs: start_and_end_presentation)_
+- [x] Presenter's board state must be broadcast to all viewers `[test: e2e:ws]` _(presentation.rs: presenter_sends_snapshots)_
+- [x] Viewers must see real-time board updates as presenter navigates `[test: e2e:ws]` _(presentation.rs: presenter_sends_snapshots)_
+- [ ] Move tree position must be synced for synced viewers `[test: e2e:ws]`
+- [x] Originator must be able to give control to another user `[test: e2e:ws]` _(presentation.rs: give_control)_
 - [x] Non-originator can request control `[test: e2e:ws]` _(presentation.rs: request_control)_
-- [ ] Originator sees request popover with give/dismiss buttons
+- [ ] Originator must see request popover with give/dismiss buttons
 - [x] Control request can be cancelled `[test: e2e:ws]` _(presentation.rs: cancel_request)_
 - [x] Control request can be rejected `[test: e2e:ws]` _(presentation.rs: reject_request)_
 - [x] Only originator can `take_control` back `[test: e2e:ws]` _(presentation.rs: non_originator_cannot_take_control)_
-- [ ] Delegated presenter: exiting analysis gives control back to originator `[test: e2e:ws]`
-- [ ] Viewers can choose: follow presentation or analyze locally `[test: e2e:ws]`
-- [ ] Local analysis doesn't affect presentation `[test: e2e:ws]`
-- [ ] Switching to local analysis un-syncs from presentation `[test: e2e:ws]`
-- [ ] Can re-sync to presentation `[test: e2e:ws]`
-- [x] Originator exits analysis to end presentation `[test: e2e:ws]` _(presentation.rs: start_and_end_presentation)_
-- [x] All viewers receive `presentation_ended` `[test: e2e:ws]` _(presentation.rs: start_and_end_presentation)_
-- [ ] Board returns to last game position for viewers `[test: e2e:ws]`
+- [ ] Delegated presenter exiting analysis must give control back to originator `[test: e2e:ws]`
+- [ ] Viewers must be able to choose: follow presentation (default) or analyze locally `[test: e2e:ws]`
+- [ ] Local analysis must not affect presentation `[test: e2e:ws]`
+- [ ] Switching to local analysis must un-sync from presentation `[test: e2e:ws]`
+- [ ] Exiting analysis must re-sync to ongoing presentation `[test: e2e:ws]`
+- [x] Originator must exit analysis to end presentation `[test: e2e:ws]` _(presentation.rs: start_and_end_presentation)_
+- [x] All viewers must receive `presentation_ended` `[test: e2e:ws]` _(presentation.rs: start_and_end_presentation)_
+- [ ] Board must return to last game position for viewers `[test: e2e:ws]`
 
 ## 17. Rematch
 
-- [ ] Rematch available via both web and API (untested) `[test: backend:integration]`
+- [ ] Rematch action must be available via both web and API (untested) `[test: backend:integration]`
 
 ## 18. UI / Display
 
 ### Player Panels
 
 - [x] Opponent always in top panel (also for open games) `[test: frontend:unit]` _(capabilities.test.ts: player panel ordering)_
-- [ ] Territory for completed games with territory `[test: e2e]`
 
 ### Mobile / Responsive
 
-- [ ] Board resizes dynamically when window is resized (both mobile and desktop layouts)
-- [ ] Board resizes dynamically with surrounding UI shifts (layout shift incorrect when opponent joins; bottom label obscured)
-- [ ] Move tree direction adjusts depending on container dimensions
+- [ ] Board must resize dynamically when window is resized (both mobile and desktop layouts)
+- [ ] Board must resize dynamically with surrounding UI shifts (layout shift incorrect when opponent joins; bottom label obscured)
+- [ ] Move tree direction must adjust depending on container dimensions
 - [ ] Layout should use available width when window height is small in mobile mode (stacked controls on one row)
-- [ ] Board is centred when shrunk in short mobile layout
+- [ ] Board must be centred when shrunk in short mobile layout
 
 ### Tab Title
 
@@ -257,15 +254,15 @@
 
 ## 19. Sound Effects
 
-- [ ] Placing a stone manually triggers sound in analysis
+- [ ] Placing a stone manually must trigger sound in analysis
 
 ## 20. WebSocket Connection
 
-- [ ] Pending messages queued and sent on reconnect (untested) `[test: e2e:ws]`
+- [ ] Pending messages must be queued and sent on reconnect (untested) `[test: e2e:ws]`
 - [x] Online user list updated on connect/disconnect `[test: e2e:ws]` _(presence.rs: join_broadcasts_presence, disconnect_broadcasts_offline)_
-- [ ] Multiple tabs maintain separate connections `[test: e2e:ws]`
-- [ ] Graceful handling of server restart `[test: e2e:ws]`
-- [ ] Disconnected client optimistically shows played move if disconnected during player's turn
+- [ ] Multiple tabs must maintain separate connections `[test: e2e:ws]`
+- [ ] Server restart must be handled gracefully `[test: e2e:ws]`
+- [ ] Disconnected client must optimistically show played move if disconnected during player's turn
 - [x] Presence indicators update immediately for all subscribers `[test: e2e:ws]` _(presence.rs: multiple_connections_no_false_offline)_
 
 ## 21. REST API — Needs Thorough Automated Testing
@@ -311,10 +308,10 @@
 
 ## 22. Cross-Cutting Edge Cases
 
-- [ ] Two players play simultaneously — race condition on turns (needs automated test) `[test: backend:integration]`
+- [ ] If Two players play simultaneously, server must be resilient against race conditions (needs automated test) `[test: backend:integration]`
 - [x] Game with 0 komi disallowed (komi must be half-integer) `[test: backend:integration]` _(validation.rs)_
-- [ ] Very long game (300+ moves): performance acceptable (untested) `[test: backend:integration]`
-- [ ] Rapid-fire moves: server handles correctly, no state corruption (needs automated test) `[test: backend:integration]`
-- [ ] Network partition during move: move either fully applied or fully rolled back (needs automated test) `[test: backend:integration]`
-- [ ] DB transaction failure: engine state rolled back, no DB/cache divergence (needs automated test) `[test: backend:integration]`
-- [ ] Two anonymous users in same game, one registers mid-game (needs test) `[test: e2e:ws]`
+- [ ] Very long game (300+ moves): performance must be acceptable (untested) `[test: backend:integration]`
+- [ ] Rapid-fire moves: server must handle correctly, no state corruption (needs automated test) `[test: backend:integration]`
+- [ ] Network partition during move: move must be either fully applied or fully rolled back (needs automated test) `[test: backend:integration]`
+- [ ] DB transaction failure: engine state must be rolled back, no DB/cache divergence (needs automated test) `[test: backend:integration]`
+- [ ] Two anonymous users in same game, one registers mid-game (needs test): must be handled gracefully `[test: e2e:ws]`
