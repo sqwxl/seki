@@ -114,13 +114,14 @@ async fn reject_negative_handicap() {
 }
 
 #[tokio::test]
-async fn reject_handicap_one() {
+async fn accept_handicap_one_as_no_handicap() {
     let server = TestServer::start().await;
 
     let resp = server.try_create_game_with(json!({"handicap": 1})).await;
-    assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("minimum is 2"));
+    assert!(
+        resp.status().is_success(),
+        "handicap 1 should be treated as no handicap"
+    );
 }
 
 #[tokio::test]

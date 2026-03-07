@@ -37,7 +37,7 @@ type Settings = {
 const DEFAULTS: Settings = {
   cols: 19,
   komi: 6.5,
-  handicap: 1,
+  handicap: 0,
   color: "black",
   allowUndo: false,
   isPrivate: false,
@@ -106,7 +106,6 @@ export function GameSettingsForm({
   }, []);
 
   const handicapMax = maxHandicap(s.cols);
-  const effectiveMax = handicapMax < 2 ? 1 : handicapMax;
 
   function set<K extends keyof Settings>(key: K, value: Settings[K]) {
     setS((prev) => {
@@ -114,9 +113,8 @@ export function GameSettingsForm({
       // Sync handicap when board size changes
       if (key === "cols") {
         const newMax = maxHandicap(value as number);
-        const effMax = newMax < 2 ? 1 : newMax;
-        if (next.handicap > effMax) {
-          next.handicap = effMax;
+        if (next.handicap > newMax) {
+          next.handicap = newMax;
         }
       }
       return next;
@@ -169,18 +167,24 @@ export function GameSettingsForm({
           <label for="handicap">
             <IconHandicap /> Handicap
           </label>
-          <input
-            type="number"
+          <select
             name="handicap"
             id="handicap"
-            min={1}
-            max={effectiveMax}
-            step={1}
             value={s.handicap}
             onChange={(e) =>
-              set("handicap", parseInt(e.currentTarget.value, 10) || 1)
+              set("handicap", parseInt(e.currentTarget.value, 10))
             }
-          />
+          >
+            <option value={0}>None</option>
+            {Array.from({ length: Math.max(0, handicapMax - 1) }, (_, i) => {
+              const v = i + 2;
+              return (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              );
+            })}
+          </select>
         </div>
         <div>
           <label>Your color</label>

@@ -29,11 +29,11 @@
 
 ### Handicap
 
-- [ ] Handicap inputs of 0 or 1 are equivalent (no handicap; black plays first)
+- [x] Handicap inputs of 0 or 1 are equivalent (no handicap; black plays first)
 - [x] API should not accept negative handicap `[test: backend:integration]` _(validation.rs)_
-- [ ] API should accept handicaps greater than or equal to 0 `[test: backend:integration]` _(validation.rs)_
+- [x] API should accept handicaps greater than or equal to 0 `[test: backend:integration]` _(validation.rs: accept_handicap_one_as_no_handicap, accept_valid_handicap)_
 - [x] API should not accept illegal handicap for board size `[test: backend:integration]` _(validation.rs)_
-- [ ] UI should skip 1 to avoid confusion: ie input skips from 0 to 2
+- [x] UI should skip 1 to avoid confusion: ie input skips from 0 to 2
 
 ### Time Control
 

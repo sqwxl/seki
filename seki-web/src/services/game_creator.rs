@@ -53,11 +53,6 @@ pub async fn create_game(
             "Handicap cannot be negative".to_string(),
         ));
     }
-    if params.handicap == 1 {
-        return Err(AppError::UnprocessableEntity(
-            "Handicap of 1 is not allowed (minimum is 2)".to_string(),
-        ));
-    }
     // Check max handicap for board size
     let max_hc = go_engine::handicap::max_handicap(params.cols as u8, params.rows as u8);
     if params.handicap > 0 && max_hc == 0 {
