@@ -117,6 +117,8 @@ struct CreateGameRequest {
     byoyomi_time_secs: Option<i32>,
     #[serde(default)]
     byoyomi_periods: Option<i32>,
+    #[serde(default)]
+    open_to: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -321,6 +323,7 @@ async fn create_game(
         increment_secs: body.increment_secs,
         byoyomi_time_secs: body.byoyomi_time_secs,
         byoyomi_periods: body.byoyomi_periods,
+        open_to: body.open_to,
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;
@@ -439,6 +442,14 @@ async fn join_game(
 
     if gwp.has_player(api_user.id) {
         return Err(AppError::UnprocessableEntity("Already in this game".to_string()).into());
+    }
+
+    // Enforce open_to restriction
+    if gwp.game.open_to.as_deref() == Some("registered") && !api_user.is_registered() {
+        return Err(AppError::UnprocessableEntity(
+            "This game is restricted to registered users".to_string(),
+        )
+        .into());
     }
 
     // Private game requires valid invite token
@@ -794,6 +805,7 @@ async fn rematch_game(
         increment_secs: gwp.game.increment_secs,
         byoyomi_time_secs: gwp.game.byoyomi_time_secs,
         byoyomi_periods: gwp.game.byoyomi_periods,
+        open_to: None,
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;

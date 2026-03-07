@@ -184,6 +184,65 @@ impl User {
         .await
     }
 
+    /// Search users by prefix, sorted: recent opponents first, then last active.
+    pub async fn search_by_prefix(
+        pool: &crate::db::DbPool,
+        prefix: &str,
+        current_user_id: i64,
+        limit: i64,
+    ) -> Result<Vec<UserSearchRow>, sqlx::Error> {
+        let pattern = format!("{prefix}%");
+        sqlx::query_as::<_, UserSearchRow>(
+            "SELECT u.*, (g.opponent_id IS NOT NULL) AS is_recent \
+             FROM users u \
+             LEFT JOIN ( \
+                 SELECT CASE WHEN black_id = $1 THEN white_id ELSE black_id END AS opponent_id, \
+                        MAX(updated_at) AS last_played \
+                 FROM games \
+                 WHERE (black_id = $1 OR white_id = $1) \
+                 AND black_id IS NOT NULL AND white_id IS NOT NULL \
+                 GROUP BY opponent_id \
+             ) g ON u.id = g.opponent_id \
+             WHERE u.id != $1 AND u.username ILIKE $2 \
+             ORDER BY (g.opponent_id IS NOT NULL) DESC, \
+                      COALESCE(g.last_played, u.updated_at) DESC \
+             LIMIT $3",
+        )
+        .bind(current_user_id)
+        .bind(&pattern)
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+    }
+
+    /// List users sorted: recent opponents first, then last active.
+    pub async fn list_for_challenge(
+        pool: &crate::db::DbPool,
+        current_user_id: i64,
+        limit: i64,
+    ) -> Result<Vec<UserSearchRow>, sqlx::Error> {
+        sqlx::query_as::<_, UserSearchRow>(
+            "SELECT u.*, (g.opponent_id IS NOT NULL) AS is_recent \
+             FROM users u \
+             LEFT JOIN ( \
+                 SELECT CASE WHEN black_id = $1 THEN white_id ELSE black_id END AS opponent_id, \
+                        MAX(updated_at) AS last_played \
+                 FROM games \
+                 WHERE (black_id = $1 OR white_id = $1) \
+                 AND black_id IS NOT NULL AND white_id IS NOT NULL \
+                 GROUP BY opponent_id \
+             ) g ON u.id = g.opponent_id \
+             WHERE u.id != $1 \
+             ORDER BY (g.opponent_id IS NOT NULL) DESC, \
+                      COALESCE(g.last_played, u.updated_at) DESC \
+             LIMIT $2",
+        )
+        .bind(current_user_id)
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+    }
+
     pub async fn generate_api_token(
         executor: impl sqlx::PgExecutor<'_>,
         user_id: i64,
@@ -196,6 +255,27 @@ impl User {
         .bind(user_id)
         .fetch_one(executor)
         .await
+    }
+}
+
+#[derive(Debug, Clone, FromRow)]
+#[allow(dead_code)]
+pub struct UserSearchRow {
+    pub id: i64,
+    pub session_token: Option<String>,
+    pub email: Option<String>,
+    pub username: String,
+    pub password_hash: Option<String>,
+    pub api_token: Option<String>,
+    pub preferences: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub is_recent: bool,
+}
+
+impl UserSearchRow {
+    pub fn is_registered(&self) -> bool {
+        self.password_hash.is_some()
     }
 }
 

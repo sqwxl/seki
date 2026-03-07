@@ -108,4 +108,14 @@ impl UserPresence {
             .get(&user_id)
             .is_some_and(|count| *count > 0)
     }
+
+    /// Return the set of connected user IDs from the given slice.
+    pub async fn connected_ids(&self, user_ids: &[i64]) -> std::collections::HashSet<i64> {
+        let inner = self.inner.read().await;
+        user_ids
+            .iter()
+            .copied()
+            .filter(|id| inner.connections.get(id).is_some_and(|c| *c > 0))
+            .collect()
+    }
 }

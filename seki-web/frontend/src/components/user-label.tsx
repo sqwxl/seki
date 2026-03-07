@@ -1,10 +1,11 @@
-import { StoneBlack, StoneWhite, IconNigiri } from "./icons";
+import { StoneBlack, StoneWhite, IconNigiri, IconUser } from "./icons";
 
 type UserLabelProps = {
   name: string;
   stone?: "black" | "white" | "nigiri";
   profileUrl?: string;
   isOnline?: boolean;
+  showRegistered?: boolean;
 };
 
 function StoneIcon({ stone }: { stone: "black" | "white" | "nigiri" }) {
@@ -28,6 +29,7 @@ export function UserLabel(props: UserLabelProps) {
           <StoneIcon stone={props.stone} />
         </span>
       )}
+      {props.showRegistered && <IconUser />}
       <span class="player-name">{nameContent}</span>
       {props.isOnline !== undefined && (
         <span class={`presence-dot${props.isOnline ? " online" : ""}`} />

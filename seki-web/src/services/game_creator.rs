@@ -21,6 +21,7 @@ pub struct CreateGameParams {
     pub increment_secs: Option<i32>,
     pub byoyomi_time_secs: Option<i32>,
     pub byoyomi_periods: Option<i32>,
+    pub open_to: Option<String>,
 }
 
 pub async fn create_game(
@@ -133,6 +134,7 @@ pub async fn create_game(
         initial_clock.as_ref().map(|c| c.black_periods),
         initial_clock.as_ref().map(|c| c.white_periods),
         nigiri,
+        params.open_to.as_deref(),
     )
     .await?;
 

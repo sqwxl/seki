@@ -82,6 +82,7 @@ pub struct CreateGameForm {
     pub byoyomi_time_secs: Option<i32>,
     pub byoyomi_periods: Option<i32>,
     pub correspondence_days: Option<i32>,
+    pub open_to: Option<String>,
 }
 
 // POST /games
@@ -133,6 +134,7 @@ pub async fn create_game(
         increment_secs,
         byoyomi_time_secs,
         byoyomi_periods,
+        open_to: form.open_to,
     };
 
     match game_creator::create_game(&state.db, &current_user, params).await {
@@ -292,6 +294,12 @@ pub async fn join_game(
         return Ok(Redirect::to(&format!("/games/{id}")).into_response());
     }
 
+    if gwp.game.open_to.as_deref() == Some("registered") && !current_user.is_registered() {
+        return Err(AppError::UnprocessableEntity(
+            "This game is restricted to registered users".to_string(),
+        ));
+    }
+
     let mut tx = state.db.begin().await?;
     if gwp.black.is_none() {
         Game::set_black(&mut *tx, id, current_user.id).await?;
@@ -449,6 +457,7 @@ pub async fn rematch_game(
         increment_secs: gwp.game.increment_secs,
         byoyomi_time_secs: gwp.game.byoyomi_time_secs,
         byoyomi_periods: gwp.game.byoyomi_periods,
+        open_to: None,
     };
 
     let game = game_creator::create_game(&state.db, &current_user, params).await?;

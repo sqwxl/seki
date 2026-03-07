@@ -14,8 +14,11 @@ import {
   StoneBlack,
   StoneWhite,
 } from "../components/icons";
+import { UserLabel } from "../components/user-label";
 
 type TimeControl = "none" | "fischer" | "byoyomi" | "correspondence";
+type OpponentMode = "open" | "challenge" | "invite";
+type OpenTo = "anyone" | "registered";
 
 type Settings = {
   cols: number;
@@ -33,6 +36,15 @@ type Settings = {
   correspondenceDays: number;
   creatorEmail: string;
   inviteEmail: string;
+  opponentMode: OpponentMode;
+  openTo: OpenTo;
+};
+
+type SearchResult = {
+  username: string;
+  is_registered: boolean;
+  is_online: boolean;
+  is_recent: boolean;
 };
 
 const DEFAULTS: Settings = {
@@ -51,6 +63,8 @@ const DEFAULTS: Settings = {
   correspondenceDays: 3,
   creatorEmail: "",
   inviteEmail: "",
+  opponentMode: "open",
+  openTo: "anyone",
 };
 
 function maxHandicap(size: number): number {
@@ -89,6 +103,15 @@ export function GameSettingsForm({
   settingsRef.current = s;
   const rootRef = useRef<HTMLDivElement>(null);
 
+  // Local state for challenge search (not persisted)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [recentOpponents, setRecentOpponents] = useState<SearchResult[]>([]);
+  const [selectedOpponent, setSelectedOpponent] = useState("");
+  const [recentsFetched, setRecentsFetched] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Save to localStorage on form submit
   useEffect(() => {
     const form = rootRef.current?.closest("form");
@@ -105,6 +128,47 @@ export function GameSettingsForm({
     form.addEventListener("submit", handler);
     return () => form.removeEventListener("submit", handler);
   }, []);
+
+  // Fetch recent opponents when switching to challenge mode
+  useEffect(() => {
+    if (s.opponentMode === "challenge" && !recentsFetched) {
+      setRecentsFetched(true);
+      fetch("/users/search")
+        .then((r) => r.json())
+        .then((data: SearchResult[]) => setRecentOpponents(data))
+        .catch(() => {});
+    }
+  }, [s.opponentMode, recentsFetched]);
+
+  function doSearch(query: string) {
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    fetch(`/users/search?q=${encodeURIComponent(query)}`, {
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data: SearchResult[]) => {
+        setSearchResults(data);
+      })
+      .catch(() => {});
+  }
+
+  function onSearchInput(value: string) {
+    setSearchQuery(value);
+    setSelectedOpponent("");
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    if (!value) {
+      setSearchResults([]);
+      return;
+    }
+    debounceRef.current = setTimeout(() => doSearch(value), 300);
+  }
 
   const handicapMax = maxHandicap(s.cols);
 
@@ -123,6 +187,15 @@ export function GameSettingsForm({
   }
 
   const tcActive = (tc: string) => s.timeControl === tc;
+
+  const displayResults = searchQuery ? searchResults : recentOpponents;
+
+  const submitText =
+    s.opponentMode === "challenge" && selectedOpponent
+      ? "Challenge"
+      : opponent
+        ? "Challenge"
+        : submitLabel;
 
   return (
     <div ref={rootRef}>
@@ -428,17 +501,124 @@ export function GameSettingsForm({
             <input type="hidden" name="invite_username" value={opponent} />
           </div>
         ) : (
-          <div>
-            <label for="invite_email">Invite a friend (optional)</label>
-            <input
-              type="email"
-              name="invite_email"
-              id="invite_email"
-              placeholder="friend@email.com"
-              value={s.inviteEmail}
-              onInput={(e) => set("inviteEmail", e.currentTarget.value)}
-            />
-          </div>
+          <>
+            <div class="opponent-mode-radios">
+              <label>
+                <input
+                  type="radio"
+                  name="_opponent_mode"
+                  checked={s.opponentMode === "open"}
+                  onChange={() => set("opponentMode", "open")}
+                />{" "}
+                Open
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="_opponent_mode"
+                  checked={s.opponentMode === "challenge"}
+                  onChange={() => set("opponentMode", "challenge")}
+                />{" "}
+                Challenge
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="_opponent_mode"
+                  checked={s.opponentMode === "invite"}
+                  onChange={() => set("opponentMode", "invite")}
+                />{" "}
+                Invite
+              </label>
+            </div>
+
+            {s.opponentMode === "open" && (
+              <div class="opponent-open-options">
+                <label>
+                  <input
+                    type="radio"
+                    name="_open_to"
+                    checked={s.openTo === "anyone"}
+                    onChange={() => set("openTo", "anyone")}
+                  />{" "}
+                  Anyone
+                </label>
+                <label class="disabled-option">
+                  <input type="radio" name="_open_to" disabled /> Only friends
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="_open_to"
+                    checked={s.openTo === "registered"}
+                    onChange={() => set("openTo", "registered")}
+                  />{" "}
+                  Only registered
+                </label>
+                <label class="disabled-option">
+                  <input type="radio" name="_open_to" disabled /> Only rated
+                </label>
+                <input
+                  type="hidden"
+                  name="open_to"
+                  value={s.openTo === "anyone" ? "" : s.openTo}
+                />
+              </div>
+            )}
+
+            {s.opponentMode === "challenge" && (
+              <div class="opponent-challenge">
+                <input
+                  type="text"
+                  placeholder="Search by username..."
+                  value={searchQuery}
+                  onInput={(e) => onSearchInput(e.currentTarget.value)}
+                  autocomplete="off"
+                />
+                {displayResults.length > 0 && (
+                  <ul class="opponent-search-results">
+                    {displayResults.map((r) => (
+                      <li
+                        key={r.username}
+                        class={
+                          selectedOpponent === r.username ? "selected" : ""
+                        }
+                        onClick={() => {
+                          setSelectedOpponent(r.username);
+                          setSearchQuery(r.username);
+                        }}
+                      >
+                        <UserLabel
+                          name={r.username}
+                          isOnline={r.is_online}
+                          showRegistered={r.is_registered}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <input
+                  type="hidden"
+                  name="invite_username"
+                  value={selectedOpponent}
+                />
+              </div>
+            )}
+
+            {s.opponentMode === "invite" && (
+              <div>
+                <label for="invite_email">Email address</label>
+                <input
+                  type="email"
+                  name="invite_email"
+                  id="invite_email"
+                  placeholder="friend@email.com"
+                  value={s.inviteEmail}
+                  onInput={(e) => set("inviteEmail", e.currentTarget.value)}
+                />
+              </div>
+            )}
+          </>
         )}
       </fieldset>
 
@@ -463,7 +643,7 @@ export function GameSettingsForm({
         </fieldset>
       )}
 
-      <button type="submit">{opponent ? "Challenge" : submitLabel}</button>
+      <button type="submit">{submitText}</button>
     </div>
   );
 }

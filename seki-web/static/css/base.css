@@ -320,7 +320,8 @@ a.nav-dropdown-item {
   overflow: hidden;
 }
 
-.user-label .stone-icon {
+.user-label .stone-icon,
+.user-label > .icon {
   align-self: center;
   flex-shrink: 0;
 }

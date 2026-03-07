@@ -174,6 +174,56 @@ input[type="radio"] {
   );
 }
 
+.opponent-mode-radios {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.opponent-mode-radios label:has(> input[type="radio"]) {
+  display: flex;
+  gap: 0.25rem;
+  align-items: start;
+}
+
+.opponent-mode-radios label > input[type="radio"] {
+  margin: 0;
+}
+
+.opponent-open-options {
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.disabled-option {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.opponent-search-results {
+  list-style: none;
+  max-height: 8lh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0;
+  margin: 0;
+}
+
+.opponent-search-results li {
+  padding: 0.4em 0.6em;
+  cursor: pointer;
+}
+
+.opponent-search-results li:hover {
+  background: var(--bg-hover, color-mix(in srgb, var(--fg) 8%, var(--bg)));
+}
+
+.opponent-search-results li.selected {
+  background: var(--accent, AccentColor);
+  color: var(--bg);
+}
+
 /* Time control sub-panels: stack fields vertically */
 [id^="tc-"] {
   flex-direction: column;

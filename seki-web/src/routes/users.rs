@@ -1,8 +1,9 @@
 use askama::Template;
 use axum::Form;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::AppState;
@@ -14,7 +15,57 @@ use crate::services::live::build_live_items;
 use crate::session::CurrentUser;
 use crate::templates::user_profile::UserProfileTemplate;
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
+pub struct SearchQuery {
+    pub q: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct SearchResult {
+    pub username: String,
+    pub is_registered: bool,
+    pub is_online: bool,
+    pub is_recent: bool,
+}
+
+// GET /users/search?q=<optional>
+pub async fn search_users(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Query(query): Query<SearchQuery>,
+) -> Result<axum::Json<Vec<SearchResult>>, AppError> {
+    let rows = match query.q.as_deref() {
+        Some(q) if !q.is_empty() => {
+            User::search_by_prefix(&state.db, q, current_user.id, 30).await?
+        }
+        _ => User::list_for_challenge(&state.db, current_user.id, 30).await?,
+    };
+
+    let user_ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
+    let online_ids = state.presence.connected_ids(&user_ids).await;
+
+    // DB already sorts: recent opponents first, then last active.
+    // Stable re-sort to bubble online users up within each group.
+    let mut results: Vec<SearchResult> = rows
+        .into_iter()
+        .map(|r| SearchResult {
+            username: r.username.clone(),
+            is_registered: r.is_registered(),
+            is_online: online_ids.contains(&r.id),
+            is_recent: r.is_recent,
+        })
+        .collect();
+
+    results.sort_by(|a, b| {
+        b.is_recent
+            .cmp(&a.is_recent)
+            .then(b.is_online.cmp(&a.is_online))
+    });
+
+    Ok(axum::Json(results))
+}
+
+#[derive(Deserialize)]
 pub struct UpdateUsernameForm {
     pub username: String,
 }
