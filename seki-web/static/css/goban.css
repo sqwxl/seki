@@ -1,3 +1,7 @@
+:root {
+  --goban-max-size: 800px;
+}
+
 .goban {
   --goban-board-border-width: 0.15em;
   --goban-board-border-color: #ca933a;
@@ -22,6 +26,7 @@
 .move-tree-slot,
 .mobile-tab-bar {
   width: var(--col-width);
+  max-width: var(--goban-max-size);
 }
 
 :root[data-theme="dark"] .goban-container {
