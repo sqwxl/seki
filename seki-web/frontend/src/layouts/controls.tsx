@@ -19,7 +19,7 @@ export function Controls(props: ControlsProps) {
             onClick={props.territoryReady.onClick}
             disabled={props.territoryReady.disabled}
           >
-            Ready
+            Accept
           </button>
         )}
         {props.territoryExit && (
