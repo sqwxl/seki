@@ -110,6 +110,12 @@ export function initAnalysis(root: HTMLElement) {
           doRender();
           return false;
         }
+        if (!analysisBoard.value?.engine.is_legal(col, row)) {
+          mc.clear();
+          doRender();
+          analysisBoard.value?.render();
+          return true;
+        }
         mc.value = [col, row];
         doRender();
         analysisBoard.value?.render();
@@ -221,6 +227,19 @@ export function initAnalysis(root: HTMLElement) {
         analysisBoard.value?.render();
       });
     }
+  });
+
+  // --- Dismiss pending move confirmation on click outside goban ---
+  document.addEventListener("pointerdown", (e) => {
+    if (!mc.value) {
+      return;
+    }
+    if (gobanRef.current?.contains(e.target as Node)) {
+      return;
+    }
+    mc.clear();
+    analysisBoard.value?.render();
+    doRender();
   });
 
   initBoard(analysisSize.value);

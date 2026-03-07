@@ -294,8 +294,12 @@ export function liveGame(
       } else if (mc.value && mc.value[0] === col && mc.value[1] === row) {
         mc.clear();
         channel.play(col, row);
-      } else {
+      } else if (board.value.engine.is_legal(col, row)) {
         mc.value = [col, row];
+        board.value.render();
+        doRender();
+      } else {
+        mc.clear();
         board.value.render();
         doRender();
       }
@@ -460,6 +464,19 @@ export function liveGame(
     if (analysisMode.value) {
       saveAnalysis();
     }
+  });
+
+  // --- Dismiss pending move confirmation on click outside goban ---
+  document.addEventListener("pointerdown", (e) => {
+    if (!mc.value) {
+      return;
+    }
+    if (gobanRef.current?.contains(e.target as Node)) {
+      return;
+    }
+    mc.clear();
+    board.value?.render();
+    doRender();
   });
 
   // --- Notifications ---

@@ -72,7 +72,7 @@
 ### Move Confirmation Mode
 
 - [ ] Premove must be cleared on pass or turn change `[test: frontend:unit]`
-- [ ] "Confirm move" button should not shift layout
+- [x] "Confirm move" button should not shift layout
 - [ ] Premove ghost must be cleared on pass or turn change `[test: frontend:unit]`
 - [ ] Premove ghost must not trigger immediate move on turn change; premove context is only relevant during a player's turn `[test: frontend:unit]`
 
