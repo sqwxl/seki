@@ -100,20 +100,18 @@ function NotificationBell() {
                 );
               })
             ) : (
-              <div class="nav-dropdown-empty nav-dropdown-item">
+              <span class="nav-dropdown-item nav-dropdown-empty">
                 No unread games
-              </div>
+              </span>
             )}
           </div>
           {isNotifSupported() && (
             <div class="nav-dropdown-section">
-              <div class="nav-dropdown-item">
-                <ToggleButton
-                  on={notifOn}
-                  label="OS notifications"
-                  onToggle={handleToggleNotifications}
-                />
-              </div>
+              <ToggleButton
+                on={notifOn}
+                label="OS notifications"
+                onToggle={handleToggleNotifications}
+              />
             </div>
           )}
         </div>

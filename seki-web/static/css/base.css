@@ -232,6 +232,7 @@ a:visited {
   border-radius: 0.5rem;
   box-shadow: var(--shadow-elevated);
   margin-top: 0.5em;
+  gap: 0;
 }
 
 .nav-dropdown-section {
@@ -252,7 +253,11 @@ a:visited {
 }
 
 .nav-dropdown-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  width: 100%;
+  box-sizing: border-box;
   padding: 0.4em 0.75em;
   white-space: nowrap;
   overflow: hidden;
@@ -275,13 +280,10 @@ a.nav-dropdown-item {
   text-decoration: none;
 }
 
-button.nav-dropdown-item {
-  width: 100%;
-}
-
 .nav-dropdown-empty {
-  padding: 0.75em;
   opacity: 0.6;
+  cursor: default;
+  pointer-events: none;
 }
 
 /* --- User menu trigger --- */
@@ -300,14 +302,6 @@ button.nav-dropdown-item {
 .user-menu-trigger:hover {
   border-color: transparent;
   text-decoration: underline;
-}
-
-.toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.35em;
-  font-size: 0.85em;
-  white-space: nowrap;
 }
 
 .user-label {

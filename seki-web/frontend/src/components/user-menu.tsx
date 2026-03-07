@@ -21,6 +21,7 @@ import {
   getThemeLabel,
   getThemeIcon,
 } from "../utils/theme";
+import { IconLogin, IconLogout } from "./icons";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
 import { savePref } from "../utils/preferences";
 
@@ -29,10 +30,8 @@ function ThemeButton() {
   // NOTE: dangerouslySetInnerHTML is safe here — SVG content is hardcoded constants, not user input
   return (
     <button type="button" class="nav-dropdown-item" onClick={cycleTheme}>
-      <span
-        class="icon"
-        dangerouslySetInnerHTML={{ __html: getThemeIcon(mode) }}
-      />{" "}
+      {/* safe: getThemeIcon returns hardcoded SVG constants, not user input */}
+      <span dangerouslySetInnerHTML={{ __html: getThemeIcon(mode) }} />
       Theme: {getThemeLabel(mode)}
     </button>
   );
@@ -106,27 +105,21 @@ function UserMenu() {
           <div class="nav-dropdown-section">
             <div class="nav-dropdown-section-label">Settings</div>
             <ThemeButton />
-            <div class="nav-dropdown-item">
-              <ToggleButton
-                on={moveConfirmEnabled.value}
-                label="Move confirmation"
-                onToggle={handleMoveConfirmToggle}
-              />
-            </div>
-            <div class="nav-dropdown-item">
-              <ToggleButton
-                on={showCoordinates.value}
-                label="Coordinates"
-                onToggle={handleCoordsToggle}
-              />
-            </div>
-            <div class="nav-dropdown-item">
-              <ToggleButton
-                on={showMoveTree.value}
-                label="Move tree"
-                onToggle={handleMoveTreeToggle}
-              />
-            </div>
+            <ToggleButton
+              on={moveConfirmEnabled.value}
+              label="Move confirmation"
+              onToggle={handleMoveConfirmToggle}
+            />
+            <ToggleButton
+              on={showCoordinates.value}
+              label="Coordinates"
+              onToggle={handleCoordsToggle}
+            />
+            <ToggleButton
+              on={showMoveTree.value}
+              label="Move tree"
+              onToggle={handleMoveTreeToggle}
+            />
           </div>
           <div class="nav-dropdown-section">
             {isRegistered ? (
@@ -139,7 +132,7 @@ function UserMenu() {
                   );
                 }}
               >
-                Log out
+                <IconLogout /> Log out
               </button>
             ) : (
               <>
@@ -148,7 +141,7 @@ function UserMenu() {
                   href="/login"
                   onClick={() => setOpen(false)}
                 >
-                  Log in
+                  <IconLogin /> Log in
                 </a>
                 <a
                   class="nav-dropdown-item"

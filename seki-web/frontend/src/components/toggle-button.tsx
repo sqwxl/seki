@@ -8,7 +8,7 @@ type ToggleButtonProps = {
 
 export function ToggleButton({ on, label, onToggle }: ToggleButtonProps) {
   return (
-    <button type="button" class="link toggle-btn" onClick={onToggle}>
+    <button type="button" class="nav-dropdown-item" onClick={onToggle}>
       {on ? <IconSwitchOn /> : <IconSwitchOff />} {label}
     </button>
   );
