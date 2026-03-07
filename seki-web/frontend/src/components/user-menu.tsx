@@ -91,17 +91,15 @@ function UserMenu() {
       </button>
       {open && (
         <div class="nav-dropdown">
-          {isRegistered && (
-            <div class="nav-dropdown-section">
-              <a
-                class="nav-dropdown-item"
-                href={`/users/${username}`}
-                onClick={() => setOpen(false)}
-              >
-                <IconUser /> Profile
-              </a>
-            </div>
-          )}
+          <div class="nav-dropdown-section">
+            <a
+              class="nav-dropdown-item"
+              href={`/users/${username}`}
+              onClick={() => setOpen(false)}
+            >
+              <IconUser /> Profile
+            </a>
+          </div>
           <div class="nav-dropdown-section">
             <div class="nav-dropdown-section-label">Settings</div>
             <ThemeButton />
