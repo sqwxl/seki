@@ -247,7 +247,7 @@
 - [ ] Board must resize dynamically with surrounding UI shifts (layout shift incorrect when opponent joins; bottom label obscured)
 - [ ] Move tree direction must adjust depending on container dimensions
 - [ ] Layout should use available width when window height is small in mobile mode (stacked controls on one row)
-- [ ] Board must be centred when shrunk in short mobile layout
+- [x] Board must be centred when shrunk in short mobile layout
 
 ### Tab Title
 
