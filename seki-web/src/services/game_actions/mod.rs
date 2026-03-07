@@ -319,7 +319,7 @@ pub async fn accept_challenge(
         .await?;
 
     broadcast_game_state(state, &gwp, &engine).await;
-    live::notify_game_updated(state, &gwp, None);
+    live::notify_game_updated(state, &gwp, None, &gwp.game.stage);
 
     Ok(())
 }
@@ -732,7 +732,9 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
         .await;
 
     // Notify live subscribers (games list, etc.)
-    live::notify_game_updated(state, gwp, Some(engine.moves().len()));
+    // Use engine stage, not gwp.game.stage, which may be stale (loaded before mutation).
+    let stage = engine.stage().to_string();
+    live::notify_game_updated(state, gwp, Some(engine.moves().len()), &stage);
 }
 
 pub(super) async fn broadcast_system_chat(

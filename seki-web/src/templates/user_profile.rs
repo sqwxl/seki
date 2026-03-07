@@ -10,5 +10,6 @@ pub struct UserProfileTemplate {
     pub initial_games: String,
     pub is_own_profile: bool,
     pub api_token: Option<String>,
+    pub user_email: Option<String>,
     pub flash: Option<String>,
 }

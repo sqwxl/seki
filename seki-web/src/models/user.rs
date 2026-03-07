@@ -243,6 +243,20 @@ impl User {
         .await
     }
 
+    pub async fn update_email(
+        executor: impl sqlx::PgExecutor<'_>,
+        user_id: i64,
+        email: &str,
+    ) -> Result<User, sqlx::Error> {
+        sqlx::query_as::<_, User>(
+            "UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        )
+        .bind(email)
+        .bind(user_id)
+        .fetch_one(executor)
+        .await
+    }
+
     pub async fn generate_api_token(
         executor: impl sqlx::PgExecutor<'_>,
         user_id: i64,

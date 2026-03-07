@@ -100,10 +100,18 @@ pub fn notify_game_created(state: &AppState, gwp: &GameWithPlayers) {
 }
 
 /// Notify live clients that an existing game's state changed.
-pub fn notify_game_updated(state: &AppState, gwp: &GameWithPlayers, move_count: Option<usize>) {
+///
+/// `stage` overrides `gwp.game.stage` because callers may hold a stale `gwp`
+/// loaded before the engine mutated.
+pub fn notify_game_updated(
+    state: &AppState,
+    gwp: &GameWithPlayers,
+    move_count: Option<usize>,
+    stage: &str,
+) {
     let update = GameUpdate {
         id: gwp.game.id,
-        stage: gwp.game.stage.clone(),
+        stage: stage.to_string(),
         result: gwp.game.result.clone(),
         black: gwp.black.as_ref().map(UserData::from),
         white: gwp.white.as_ref().map(UserData::from),

@@ -228,6 +228,50 @@ input[type="radio"] {
   align-items: center;
 }
 
+.notification-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+}
+
+.notif-os-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  cursor: pointer;
+}
+
+.notif-table {
+  border-collapse: collapse;
+  width: auto;
+}
+
+.notif-table th,
+.notif-table td {
+  padding: 0.4em 0.75em;
+  text-align: center;
+}
+
+.notif-table th:first-child,
+.notif-table td:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+
+.notif-table tbody tr {
+  border-top: 1px solid var(--border);
+}
+
+.notif-table input[type="checkbox"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.notif-hint {
+  font-size: 0.85em;
+  color: var(--fg-muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+}
+
 /* Time control sub-panels: stack fields vertically */
 [id^="tc-"] {
   flex-direction: column;

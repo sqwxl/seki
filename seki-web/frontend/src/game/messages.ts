@@ -49,9 +49,6 @@ export type GameMessageDeps = {
 // Track last-seen move count for cheap change detection
 let prevMoveCount = 0;
 
-// Suppress sound/flash on the first "state" message (initial load)
-let initialStateReceived = false;
-
 function syncBoardMoves(
   playEffects: boolean,
   gobanEl: HTMLElement | null,
@@ -85,7 +82,6 @@ function syncBoardMoves(
 /** Reset the move count tracker (call when board loads with initial moves). */
 export function resetMovesTracker(count: number): void {
   prevMoveCount = count;
-  initialStateReceived = false;
 }
 
 export function handleGameMessage(
@@ -105,9 +101,9 @@ export function handleGameMessage(
   console.debug("Game message:", data);
 
   switch (data.kind) {
+    case "state_sync":
     case "state": {
-      const isLiveUpdate = initialStateReceived;
-      initialStateReceived = true;
+      const isLiveUpdate = data.kind === "state";
 
       const prevStage = gameStage.value;
       applyGameStateMessage(data);
@@ -132,6 +128,10 @@ export function handleGameMessage(
       if (isLiveUpdate) {
         updateTurnFlash();
         notifyTurn(notificationState);
+      } else {
+        // Seed notification state from sync so visibilitychange doesn't
+        // fire spuriously for moves that were already present on load.
+        notificationState.lastNotifiedMoveCount = moves.value.length;
       }
       syncClock(clockState, data.clock, () => channel.timeoutFlag());
       syncTerritoryCountdown(
@@ -236,7 +236,6 @@ export function handleGameMessage(
       // Without this, presentation signals from a previous session persist
       // (e.g. "You are presenting" after the presentation ended while offline).
       clearPresentation();
-      initialStateReceived = false;
       break;
     }
     default: {

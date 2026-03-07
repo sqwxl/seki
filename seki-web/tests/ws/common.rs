@@ -531,11 +531,11 @@ impl WsClient {
     // since different actions produce different message kinds, and the other player
     // also needs to consume their own broadcasts.
 
-    /// Send join_game and wait for the initial `state` response.
+    /// Send join_game and wait for the initial `state_sync` response.
     pub async fn join_game(&mut self, game_id: i64) -> Value {
         self.send(json!({"action": "join_game", "game_id": game_id}))
             .await;
-        self.recv_kind("state").await
+        self.recv_kind("state_sync").await
     }
 
     pub async fn play(&mut self, game_id: i64, col: i32, row: i32) {

@@ -1,21 +1,15 @@
 import { render } from "preact";
-import { useState, useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { unreadGames, hasUnread, markRead } from "../game/unread";
 import { ToggleButton } from "./toggle-button";
 import { IconBell, IconBellDisabled, IconBellUnread } from "./icons";
-import { storage, NOTIFICATIONS } from "../utils/storage";
-import { savePref } from "../utils/preferences";
+import {
+  osNotificationsEnabled,
+  toggleOsNotifications,
+} from "../utils/os-notifications";
 
 function isNotifSupported(): boolean {
   return "Notification" in window;
-}
-
-function isNotifEnabled(): boolean {
-  return (
-    isNotifSupported() &&
-    storage.get(NOTIFICATIONS) === "on" &&
-    Notification.permission === "granted"
-  );
 }
 
 function BellIcon() {
@@ -30,7 +24,6 @@ function BellIcon() {
 
 function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [notifOn, setNotifOn] = useState(isNotifEnabled);
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on click outside
@@ -46,26 +39,6 @@ function NotificationBell() {
     document.addEventListener("click", onClickOutside, true);
     return () => document.removeEventListener("click", onClickOutside, true);
   }, [open]);
-
-  async function handleToggleNotifications() {
-    if (!isNotifSupported()) {
-      return;
-    }
-    if (Notification.permission === "denied") {
-      return;
-    }
-    if (Notification.permission === "default") {
-      const result = await Notification.requestPermission();
-      if (result !== "granted") {
-        setNotifOn(false);
-        return;
-      }
-    }
-    const next = storage.get(NOTIFICATIONS) === "on" ? "off" : "on";
-    storage.set(NOTIFICATIONS, next);
-    savePref("notifications", next);
-    setNotifOn(next === "on" && Notification.permission === "granted");
-  }
 
   const games = [...unreadGames.value.values()];
 
@@ -108,9 +81,9 @@ function NotificationBell() {
           {isNotifSupported() && (
             <div class="nav-dropdown-section">
               <ToggleButton
-                on={notifOn}
+                on={osNotificationsEnabled.value}
                 label="OS notifications"
-                onToggle={handleToggleNotifications}
+                onToggle={toggleOsNotifications}
               />
             </div>
           )}

@@ -13,6 +13,6 @@ async fn smoke_ws_connect_and_join() {
 
     // Join the game room and receive full game state
     let state = black.join_game(game_id).await;
-    assert_eq!(state["kind"], "state");
+    assert_eq!(state["kind"], "state_sync");
     assert_eq!(state["stage"], "black_to_play");
 }

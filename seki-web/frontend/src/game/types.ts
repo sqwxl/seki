@@ -52,12 +52,21 @@ export type UserPreferences = {
   show_coordinates?: boolean;
   show_move_tree?: boolean;
   notifications?: string;
+  notify_your_turn_app?: boolean;
+  notify_your_turn_email?: boolean;
+  notify_your_turn_corr_app?: boolean;
+  notify_your_turn_corr_email?: boolean;
+  notify_challenge_app?: boolean;
+  notify_challenge_email?: boolean;
+  notify_message_app?: boolean;
+  notify_message_email?: boolean;
 };
 
 export type UserData = {
   id: number;
   display_name: string;
   is_registered: boolean;
+  email?: string;
   preferences: UserPreferences;
 };
 
@@ -124,7 +133,7 @@ export type ClockData = {
 };
 
 export type StateMessage = {
-  kind: "state";
+  kind: "state" | "state_sync";
   stage: GameStage;
   state: GameState;
   negotiations?: Record<string, unknown>;

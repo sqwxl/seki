@@ -16,7 +16,7 @@ import type { TerritoryCountdown } from "../game/ui";
 import { handleGameMessage, resetMovesTracker } from "../game/messages";
 import type { ClockState } from "../game/clock";
 import { readUserData, derivePlayerStone } from "../game/util";
-import { createNotificationState, notifyTurn } from "../game/notifications";
+import { createNotificationState } from "../game/notifications";
 import { markRead } from "../game/unread";
 import { playStoneSound, playPassSound } from "../game/sound";
 import { downloadSgf } from "../utils/sgf";
@@ -129,6 +129,11 @@ export function liveGame(
     }
     if (!board.value.engine.replace_tree(saved.tree)) {
       return false;
+    }
+    // The saved analysis tree may be from an earlier point in the game.
+    // Merge current base moves so all game moves are navigable.
+    if (moves.value.length > 0) {
+      board.value.engine.merge_base_moves(JSON.stringify(moves.value));
     }
     if (saved.nodeId >= 0) {
       board.value.engine.navigate_to(saved.nodeId);
@@ -437,8 +442,12 @@ export function liveGame(
     if (settledTerritory.value) {
       board.value.appendScoreAgreed(settledTerritory.value.dead_stones);
     }
-    // Auto-restore analysis branches from localStorage
-    if (storage.get(analysisKey)) {
+    // Auto-restore analysis branches from localStorage.
+    // For in-progress games, always start at the latest move — analysis
+    // branches are preserved in localStorage and restored when the user
+    // navigates backward (which auto-enters analysis mode).
+    // For completed games, restore the saved analysis position.
+    if (storage.get(analysisKey) && result.value) {
       enterAnalysis();
     } else {
       board.value.render();
@@ -455,6 +464,8 @@ export function liveGame(
 
   // --- Notifications ---
   const notificationState = createNotificationState();
+  // Seed from initial props so we only notify on genuinely new moves.
+  notificationState.lastNotifiedMoveCount = moves.value.length;
 
   // --- WebSocket ---
   const deps = {
@@ -661,11 +672,9 @@ export function liveGame(
     }
   });
 
-  // --- Tab title flash & notifications on visibility change ---
+  // --- Tab title flash on visibility change ---
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      notifyTurn(notificationState);
-    } else {
+    if (!document.hidden) {
       // Stop flashing when returning to tab; starting only happens on new moves
       stopFlashing();
     }

@@ -106,7 +106,7 @@ pub async fn send_initial_state(
         None
     };
 
-    let game_state = state_serializer::serialize_state(
+    let mut game_state = state_serializer::serialize_state(
         &gwp,
         &engine,
         undo_requested,
@@ -115,6 +115,8 @@ pub async fn send_initial_state(
         clock_ref,
     );
 
+    // Full sync (join/reconnect) — distinct from live "state" updates after moves
+    game_state["kind"] = serde_json::json!("state_sync");
     send_to_client(tx, &game_state.to_string());
 
     // If there's an active presentation, send state to the joining user

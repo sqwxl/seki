@@ -79,6 +79,7 @@ pub async fn build_router_with_presence(
         .route("/logout", post(routes::auth::logout))
         .route("/settings", get(routes::settings::settings_page))
         .route("/settings/token", post(routes::settings::generate_token))
+        .route("/settings/email", post(routes::settings::update_email))
         .route(
             "/settings/preferences",
             patch(routes::settings::update_preferences),

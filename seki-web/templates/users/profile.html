@@ -29,6 +29,17 @@
                            maxlength="30">
                     <button type="submit">Update</button>
                 </form>
+                <h3>Email</h3>
+                <form action="/settings/email" method="post" class="inline-form" data-validate>
+                    <input type="email"
+                           name="email"
+                           value="{% if let Some(e) = user_email %}{{ e }}{% endif %}"
+                           placeholder="your@email.com">
+                    <button type="submit">{% if user_email.is_some() %}Update{% else %}Save{% endif %}</button>
+                </form>
+                <h3>Notifications</h3>
+                <div id="notification-settings"
+                     data-email="{{ user_email.is_some() }}"></div>
                 <h3>API Token</h3>
                 <p>
                     Use this token to authenticate with the API via <code>Authorization: Bearer &lt;token&gt;</code>.

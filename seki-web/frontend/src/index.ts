@@ -11,6 +11,7 @@ import { initTheme } from "./utils/theme";
 import { initPreferences } from "./utils/preferences";
 import { initUserMenu } from "./components/user-menu";
 import { initFormValidation } from "./utils/form-validation";
+import { initNotificationSettings } from "./components/notification-settings";
 import { ensureConnected } from "./ws";
 
 // Connect WS on every page for global presence tracking
@@ -23,6 +24,8 @@ initUserMenu();
 initFormValidation();
 initUnreadTracking();
 initNotificationBell();
+
+initNotificationSettings();
 
 const newGameRoot = document.getElementById("new-game-form");
 

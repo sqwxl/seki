@@ -48,9 +48,51 @@ async fn game_updated_event() {
     let msg = observer.recv_kind("game_updated").await;
     assert_eq!(msg["kind"], "game_updated");
     assert_eq!(msg["game"]["id"], game_id);
-    // NOTE: game_updated uses gwp.game.stage which may be stale (loaded before
-    // the move). The move_count is the reliable indicator of progress.
     assert_eq!(msg["game"]["move_count"], 1);
+    // Stage must reflect the *new* state (white's turn), not the stale pre-move state
+    assert_eq!(msg["game"]["stage"], "white_to_play");
+}
+
+/// 15.2b — game_updated stage tracks turn changes across multiple moves.
+#[tokio::test]
+async fn game_updated_stage_tracks_turn_changes() {
+    let server = TestServer::start().await;
+
+    let game_id = server.create_and_join().await;
+
+    // Observer connects (not in game room) and drains init + game_created events
+    let mut observer = server.ws_spectator().await;
+    let _init = observer.recv_kind("init").await;
+
+    // Black and white join the game room
+    let mut black = server.ws_black().await;
+    let _init_b = black.recv_kind("init").await;
+    let _state_b = black.join_game(game_id).await;
+
+    let mut white = server.ws_white().await;
+    let _init_w = white.recv_kind("init").await;
+    let _state_w = white.join_game(game_id).await;
+
+    // Move 1: black plays → stage should become white_to_play
+    black.play(game_id, 0, 0).await;
+    let _state = black.recv_kind("state").await;
+    let _state = white.recv_kind("state").await;
+    let msg = observer.recv_kind("game_updated").await;
+    assert_eq!(msg["game"]["stage"], "white_to_play");
+
+    // Move 2: white plays → stage should become black_to_play
+    white.play(game_id, 1, 0).await;
+    let _state = black.recv_kind("state").await;
+    let _state = white.recv_kind("state").await;
+    let msg = observer.recv_kind("game_updated").await;
+    assert_eq!(msg["game"]["stage"], "black_to_play");
+
+    // Move 3: black plays → stage should become white_to_play again
+    black.play(game_id, 2, 0).await;
+    let _state = black.recv_kind("state").await;
+    let _state = white.recv_kind("state").await;
+    let msg = observer.recv_kind("game_updated").await;
+    assert_eq!(msg["game"]["stage"], "white_to_play");
 }
 
 /// 15.3 — Game removed event: observer receives `game_removed` when a game is deleted.

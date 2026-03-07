@@ -106,6 +106,11 @@ pub async fn profile(
         } else {
             None
         },
+        user_email: if is_own_profile {
+            current_user.email.clone()
+        } else {
+            None
+        },
         flash: None,
     };
 
@@ -221,6 +226,7 @@ async fn render_profile_with_flash(
         initial_games,
         is_own_profile: true,
         api_token: current_user.api_token.clone(),
+        user_email: current_user.email.clone(),
         flash: Some(flash.to_string()),
     };
 
