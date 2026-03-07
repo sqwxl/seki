@@ -11,12 +11,12 @@ import { storage, gameAnalysisKey } from "../utils/storage";
 import { settingsToSgfTime } from "../utils/format";
 import { joinGame, subscribe, subscribePresence } from "../ws";
 import { createGameChannel } from "../game/channel";
-import { updateTurnFlash, updateTitle } from "../game/ui";
+import { updateTurnFlash, stopFlashing, updateTitle } from "../game/ui";
 import type { TerritoryCountdown } from "../game/ui";
 import { handleGameMessage, resetMovesTracker } from "../game/messages";
 import type { ClockState } from "../game/clock";
 import { readUserData, derivePlayerStone } from "../game/util";
-import { createNotificationState } from "../game/notifications";
+import { createNotificationState, notifyTurn } from "../game/notifications";
 import { markRead } from "../game/unread";
 import { playStoneSound, playPassSound } from "../game/sound";
 import { downloadSgf } from "../utils/sgf";
@@ -661,6 +661,13 @@ export function liveGame(
     }
   });
 
-  // --- Tab title flash ---
-  document.addEventListener("visibilitychange", () => updateTurnFlash());
+  // --- Tab title flash & notifications on visibility change ---
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      notifyTurn(notificationState);
+    } else {
+      // Stop flashing when returning to tab; starting only happens on new moves
+      stopFlashing();
+    }
+  });
 }

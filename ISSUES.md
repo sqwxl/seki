@@ -253,7 +253,7 @@
 
 ### Tab Title
 
-- [ ] Tab notification only enabled by receiving live move; not by changing tab or any other action `[test: e2e]`
+- [x] Tab notification only enabled by receiving live move; not by changing tab or any other action `[test: e2e]`
 
 ## 19. Sound Effects
 

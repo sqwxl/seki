@@ -37,7 +37,7 @@ function startFlashing() {
   }, 1000);
 }
 
-function stopFlashing() {
+export function stopFlashing() {
   if (!flashInterval) {
     return;
   }
