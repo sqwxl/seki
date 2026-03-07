@@ -405,6 +405,7 @@ a.nav-dropdown-item {
 
 .game-board-view .goban-container {
   max-height: 100%;
+  margin-inline: auto;
 }
 
 /* Chat view fills available space */
