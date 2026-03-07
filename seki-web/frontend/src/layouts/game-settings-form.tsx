@@ -420,17 +420,29 @@ export function GameSettingsForm({
         </div>
       </fieldset>
 
-      {opponent && (
-        <fieldset>
-          <legend>Opponent</legend>
+      <fieldset>
+        <legend>Opponent</legend>
+        {opponent ? (
           <div>
             <span>{opponent}</span>
             <input type="hidden" name="invite_username" value={opponent} />
           </div>
-        </fieldset>
-      )}
+        ) : (
+          <div>
+            <label for="invite_email">Invite a friend (optional)</label>
+            <input
+              type="email"
+              name="invite_email"
+              id="invite_email"
+              placeholder="friend@email.com"
+              value={s.inviteEmail}
+              onInput={(e) => set("inviteEmail", e.currentTarget.value)}
+            />
+          </div>
+        )}
+      </fieldset>
 
-      {showNotifications && !opponent && (
+      {showNotifications && !opponent && tcActive("correspondence") && (
         <fieldset>
           <legend>
             <IconBell /> Notifications
@@ -446,17 +458,6 @@ export function GameSettingsForm({
               placeholder="your@email.com"
               value={s.creatorEmail}
               onInput={(e) => set("creatorEmail", e.currentTarget.value)}
-            />
-          </div>
-          <div>
-            <label for="invite_email">Invite a friend (optional)</label>
-            <input
-              type="email"
-              name="invite_email"
-              id="invite_email"
-              placeholder="friend@email.com"
-              value={s.inviteEmail}
-              onInput={(e) => set("inviteEmail", e.currentTarget.value)}
             />
           </div>
         </fieldset>
