@@ -14,6 +14,7 @@ pub struct UserData {
     pub id: i64,
     pub display_name: String,
     pub is_registered: bool,
+    pub preferences: serde_json::Value,
 }
 
 impl From<&User> for UserData {
@@ -22,6 +23,7 @@ impl From<&User> for UserData {
             id: user.id,
             display_name: user.display_name().to_string(),
             is_registered: user.is_registered(),
+            preferences: user.preferences.clone(),
         }
     }
 }

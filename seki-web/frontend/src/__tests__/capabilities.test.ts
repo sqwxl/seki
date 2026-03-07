@@ -59,8 +59,14 @@ const userBlack: UserData = {
   id: 1,
   display_name: "Alice",
   is_registered: true,
+  preferences: {},
 };
-const userWhite: UserData = { id: 2, display_name: "Bob", is_registered: true };
+const userWhite: UserData = {
+  id: 2,
+  display_name: "Bob",
+  is_registered: true,
+  preferences: {},
+};
 
 function resetAllSignals() {
   batch(() => {

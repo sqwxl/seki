@@ -1,5 +1,6 @@
 import { signal } from "@preact/signals";
 import { storage, THEME } from "./storage";
+import { savePref } from "./preferences";
 
 export type ThemeMode = "auto" | "light" | "dark";
 
@@ -49,11 +50,14 @@ export function getThemeLabel(mode: ThemeMode): string {
 export function cycleTheme(): void {
   const next = NEXT[themeMode.value];
   storage.set(THEME, next);
+  savePref("theme", next);
   themeMode.value = next;
   applyTheme(next);
 }
 
 export function initTheme(): void {
+  // Re-read from localStorage in case initPreferences() updated it
+  themeMode.value = getMode();
   applyTheme(themeMode.value);
 }
 

@@ -46,10 +46,19 @@ export type GameTreeData = {
   root_children: number[];
 };
 
+export type UserPreferences = {
+  theme?: string;
+  move_confirmation?: boolean;
+  show_coordinates?: boolean;
+  show_move_tree?: boolean;
+  notifications?: string;
+};
+
 export type UserData = {
   id: number;
   display_name: string;
   is_registered: boolean;
+  preferences: UserPreferences;
 };
 
 export type PlayerPoints = {

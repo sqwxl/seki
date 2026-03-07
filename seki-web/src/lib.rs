@@ -1,5 +1,5 @@
 use axum::Router;
-use axum::routing::{get, post};
+use axum::routing::{get, patch, post};
 use tokio::sync::broadcast;
 use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
@@ -75,6 +75,10 @@ pub async fn build_router_with_presence(
         .route("/logout", post(routes::auth::logout))
         .route("/settings", get(routes::settings::settings_page))
         .route("/settings/token", post(routes::settings::generate_token))
+        .route(
+            "/settings/preferences",
+            patch(routes::settings::update_preferences),
+        )
         .route("/ws", get(ws::live::ws_upgrade))
         .nest("/api", routes::api::router())
         .route("/up", get(routes::health::health_check))

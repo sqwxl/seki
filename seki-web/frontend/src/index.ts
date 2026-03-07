@@ -8,6 +8,7 @@ import { initNewGameForm } from "./layouts/game-settings-form";
 import type { InitialGameProps } from "./game/types";
 import { parseDatasetJson } from "./utils/format";
 import { initTheme } from "./utils/theme";
+import { initPreferences } from "./utils/preferences";
 import { initUserMenu } from "./components/user-menu";
 import { initFormValidation } from "./utils/form-validation";
 import { ensureConnected } from "./ws";
@@ -15,6 +16,8 @@ import { ensureConnected } from "./ws";
 // Connect WS on every page for global presence tracking
 ensureConnected();
 
+// Sync server preferences into localStorage before reading them
+initPreferences();
 initTheme();
 initUserMenu();
 initFormValidation();

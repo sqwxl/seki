@@ -32,6 +32,7 @@ pub struct User {
     pub username: String,
     pub password_hash: Option<String>,
     pub api_token: Option<String>,
+    pub preferences: serde_json::Value,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -167,6 +168,20 @@ impl User {
             .bind(token)
             .fetch_optional(executor)
             .await
+    }
+
+    pub async fn update_preferences(
+        executor: impl sqlx::PgExecutor<'_>,
+        user_id: i64,
+        preferences: &serde_json::Value,
+    ) -> Result<User, sqlx::Error> {
+        sqlx::query_as::<_, User>(
+            "UPDATE users SET preferences = preferences || $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+        )
+        .bind(preferences)
+        .bind(user_id)
+        .fetch_one(executor)
+        .await
     }
 
     pub async fn generate_api_token(

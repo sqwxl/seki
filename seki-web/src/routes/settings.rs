@@ -1,3 +1,4 @@
+use axum::Json;
 use axum::extract::State;
 use axum::response::{IntoResponse, Redirect, Response};
 
@@ -23,4 +24,21 @@ pub async fn generate_token(
     User::generate_api_token(&state.db, current_user.id).await?;
 
     Ok(Redirect::to(&format!("/users/{}", current_user.username)).into_response())
+}
+
+// PATCH /settings/preferences
+pub async fn update_preferences(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    if !body.is_object() {
+        return Err(AppError::UnprocessableEntity(
+            "Expected a JSON object".to_string(),
+        ));
+    }
+
+    let user = User::update_preferences(&state.db, current_user.id, &body).await?;
+
+    Ok(Json(user.preferences))
 }

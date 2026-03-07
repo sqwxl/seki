@@ -4,6 +4,7 @@ import { unreadGames, hasUnread, markRead } from "../game/unread";
 import { ToggleButton } from "./toggle-button";
 import { IconBell, IconBellDisabled, IconBellUnread } from "./icons";
 import { storage, NOTIFICATIONS } from "../utils/storage";
+import { savePref } from "../utils/preferences";
 
 function isNotifSupported(): boolean {
   return "Notification" in window;
@@ -62,6 +63,7 @@ function NotificationBell() {
     }
     const next = storage.get(NOTIFICATIONS) === "on" ? "off" : "on";
     storage.set(NOTIFICATIONS, next);
+    savePref("notifications", next);
     setNotifOn(next === "on" && Notification.permission === "granted");
   }
 

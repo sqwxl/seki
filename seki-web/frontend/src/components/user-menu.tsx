@@ -15,13 +15,9 @@ import {
   board,
 } from "../game/state";
 import { analysisBoard } from "../layouts/analysis-state";
-import {
-  themeMode,
-  cycleTheme,
-  getThemeLabel,
-  type ThemeMode,
-} from "../utils/theme";
+import { themeMode, cycleTheme, getThemeLabel } from "../utils/theme";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
+import { savePref } from "../utils/preferences";
 
 function ThemeButton() {
   const mode = themeMode.value;
@@ -34,6 +30,7 @@ function ThemeButton() {
 
 function handleCoordsToggle() {
   showCoordinates.value = toggleShowCoordinates();
+  savePref("show_coordinates", showCoordinates.value);
   board.value?.setShowCoordinates(showCoordinates.value);
   analysisBoard.value?.setShowCoordinates(showCoordinates.value);
 }
@@ -42,12 +39,14 @@ function handleMoveConfirmToggle() {
   const next = !moveConfirmEnabled.value;
   moveConfirmEnabled.value = next;
   storage.set(MOVE_CONFIRMATION, String(next));
+  savePref("move_confirmation", next);
 }
 
 function handleMoveTreeToggle() {
   const next = !showMoveTree.value;
   showMoveTree.value = next;
   storage.set(SHOW_MOVE_TREE, String(next));
+  savePref("show_move_tree", next);
   board.value?.render();
   analysisBoard.value?.render();
 }
