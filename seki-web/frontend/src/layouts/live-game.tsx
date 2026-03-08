@@ -157,6 +157,12 @@ export function liveGame(
       toAnalysis();
     }
     restoreAnalysis();
+    // If the restored node is on the main line (or there was no saved
+    // analysis), jump to the main line tip so analysis starts from the
+    // current live position rather than a stale main-line node.
+    if (board.value?.engine.is_on_main_line()) {
+      board.value.engine.to_main_end();
+    }
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
     doRender();

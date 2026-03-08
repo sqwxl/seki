@@ -102,6 +102,10 @@ impl WasmEngine {
         self.inner.is_at_main_end()
     }
 
+    pub fn is_on_main_line(&self) -> bool {
+        self.inner.is_on_main_line()
+    }
+
     // -- JSON serialization (WASM boundary) --
 
     pub fn moves_json(&self) -> String {

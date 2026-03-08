@@ -190,6 +190,16 @@ impl Replay {
         self.current == main.last().copied()
     }
 
+    pub fn is_on_main_line(&self) -> bool {
+        match self.current {
+            None => true,
+            Some(id) => {
+                let main = Self::main_line_path(&self.tree);
+                main.contains(&id)
+            }
+        }
+    }
+
     /// The turn at the current position, if any.
     pub fn last_move(&self) -> Option<&Turn> {
         self.current.map(|id| &self.tree.node(id).turn)
