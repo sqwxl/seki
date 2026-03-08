@@ -14,6 +14,7 @@ use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
 use crate::services::live::build_live_items;
+use crate::services::presentation_actions;
 use crate::services::state_serializer;
 use crate::session::CurrentUser;
 use crate::templates::UserData;
@@ -233,6 +234,17 @@ pub async fn show_game(
         None
     };
 
+    let can_start_pres = presentation_actions::can_start_presentation(
+        &state.registry,
+        id,
+        gwp.game.result.is_some(),
+        gwp.has_player(current_user.id),
+        gwp.black.as_ref().map(|u| u.id),
+        gwp.white.as_ref().map(|u| u.id),
+        gwp.game.ended_at,
+    )
+    .await;
+
     let game_props = serde_json::to_string(&InitialGameProps {
         state: engine.game_state(),
         creator_id: gwp.game.creator_id,
@@ -257,6 +269,7 @@ pub async fn show_game(
         result: gwp.game.result.clone(),
         settled_territory,
         nigiri: gwp.game.nigiri,
+        can_start_presentation: can_start_pres,
         invite_token: if is_creator {
             gwp.game.invite_token.clone()
         } else {

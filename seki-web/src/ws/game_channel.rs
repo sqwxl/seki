@@ -117,6 +117,19 @@ pub async fn send_initial_state(
 
     // Full sync (join/reconnect) — distinct from live "state" updates after moves
     game_state["kind"] = serde_json::json!("state_sync");
+
+    let can_start_pres = presentation_actions::can_start_presentation(
+        &state.registry,
+        game_id,
+        game_is_done,
+        gwp.has_player(player_id),
+        gwp.black.as_ref().map(|u| u.id),
+        gwp.white.as_ref().map(|u| u.id),
+        gwp.game.ended_at,
+    )
+    .await;
+    game_state["can_start_presentation"] = serde_json::json!(can_start_pres);
+
     send_to_client(tx, &game_state.to_string());
 
     // If there's an active presentation, send state to the joining user

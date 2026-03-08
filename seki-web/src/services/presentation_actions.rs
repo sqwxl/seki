@@ -4,6 +4,44 @@ use serde_json::json;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
+use crate::ws::registry::GameRegistry;
+
+/// Check whether a user is eligible to start a presentation for a game.
+pub async fn can_start_presentation(
+    registry: &GameRegistry,
+    game_id: i64,
+    is_finished: bool,
+    is_player: bool,
+    black_id: Option<i64>,
+    white_id: Option<i64>,
+    ended_at: Option<chrono::DateTime<chrono::Utc>>,
+) -> bool {
+    if !is_finished {
+        return false;
+    }
+    if registry.get_presentation(game_id).await.is_some() {
+        return false;
+    }
+    if is_player {
+        return true;
+    }
+    // Spectator eligibility
+    let has_had = registry.has_had_presentation(game_id).await;
+    let black_in = if let Some(id) = black_id {
+        registry.is_in_room(game_id, id).await
+    } else {
+        false
+    };
+    let white_in = if let Some(id) = white_id {
+        registry.is_in_room(game_id, id).await
+    } else {
+        false
+    };
+    let neither_player_in_room = !black_in && !white_in;
+    let game_old_enough = ended_at.is_some_and(|ended| (Utc::now() - ended).num_hours() >= 24);
+
+    has_had || neither_player_in_room || game_old_enough
+}
 
 pub async fn start_presentation(
     state: &AppState,
