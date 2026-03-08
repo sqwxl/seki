@@ -39,11 +39,17 @@ pub struct TerritoryReviewState {
 }
 
 #[derive(Debug, Clone)]
+pub struct ControlRequest {
+    pub user_id: i64,
+    pub display_name: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct PresentationState {
     pub presenter_id: i64,
     pub originator_id: i64,
     pub cached_snapshot: String,
-    pub control_request: Option<i64>,
+    pub control_request: Option<ControlRequest>,
 }
 
 #[derive(Debug, Default)]
@@ -500,12 +506,12 @@ impl GameRegistry {
         }
     }
 
-    pub async fn set_control_request(&self, game_id: i64, user_id: Option<i64>) {
+    pub async fn set_control_request(&self, game_id: i64, request: Option<ControlRequest>) {
         let mut rooms = self.rooms.write().await;
         if let Some(room) = rooms.get_mut(&game_id)
             && let Some(p) = room.presentation.as_mut()
         {
-            p.control_request = user_id;
+            p.control_request = request;
         }
     }
 

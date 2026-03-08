@@ -605,12 +605,50 @@ async fn late_joiner_sees_pending_control_request() {
 
     let pres = white2.recv_kind("presentation_started").await;
     assert_eq!(pres["presenter_id"], ts.black_id);
+    let cr = &pres["control_request"];
     assert!(
-        pres["control_request"].as_i64().is_some(),
-        "late joiner should see pending control_request, got: {}",
+        cr.is_object(),
+        "late joiner should see pending control_request as object, got: {}",
         pres
     );
-    assert_eq!(pres["control_request"], ts.white_id);
+    assert_eq!(cr["user_id"].as_i64().unwrap(), ts.white_id);
+    assert!(!cr["display_name"].as_str().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn late_joiner_sees_control_request_display_name() {
+    let ts = TestServer::start().await;
+    let game_id = finish_game(&ts).await;
+
+    let mut black = ts.ws_black().await;
+    let _ = black.join_game(game_id).await;
+    black.start_presentation(game_id).await;
+    let _ = black.recv_kind("presentation_started").await;
+
+    // White joins and requests control
+    let mut white = ts.ws_white().await;
+    let _ = white.join_game(game_id).await;
+    let _ = white.recv_kind("presentation_started").await;
+    white.request_control(game_id).await;
+    let req = black.recv_kind("control_requested").await;
+    assert!(!req["display_name"].as_str().unwrap().is_empty());
+    let _ = white.recv_kind("control_requested").await;
+
+    // Spectator joins late — should see control_request with display_name
+    let mut spec = ts.ws_spectator().await;
+    let _ = spec.join_game(game_id).await;
+    let pres = spec.recv_kind("presentation_started").await;
+    let cr = &pres["control_request"];
+    assert!(
+        cr.is_object(),
+        "control_request should be an object, got: {cr}"
+    );
+    assert_eq!(cr["user_id"].as_i64().unwrap(), ts.white_id);
+    assert!(!cr["display_name"].as_str().unwrap().is_empty());
+
+    black.close().await;
+    white.close().await;
+    spec.close().await;
 }
 
 #[tokio::test]

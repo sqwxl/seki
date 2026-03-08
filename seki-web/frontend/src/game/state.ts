@@ -287,12 +287,10 @@ export function applyPresentationStarted(
     presentationActive.value = true;
     presenterId.value = data.presenter_id;
     originatorId.value = data.originator_id;
-    if (data.control_request != null) {
-      // We don't have the display name for late joiners, but the signal will
-      // be updated if a new control_requested message comes in.
+    if (data.control_request) {
       controlRequest.value = {
-        userId: data.control_request,
-        displayName: "",
+        userId: data.control_request.user_id,
+        displayName: data.control_request.display_name,
       };
     }
   });

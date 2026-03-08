@@ -4,7 +4,7 @@ use serde_json::json;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
-use crate::ws::registry::GameRegistry;
+use crate::ws::registry::{ControlRequest, GameRegistry};
 
 /// Check whether a user is eligible to start a presentation for a game.
 pub async fn can_start_presentation(
@@ -275,7 +275,13 @@ pub async fn request_control(
 
     state
         .registry
-        .set_control_request(game_id, Some(user_id))
+        .set_control_request(
+            game_id,
+            Some(ControlRequest {
+                user_id,
+                display_name: display_name.to_string(),
+            }),
+        )
         .await;
 
     state
@@ -306,7 +312,11 @@ pub async fn cancel_control_request(
         .await
         .ok_or_else(|| AppError::UnprocessableEntity("No active presentation".to_string()))?;
 
-    if pres.control_request != Some(user_id) {
+    if pres
+        .control_request
+        .as_ref()
+        .is_none_or(|cr| cr.user_id != user_id)
+    {
         return Err(AppError::UnprocessableEntity(
             "You don't have a pending control request".to_string(),
         ));

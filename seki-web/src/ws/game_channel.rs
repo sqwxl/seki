@@ -160,7 +160,10 @@ pub async fn send_initial_state(
             "presenter_id": presenter_id,
             "originator_id": pres.originator_id,
             "snapshot": pres.cached_snapshot,
-            "control_request": pres.control_request,
+            "control_request": pres.control_request.as_ref().map(|cr| json!({
+                "user_id": cr.user_id,
+                "display_name": cr.display_name,
+            })),
         });
         send_to_client(tx, &msg.to_string());
     }

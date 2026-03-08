@@ -238,7 +238,7 @@ export type PresentationStartedMessage = {
   presenter_id: number;
   originator_id: number;
   snapshot: string;
-  control_request?: number;
+  control_request?: { user_id: number; display_name: string };
 };
 
 export type PresentationEndedMessage = {
