@@ -93,6 +93,7 @@ export const undoResponseNeeded = signal(false);
 // Presentation state (post-game collaborative analysis)
 // ---------------------------------------------------------------------------
 export const currentUserId = signal(0);
+export const canStartPresentation = signal(false);
 export const presentationActive = signal(false);
 export const presenterId = signal(0);
 export const originatorId = signal(0);
@@ -170,6 +171,7 @@ export function initGameState(
     result.value = props.result;
     settledTerritory.value = props.settled_territory;
     nigiri.value = props.nigiri ?? false;
+    canStartPresentation.value = props.can_start_presentation ?? false;
     black.value = props.black ?? undefined;
     white.value = props.white ?? undefined;
   });
@@ -206,6 +208,9 @@ export function applyGameStateMessage(data: StateMessage): void {
     result.value = data.result;
     territory.value = data.territory;
     settledTerritory.value = data.settled_territory;
+    if (data.can_start_presentation != null) {
+      canStartPresentation.value = data.can_start_presentation;
+    }
     black.value = data.black ?? undefined;
     white.value = data.white ?? undefined;
     // Re-derive playerStone from updated black/white (nigiri swap may have changed them)

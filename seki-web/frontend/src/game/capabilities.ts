@@ -36,6 +36,7 @@ import {
   currentUserId,
   controlRequest,
   presenterDisplayName,
+  canStartPresentation,
 } from "./state";
 
 // ---------------------------------------------------------------------------
@@ -403,7 +404,8 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const canExitEstimate = inEstimate;
   const exitEstimateTitle = inAnalysis ? "Back to analysis" : undefined;
 
-  const canEnterPresentation = isDone && !inPresentation;
+  const canEnterPresentation =
+    isDone && !inPresentation && canStartPresentation.value;
 
   // Originator-presenter can end the presentation; local-analysis viewers
   // exit via canExitAnalysis instead (their exitAnalysis re-syncs with the stream).

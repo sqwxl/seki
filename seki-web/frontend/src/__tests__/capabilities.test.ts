@@ -42,6 +42,7 @@ import {
   moveConfirmEnabled,
   hasUnreadChat,
   presentationActive,
+  canStartPresentation,
 } from "../game/state";
 
 // ---------------------------------------------------------------------------
@@ -123,6 +124,7 @@ function resetAllSignals() {
     moveConfirmEnabled.value = false;
     hasUnreadChat.value = false;
     presentationActive.value = false;
+    canStartPresentation.value = false;
   });
   resetPhase();
 }
@@ -724,13 +726,24 @@ describe("mode transitions", () => {
     expect(caps().canExitEstimate).toBe(true);
   });
 
-  it("canEnterPresentation on finished game", () => {
+  it("canEnterPresentation on finished game when eligible", () => {
     setupPlayingGame();
     batch(() => {
       gameStage.value = GameStage.Completed;
       result.value = "B+R";
+      canStartPresentation.value = true;
     });
     expect(caps().canEnterPresentation).toBe(true);
+  });
+
+  it("cannot enter presentation on finished game when ineligible", () => {
+    setupPlayingGame();
+    batch(() => {
+      gameStage.value = GameStage.Completed;
+      result.value = "B+R";
+      canStartPresentation.value = false;
+    });
+    expect(caps().canEnterPresentation).toBe(false);
   });
 
   it("cannot enter presentation on in-progress game", () => {

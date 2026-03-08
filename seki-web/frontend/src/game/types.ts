@@ -123,6 +123,7 @@ export type InitialGameProps = {
   settled_territory?: SettledTerritoryData;
   nigiri?: boolean;
   invite_token?: string;
+  can_start_presentation?: boolean;
 };
 
 export type ClockData = {
@@ -149,6 +150,7 @@ export type StateMessage = {
   territory?: TerritoryData;
   settled_territory?: SettledTerritoryData;
   clock?: ClockData;
+  can_start_presentation?: boolean;
 };
 
 export type PresenceChangedMessage = {
