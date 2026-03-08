@@ -105,6 +105,7 @@
 ### Responding
 
 - [ ] Both clocks must reset to time when undone move was played `[test: e2e:ws]`
+- [x] Undo response must include clock data so frontend can sync clock display _(undo.rs: clock JSON added to undo_accepted/undo_rejected messages; messages.ts: syncClock called on undo)_
 
 ### Edge Cases
 
@@ -152,10 +153,17 @@
 - [x] Opponent clock pauses as soon as opponent disconnects `[test: e2e:ws]` _(disconnect.rs: clock_pauses_on_disconnect)_
 - [x] Clock resumes when opponent reconnects `[test: e2e:ws]` _(disconnect.rs: reconnect_broadcasts_player_reconnected)_
 
+### Clock Sync
+
+- [ ] No latency compensation in clock sync — `syncedAt` is set when the JS handler runs, not when the server serialized the message; on high-latency connections the opponent's displayed clock over-counts by the round-trip delta `[test: frontend:unit]`
+- [ ] Client-side byoyomi period simulation can briefly diverge from server state (self-corrects on next server message) `[test: frontend:unit]`
+
 ### Edge Cases
 
 - [ ] Very fast moves: increment must still be applied correctly (not tested) `[test: backend:unit]`
 - [x] Disconnect during opponent's turn: their clock paused `[test: e2e:ws]` _(disconnect.rs: move_while_opponent_disconnected_keeps_clock_paused)_
+- [ ] `timeoutFlagSent` race with reconnect: `syncClock` resets the flag unconditionally, so a near-simultaneous `state_sync` after sending a timeout flag could cause a duplicate `timeout_flag`; server handler must be idempotent `[test: e2e:ws]`
+- [ ] Silent clock fallback on cache miss: if `ClockState::from_game` finds NULL clock columns on a timed game, it falls back to `ClockState::new`, silently resetting the clock `[test: backend:unit]`
 
 ## 13. Chat
 
@@ -265,6 +273,8 @@
 - [ ] Server restart must be handled gracefully `[test: e2e:ws]`
 - [ ] Disconnected client must optimistically show played move if disconnected during player's turn
 - [x] Presence indicators update immediately for all subscribers `[test: e2e:ws]` _(presence.rs: multiple_connections_no_false_offline)_
+- [ ] No visual disconnection indicator for the local player — when WS closes, the clock keeps ticking and nothing tells the user they're offline; the 2s reconnect delay is invisible
+- [ ] No `player_reconnected` broadcast after server restart — if the server restarts between disconnect and reconnect, in-memory disconnect tracking is lost; clock recovery from DB is correct but the opponent doesn't see the reconnection notification
 
 ## 21. REST API — Needs Thorough Automated Testing
 
@@ -314,5 +324,5 @@
 - [ ] Very long game (300+ moves): performance must be acceptable (untested) `[test: backend:integration]`
 - [ ] Rapid-fire moves: server must handle correctly, no state corruption (needs automated test) `[test: backend:integration]`
 - [ ] Network partition during move: move must be either fully applied or fully rolled back (needs automated test) `[test: backend:integration]`
-- [ ] DB transaction failure: engine state must be rolled back, no DB/cache divergence (needs automated test) `[test: backend:integration]`
+- [x] DB transaction failure: engine state must be rolled back, no DB/cache divergence (needs automated test) `[test: backend:integration]` _(persist_clock now writes DB before updating in-memory cache)_
 - [ ] Two anonymous users in same game, one registers mid-game (needs test): must be handled gracefully `[test: e2e:ws]`

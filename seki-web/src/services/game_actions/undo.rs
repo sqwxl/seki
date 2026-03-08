@@ -5,6 +5,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::turn::TurnRow;
+use crate::services::clock::{self, TimeControl};
 
 use super::{load_game_and_check_player, persist_stage, require_not_challenge, rollback_engine};
 
@@ -163,15 +164,32 @@ pub async fn respond_to_undo(
         .collect();
     let current_turn_stone = engine.current_turn_stone().to_int() as i32;
 
-    let msg = json!({
+    // Include clock data so the client can sync the active player's clock
+    let tc = TimeControl::from_game(&gwp.game);
+    let clock_json = if !tc.is_none() {
+        let stage_str = engine.stage().to_string();
+        let active_stone = clock::active_stone_from_stage(&stage_str);
+        state
+            .registry
+            .get_clock(game_id)
+            .await
+            .map(|c| c.to_json(&tc, active_stone))
+    } else {
+        None
+    };
+
+    let mut msg_val = json!({
         "kind": kind,
         "game_id": game_id,
         "state": game_state_json,
         "current_turn_stone": current_turn_stone,
         "moves": moves_json,
         "undo_rejected": gwp.game.undo_rejected,
-    })
-    .to_string();
+    });
+    if let Some(clock) = clock_json {
+        msg_val["clock"] = clock;
+    }
+    let msg = msg_val.to_string();
 
     for pid in [requesting_player_id, player_id] {
         state.registry.send_to_player(game_id, pid, &msg).await;

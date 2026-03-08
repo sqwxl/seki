@@ -166,6 +166,7 @@ export function handleGameMessage(
       if (data.state && data.moves) {
         syncBoardMoves(false, deps.gobanEl());
       }
+      syncClock(clockState, data.clock, () => channel.timeoutFlag());
       break;
     }
     case "undo_request_sent": {

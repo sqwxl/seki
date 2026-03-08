@@ -931,8 +931,9 @@ async fn load_or_init_clock(
     Ok(clock)
 }
 
-/// Persist clock state to both registry and DB (games table).
+/// Persist clock state to both DB and registry cache (games table).
 /// `active_stone` is the user whose clock should be ticking (None if paused).
+/// DB is written first so a failure doesn't leave the in-memory cache ahead of DB.
 async fn persist_clock(
     state: &AppState,
     executor: impl sqlx::PgExecutor<'_>,
@@ -941,9 +942,9 @@ async fn persist_clock(
     tc: &TimeControl,
     active_stone: Option<Stone>,
 ) -> Result<(), AppError> {
-    state.registry.update_clock(game_id, clock.clone()).await;
-
     Game::update_clock(executor, game_id, &clock.to_update(active_stone, tc)).await?;
+
+    state.registry.update_clock(game_id, clock.clone()).await;
 
     Ok(())
 }

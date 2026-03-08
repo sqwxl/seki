@@ -181,6 +181,7 @@ export type UndoAcceptedMessage = {
   current_turn_stone?: number | null;
   moves?: TurnData[];
   undo_rejected?: boolean;
+  clock?: ClockData;
 };
 
 export type UndoRejectedMessage = {
@@ -189,6 +190,7 @@ export type UndoRejectedMessage = {
   current_turn_stone?: number | null;
   moves?: TurnData[];
   undo_rejected?: boolean;
+  clock?: ClockData;
 };
 
 export type UndoRequestSentMessage = {
