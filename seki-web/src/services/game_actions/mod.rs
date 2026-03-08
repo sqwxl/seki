@@ -43,7 +43,7 @@ pub async fn play_move(
         ));
     }
 
-    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
     require_not_challenge(&gwp)?;
 
@@ -113,6 +113,7 @@ pub async fn play_move(
 
     if gwp.game.undo_rejected {
         Game::set_undo_rejected(&mut *tx, game_id, false).await?;
+        gwp.game.undo_rejected = false;
     }
 
     tx.commit().await?;
@@ -130,7 +131,7 @@ pub async fn pass(
     player_id: i64,
     client_move_time_ms: Option<i64>,
 ) -> Result<Engine, AppError> {
-    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+    let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
     require_not_challenge(&gwp)?;
 
@@ -195,6 +196,7 @@ pub async fn pass(
 
     if gwp.game.undo_rejected {
         Game::set_undo_rejected(&mut *tx, game_id, false).await?;
+        gwp.game.undo_rejected = false;
     }
 
     // Pause clock if entering territory review
