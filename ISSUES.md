@@ -148,10 +148,16 @@
 - [ ] There should not be any real-time countdown (async play)
 - [ ] There should be real-time countdown in final hour
 
-### Clock Pausing
+### Disconnect / Claim Victory
 
-- [x] Opponent clock pauses as soon as opponent disconnects `[test: e2e:ws]` _(disconnect.rs: clock_pauses_on_disconnect)_
-- [x] Clock resumes when opponent reconnects `[test: e2e:ws]` _(disconnect.rs: reconnect_broadcasts_player_reconnected)_
+- [x] Clock keeps running when opponent disconnects `[test: e2e:ws]` _(disconnect.rs: clock_keeps_running_on_disconnect)_
+- [x] Opponent can claim victory after grace period expires `[test: e2e:ws]` _(disconnect.rs: claim_victory_succeeds_after_player_gone)_
+- [x] Claim victory rejected before grace period expires `[test: e2e:ws]` _(disconnect.rs: claim_victory_rejected_before_player_gone)_
+- [x] Territory review locked during opponent disconnect `[test: e2e:ws]` _(disconnect.rs: territory_review_locked_during_disconnect)_
+- [ ] Both players disconnect simultaneously: game should end by clock timeout with no one to claim `[test: e2e:ws]`
+- [ ] Grace period scaling: halve grace period if disconnected player is losing badly (score/capture differential) `[test: e2e:ws]`
+- [ ] RageSit scoring: repeat disconnect offenders get shorter grace periods (requires per-user disconnect history) `[test: e2e:ws]`
+- [ ] Anonymous user penalty: halve disconnect grace period for unregistered users `[test: e2e:ws]`
 
 ### Clock Sync
 
@@ -161,7 +167,7 @@
 ### Edge Cases
 
 - [ ] Very fast moves: increment must still be applied correctly (not tested) `[test: backend:unit]`
-- [x] Disconnect during opponent's turn: their clock paused `[test: e2e:ws]` _(disconnect.rs: move_while_opponent_disconnected_keeps_clock_paused)_
+- [x] Move while opponent disconnected: clock keeps running `[test: e2e:ws]` _(disconnect.rs: move_while_opponent_disconnected_clock_keeps_running)_
 - [ ] `timeoutFlagSent` race with reconnect: `syncClock` resets the flag unconditionally, so a near-simultaneous `state_sync` after sending a timeout flag could cause a duplicate `timeout_flag`; server handler must be idempotent `[test: e2e:ws]`
 - [ ] Silent clock fallback on cache miss: if `ClockState::from_game` finds NULL clock columns on a timed game, it falls back to `ClockState::new`, silently resetting the clock `[test: backend:unit]`
 
