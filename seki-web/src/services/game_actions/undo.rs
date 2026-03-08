@@ -1,4 +1,4 @@
-use go_engine::GoError;
+use go_engine::{GoError, Stage};
 use serde_json::json;
 
 use crate::AppState;
@@ -133,6 +133,9 @@ pub async fn respond_to_undo(
             }
         };
 
+        // If pop_move took us out of territory review, clean up stale state
+        let left_territory_review = engine.stage() != Stage::TerritoryReview;
+
         // DB: just DELETE + UPDATE stage (writes only, no reads)
         let mut tx = state.db.begin().await?;
         if let Err(e) = TurnRow::delete_last(&mut *tx, game_id).await {
@@ -140,7 +143,16 @@ pub async fn respond_to_undo(
             return Err(AppError::Internal(e.to_string()));
         }
         persist_stage(&mut *tx, game_id, &engine).await?;
+        if left_territory_review {
+            Game::clear_territory_review_deadline(&mut *tx, game_id).await?;
+        }
         tx.commit().await?;
+
+        // Clear in-memory territory review state only after the transaction
+        // succeeds, so rollback_engine won't leave inconsistent state.
+        if left_territory_review {
+            state.registry.clear_territory_review(game_id).await;
+        }
 
         ("undo_accepted", engine)
     } else {

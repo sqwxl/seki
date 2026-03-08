@@ -340,6 +340,62 @@ async fn undo_rejected_cleared_in_broadcast_after_move() {
     );
 }
 
+/// Undo of the second pass in a double-pass sequence must exit territory review.
+#[tokio::test]
+async fn undo_pass_exits_territory_review() {
+    let server = TestServer::start().await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": true}))
+        .await;
+
+    let mut black = server.ws_black().await;
+    let mut white = server.ws_white().await;
+
+    let _state = black.join_game(game_id).await;
+    let _state = white.join_game(game_id).await;
+
+    // Play a move first so the game is started
+    black.play(game_id, 3, 3).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    // Both pass → enters territory review
+    white.pass(game_id).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    black.pass(game_id).await;
+    let state_after_passes = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+    assert_eq!(state_after_passes["stage"], "territory_review");
+
+    // Black requests undo of the second pass
+    black.request_undo(game_id).await;
+    let _ = black.recv_kind("undo_request_sent").await;
+    let _ = white.recv_kind("undo_response_needed").await;
+
+    // White accepts
+    white.respond_undo(game_id, true).await;
+    let accepted_b = black.recv_kind("undo_accepted").await;
+    let _ = white.recv_kind("undo_accepted").await;
+
+    // Should be back in play stage — black's turn (stone = 1)
+    assert_eq!(
+        accepted_b["current_turn_stone"], 1,
+        "should be black's turn after undoing black's pass"
+    );
+
+    // Verify the game is actually playable — black can play a move
+    black.play(game_id, 4, 4).await;
+    let state_after = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+    // The move should succeed (stage should be a play stage, not territory review)
+    assert!(
+        state_after["stage"].as_str().unwrap().contains("to_play"),
+        "game should be in play stage after undo of double-pass"
+    );
+}
+
 /// 6.9 -- Cannot undo opponent's move: can only undo your own last move.
 #[tokio::test]
 async fn cannot_undo_opponents_move() {
