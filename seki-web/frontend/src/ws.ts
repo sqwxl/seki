@@ -171,6 +171,13 @@ function subscribePresence(userIds: number[]): void {
   send({ action: "subscribe_presence", user_ids: userIds });
 }
 
+// Send "bye" before the page unloads so the server knows it's a deliberate leave
+window.addEventListener("beforeunload", () => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: "bye" }));
+  }
+});
+
 export {
   ensureConnected,
   subscribe,

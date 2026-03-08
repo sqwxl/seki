@@ -180,7 +180,20 @@ export function handleGameMessage(
     case "player_disconnected": {
       setPresence(data.user_id, false);
       if (isOpponent(data.user_id)) {
-        opponentDisconnected.value = { since: new Date(data.timestamp) };
+        opponentDisconnected.value = {
+          since: new Date(data.timestamp),
+          gracePeriodMs: data.grace_period_ms,
+          gone: false,
+        };
+      }
+      break;
+    }
+    case "player_gone": {
+      if (isOpponent(data.user_id)) {
+        const current = opponentDisconnected.value;
+        if (current) {
+          opponentDisconnected.value = { ...current, gone: true };
+        }
       }
       break;
     }

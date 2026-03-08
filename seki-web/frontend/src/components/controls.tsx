@@ -53,7 +53,7 @@ export type ControlsProps = {
   resign?: ConfirmDef & { disabled?: boolean };
 
   abort?: ConfirmDef & { disabled?: boolean };
-  disconnectAbort?: ConfirmDef & { disabled?: boolean };
+  claimVictory?: ConfirmDef & { disabled?: boolean };
   acceptTerritory?: ConfirmDef & { disabled?: boolean };
   joinGame?: ConfirmDef;
   acceptChallenge?: ButtonDef;
@@ -513,10 +513,7 @@ export function UIControls(
 
 export function LobbyControls(props: ControlsProps) {
   const hasAny =
-    props.abort ||
-    props.disconnectAbort ||
-    props.copyInviteLink ||
-    props.joinGame;
+    props.abort || props.claimVictory || props.copyInviteLink || props.joinGame;
 
   if (!hasAny) {
     return null;
@@ -534,14 +531,14 @@ export function LobbyControls(props: ControlsProps) {
           buttonClass="btn-warn"
         />
       )}
-      {props.disconnectAbort && (
+      {props.claimVictory && (
         <ConfirmButton
-          id="disconnect-abort-btn"
-          icon={IconCancel}
-          title="Abort game (opponent disconnected)"
-          disabled={props.disconnectAbort.disabled}
-          confirm={props.disconnectAbort}
-          buttonClass="btn-warn"
+          id="claim-victory-btn"
+          icon={IconWhiteFlag}
+          title="Claim victory (opponent left)"
+          disabled={props.claimVictory.disabled}
+          confirm={props.claimVictory}
+          buttonClass="btn-success"
         />
       )}
       {props.copyInviteLink && (

@@ -137,6 +137,32 @@ impl TimeControl {
         matches!(self, TimeControl::None)
     }
 
+    /// Compute the disconnect grace period before "claim victory" is available.
+    ///
+    /// Returns `None` for untimed/correspondence (no claim allowed).
+    /// `bye = true` means the client sent a "bye" before disconnecting (ragequit).
+    pub fn disconnect_grace_ms(&self, bye: bool) -> Option<i64> {
+        match self {
+            TimeControl::None | TimeControl::Correspondence { .. } => None,
+            _ => {
+                if bye {
+                    return Some(10_000);
+                }
+                let est = self.estimated_total_seconds();
+                let multiplier = if est >= 1800 {
+                    10 // classical
+                } else if est >= 600 {
+                    4 // rapid
+                } else if est >= 180 {
+                    2 // blitz
+                } else {
+                    1 // bullet
+                };
+                Some(30_000 * multiplier)
+            }
+        }
+    }
+
     /// Rough estimate of total game seconds (for lag quota scaling).
     /// Assumes ~80 moves per player for a typical Go game.
     pub fn estimated_total_seconds(&self) -> i64 {
@@ -453,6 +479,58 @@ mod tests {
             period_time_secs: 30,
             periods: 3,
         }
+    }
+
+    // -- disconnect_grace_ms --
+
+    #[test]
+    fn grace_none_for_untimed() {
+        assert_eq!(TimeControl::None.disconnect_grace_ms(false), None);
+    }
+
+    #[test]
+    fn grace_none_for_correspondence() {
+        let tc = TimeControl::Correspondence {
+            days_per_move_secs: 259200,
+        };
+        assert_eq!(tc.disconnect_grace_ms(false), None);
+    }
+
+    #[test]
+    fn grace_bye_always_10s() {
+        assert_eq!(fischer_30m().disconnect_grace_ms(true), Some(10_000));
+        assert_eq!(fischer_1m().disconnect_grace_ms(true), Some(10_000));
+        assert_eq!(byoyomi_10m().disconnect_grace_ms(true), Some(10_000));
+    }
+
+    #[test]
+    fn grace_bullet() {
+        // 1m Fischer: est = 60 < 180 → multiplier 1 → 30_000
+        assert_eq!(fischer_1m().disconnect_grace_ms(false), Some(30_000));
+    }
+
+    #[test]
+    fn grace_blitz() {
+        // Byoyomi 10m: est = 690 → 600..1800 → multiplier 4 → 120_000
+        // Wait, 690 >= 600 → rapid multiplier = 4 → 120_000
+        // Actually let me check: 690 >= 180 and >= 600 → multiplier 4
+        assert_eq!(byoyomi_10m().disconnect_grace_ms(false), Some(120_000));
+    }
+
+    #[test]
+    fn grace_rapid() {
+        // Fischer 10m + 10s inc: est = 600 + 800 = 1400 → >=600 && <1800 → 4
+        let tc = TimeControl::Fischer {
+            main_time_secs: 600,
+            increment_secs: 10,
+        };
+        assert_eq!(tc.disconnect_grace_ms(false), Some(120_000));
+    }
+
+    #[test]
+    fn grace_classical() {
+        // Fischer 30m: est = 1800 → >=1800 → multiplier 10 → 300_000
+        assert_eq!(fischer_30m().disconnect_grace_ms(false), Some(300_000));
     }
 
     // -- estimated_total_seconds --

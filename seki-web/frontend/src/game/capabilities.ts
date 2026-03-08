@@ -57,7 +57,8 @@ export type UiCapabilities = {
   canJoinGame: boolean;
   showInviteLink: boolean;
   showChallengePopover: boolean;
-  canDisconnectAbort: boolean;
+  canClaimVictory: boolean;
+  disconnectCountdown?: string;
   canRematch: boolean;
 
   // Mode transitions
@@ -363,13 +364,27 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     isChallenge && isPlayer && myId != null && myId !== props.creator_id;
   const showChallengePopover = isChallengee;
 
-  let canDisconnectAbort = false;
+  const canClaimVictory =
+    isPlayer && !isDone && !res && !!oppDisconnected?.gone;
+
+  let disconnectCountdown: string | undefined;
   if (isPlayer && !isDone && !res && oppDisconnected) {
-    const elapsed = Date.now() - oppDisconnected.since.getTime();
-    const oppStone = stone === 1 ? -1 : 1;
-    const hasOpponentMoved = mvs.some((m) => m.stone === oppStone);
-    const thresholdMs = hasOpponentMoved ? 15_000 : 30_000;
-    canDisconnectAbort = elapsed >= thresholdMs;
+    if (oppDisconnected.gone) {
+      disconnectCountdown = "Opponent left the game.";
+    } else if (oppDisconnected.gracePeriodMs != null) {
+      const elapsed = Date.now() - oppDisconnected.since.getTime();
+      const remaining = Math.max(
+        0,
+        Math.ceil((oppDisconnected.gracePeriodMs - elapsed) / 1000),
+      );
+      if (remaining > 0) {
+        disconnectCountdown = `Opponent left. ${remaining}s to reconnect.`;
+      } else {
+        disconnectCountdown = "Opponent left the game.";
+      }
+    } else {
+      disconnectCountdown = "Opponent disconnected.";
+    }
   }
 
   const canRematch = !!res && isDone && isPlayer;
@@ -519,7 +534,8 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     canJoinGame,
     showInviteLink,
     showChallengePopover,
-    canDisconnectAbort,
+    canClaimVictory,
+    disconnectCountdown,
     canRematch,
 
     canEnterAnalysis,

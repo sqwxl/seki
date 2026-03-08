@@ -492,7 +492,7 @@ describe("territory review", () => {
 
   it("disabled when opponent disconnected", () => {
     setupTerritoryReview();
-    opponentDisconnected.value = { since: new Date() };
+    opponentDisconnected.value = { since: new Date(), gone: false };
     expect(caps().canAcceptTerritory).toBe(false);
   });
 
@@ -878,37 +878,19 @@ describe("board", () => {
 });
 
 // ===========================================================================
-// 11. Disconnect abort
+// 11. Claim victory (opponent gone)
 // ===========================================================================
-describe("disconnect abort", () => {
-  it("not available immediately after disconnect", () => {
+describe("claim victory", () => {
+  it("not available when opponent disconnected but not gone", () => {
     setupPlayingGame();
-    opponentDisconnected.value = { since: new Date() };
-    expect(caps().canDisconnectAbort).toBe(false);
+    opponentDisconnected.value = { since: new Date(), gone: false };
+    expect(caps().canClaimVictory).toBe(false);
   });
 
-  it("available after threshold when opponent has moved (15s)", () => {
+  it("available when opponent is gone", () => {
     setupPlayingGame();
-    moves.value = [
-      { kind: "play", stone: 1, pos: [3, 3] },
-      { kind: "play", stone: -1, pos: [15, 15] }, // opponent has moved
-    ];
-    opponentDisconnected.value = { since: new Date(Date.now() - 16_000) };
-    expect(caps().canDisconnectAbort).toBe(true);
-  });
-
-  it("not available at 15s when opponent has NOT moved (need 30s)", () => {
-    setupPlayingGame();
-    moves.value = [{ kind: "play", stone: 1, pos: [3, 3] }]; // only our move
-    opponentDisconnected.value = { since: new Date(Date.now() - 16_000) };
-    expect(caps().canDisconnectAbort).toBe(false);
-  });
-
-  it("available after 30s when opponent has NOT moved", () => {
-    setupPlayingGame();
-    moves.value = [{ kind: "play", stone: 1, pos: [3, 3] }];
-    opponentDisconnected.value = { since: new Date(Date.now() - 31_000) };
-    expect(caps().canDisconnectAbort).toBe(true);
+    opponentDisconnected.value = { since: new Date(), gone: true };
+    expect(caps().canClaimVictory).toBe(true);
   });
 
   it("not available when game is done", () => {
@@ -917,15 +899,36 @@ describe("disconnect abort", () => {
       gameStage.value = GameStage.Completed;
       result.value = "B+R";
     });
-    opponentDisconnected.value = { since: new Date(Date.now() - 60_000) };
-    expect(caps().canDisconnectAbort).toBe(false);
+    opponentDisconnected.value = { since: new Date(), gone: true };
+    expect(caps().canClaimVictory).toBe(false);
   });
 
   it("not available for spectator", () => {
     setupPlayingGame();
     playerStone.value = 0;
-    opponentDisconnected.value = { since: new Date(Date.now() - 60_000) };
-    expect(caps().canDisconnectAbort).toBe(false);
+    opponentDisconnected.value = { since: new Date(), gone: true };
+    expect(caps().canClaimVictory).toBe(false);
+  });
+
+  it("shows countdown text during grace period", () => {
+    setupPlayingGame();
+    opponentDisconnected.value = {
+      since: new Date(Date.now() - 5000),
+      gracePeriodMs: 30000,
+      gone: false,
+    };
+    const c = caps();
+    expect(c.disconnectCountdown).toMatch(/\d+s to reconnect/);
+  });
+
+  it("shows 'left the game' when gone", () => {
+    setupPlayingGame();
+    opponentDisconnected.value = {
+      since: new Date(),
+      gracePeriodMs: 30000,
+      gone: true,
+    };
+    expect(caps().disconnectCountdown).toBe("Opponent left the game.");
   });
 });
 

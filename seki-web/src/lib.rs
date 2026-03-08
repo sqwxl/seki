@@ -38,6 +38,22 @@ pub async fn build_router_with_presence(
     session_secure: bool,
     presence: ws::presence::UserPresence,
 ) -> (Router, AppState) {
+    build_router_with_registry_and_presence(
+        pool,
+        session_secure,
+        ws::registry::GameRegistry::new(),
+        presence,
+    )
+    .await
+}
+
+/// Build the router with custom `GameRegistry` and `UserPresence` (for tests).
+pub async fn build_router_with_registry_and_presence(
+    pool: db::DbPool,
+    session_secure: bool,
+    registry: ws::registry::GameRegistry,
+    presence: ws::presence::UserPresence,
+) -> (Router, AppState) {
     let session_store = PostgresStore::new(pool.clone());
     session_store
         .migrate()
@@ -52,7 +68,7 @@ pub async fn build_router_with_presence(
     let mailer = services::mailer::Mailer::from_env();
     let state = AppState {
         db: pool,
-        registry: ws::registry::GameRegistry::new(),
+        registry,
         presence,
         presence_subs: ws::presence_subscriptions::PresenceSubscriptions::new(),
         live_tx,

@@ -11,7 +11,7 @@ export type GameChannel = {
   rejectUndo(): void;
   approveTerritory(): void;
   abort(): void;
-  disconnectAbort(): void;
+  claimVictory(): void;
   acceptChallenge(): void;
   declineChallenge(): void;
   timeoutFlag(): void;
@@ -75,8 +75,8 @@ export function createGameChannel(
     abort() {
       gameSend({ action: "abort" });
     },
-    disconnectAbort() {
-      gameSend({ action: "disconnect_abort" });
+    claimVictory() {
+      gameSend({ action: "claim_victory" });
     },
     acceptChallenge() {
       gameSend({ action: "accept_challenge" });

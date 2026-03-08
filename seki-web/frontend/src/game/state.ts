@@ -71,9 +71,9 @@ export const onlineUsers = signal<Map<number, UserData>>(new Map());
 export const nigiri = signal(false);
 export const undoRejected = signal(false);
 export const allowUndo = signal(false);
-export const opponentDisconnected = signal<{ since: Date } | undefined>(
-  undefined,
-);
+export const opponentDisconnected = signal<
+  { since: Date; gracePeriodMs?: number; gone: boolean } | undefined
+>(undefined);
 
 // ---------------------------------------------------------------------------
 // Chat

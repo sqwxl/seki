@@ -207,10 +207,16 @@ export type PlayerDisconnectedMessage = {
   kind: "player_disconnected";
   user_id: number;
   timestamp: string;
+  grace_period_ms?: number;
 };
 
 export type PlayerReconnectedMessage = {
   kind: "player_reconnected";
+  user_id: number;
+};
+
+export type PlayerGoneMessage = {
+  kind: "player_gone";
   user_id: number;
 };
 
@@ -272,6 +278,7 @@ export type IncomingMessage =
   | UndoResponseNeededMessage
   | PlayerDisconnectedMessage
   | PlayerReconnectedMessage
+  | PlayerGoneMessage
   | PresentationStartedMessage
   | PresentationEndedMessage
   | PresentationUpdateMessage

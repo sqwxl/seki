@@ -109,8 +109,13 @@ impl TestServer {
         // Build and spawn the server (zero grace period for instant disconnect in tests)
         let presence =
             seki_web::ws::presence::UserPresence::with_grace_period(Duration::from_millis(0));
-        let (router, _state) =
-            seki_web::build_router_with_presence(pool.clone(), false, presence).await;
+        let (router, _state) = seki_web::build_router_with_registry_and_presence(
+            pool.clone(),
+            false,
+            seki_web::ws::registry::GameRegistry::with_max_grace(100),
+            presence,
+        )
+        .await;
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap().to_string();
 
@@ -584,8 +589,8 @@ impl WsClient {
             .await;
     }
 
-    pub async fn disconnect_abort(&mut self, game_id: i64) {
-        self.send(json!({"action": "disconnect_abort", "game_id": game_id}))
+    pub async fn claim_victory(&mut self, game_id: i64) {
+        self.send(json!({"action": "claim_victory", "game_id": game_id}))
             .await;
     }
 

@@ -655,26 +655,21 @@ export function liveGame(
     },
   );
 
-  // --- Disconnect abort timer ---
-  // Re-render after each possible abort threshold so the button appears
+  // --- Disconnect countdown timer ---
+  // Re-render every second while grace period is active so the countdown updates
   effect(() => {
     const dc = opponentDisconnected.value;
     if (!dc) {
       return;
     }
-    const elapsed = Date.now() - dc.since.getTime();
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    for (const threshold of [15_000, 30_000]) {
-      const delay = threshold - elapsed + 100;
-      if (delay > 0) {
-        timers.push(setTimeout(() => doRender(), delay));
-      }
-    }
-    // If both thresholds already passed, render now
-    if (timers.length === 0) {
+    // If already gone or no grace period, render once and done
+    if (dc.gone || dc.gracePeriodMs == null) {
       doRender();
+      return;
     }
-    return () => timers.forEach(clearTimeout);
+    const interval = setInterval(() => doRender(), 1000);
+    doRender();
+    return () => clearInterval(interval);
   });
 
   // --- Re-render board when returning from Chat tab ---

@@ -15,7 +15,7 @@ async fn create_timed_game(server: &TestServer) -> i64 {
         .await
 }
 
-/// Player disconnects → opponent receives `player_disconnected` message.
+/// Player disconnects → opponent receives `player_disconnected` with `grace_period_ms`.
 #[tokio::test]
 async fn disconnect_broadcasts_player_disconnected() {
     let server = TestServer::start().await;
@@ -38,15 +38,21 @@ async fn disconnect_broadcasts_player_disconnected() {
     // Allow grace period to fire (0ms in tests, but need a small yield)
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    // White should receive player_disconnected
+    // White should receive player_disconnected with grace_period_ms
     let msg = white.recv_kind("player_disconnected").await;
     assert_eq!(msg["user_id"], server.black_id);
     assert!(msg["timestamp"].is_string());
+    // grace_period_ms should be present (capped to 100ms by test registry)
+    assert!(
+        msg["grace_period_ms"].is_number(),
+        "Expected grace_period_ms, got: {}",
+        msg
+    );
 }
 
-/// Clock pauses on disconnect (verify clock state has `active_stone: null`).
+/// Clock keeps running on disconnect (active_stone is NOT null).
 #[tokio::test]
-async fn clock_pauses_on_disconnect() {
+async fn clock_keeps_running_on_disconnect() {
     let server = TestServer::start().await;
     let game_id = create_timed_game(&server).await;
 
@@ -65,7 +71,7 @@ async fn clock_pauses_on_disconnect() {
 
     // White disconnects
     white.close().await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Drain disconnect message from black's perspective
     let _ = black.recv_kind("player_disconnected").await;
@@ -74,17 +80,17 @@ async fn clock_pauses_on_disconnect() {
     let mut black2 = server.ws_black().await;
     let state = black2.join_game(game_id).await;
 
-    // Clock should be paused (active_stone null) because white is disconnected
-    assert!(
-        state["clock"]["active_stone"].is_null(),
-        "Expected paused clock (null active_stone), got: {}",
+    // Clock should still be running (active_stone NOT null)
+    assert_eq!(
+        state["clock"]["active_stone"], -1,
+        "Expected clock still running (active_stone = -1), got: {}",
         state["clock"]["active_stone"]
     );
 }
 
-/// Player reconnects → opponent receives `player_reconnected`, clock resumes.
+/// Player reconnects → opponent receives `player_reconnected`, no `player_gone` fires.
 #[tokio::test]
-async fn reconnect_broadcasts_player_reconnected_and_resumes_clock() {
+async fn reconnect_cancels_grace_and_no_gone() {
     let server = TestServer::start().await;
     let game_id = create_timed_game(&server).await;
 
@@ -101,30 +107,30 @@ async fn reconnect_broadcasts_player_reconnected_and_resumes_clock() {
 
     // White disconnects
     white.close().await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Black should see player_disconnected
     let msg = black.recv_kind("player_disconnected").await;
     assert_eq!(msg["user_id"], server.white_id);
 
-    // White reconnects
+    // White reconnects quickly (before grace expires)
     let mut white2 = server.ws_white().await;
 
     // Black should see player_reconnected
     let msg = black.recv_kind("player_reconnected").await;
     assert_eq!(msg["user_id"], server.white_id);
 
-    // White joins and sees resumed clock
+    // White joins and sees running clock
     let state = white2.join_game(game_id).await;
     assert_eq!(
         state["clock"]["active_stone"], -1,
-        "Clock should have resumed for white after reconnect"
+        "Clock should still be running for white after reconnect"
     );
 }
 
-/// Move while opponent disconnected → clock stays paused.
+/// Move while opponent disconnected → clock keeps running.
 #[tokio::test]
-async fn move_while_opponent_disconnected_keeps_clock_paused() {
+async fn move_while_opponent_disconnected_clock_keeps_running() {
     let server = TestServer::start().await;
     let game_id = create_timed_game(&server).await;
 
@@ -141,60 +147,20 @@ async fn move_while_opponent_disconnected_keeps_clock_paused() {
     // Drain the disconnect message
     let _ = black.recv_kind("player_disconnected").await;
 
-    // Black plays — since white is disconnected, white's clock should not start
+    // Black plays — white's clock should start ticking even though they're disconnected
     black.play(game_id, 0, 0).await;
     let state = black.recv_kind("state").await;
 
-    assert!(
-        state["clock"]["active_stone"].is_null(),
-        "Clock should stay paused when opponent is disconnected, got: {}",
+    assert_eq!(
+        state["clock"]["active_stone"], -1,
+        "Clock should keep running when opponent is disconnected, got: {}",
         state["clock"]["active_stone"]
     );
 }
 
-/// Disconnect abort rejected before threshold has elapsed.
+/// `player_gone` is broadcast after the grace period expires.
 #[tokio::test]
-async fn disconnect_abort_rejected_before_threshold() {
-    let server = TestServer::start().await;
-    let game_id = create_timed_game(&server).await;
-
-    let mut black = server.ws_black().await;
-    let mut white = server.ws_white().await;
-
-    let _state = black.join_game(game_id).await;
-    let _state = white.join_game(game_id).await;
-
-    // Both play a move so both have moved (15s threshold)
-    black.play(game_id, 0, 0).await;
-    let _ = black.recv_kind("state").await;
-    let _ = white.recv_kind("state").await;
-
-    white.play(game_id, 1, 0).await;
-    let _ = black.recv_kind("state").await;
-    let _ = white.recv_kind("state").await;
-
-    // White disconnects
-    white.close().await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    let _ = black.recv_kind("player_disconnected").await;
-
-    // The disconnect happened ~100ms ago, threshold is 15s. We can't wait that long
-    // in a test, so verify the threshold rejection works correctly.
-    black.disconnect_abort(game_id).await;
-    let err = black.recv_kind("error").await;
-    assert!(
-        err["message"]
-            .as_str()
-            .unwrap()
-            .contains("disconnected for at least"),
-        "Expected threshold error, got: {}",
-        err["message"]
-    );
-}
-
-/// Disconnect abort before threshold → rejected.
-#[tokio::test]
-async fn disconnect_abort_before_threshold_rejected() {
+async fn player_gone_broadcast_after_grace() {
     let server = TestServer::start().await;
     let game_id = create_timed_game(&server).await;
 
@@ -211,18 +177,93 @@ async fn disconnect_abort_before_threshold_rejected() {
 
     // White disconnects
     white.close().await;
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    // Black sees player_disconnected
     let _ = black.recv_kind("player_disconnected").await;
 
-    // Try to abort immediately — should be rejected (threshold not reached)
-    black.disconnect_abort(game_id).await;
+    // Wait for the grace period to expire (100ms in test registry + buffer)
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    // Black should see player_gone
+    let msg = black.recv_kind("player_gone").await;
+    assert_eq!(msg["user_id"], server.white_id);
+}
+
+/// Claim victory succeeds after player is gone.
+#[tokio::test]
+async fn claim_victory_succeeds_after_player_gone() {
+    let server = TestServer::start().await;
+    let game_id = create_timed_game(&server).await;
+
+    let mut black = server.ws_black().await;
+    let mut white = server.ws_white().await;
+
+    let _state = black.join_game(game_id).await;
+    let _state = white.join_game(game_id).await;
+
+    // Black plays
+    black.play(game_id, 0, 0).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    // White disconnects
+    white.close().await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let _ = black.recv_kind("player_disconnected").await;
+
+    // Wait for gone
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let _ = black.recv_kind("player_gone").await;
+
+    // Black claims victory
+    black.claim_victory(game_id).await;
+
+    // Should get chat + state messages indicating game is over
+    let state = black.recv_kind("state").await;
+    assert_eq!(
+        state["result"].as_str().unwrap(),
+        "B+R",
+        "Expected B+R result"
+    );
+}
+
+/// Claim victory rejected before player is gone.
+#[tokio::test]
+async fn claim_victory_rejected_before_player_gone() {
+    let server = TestServer::start().await;
+    let game_id = create_timed_game(&server).await;
+
+    let mut black = server.ws_black().await;
+    let mut white = server.ws_white().await;
+
+    let _state = black.join_game(game_id).await;
+    let _state = white.join_game(game_id).await;
+
+    // Both play a move
+    black.play(game_id, 0, 0).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    white.play(game_id, 1, 0).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    // White disconnects
+    white.close().await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let _ = black.recv_kind("player_disconnected").await;
+
+    // Immediately try to claim victory — should be rejected (not gone yet)
+    black.claim_victory(game_id).await;
     let err = black.recv_kind("error").await;
     assert!(
         err["message"]
             .as_str()
             .unwrap()
-            .contains("disconnected for at least"),
-        "Expected threshold rejection, got: {}",
+            .contains("not been gone long enough"),
+        "Expected rejection, got: {}",
         err["message"]
     );
 }

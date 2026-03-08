@@ -151,11 +151,11 @@ function buildControls(
     };
   }
 
-  // --- Disconnect abort ---
-  if (caps.canDisconnectAbort) {
-    controlsProps.disconnectAbort = {
-      message: "Abort game? (Opponent disconnected)",
-      onConfirm: () => channel.disconnectAbort(),
+  // --- Claim victory (opponent left) ---
+  if (caps.canClaimVictory) {
+    controlsProps.claimVictory = {
+      message: "Claim victory? (Opponent left the game)",
+      onConfirm: () => channel.claimVictory(),
     };
   }
 
@@ -348,6 +348,9 @@ export function LiveGamePage(props: LiveGamePageProps) {
             </GameStatus>
           )}
           <LobbyControls {...controlsProps} />
+          {caps.disconnectCountdown && (
+            <p class="disconnect-countdown">{caps.disconnectCountdown}</p>
+          )}
           {caps.showChallengePopover && (
             <ChallengePopover
               settings={initialProps.value.settings}
