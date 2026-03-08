@@ -285,6 +285,7 @@ export function applyPresentationStarted(
 ): void {
   batch(() => {
     presentationActive.value = true;
+    canStartPresentation.value = false;
     presenterId.value = data.presenter_id;
     originatorId.value = data.originator_id;
     if (data.control_request) {
@@ -303,6 +304,11 @@ export function clearPresentation(): void {
     presenterId.value = 0;
     originatorId.value = 0;
     controlRequest.value = undefined;
+    // After a session ends, has_had_presentation is true server-side,
+    // so any connected user on a finished game is now eligible
+    if (result.value) {
+      canStartPresentation.value = true;
+    }
   });
 }
 
