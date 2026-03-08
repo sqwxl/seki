@@ -7,7 +7,7 @@ use tokio::sync::{RwLock, mpsc};
 
 use crate::db::DbPool;
 use crate::models::game::Game;
-use crate::services::clock::ClockState;
+use crate::services::clock::{ClockState, LagTracker};
 use crate::services::engine_builder;
 
 pub type WsSender = mpsc::UnboundedSender<Arc<String>>;
@@ -39,6 +39,8 @@ struct GameRoom {
     territory_review: Option<TerritoryReviewState>,
     /// In-memory clock state for timed games
     clock: Option<ClockState>,
+    /// Per-player lag compensation trackers (player_id -> tracker)
+    lag_trackers: HashMap<i64, LagTracker>,
     /// Players marked as disconnected (player_id -> disconnect time)
     disconnected_players: HashMap<i64, DateTime<Utc>>,
     /// Active presentation state (post-game collaborative analysis)
@@ -217,6 +219,37 @@ impl GameRegistry {
         let mut rooms = self.rooms.write().await;
         let room = rooms.entry(game_id).or_default();
         room.clock = Some(clock);
+    }
+
+    // -- Lag compensation --
+
+    /// Get a mutable reference to a player's lag tracker, initializing if needed.
+    /// Returns the compensation (ms) to credit back for this move.
+    pub async fn record_lag(
+        &self,
+        game_id: i64,
+        player_id: i64,
+        tc: &crate::services::clock::TimeControl,
+        server_elapsed_ms: i64,
+        client_move_time_ms: Option<i64>,
+    ) -> i64 {
+        let mut rooms = self.rooms.write().await;
+        let room = rooms.entry(game_id).or_default();
+        let tracker = room
+            .lag_trackers
+            .entry(player_id)
+            .or_insert_with(|| LagTracker::new(tc));
+        tracker.record_lag(server_elapsed_ms, client_move_time_ms)
+    }
+
+    /// Get the flag grace for a player (ms to subtract before flagging).
+    pub async fn flag_grace_ms(&self, game_id: i64, player_id: i64) -> i64 {
+        let rooms = self.rooms.read().await;
+        rooms
+            .get(&game_id)
+            .and_then(|room| room.lag_trackers.get(&player_id))
+            .map(|t| t.flag_grace_ms())
+            .unwrap_or(0)
     }
 
     // -- Territory review --

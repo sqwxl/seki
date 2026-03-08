@@ -26,17 +26,30 @@ export type GameChannel = {
   rejectControlRequest(): void;
 };
 
-export function createGameChannel(gameId: number): GameChannel {
+export type MoveTimeFn = () => number | undefined;
+
+export function createGameChannel(
+  gameId: number,
+  getMoveTimeMs?: MoveTimeFn,
+): GameChannel {
   function gameSend(data: Record<string, unknown>): void {
     send({ game_id: gameId, ...data });
   }
 
+  function gameSendWithTiming(data: Record<string, unknown>): void {
+    const moveTime = getMoveTimeMs?.();
+    if (moveTime != null) {
+      data.client_move_time_ms = Math.round(moveTime);
+    }
+    gameSend(data);
+  }
+
   return {
     play(col, row) {
-      gameSend({ action: "play", col, row });
+      gameSendWithTiming({ action: "play", col, row });
     },
     pass() {
-      gameSend({ action: "pass" });
+      gameSendWithTiming({ action: "pass" });
     },
     resign() {
       gameSend({ action: "resign" });

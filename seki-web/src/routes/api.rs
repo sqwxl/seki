@@ -126,6 +126,14 @@ struct CreateGameRequest {
 struct PlayRequest {
     col: i32,
     row: i32,
+    /// Client-measured thinking time in milliseconds (for lag compensation).
+    client_move_time_ms: Option<i64>,
+}
+
+#[derive(Deserialize, ToSchema)]
+struct PassRequest {
+    /// Client-measured thinking time in milliseconds (for lag compensation).
+    client_move_time_ms: Option<i64>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -533,7 +541,15 @@ async fn play_move(
     Path(id): Path<i64>,
     Json(body): Json<PlayRequest>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let engine = game_actions::play_move(&state, id, api_user.id, body.col, body.row).await?;
+    let engine = game_actions::play_move(
+        &state,
+        id,
+        api_user.id,
+        body.col,
+        body.row,
+        body.client_move_time_ms,
+    )
+    .await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }
@@ -544,6 +560,7 @@ async fn play_move(
     tag = "Game Actions",
     security(("bearer" = [])),
     params(("id" = i64, Path, description = "Game ID")),
+    request_body(content = Option<PassRequest>, description = "Optional timing data"),
     responses(
         (status = 200, description = "Passed", body = GameResponse),
         (status = 400, description = "Cannot pass"),
@@ -554,8 +571,10 @@ async fn pass(
     State(state): State<AppState>,
     api_user: ApiUser,
     Path(id): Path<i64>,
+    body: Option<Json<PassRequest>>,
 ) -> Result<Json<GameResponse>, ApiError> {
-    let engine = game_actions::pass(&state, id, api_user.id).await?;
+    let client_move_time_ms = body.and_then(|b| b.client_move_time_ms);
+    let engine = game_actions::pass(&state, id, api_user.id, client_move_time_ms).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
     Ok(Json(build_game_response(&state, id, &gwp, &engine).await))
 }

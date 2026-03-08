@@ -33,6 +33,7 @@ pub async fn play_move(
     player_id: i64,
     col: i32,
     row: i32,
+    client_move_time_ms: Option<i64>,
 ) -> Result<Engine, AppError> {
     if col < 0 || row < 0 {
         return Err(AppError::UnprocessableEntity(
@@ -93,7 +94,19 @@ pub async fn play_move(
         Game::set_started(&mut *tx, game_id).await?;
     }
 
-    process_clock_after_move(state, &mut *tx, game_id, &gwp.game, stone, first_move).await?;
+    process_clock_after_move(
+        state,
+        &mut *tx,
+        game_id,
+        &gwp.game,
+        ClockMoveParams {
+            stone,
+            first_move,
+            player_id,
+            client_move_time_ms,
+        },
+    )
+    .await?;
     persist_stage(&mut *tx, game_id, &engine).await?;
 
     if gwp.game.undo_rejected {
@@ -109,7 +122,12 @@ pub async fn play_move(
     Ok(engine)
 }
 
-pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engine, AppError> {
+pub async fn pass(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+    client_move_time_ms: Option<i64>,
+) -> Result<Engine, AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_both_players(&gwp)?;
     require_not_challenge(&gwp)?;
@@ -158,7 +176,19 @@ pub async fn pass(state: &AppState, game_id: i64, player_id: i64) -> Result<Engi
         return Err(AppError::Internal(e.to_string()));
     }
 
-    process_clock_after_move(state, &mut *tx, game_id, &gwp.game, stone, false).await?;
+    process_clock_after_move(
+        state,
+        &mut *tx,
+        game_id,
+        &gwp.game,
+        ClockMoveParams {
+            stone,
+            first_move: false,
+            player_id,
+            client_move_time_ms,
+        },
+    )
+    .await?;
     persist_stage(&mut *tx, game_id, &engine).await?;
 
     if gwp.game.undo_rejected {
@@ -588,7 +618,18 @@ pub async fn handle_timeout_flag(
         return Ok(());
     };
 
-    if !clock.is_flagged(active, Some(active), &tc, now) {
+    // Apply flag grace from lag compensation before flagging
+    let active_player_id = match active {
+        Stone::Black => gwp.game.black_id,
+        Stone::White => gwp.game.white_id,
+    };
+    let grace_ms = match active_player_id {
+        Some(pid) => state.registry.flag_grace_ms(game_id, pid).await,
+        None => 0,
+    };
+    let check_now = now - chrono::TimeDelta::milliseconds(grace_ms);
+
+    if !clock.is_flagged(active, Some(active), &tc, check_now) {
         return Ok(());
     }
 
@@ -847,14 +888,20 @@ async fn current_move_number(state: &AppState, game: &Game) -> Option<i32> {
 
 // -- Clock helpers --
 
+struct ClockMoveParams {
+    stone: Stone,
+    first_move: bool,
+    player_id: i64,
+    client_move_time_ms: Option<i64>,
+}
+
 /// Process clock after a play or pass move.
 async fn process_clock_after_move(
     state: &AppState,
     executor: impl sqlx::PgExecutor<'_>,
     game_id: i64,
     game: &Game,
-    stone: Stone,
-    first_move: bool,
+    params: ClockMoveParams,
 ) -> Result<(), AppError> {
     let tc = TimeControl::from_game(game);
     if tc.is_none() {
@@ -865,14 +912,39 @@ async fn process_clock_after_move(
     let now = Utc::now();
     let active = clock::active_stone_from_stage(&game.stage);
 
-    if first_move {
+    if params.first_move {
         clock.start(now);
     } else {
-        clock.process_move(stone, active, &tc, now);
+        // Compute lag compensation before processing the move
+        let comp_ms = if let Some(last) = clock.last_move_at
+            && active == Some(params.stone)
+        {
+            let server_elapsed_ms = (now - last).num_milliseconds().max(0);
+            state
+                .registry
+                .record_lag(
+                    game_id,
+                    params.player_id,
+                    &tc,
+                    server_elapsed_ms,
+                    params.client_move_time_ms,
+                )
+                .await
+        } else {
+            0
+        };
+
+        // Adjust the effective "now" by crediting back the compensated lag
+        let effective_now = if comp_ms > 0 {
+            now - chrono::TimeDelta::milliseconds(comp_ms)
+        } else {
+            now
+        };
+        clock.process_move(params.stone, active, &tc, effective_now);
     }
 
     // After the move, the new active stone is the opponent — unless they're disconnected
-    let opp_stone = stone.opp();
+    let opp_stone = params.stone.opp();
     let opp_id = match opp_stone {
         Stone::Black => game.black_id,
         Stone::White => game.white_id,

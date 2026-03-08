@@ -40,7 +40,18 @@ async fn sweep(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
             continue;
         };
 
-        if !clock.is_flagged(active, Some(active), &tc, now) {
+        // Apply flag grace from lag compensation (if tracker exists in memory)
+        let active_player_id = match active {
+            go_engine::Stone::Black => game.black_id,
+            go_engine::Stone::White => game.white_id,
+        };
+        let grace_ms = match active_player_id {
+            Some(pid) => state.registry.flag_grace_ms(game.id, pid).await,
+            None => 0,
+        };
+        let check_now = now - chrono::TimeDelta::milliseconds(grace_ms);
+
+        if !clock.is_flagged(active, Some(active), &tc, check_now) {
             // clock_expires_at was approximate; not truly expired yet — update it
             let update = clock.to_update(Some(active), &tc);
             if update.expires_at.is_some() {

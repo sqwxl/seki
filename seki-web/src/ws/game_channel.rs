@@ -193,9 +193,12 @@ pub async fn handle_message(
 
     let result = match action {
         "play" => handle_play(state, game_id, player_id, data).await,
-        "pass" => game_actions::pass(state, game_id, player_id)
-            .await
-            .map(|_| ()),
+        "pass" => {
+            let client_move_time_ms = data.get("client_move_time_ms").and_then(|v| v.as_i64());
+            game_actions::pass(state, game_id, player_id, client_move_time_ms)
+                .await
+                .map(|_| ())
+        }
         "resign" => game_actions::resign(state, game_id, player_id)
             .await
             .map(|_| ()),
@@ -262,8 +265,9 @@ async fn handle_play(
         .and_then(|v| v.as_i64())
         .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing row".to_string()))?
         as i32;
+    let client_move_time_ms = data.get("client_move_time_ms").and_then(|v| v.as_i64());
 
-    game_actions::play_move(state, game_id, player_id, col, row).await?;
+    game_actions::play_move(state, game_id, player_id, col, row, client_move_time_ms).await?;
     Ok(())
 }
 

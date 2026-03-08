@@ -264,7 +264,7 @@ Prevent stalling during territory review by using KataGo to evaluate the positio
 ## Implementation Order
 
 1. ~~**Clock Display Improvements** (plan 3)~~ — **DONE**: `Xh Ym` for ≥1h, `SD` for last byoyomi period, scaled low-time threshold
-2. **Lag Compensation** (plan 1) — Core infrastructure, improves fairness immediately
+2. ~~**Lag Compensation** (plan 1)~~ — **DONE**: LagTracker quota system, server_now_ms transit compensation, client_move_time_ms, flag grace
 3. **Clock Keeps Running + Claim Victory** (plan 2) — Requires careful migration from current pause behavior
 4. **Disconnection Abuse Mitigation** (plan 4) — Builds on plan 2's grace period system
 5. **KataGo Anti-Stalling** (plan 5) — Independent feature, requires external dependency

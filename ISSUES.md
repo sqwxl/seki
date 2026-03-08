@@ -155,7 +155,7 @@
 
 ### Clock Sync
 
-- [ ] No latency compensation in clock sync — `syncedAt` is set when the JS handler runs, not when the server serialized the message; on high-latency connections the opponent's displayed clock over-counts by the round-trip delta `[test: frontend:unit]`
+- [x] No latency compensation in clock sync — `syncedAt` is set when the JS handler runs, not when the server serialized the message; on high-latency connections the opponent's displayed clock over-counts by the round-trip delta `[test: frontend:unit]` _(clock.rs: LagTracker quota system compensates network lag server-side; clock.ts: server_now_ms transit delay compensation client-side)_
 - [ ] Client-side byoyomi period simulation can briefly diverge from server state (self-corrects on next server message) `[test: frontend:unit]`
 
 ### Edge Cases

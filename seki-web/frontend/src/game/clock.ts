@@ -172,7 +172,16 @@ export function syncClock(
   onFlag?: () => void,
 ): void {
   clockState.data = clockData;
-  clockState.syncedAt = performance.now();
+  // Compensate for network transit time using server timestamp.
+  // The server sends server_now_ms (Unix epoch ms) alongside remaining_ms values.
+  // Transit delay = Date.now() - server_now_ms. We backdate syncedAt so the
+  // client's local countdown starts from when the server computed the values,
+  // not when the message arrived.
+  const transitMs =
+    clockData?.server_now_ms != null
+      ? Math.max(0, Date.now() - clockData.server_now_ms)
+      : 0;
+  clockState.syncedAt = performance.now() - transitMs;
   clockState.timeoutFlagSent = false;
   if (clockState.interval) {
     clearInterval(clockState.interval);

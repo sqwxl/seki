@@ -84,14 +84,19 @@ export function liveGame(
 
   initGameState(gameId, userData?.id ?? 0, pStone, initialProps);
 
-  const channel = createGameChannel(gameId);
-  const gobanRef = createRef<HTMLDivElement>();
   const clockState: ClockState = {
     data: undefined,
     syncedAt: 0,
     interval: undefined,
     timeoutFlagSent: false,
   };
+  const channel = createGameChannel(gameId, () => {
+    if (clockState.syncedAt <= 0) {
+      return undefined;
+    }
+    return performance.now() - clockState.syncedAt;
+  });
+  const gobanRef = createRef<HTMLDivElement>();
   const territoryCountdown: TerritoryCountdown = {
     deadline: undefined,
     interval: undefined,
