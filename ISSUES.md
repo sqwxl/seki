@@ -2,79 +2,53 @@
 
 ## 0. Misc
 
-- [ ] Reloading live game page must always return to latest live mode position
-- [x] Presence indicator updates as soon as a player connects or disconnects _(fix: presence WS messages were missing `game_id` field, causing frontend routing to drop them)_
-- [x] Presence indicator correctly reflects player presence _(same root cause)_
-
 ## 1. Auth & Sessions
 
-- [x] Logout should redirect just like login `[test: backend:integration]` _(api.rs: logout_html_redirects, logout_json_returns_redirect_field)_
-- [x] Bearer token works on all authenticated API endpoints `[test: backend:integration]` _(api.rs: missing_auth_returns_401, invalid_token_returns_401)_
+- [ ] Logout should redirect to the initiating page, just like login `[test: backend:integration]`
 - [ ] Token currently shown in clear on settings page — potential security issue
 
 ## 2. Game Creation
 
 ### Board Size
 
-- [x] Size outside 2-41 range rejected `[test: backend:integration]` _(validation.rs)_
-- [x] API should not accept negative board dimensions (apparent overflow) `[test: backend:integration]` _(validation.rs)_
-- [x] API should not accept 0x0 board dimensions `[test: backend:integration]` _(validation.rs)_
-- [x] API should not accept arbitrary board dimensions; clamped to 2-41 `[test: backend:integration]` _(api.rs: reject_board_dimensions_outside_range, accept_board_dimensions_within_range)_
-
 ### Komi
 
-- [x] Komi is a required parameter; frontend defaults to 6.5 `[test: backend:integration]` _(validation.rs: missing_komi_rejected)_
-- [x] Integer komi rejected (0, 1, -1) `[test: backend:integration]` _(validation.rs)_
-- [x] Integer komi should be rejected via both web and API `[test: backend:integration]` _(validation.rs: komi must be half-integer)_
-
 ### Handicap
-
-- [x] Handicap inputs of 0 or 1 are equivalent (no handicap; black plays first)
-- [x] API should not accept negative handicap `[test: backend:integration]` _(validation.rs)_
-- [x] API should accept handicaps greater than or equal to 0 `[test: backend:integration]` _(validation.rs: accept_handicap_one_as_no_handicap, accept_valid_handicap)_
-- [x] API should not accept illegal handicap for board size `[test: backend:integration]` _(validation.rs)_
-- [x] UI should skip 1 to avoid confusion: ie input skips from 0 to 2
 
 ### Time Control
 
 - [ ] Timer should not appear to skip a second when starting periods (should round up) `[test: frontend:unit]`
 - [ ] Restored time control choice in game form should correctly set radio input (shows time settings but "None" is selected)
-- [x] Timer color must switch to red when low on time _(clock.ts: scaled emergMs threshold + SD always triggers low-time)_
 - [ ] Timer format must switch to seconds.millis when t < 10s `[test: frontend:unit]`
 
 ### Visibility
 
 - [x] Private game must only be visible to participants (challengee, or via invite token) `[test: backend:integration]` _(security.rs)_
+- [ ] Private games are indicated as such using the private icon in game lists.
 
 ### Invitations
 
-- [ ] Invite by email: must send invite (needs local services to test)
-- [ ] Invite link `/games/:id?token=...` must grant access to private game `[test: backend:integration]`
-- [ ] Invite link must be required to join private games `[test: backend:integration]`
+- [x] Invite by email: must send invite (needs local services to test)
+- [ ] Private games must be accessible to anyone with the invite link (token) (currently blocks anyone after player slots filled with 'Game is already full' error) `[test: backend:integration]`
 - [x] New game form allows invite by username (via user search) _(opponent fieldset with Open/Challenge/Invite modes, live search with presence, open_to restrictions)_
 
 ## 3. Game Lobby / Games List
 
-- [ ] Pending outgoing challenges must appear in Challenges section; currently only visible for the challengee `[test: e2e:ws]`
+- [ ] Pending outgoing challenges must appear in Challenges section for both challenger and challengee. `[test: e2e:ws]`
 - [ ] Games list order must be always be the same (ie, live updates insert in the right place) `[test: e2e:ws]`)
+- [ ] Aborted/Declined games should use strikeout style in game lists
 
-## 4. Joining Games
-
-- [x] Cannot join private game without invite token `[test: backend:integration]` _(security.rs)_
-- [x] Cannot join a game that is already finished/aborted `[test: backend:integration]` _(security.rs)_
+## 4. Joining Games (as player)
 
 ## 5. Challenges
-
-- [x] Declined status must show in GameStatus component `[test: frontend:unit]` _(game-status.tsx: getStatusText handles GameStage.Declined)_
 
 ## 6. Playing Moves
 
 ### Move Confirmation Mode
 
-- [ ] Premove must be cleared on pass or turn change `[test: frontend:unit]`
-- [x] "Confirm move" button should not shift layout
-- [ ] Premove ghost must be cleared on pass or turn change `[test: frontend:unit]`
-- [ ] Premove ghost must not trigger immediate move on turn change; premove context is only relevant during a player's turn `[test: frontend:unit]`
+- [ ] Toggling move confirmation from user menu must immediately enable/disable this feature.
+- [ ] Disabling move confirmation must dismiss any pending premove
+- [x] Premove ghost must not trigger immediate move on turn change; premove context is only relevant during a player's turn `[test: frontend:unit]`
 
 ## 7. Passing
 
@@ -83,14 +57,10 @@
 ## 8. Resigning
 
 - [ ] System chat message "Game over. {result}" must be broadcast on resign `[test: e2e:ws]`
-- [x] Cannot resign before first move (backend guard); use abort instead `[test: backend:integration]` _(state_guards.rs)_
-- [x] Resign button must be disabled before the first move is played _(capabilities.ts: canResign requires mvs.length > 0)_
 
 ## 9. Aborting
 
-- [x] Only creator can abort pending challenge `[test: backend:integration]` _(security.rs)_
 - [ ] "Game aborted" system chat message must include username ("Game aborted by $user") `[test: e2e:ws]`
-- [x] Player should not be able to abort as soon as player reconnects (UI should immediately update) `[test: e2e:ws]` _(disconnect.rs: disconnect_abort_threshold + capabilities.test.ts: disconnect abort timing)_ **NOTE: significant frontend lag observed showing disconnected status updates — server-side thresholds are tested but UI responsiveness is not**
 
 ## 10. Undo / Takeback
 
@@ -101,11 +71,14 @@
 - [ ] Undo button must be disabled after a pass `[test: frontend:unit]`
 - [ ] Undo button must be re-enabled if state now allows undo request for player `[test: frontend:unit]`
 - [ ] Undo button not visible in live-view on finished game
+- [ ] Any in-flight undo request must be dismissed if game ends
+- [ ] Undo must not be available in the following situations: 1. the game settings don't allow it 2. the player already requested an undo for **this specific move** (not just move number), and it was declined 3. there is already a pending undo request 4. the game is over/unstarted 5. it is the player's turn to play
 
 ### Responding
 
 - [ ] Both clocks must reset to time when undone move was played `[test: e2e:ws]`
 - [x] Undo response must include clock data so frontend can sync clock display _(undo.rs: clock JSON added to undo_accepted/undo_rejected messages; messages.ts: syncClock called on undo)_
+- [ ] A player cannot accept or decline an undo request after a game is over (ie timeout while request is pending)
 
 ### Edge Cases
 
