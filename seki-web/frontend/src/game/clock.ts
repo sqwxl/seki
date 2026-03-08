@@ -40,6 +40,11 @@ export function formatClock(ms: number, isCorrespondence: boolean): string {
     const tenths = Math.max(0, Math.floor(ms / 100)) / 10;
     return tenths.toFixed(1);
   }
+  if (totalSecs >= 3600) {
+    const hours = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    return `${hours}h ${mins}m`;
+  }
   const mins = Math.floor(totalSecs / 60);
   const secs = totalSecs % 60;
   return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -105,23 +110,33 @@ export function computeClockDisplay(clockState: ClockState): ClockDisplay {
   const whiteText = formatClock(whiteMs, isCorr);
 
   const blackPeriods =
-    cd.type === "byoyomi" && blackPeriodCount > 0
-      ? ` (${blackPeriodCount})`
-      : "";
+    cd.type === "byoyomi" && blackPeriodCount === 1
+      ? " SD"
+      : cd.type === "byoyomi" && blackPeriodCount > 1
+        ? ` (${blackPeriodCount})`
+        : "";
   const whitePeriods =
-    cd.type === "byoyomi" && whitePeriodCount > 0
-      ? ` (${whitePeriodCount})`
-      : "";
+    cd.type === "byoyomi" && whitePeriodCount === 1
+      ? " SD"
+      : cd.type === "byoyomi" && whitePeriodCount > 1
+        ? ` (${whitePeriodCount})`
+        : "";
 
   // Use total remaining (including all periods) for low-time detection
   const blackTotal = totalRemainingMs(cd, 1, elapsed, settings);
   const whiteTotal = totalRemainingMs(cd, -1, elapsed, settings);
 
+  const mainTimeSecs = settings.main_time_secs ?? 0;
+  const emergMs = Math.min(60000, Math.max(10000, (mainTimeSecs * 1000) / 8));
+
+  const blackSd = cd.type === "byoyomi" && blackPeriodCount === 1;
+  const whiteSd = cd.type === "byoyomi" && whitePeriodCount === 1;
+
   return {
     blackText: blackText + blackPeriods,
     whiteText: whiteText + whitePeriods,
-    blackLow: blackTotal < 10000,
-    whiteLow: whiteTotal < 10000,
+    blackLow: blackSd || blackTotal < emergMs,
+    whiteLow: whiteSd || whiteTotal < emergMs,
   };
 }
 

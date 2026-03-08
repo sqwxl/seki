@@ -39,7 +39,7 @@
 
 - [ ] Timer should not appear to skip a second when starting periods (should round up) `[test: frontend:unit]`
 - [ ] Restored time control choice in game form should correctly set radio input (shows time settings but "None" is selected)
-- [ ] Timer color must switch to red when t < 10s
+- [x] Timer color must switch to red when low on time _(clock.ts: scaled emergMs threshold + SD always triggers low-time)_
 - [ ] Timer format must switch to seconds.millis when t < 10s `[test: frontend:unit]`
 
 ### Visibility
@@ -141,7 +141,7 @@
 
 ### Byo-yomi
 
-- [ ] Last period must show as '(1)' — no zero-th period`[test: backend:unit, frontend:unit]`
+- [x] Last period shows as 'SD' (Sudden Death) with red styling _(clock.ts: period === 1 → " SD", always sets clockLow)_
 
 ### Correspondence
 
