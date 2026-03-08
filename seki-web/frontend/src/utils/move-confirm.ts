@@ -83,7 +83,11 @@ export function dismissMoveConfirmOnClickOutside(
     if (!mc.value) {
       return;
     }
-    if (gobanEl()?.contains(e.target as Node)) {
+    const target = e.target as HTMLElement;
+    if (gobanEl()?.contains(target)) {
+      return;
+    }
+    if (target.closest(".controls-confirm")) {
       return;
     }
     mc.clear();
