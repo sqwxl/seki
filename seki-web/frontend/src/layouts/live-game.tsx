@@ -547,10 +547,11 @@ export function liveGame(
           // Local-analysis viewer: transition to standalone analysis
           toAnalysis();
         } else {
-          // Synced viewer: reset to live
+          // Synced viewer: reset to live at final position
           toLive();
           if (board.value) {
             board.value.updateBaseMoves(JSON.stringify(moves.value));
+            board.value.navigate("end");
             board.value.render();
           }
         }
