@@ -275,6 +275,50 @@ async fn cannot_undo_pass() {
     assert!(!err["message"].as_str().unwrap().is_empty());
 }
 
+/// After rejection + opponent plays, the state broadcast must have undo_rejected: false.
+#[tokio::test]
+async fn undo_rejected_cleared_in_broadcast_after_move() {
+    let server = TestServer::start().await;
+    let game_id = server
+        .create_and_join_with(json!({"allow_undo": true}))
+        .await;
+
+    let mut black = server.ws_black().await;
+    let mut white = server.ws_white().await;
+
+    let _state = black.join_game(game_id).await;
+    let _state = white.join_game(game_id).await;
+
+    // Black plays (3,3)
+    black.play(game_id, 3, 3).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    // Request undo, get rejected
+    black.request_undo(game_id).await;
+    let _ = black.recv_kind("undo_request_sent").await;
+    let _ = white.recv_kind("undo_response_needed").await;
+
+    white.respond_undo(game_id, false).await;
+    let rejected = black.recv_kind("undo_rejected").await;
+    let _ = white.recv_kind("undo_rejected").await;
+    assert_eq!(rejected["undo_rejected"], true);
+
+    // White plays (5,5) — must clear undo_rejected in the broadcast
+    white.play(game_id, 5, 5).await;
+    let state_b = black.recv_kind("state").await;
+    let state_w = white.recv_kind("state").await;
+
+    assert_eq!(
+        state_b["undo_rejected"], false,
+        "undo_rejected must be false in broadcast after opponent moves"
+    );
+    assert_eq!(
+        state_w["undo_rejected"], false,
+        "undo_rejected must be false in broadcast after opponent moves"
+    );
+}
+
 /// 6.9 -- Cannot undo opponent's move: can only undo your own last move.
 #[tokio::test]
 async fn cannot_undo_opponents_move() {
