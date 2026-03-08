@@ -221,21 +221,23 @@
 
 - [ ] Filename must be: "{YYYYMMDD}-{Black}-vs-{White}.sgf" live for games or analysis board with set player names; "analysis.sgf" for standalone without set names `[test: frontend:unit]`
 
-## 16. Presentation Mode (Post-Game) — Currently Broken
+## 16. Presentation Mode (Post-Game)
 
 - [ ] "Analyze" button on finished game must start presentation `[test: e2e:ws]`
-- [ ] Must only be available on finished games `[test: e2e:ws]`
+- [x] Must only be available on finished games _(server sends `can_start_presentation` flag; frontend gates `canEnterPresentation` on it)_
+- [x] Ineligible spectators must not see the "Analyze" button _(server-provided `can_start_presentation` flag in initial state and state_sync)_
 - [ ] Originator must enter analysis mode `[test: e2e:ws]`
 - [x] All connected users must receive `presentation_started` `[test: e2e:ws]` _(presentation.rs: start_and_end_presentation)_
 - [x] Presenter's board state must be broadcast to all viewers `[test: e2e:ws]` _(presentation.rs: presenter_sends_snapshots)_
 - [x] Viewers must see real-time board updates as presenter navigates `[test: e2e:ws]` _(presentation.rs: presenter_sends_snapshots)_
-- [ ] Move tree position must be synced for synced viewers `[test: e2e:ws]`
+- [ ] Move tree position must be synced for synced viewers `[test: e2e:ws]` — requires move tree component to consume activeNodeId from snapshot
 - [x] Originator must be able to give control to another user `[test: e2e:ws]` _(presentation.rs: give_control)_
 - [x] Non-originator can request control `[test: e2e:ws]` _(presentation.rs: request_control)_
 - [ ] Originator must see request popover with give/dismiss buttons
 - [x] Control request can be cancelled `[test: e2e:ws]` _(presentation.rs: cancel_request)_
 - [x] Control request can be rejected `[test: e2e:ws]` _(presentation.rs: reject_request)_
 - [x] Only originator can `take_control` back `[test: e2e:ws]` _(presentation.rs: non_originator_cannot_take_control)_
+- [x] Late-join control request includes display name `[test: e2e:ws]` _(presentation.rs: late_joiner_sees_control_request_display_name)_
 - [ ] Delegated presenter exiting analysis must give control back to originator `[test: e2e:ws]`
 - [ ] Viewers must be able to choose: follow presentation (default) or analyze locally `[test: e2e:ws]`
 - [ ] Local analysis must not affect presentation `[test: e2e:ws]`
@@ -243,7 +245,7 @@
 - [ ] Exiting analysis must re-sync to ongoing presentation `[test: e2e:ws]`
 - [x] Originator must exit analysis to end presentation `[test: e2e:ws]` _(presentation.rs: start_and_end_presentation)_
 - [x] All viewers must receive `presentation_ended` `[test: e2e:ws]` _(presentation.rs: start_and_end_presentation)_
-- [ ] Board must return to last game position for viewers `[test: e2e:ws]`
+- [x] Board must return to last game position for viewers _(live-game.tsx: navigate("end") after updateBaseMoves on presentation end)_
 
 ## 17. Rematch
 
