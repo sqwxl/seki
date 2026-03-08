@@ -45,12 +45,6 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
             "Can only undo your own turn".to_string(),
         ));
     }
-    if last_turn.kind != "play" {
-        return Err(AppError::UnprocessableEntity(
-            "Can only undo play turns".to_string(),
-        ));
-    }
-
     state.registry.set_undo_requested(game_id, true).await;
 
     let requesting_name = gwp

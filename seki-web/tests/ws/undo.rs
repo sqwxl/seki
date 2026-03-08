@@ -250,9 +250,9 @@ async fn undo_allowed_after_rejection_and_new_moves() {
     assert_eq!(needed["game_id"], game_id);
 }
 
-/// 6.8 -- Cannot undo a pass: only play moves are undoable.
+/// Undo of a pass: request succeeds, accept reverts the pass.
 #[tokio::test]
-async fn cannot_undo_pass() {
+async fn can_undo_pass() {
     let server = TestServer::start().await;
     let game_id = server
         .create_and_join_with(json!({"allow_undo": true}))
@@ -264,15 +264,36 @@ async fn cannot_undo_pass() {
     let _state = black.join_game(game_id).await;
     let _state = white.join_game(game_id).await;
 
-    // Black passes
-    black.pass(game_id).await;
+    // Black plays a stone first so the game is started
+    black.play(game_id, 3, 3).await;
     let _ = black.recv_kind("state").await;
     let _ = white.recv_kind("state").await;
 
-    // Black requests undo -- should fail (can't undo a pass)
-    black.request_undo(game_id).await;
-    let err = black.recv_kind("error").await;
-    assert!(!err["message"].as_str().unwrap().is_empty());
+    // White passes
+    white.pass(game_id).await;
+    let state_after_pass = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+    assert_eq!(state_after_pass["stage"], "black_to_play");
+    let moves_after_pass = state_after_pass["moves"].as_array().unwrap().len();
+
+    // White requests undo of the pass
+    white.request_undo(game_id).await;
+    let sent = white.recv_kind("undo_request_sent").await;
+    assert_eq!(sent["game_id"], game_id);
+    let needed = black.recv_kind("undo_response_needed").await;
+    assert_eq!(needed["game_id"], game_id);
+
+    // Black accepts
+    black.respond_undo(game_id, true).await;
+    let accepted_w = white.recv_kind("undo_accepted").await;
+    let accepted_b = black.recv_kind("undo_accepted").await;
+
+    // Moves count should be one less (pass removed)
+    let moves_after_undo = accepted_w["moves"].as_array().unwrap().len();
+    assert_eq!(moves_after_undo, moves_after_pass - 1);
+
+    // Stage should be back to white_to_play (white's pass was undone)
+    assert_eq!(accepted_b["current_turn_stone"], -1);
 }
 
 /// After rejection + opponent plays, the state broadcast must have undo_rejected: false.
