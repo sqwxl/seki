@@ -46,7 +46,6 @@ import {
   currentUserId,
   initialProps as initialPropsSignal,
   estimateScore,
-  showMoveTree,
   showCoordinates,
   moveConfirmEnabled,
   presentationActive,
@@ -148,11 +147,9 @@ export function liveGame(
   }
 
   // --- Mode transition helpers ---
-  let treeBeforeAnalysis = showMoveTree.value;
 
   function enterAnalysis() {
     const cur = gamePhase.value;
-    treeBeforeAnalysis = showMoveTree.value;
     mc.clear();
     if (cur.phase === "presentation" && cur.role === "synced-viewer") {
       toPresentationLocalAnalysis();
@@ -183,7 +180,6 @@ export function liveGame(
         board.value.updateBaseMoves(JSON.stringify(moves.value));
       }
     }
-    showMoveTree.value = treeBeforeAnalysis;
     mobileTab.value = "board";
     board.value?.render();
     doRender();
@@ -504,7 +500,6 @@ export function liveGame(
     },
     onPresentationStarted: (snapshot: string) => {
       if (isPresenter.value) {
-        treeBeforeAnalysis = showMoveTree.value;
         mc.clear();
         toPresentation("presenter");
         restoreAnalysis();
@@ -580,7 +575,6 @@ export function liveGame(
         const wasAnalysis = analysisMode.value;
         toPresentation("presenter");
         if (!wasAnalysis) {
-          treeBeforeAnalysis = showMoveTree.value;
           mc.clear();
           restoreAnalysis();
           board.value?.setMoveTreeEl(moveTreeEl);
@@ -685,7 +679,6 @@ export function liveGame(
   effect(() => {
     const tab = mobileTab.value;
     if (tab === "analysis" && !analysisMode.peek()) {
-      showMoveTree.value = true;
       enterAnalysis();
     } else if (tab === "board" && analysisMode.peek()) {
       exitAnalysis();

@@ -559,7 +559,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     statusText,
     presentationStatusSuffix,
 
-    showMoveTree: showMoveTree.value,
+    showMoveTree: showMoveTree.value || inAnalysis,
 
     showChat: true,
     hasUnreadChat: hasUnreadChat.value,
