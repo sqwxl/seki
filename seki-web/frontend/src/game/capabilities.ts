@@ -378,7 +378,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
       variant: "challengee",
       title: `${challengerName} challenged you to a game`,
     };
-  } else if (isCreator && !isDone && !res && hasOpenSlot && isChallenge) {
+  } else if (isCreator && !isDone && !res && isChallenge) {
     lobbyPopover = {
       variant: "creator-challenge",
       title: `Waiting for ${opponentName ?? "opponent"} to accept`,

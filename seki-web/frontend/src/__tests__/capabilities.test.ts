@@ -1024,7 +1024,7 @@ describe("lobby / lifecycle", () => {
     expect(caps().lobbyPopover?.variant).toBe("challengee");
   });
 
-  it("no challengee popover for creator", () => {
+  it("creator-challenge popover for creator of challenge game", () => {
     batch(() => {
       gameStage.value = GameStage.Challenge;
       black.value = userBlack;
@@ -1034,6 +1034,58 @@ describe("lobby / lifecycle", () => {
       initialProps.value = { ...initialProps.value, creator_id: 1 };
     });
     expect(caps().lobbyPopover?.variant).toBe("creator-challenge");
+    expect(caps().lobbyPopover?.title).toContain("Waiting for");
+  });
+
+  it("creator-waiting popover for creator of open game", () => {
+    batch(() => {
+      gameStage.value = GameStage.Unstarted;
+      black.value = userBlack;
+      white.value = undefined;
+      playerStone.value = 1;
+      currentUserId.value = 1;
+      initialProps.value = { ...initialProps.value, creator_id: 1 };
+    });
+    expect(caps().lobbyPopover?.variant).toBe("creator-waiting");
+    expect(caps().lobbyPopover?.title).toBe("Waiting for opponent");
+  });
+
+  it("join popover for non-player on public game with open slot", () => {
+    batch(() => {
+      gameStage.value = GameStage.Unstarted;
+      black.value = userBlack;
+      white.value = undefined;
+      playerStone.value = 0;
+      currentUserId.value = 999;
+    });
+    expect(caps().lobbyPopover?.variant).toBe("join");
+  });
+
+  it("join popover for token holder on private game with open slot", () => {
+    batch(() => {
+      gameStage.value = GameStage.Unstarted;
+      black.value = userBlack;
+      white.value = undefined;
+      playerStone.value = 0;
+      currentUserId.value = 999;
+      initialProps.value = {
+        ...initialProps.value,
+        settings: { ...initialProps.value.settings, is_private: true },
+        has_valid_token: true,
+      };
+    });
+    expect(caps().lobbyPopover?.variant).toBe("join");
+  });
+
+  it("no lobby popover for spectator when game is full", () => {
+    batch(() => {
+      gameStage.value = GameStage.BlackToPlay;
+      black.value = userBlack;
+      white.value = userWhite;
+      playerStone.value = 0;
+      currentUserId.value = 999;
+    });
+    expect(caps().lobbyPopover).toBeUndefined();
   });
 
   it("canRematch when game done with result and is player", () => {
