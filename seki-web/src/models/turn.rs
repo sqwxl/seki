@@ -3,6 +3,14 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
+/// Clock state to snapshot alongside a turn.
+pub struct ClockSnapshot {
+    pub black_ms: i64,
+    pub white_ms: i64,
+    pub black_periods: i32,
+    pub white_periods: i32,
+}
+
 #[derive(Debug, Clone, FromRow)]
 #[allow(dead_code)] // Fields populated by SELECT * via sqlx
 pub struct TurnRow {
@@ -14,6 +22,10 @@ pub struct TurnRow {
     pub stone: i32,
     pub col: Option<i32>,
     pub row: Option<i32>,
+    pub clock_black_ms: Option<i64>,
+    pub clock_white_ms: Option<i64>,
+    pub clock_black_periods: Option<i32>,
+    pub clock_white_periods: Option<i32>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -41,10 +53,12 @@ impl TurnRow {
         stone: i32,
         col: Option<i32>,
         row: Option<i32>,
+        clock: Option<&ClockSnapshot>,
     ) -> Result<TurnRow, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
-            "INSERT INTO turns (game_id, user_id, turn_number, kind, stone, col, row)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "INSERT INTO turns (game_id, user_id, turn_number, kind, stone, col, row, \
+             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) \
              RETURNING *",
         )
         .bind(game_id)
@@ -54,6 +68,10 @@ impl TurnRow {
         .bind(stone)
         .bind(col)
         .bind(row)
+        .bind(clock.map(|c| c.black_ms))
+        .bind(clock.map(|c| c.white_ms))
+        .bind(clock.map(|c| c.black_periods))
+        .bind(clock.map(|c| c.white_periods))
         .fetch_one(executor)
         .await
     }
@@ -71,6 +89,20 @@ impl TurnRow {
         .execute(executor)
         .await?;
         Ok(())
+    }
+
+    pub async fn delete_last_returning(
+        executor: impl sqlx::PgExecutor<'_>,
+        game_id: i64,
+    ) -> Result<Option<TurnRow>, sqlx::Error> {
+        sqlx::query_as::<_, TurnRow>(
+            "DELETE FROM turns WHERE id = (
+                SELECT id FROM turns WHERE game_id = $1 ORDER BY turn_number DESC LIMIT 1
+            ) RETURNING *",
+        )
+        .bind(game_id)
+        .fetch_optional(executor)
+        .await
     }
 
     /// Return the move count for a single game.

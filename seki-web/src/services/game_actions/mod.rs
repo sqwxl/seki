@@ -84,6 +84,7 @@ pub async fn play_move(
         stone.to_int() as i32,
         Some(col),
         Some(row),
+        None,
     )
     .await
     {
@@ -169,6 +170,7 @@ pub async fn pass(
         move_number,
         "pass",
         stone.to_int() as i32,
+        None,
         None,
         None,
     )
@@ -270,6 +272,7 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
             move_number,
             "resign",
             stone.to_int() as i32,
+            None,
             None,
             None,
         )
