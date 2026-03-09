@@ -10,6 +10,7 @@ mod moves;
 mod pass;
 mod presence;
 mod presentation;
+mod private_game;
 mod rematch;
 mod resign;
 mod security;
