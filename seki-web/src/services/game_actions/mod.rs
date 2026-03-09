@@ -947,7 +947,7 @@ async fn load_or_init_clock(
 /// Persist clock state to both DB and registry cache (games table).
 /// `active_stone` is the user whose clock should be ticking (None if paused).
 /// DB is written first so a failure doesn't leave the in-memory cache ahead of DB.
-async fn persist_clock(
+pub(super) async fn persist_clock(
     state: &AppState,
     executor: impl sqlx::PgExecutor<'_>,
     game_id: i64,

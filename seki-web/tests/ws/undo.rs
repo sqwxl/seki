@@ -275,6 +275,72 @@ async fn cannot_undo_pass() {
     assert!(!err["message"].as_str().unwrap().is_empty());
 }
 
+/// Undo must restore clocks to pre-move state.
+#[tokio::test]
+async fn undo_restores_clock() {
+    let server = TestServer::start().await;
+    let game_id = server
+        .create_and_join_with(json!({
+            "allow_undo": true,
+            "time_control": "fischer",
+            "main_time_secs": 300,
+            "increment_secs": 0,
+        }))
+        .await;
+
+    let mut black = server.ws_black().await;
+    let mut white = server.ws_white().await;
+
+    let _state = black.join_game(game_id).await;
+    let _state = white.join_game(game_id).await;
+
+    // Black plays (3,3) — this starts the clock
+    black.play(game_id, 3, 3).await;
+    let state_b = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    // Record white's clock after black's move (before white plays)
+    let white_ms_before = state_b["clock"]["white"]["remaining_ms"].as_i64().unwrap();
+
+    // Wait to let time pass on white's clock
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+    // White plays (5,5) — this deducts from white's clock
+    white.play(game_id, 5, 5).await;
+    let state_after_white = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    let white_ms_after = state_after_white["clock"]["white"]["remaining_ms"]
+        .as_i64()
+        .unwrap();
+    assert!(
+        white_ms_after < white_ms_before,
+        "white should have used time: before={white_ms_before}, after={white_ms_after}"
+    );
+
+    // White requests undo
+    white.request_undo(game_id).await;
+    let _ = white.recv_kind("undo_request_sent").await;
+    let _ = black.recv_kind("undo_response_needed").await;
+
+    // Black accepts
+    black.respond_undo(game_id, true).await;
+    let accepted = white.recv_kind("undo_accepted").await;
+    let _ = black.recv_kind("undo_accepted").await;
+
+    // Clock should be restored — white's time should be back to pre-move value
+    let white_ms_restored = accepted["clock"]["white"]["remaining_ms"].as_i64().unwrap();
+
+    // Should be closer to pre-move than post-move value
+    let diff_from_before = (white_ms_restored - white_ms_before).abs();
+    let diff_from_after = (white_ms_restored - white_ms_after).abs();
+    assert!(
+        diff_from_before < diff_from_after,
+        "clock should be closer to pre-move value: restored={white_ms_restored}, \
+         before={white_ms_before}, after={white_ms_after}"
+    );
+}
+
 /// 6.9 -- Cannot undo opponent's move: can only undo your own last move.
 #[tokio::test]
 async fn cannot_undo_opponents_move() {
