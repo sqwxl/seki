@@ -83,7 +83,7 @@ impl Mailer {
             }
         };
 
-        let link = format!("{base_url}/games/{game_id}/invitation?token={invite_token}");
+        let link = format!("{base_url}/games/{game_id}?token={invite_token}");
 
         let body = format!(
             "You've been invited to a game of Go on Seki!\n\n\

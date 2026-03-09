@@ -122,6 +122,7 @@ export type InitialGameProps = {
   result: string | null;
   settled_territory?: SettledTerritoryData;
   nigiri?: boolean;
+  has_valid_token?: boolean;
   invite_token?: string;
   can_start_presentation?: boolean;
 };

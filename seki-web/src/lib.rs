@@ -83,7 +83,6 @@ pub async fn build_router_with_registry_and_presence(
         .route("/games", post(routes::games::create_game))
         .route("/games/{id}", get(routes::games::show_game))
         .route("/games/{id}/join", post(routes::games::join_game))
-        .route("/games/{id}/invitation", get(routes::games::invitation))
         .route("/games/{id}/rematch", post(routes::games::rematch_game))
         .route("/users/search", get(routes::users::search_users))
         .route("/users/{username}", get(routes::users::profile))

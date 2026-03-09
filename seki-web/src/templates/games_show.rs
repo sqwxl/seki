@@ -22,6 +22,8 @@ pub struct InitialGameProps {
     pub settled_territory: Option<SettledTerritoryData>,
     pub nigiri: bool,
     pub can_start_presentation: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub has_valid_token: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invite_token: Option<String>,
 }

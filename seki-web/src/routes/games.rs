@@ -171,13 +171,34 @@ pub async fn create_game(
     }
 }
 
+#[derive(Deserialize)]
+pub struct ShowGameQuery {
+    pub token: Option<String>,
+}
+
 // GET /games/:id
 pub async fn show_game(
     State(state): State<AppState>,
     current_user: CurrentUser,
     Path(id): Path<i64>,
+    Query(query): Query<ShowGameQuery>,
 ) -> Result<Response, AppError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
+
+    // Access control for private games
+    let is_player = gwp.has_player(current_user.id);
+    let has_valid_token = gwp
+        .game
+        .invite_token
+        .as_deref()
+        .zip(query.token.as_deref())
+        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+
+    if gwp.game.is_private && !is_player && !has_valid_token {
+        return Err(AppError::Forbidden(
+            "This game is private. You need an invite link to view it.".to_string(),
+        ));
+    }
 
     // Build chat log JSON
     let messages = Message::find_by_game_id_with_sender(&state.db, id).await?;
@@ -270,7 +291,8 @@ pub async fn show_game(
         settled_territory,
         nigiri: gwp.game.nigiri,
         can_start_presentation: can_start_pres,
-        invite_token: if is_creator {
+        has_valid_token,
+        invite_token: if is_creator || has_valid_token {
             gwp.game.invite_token.clone()
         } else {
             None
@@ -315,6 +337,7 @@ pub async fn join_game(
     State(state): State<AppState>,
     current_user: CurrentUser,
     Path(id): Path<i64>,
+    Query(query): Query<ShowGameQuery>,
 ) -> Result<Response, AppError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
 
@@ -322,10 +345,20 @@ pub async fn join_game(
         return Ok(Redirect::to(&format!("/games/{id}")).into_response());
     }
 
+    // For invite-only games, require a valid token
     if gwp.game.invite_only {
-        return Err(AppError::UnprocessableEntity(
-            "This game requires an invitation link to join".to_string(),
-        ));
+        let has_valid_token = gwp
+            .game
+            .invite_token
+            .as_deref()
+            .zip(query.token.as_deref())
+            .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+
+        if !has_valid_token {
+            return Err(AppError::UnprocessableEntity(
+                "This game requires an invitation link to join".to_string(),
+            ));
+        }
     }
 
     if gwp.game.open_to.as_deref() == Some("registered") && !current_user.is_registered() {
@@ -386,55 +419,6 @@ pub async fn join_game(
 #[derive(Deserialize)]
 pub struct RematchForm {
     pub swap_colors: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct InvitationQuery {
-    pub token: String,
-}
-
-// GET /games/:id/invitation
-pub async fn invitation(
-    State(state): State<AppState>,
-    current_user: CurrentUser,
-    Path(id): Path<i64>,
-    Query(query): Query<InvitationQuery>,
-) -> Result<Response, AppError> {
-    let gwp = Game::find_with_players(&state.db, id).await?;
-
-    // If current user is already in the game, redirect
-    if gwp.has_player(current_user.id) {
-        return Ok(Redirect::to(&format!("/games/{id}")).into_response());
-    }
-
-    // Verify token
-    let game_token = gwp.game.invite_token.as_deref().unwrap_or("");
-    if game_token != query.token {
-        return Err(AppError::UnprocessableEntity(
-            "Invalid invitation token".to_string(),
-        ));
-    }
-
-    // Check game not full
-    if gwp.black.is_some() && gwp.white.is_some() {
-        return Err(AppError::UnprocessableEntity(
-            "Game is already full".to_string(),
-        ));
-    }
-
-    // Add the current user to the open slot
-    let mut tx = state.db.begin().await?;
-    if gwp.black.is_none() {
-        Game::set_black(&mut *tx, id, current_user.id).await?;
-    } else if gwp.white.is_none() {
-        Game::set_white(&mut *tx, id, current_user.id).await?;
-    }
-    if gwp.game.stage == "unstarted" {
-        Game::set_stage(&mut *tx, id, "challenge").await?;
-    }
-    tx.commit().await?;
-
-    Ok(Redirect::to(&format!("/games/{id}")).into_response())
 }
 
 // POST /games/:id/rematch
