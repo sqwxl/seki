@@ -42,8 +42,6 @@
 
 ## 7. Passing
 
-- [ ] Consecutive pass handling flaky; territory review phase can be lost on refresh `[test: e2e:ws]`
-
 ## 8. Resigning
 
 - [ ] System chat message "Game over. {result}" must be broadcast on resign `[test: e2e:ws]`
@@ -77,7 +75,6 @@
 ### Territory Approval
 
 - [ ] System message must read: "Territory will be auto-confirmed in $TIME" `[test: e2e:ws]`
-- [ ] Clicking empty vertex (not a stone) during territory review must have no action (currently resets approval and countdown timer) `[test: e2e:ws]`
 - [ ] Territory terminator node should only appear once (current bug exists where an extra terminator node is appended to the active node after initial game load)
 
 ### Scoring
@@ -119,8 +116,6 @@
 - [ ] Down arrow must jump to last node in branch`[test: frontend:unit]`
 
 ### Button Controls
-
-- [ ] Client must not crash when navigating after returning from chat or analysis tab (infinite recursion in live-game.tsx) `[test: e2e]`
 
 ### Move Tree
 

@@ -294,7 +294,10 @@ export function liveGame(
       return true;
     }
     if (gameStage.value === GameStage.TerritoryReview) {
-      channel.toggleChain(col, row);
+      const b = board.value?.engine.board();
+      if (b && b[row * gameState.value.cols + col] !== 0) {
+        channel.toggleChain(col, row);
+      }
       return true;
     }
     const isMyTurn = currentTurn.value === playerStone.value;

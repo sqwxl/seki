@@ -31,16 +31,18 @@ pub async fn toggle_chain(
 
     require_territory_review(&engine, state, &gwp, game_id, player_id).await?;
 
-    state
+    // None means no-op (empty vertex or missing state) — silently ignore
+    if state
         .registry
         .toggle_dead_chain(game_id, (col, row), engine.goban())
         .await
-        .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
+        .is_some()
+    {
+        let _ = Game::clear_territory_review_deadline(&state.db, game_id).await;
+        gwp.game.territory_review_expires_at = None;
 
-    let _ = Game::clear_territory_review_deadline(&state.db, game_id).await;
-    gwp.game.territory_review_expires_at = None;
-
-    broadcast_game_state(state, &gwp, &engine).await;
+        broadcast_game_state(state, &gwp, &engine).await;
+    }
     Ok(())
 }
 

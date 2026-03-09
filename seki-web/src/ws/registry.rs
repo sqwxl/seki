@@ -317,12 +317,14 @@ impl GameRegistry {
     }
 
     /// Toggle the chain at `point`, reset approvals, return updated dead stones.
+    /// Returns `None` if the room/review doesn't exist or the point has no stone.
     pub async fn toggle_dead_chain(
         &self,
         game_id: i64,
         point: Point,
         goban: &go_engine::Goban,
     ) -> Option<HashSet<Point>> {
+        goban.stone_at(point)?;
         let mut rooms = self.rooms.write().await;
         let room = rooms.get_mut(&game_id)?;
         let tr = room.territory_review.as_mut()?;
