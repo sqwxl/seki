@@ -66,23 +66,22 @@
 
 ### Requesting
 
-- [ ] Undo button must be disabled with "Request pending" tooltip while outgoing request is pending `[test: e2e:ws]`
-- [ ] Undo requested dialogue must be dismissed if own move played via API `[test: e2e:ws]`
-- [ ] Undo button must be disabled after a pass `[test: frontend:unit]`
-- [ ] Undo button must be re-enabled if state now allows undo request for player `[test: frontend:unit]`
-- [ ] Undo button not visible in live-view on finished game
-- [ ] Any in-flight undo request must be dismissed if game ends
-- [ ] Undo must not be available in the following situations: 1. the game settings don't allow it 2. the player already requested an undo for **this specific move** (not just move number), and it was declined 3. there is already a pending undo request 4. the game is over/unstarted 5. it is the player's turn to play
+- [x] Undo must be allowed for pass moves _(undo.rs: removed kind != "play" guard; territory review state cleaned up on pass undo)_
+- [x] Undo button must be re-enabled if state now allows undo request for player _(fixed by undo_rejected broadcast fix; canRequestUndo reacts to undoRejected signal)_
+- [x] Undo must not be available when: 1. game settings disallow it 2. undo was declined for this move 3. pending request exists 4. game is over/unstarted _(server guards in undo.rs; frontend canRequestUndo in capabilities.ts)_
+- [x] `undo_rejected` flag must be cleared in broadcast after next move _(mod.rs: gwp.game.undo_rejected = false before broadcast in play_move and pass)_
+- [ ] Undo button must be disabled with "Request pending" tooltip while an outgoing undo request is awaiting response `[test: frontend:unit]`
+- [ ] Undo button must not be rendered on finished games `[test: frontend:unit]`
+- [ ] Pending undo request (both requester and responder UI) must be dismissed when the game ends (resign, timeout, territory settle) `[test: e2e:ws]`
+- [ ] Pending undo request must be dismissed when a move is played via API while a request is in flight `[test: e2e:ws]`
+- [ ] Server must reject undo responses (`respond_to_undo`) if the game is already over `[test: e2e:ws]`
 
 ### Responding
 
-- [ ] Both clocks must reset to time when undone move was played `[test: e2e:ws]`
 - [x] Undo response must include clock data so frontend can sync clock display _(undo.rs: clock JSON added to undo_accepted/undo_rejected messages; messages.ts: syncClock called on undo)_
-- [ ] A player cannot accept or decline an undo request after a game is over (ie timeout while request is pending)
+- [x] Both clocks must be restored to the time when the undone move was played `[test: e2e:ws]` _(undo.rs: clock snapshot restored from per-turn snapshots stored in turns table)_
 
 ### Edge Cases
-
-- [ ] Multiple rapid undo requests must be handled correctly (unclear how to test) `[test: backend:integration]`
 
 ## 11. Territory Review
 
