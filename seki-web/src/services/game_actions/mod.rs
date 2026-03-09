@@ -14,7 +14,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
 use crate::models::message::Message;
-use crate::models::turn::TurnRow;
+use crate::models::turn::{ClockSnapshot, TurnRow};
 use crate::models::user::User;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
@@ -71,6 +71,24 @@ pub async fn play_move(
     })
     .await?;
 
+    // Capture clock state before processing the move
+    let clock_snapshot = {
+        let tc = TimeControl::from_game(&gwp.game);
+        if !tc.is_none() {
+            load_or_init_clock(state, game_id, &gwp.game)
+                .await
+                .ok()
+                .map(|c| ClockSnapshot {
+                    black_ms: c.black_remaining_ms,
+                    white_ms: c.white_remaining_ms,
+                    black_periods: c.black_periods,
+                    white_periods: c.white_periods,
+                })
+        } else {
+            None
+        }
+    };
+
     // Persist all DB writes in a transaction
     let mut tx = state.db.begin().await?;
 
@@ -84,7 +102,7 @@ pub async fn play_move(
         stone.to_int() as i32,
         Some(col),
         Some(row),
-        None,
+        clock_snapshot.as_ref(),
     )
     .await
     {
@@ -159,6 +177,24 @@ pub async fn pass(
     })
     .await?;
 
+    // Capture clock state before processing the move
+    let clock_snapshot = {
+        let tc = TimeControl::from_game(&gwp.game);
+        if !tc.is_none() {
+            load_or_init_clock(state, game_id, &gwp.game)
+                .await
+                .ok()
+                .map(|c| ClockSnapshot {
+                    black_ms: c.black_remaining_ms,
+                    white_ms: c.white_remaining_ms,
+                    black_periods: c.black_periods,
+                    white_periods: c.white_periods,
+                })
+        } else {
+            None
+        }
+    };
+
     // Persist all DB writes in a transaction
     let mut tx = state.db.begin().await?;
 
@@ -172,7 +208,7 @@ pub async fn pass(
         stone.to_int() as i32,
         None,
         None,
-        None,
+        clock_snapshot.as_ref(),
     )
     .await
     {
