@@ -14,7 +14,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
 use crate::models::message::Message;
-use crate::models::turn::TurnRow;
+use crate::models::turn::{ClockSnapshot, TurnRow};
 use crate::models::user::User;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::{engine_builder, live, state_serializer};
@@ -71,6 +71,24 @@ pub async fn play_move(
     })
     .await?;
 
+    // Capture clock state before processing the move
+    let clock_snapshot = {
+        let tc = TimeControl::from_game(&gwp.game);
+        if !tc.is_none() {
+            load_or_init_clock(state, game_id, &gwp.game)
+                .await
+                .ok()
+                .map(|c| ClockSnapshot {
+                    black_ms: c.black_remaining_ms,
+                    white_ms: c.white_remaining_ms,
+                    black_periods: c.black_periods,
+                    white_periods: c.white_periods,
+                })
+        } else {
+            None
+        }
+    };
+
     // Persist all DB writes in a transaction
     let mut tx = state.db.begin().await?;
 
@@ -84,6 +102,7 @@ pub async fn play_move(
         stone.to_int() as i32,
         Some(col),
         Some(row),
+        clock_snapshot.as_ref(),
     )
     .await
     {
@@ -159,6 +178,24 @@ pub async fn pass(
     })
     .await?;
 
+    // Capture clock state before processing the move
+    let clock_snapshot = {
+        let tc = TimeControl::from_game(&gwp.game);
+        if !tc.is_none() {
+            load_or_init_clock(state, game_id, &gwp.game)
+                .await
+                .ok()
+                .map(|c| ClockSnapshot {
+                    black_ms: c.black_remaining_ms,
+                    white_ms: c.white_remaining_ms,
+                    black_periods: c.black_periods,
+                    white_periods: c.white_periods,
+                })
+        } else {
+            None
+        }
+    };
+
     // Persist all DB writes in a transaction
     let mut tx = state.db.begin().await?;
 
@@ -172,6 +209,7 @@ pub async fn pass(
         stone.to_int() as i32,
         None,
         None,
+        clock_snapshot.as_ref(),
     )
     .await
     {
@@ -272,6 +310,7 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
             move_number,
             "resign",
             stone.to_int() as i32,
+            None,
             None,
             None,
         )
@@ -910,7 +949,7 @@ async fn load_or_init_clock(
 /// Persist clock state to both DB and registry cache (games table).
 /// `active_stone` is the user whose clock should be ticking (None if paused).
 /// DB is written first so a failure doesn't leave the in-memory cache ahead of DB.
-async fn persist_clock(
+pub(super) async fn persist_clock(
     state: &AppState,
     executor: impl sqlx::PgExecutor<'_>,
     game_id: i64,

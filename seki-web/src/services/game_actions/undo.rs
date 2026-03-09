@@ -1,3 +1,4 @@
+use chrono::Utc;
 use go_engine::{GoError, Stage};
 use serde_json::json;
 
@@ -5,9 +6,12 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::turn::TurnRow;
-use crate::services::clock::{self, TimeControl};
+use crate::services::clock::{self, ClockState, TimeControl};
 
-use super::{load_game_and_check_player, persist_stage, require_not_challenge, rollback_engine};
+use super::{
+    load_game_and_check_player, persist_clock, persist_stage, require_not_challenge,
+    rollback_engine,
+};
 
 pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
@@ -136,13 +140,39 @@ pub async fn respond_to_undo(
         // If pop_move took us out of territory review, clean up stale state
         let left_territory_review = engine.stage() != Stage::TerritoryReview;
 
-        // DB: just DELETE + UPDATE stage (writes only, no reads)
+        // DB: DELETE last turn (returning clock snapshot), UPDATE stage, optionally restore clock
         let mut tx = state.db.begin().await?;
-        if let Err(e) = TurnRow::delete_last(&mut *tx, game_id).await {
-            rollback_engine(state, game_id, &gwp.game).await;
-            return Err(AppError::Internal(e.to_string()));
-        }
+        let deleted_turn = match TurnRow::delete_last_returning(&mut *tx, game_id).await {
+            Ok(turn) => turn,
+            Err(e) => {
+                rollback_engine(state, game_id, &gwp.game).await;
+                return Err(AppError::Internal(e.to_string()));
+            }
+        };
         persist_stage(&mut *tx, game_id, &engine).await?;
+
+        // Restore clock from snapshot if available
+        if let Some(ref turn) = deleted_turn
+            && let (Some(bms), Some(wms), Some(bp), Some(wp)) = (
+                turn.clock_black_ms,
+                turn.clock_white_ms,
+                turn.clock_black_periods,
+                turn.clock_white_periods,
+            )
+        {
+            let restored_clock = ClockState {
+                black_remaining_ms: bms,
+                white_remaining_ms: wms,
+                black_periods: bp,
+                white_periods: wp,
+                last_move_at: Some(Utc::now()),
+            };
+            let tc = TimeControl::from_game(&gwp.game);
+            let stage_str = engine.stage().to_string();
+            let new_active = clock::active_stone_from_stage(&stage_str);
+            persist_clock(state, &mut *tx, game_id, &restored_clock, &tc, new_active).await?;
+        }
+
         if left_territory_review {
             Game::clear_territory_review_deadline(&mut *tx, game_id).await?;
         }
