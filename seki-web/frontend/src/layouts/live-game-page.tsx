@@ -5,7 +5,7 @@ import { Chat } from "../components/chat";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
 import type { ControlsProps } from "../components/controls";
-import { LobbyControls, ChallengePopover } from "../components/controls";
+import { LobbyControls, LobbyPopover } from "../components/controls";
 import type { GameChannel } from "../game/channel";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { GamePageLayout } from "./game-page-layout";
@@ -159,31 +159,6 @@ function buildControls(
     };
   }
 
-  // --- Join game ---
-  if (caps.canJoinGame) {
-    controlsProps.joinGame = {
-      message: "Join this game?",
-      onConfirm: () => {
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = `/games/${gameId.value}/join`;
-        document.body.appendChild(form);
-        form.submit();
-      },
-    };
-  }
-
-  // --- Invite link ---
-  if (caps.showInviteLink) {
-    controlsProps.copyInviteLink = {
-      onClick: () => {
-        const token = initialProps.value.invite_token;
-        const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
-        navigator.clipboard.writeText(url);
-      },
-    };
-  }
-
   // --- Rematch ---
   if (caps.canRematch) {
     controlsProps.rematch = {
@@ -314,8 +289,6 @@ export function LiveGamePage(props: LiveGamePageProps) {
   const caps = liveGameCapabilities.value;
   const controlsProps = buildControls(caps, props);
 
-  const creatorId = initialProps.value.creator_id;
-
   const fullStatusText = caps.statusText + caps.presentationStatusSuffix;
 
   return (
@@ -351,25 +324,42 @@ export function LiveGamePage(props: LiveGamePageProps) {
           {caps.disconnectCountdown && (
             <p class="disconnect-countdown">{caps.disconnectCountdown}</p>
           )}
-          {caps.showChallengePopover && (
-            <ChallengePopover
+          {caps.lobbyPopover && (
+            <LobbyPopover
+              variant={caps.lobbyPopover.variant}
+              title={caps.lobbyPopover.title}
               settings={initialProps.value.settings}
               komi={initialProps.value.komi}
               allowUndo={allowUndo.value}
-              challengerName={
-                (black.value?.id === creatorId
-                  ? black.value?.display_name
-                  : white.value?.display_name) ?? "?"
-              }
               yourColor={
-                nigiri.value
-                  ? "Random"
-                  : playerStone.value === 1
-                    ? "Black"
-                    : "White"
+                caps.lobbyPopover.variant === "challengee"
+                  ? nigiri.value
+                    ? "Random"
+                    : playerStone.value === 1
+                      ? "Black"
+                      : "White"
+                  : undefined
               }
               onAccept={() => channel.acceptChallenge()}
               onDecline={() => channel.declineChallenge()}
+              onAbort={() => channel.abort()}
+              onJoin={() => {
+                const form = document.createElement("form");
+                form.method = "POST";
+                const token = initialProps.value.invite_token;
+                form.action = `/games/${gameId.value}/join${token ? `?token=${token}` : ""}`;
+                document.body.appendChild(form);
+                form.submit();
+              }}
+              copyInviteLink={
+                caps.showInviteLink
+                  ? () => {
+                      const token = initialProps.value.invite_token;
+                      const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
+                      navigator.clipboard.writeText(url);
+                    }
+                  : undefined
+              }
             />
           )}
         </>

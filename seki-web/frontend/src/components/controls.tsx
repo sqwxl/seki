@@ -18,10 +18,8 @@ import {
   IconRepeat,
   IconStonesBw,
   IconCancel,
-  IconJoin,
   IconGrid4x4,
 } from "./icons";
-import { UserLabel } from "./user-label";
 
 type ButtonDef = {
   onClick: () => void;
@@ -55,7 +53,6 @@ export type ControlsProps = {
   abort?: ConfirmDef & { disabled?: boolean };
   claimVictory?: ConfirmDef & { disabled?: boolean };
   acceptTerritory?: ConfirmDef & { disabled?: boolean };
-  joinGame?: ConfirmDef;
   acceptChallenge?: ButtonDef;
   declineChallenge?: ConfirmDef & { disabled?: boolean };
   rematch?: { onConfirm: (swapColors: boolean) => void; disabled?: boolean };
@@ -65,8 +62,6 @@ export type ControlsProps = {
   exitEstimate?: ButtonDef;
   sgfImport?: { onFileChange: (input: HTMLInputElement) => void };
   sgfExport?: ButtonDef;
-
-  copyInviteLink?: ButtonDef;
 
   sizeSelect?: {
     value: number;
@@ -512,8 +507,7 @@ export function UIControls(
 }
 
 export function LobbyControls(props: ControlsProps) {
-  const hasAny =
-    props.abort || props.claimVictory || props.copyInviteLink || props.joinGame;
+  const hasAny = props.abort || props.claimVictory;
 
   if (!hasAny) {
     return null;
@@ -541,47 +535,43 @@ export function LobbyControls(props: ControlsProps) {
           buttonClass="btn-success"
         />
       )}
-      {props.copyInviteLink && (
-        <CopyInviteLinkButton onClick={props.copyInviteLink.onClick} />
-      )}
-      {props.joinGame && (
-        <ConfirmButton
-          id="join-btn"
-          icon={IconJoin}
-          title="Join game"
-          confirm={props.joinGame}
-          buttonClass="btn-success"
-        />
-      )}
     </div>
   );
 }
 
-export function ChallengePopover({
+export function LobbyPopover({
+  variant,
+  title,
   settings,
   komi,
   allowUndo,
   rated = false,
-  challengerName,
   yourColor,
   onAccept,
   onDecline,
+  onAbort,
+  onJoin,
+  copyInviteLink,
 }: {
+  variant: "creator-waiting" | "creator-challenge" | "challengee" | "join";
+  title: string;
   settings: GameSettings;
   komi: number;
   allowUndo: boolean;
   rated?: boolean;
-  challengerName: string;
-  yourColor: "Black" | "White" | "Random";
-  onAccept: () => void;
-  onDecline: () => void;
+  yourColor?: "Black" | "White" | "Random";
+  onAccept?: () => void;
+  onDecline?: () => void;
+  onAbort?: () => void;
+  onJoin?: () => void;
+  copyInviteLink?: () => void;
 }) {
   const size = formatSize(settings.cols, settings.rows);
   const tc = formatTimeControl(settings);
 
   return (
     <div
-      id="challenge-popover"
+      id="lobby-popover"
       class="confirm-popover"
       popover="manual"
       ref={(el) => {
@@ -592,19 +582,17 @@ export function ChallengePopover({
     >
       <IconStonesBw />
       <p>
-        <strong>
-          <UserLabel
-            name={challengerName}
-            profileUrl={`/users/${challengerName}`}
-          />
-        </strong>{" "}
-        has challenged you to a game!
+        <strong>{title}</strong>
       </p>
       <dl class="game-info-details" style="margin-top: 0.5em">
         <dt>Rated</dt>
         <dd>{rated ? "Yes" : "No"}</dd>
-        <dt>Your color</dt>
-        <dd>{yourColor}</dd>
+        {yourColor && (
+          <>
+            <dt>Your color</dt>
+            <dd>{yourColor}</dd>
+          </>
+        )}
         <dt>Board</dt>
         <dd>{size}</dd>
         <dt>Komi</dt>
@@ -615,16 +603,33 @@ export function ChallengePopover({
         <dd>{tc || "Unlimited"}</dd>
         <dt>Takebacks</dt>
         <dd>{allowUndo ? "Yes" : "No"}</dd>
-        <dt>Spectators</dt>
-        <dd>{settings.is_private ? "No" : "Yes"}</dd>
       </dl>
       <div class="confirm-actions">
-        <button class="btn-success" onClick={onAccept}>
-          Accept
-        </button>
-        <button class="btn-warn" onClick={onDecline}>
-          Decline
-        </button>
+        {variant === "challengee" && (
+          <>
+            <button class="btn-success" onClick={onAccept}>
+              Accept
+            </button>
+            <button class="btn-warn" onClick={onDecline}>
+              Decline
+            </button>
+          </>
+        )}
+        {variant === "join" && (
+          <button class="btn-success" onClick={onJoin}>
+            Join
+          </button>
+        )}
+        {(variant === "creator-waiting" || variant === "creator-challenge") && (
+          <>
+            {copyInviteLink && (
+              <CopyInviteLinkButton onClick={copyInviteLink} />
+            )}
+            <button class="btn-warn" onClick={onAbort}>
+              Abort
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

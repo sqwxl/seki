@@ -57,7 +57,10 @@ export type UiCapabilities = {
   // Lobby / lifecycle
   canJoinGame: boolean;
   showInviteLink: boolean;
-  showChallengePopover: boolean;
+  lobbyPopover?: {
+    variant: "creator-waiting" | "creator-challenge" | "challengee" | "join";
+    title: string;
+  };
   canClaimVictory: boolean;
   disconnectCountdown?: string;
   canRematch: boolean;
@@ -356,14 +359,47 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const canJoinGame =
     !isPlayer &&
     hasOpenSlot &&
-    !props.settings.is_private &&
-    !props.settings.invite_only;
+    (!props.settings.is_private || !!props.has_valid_token) &&
+    (!props.settings.invite_only || !!props.has_valid_token);
 
   const showInviteLink = !!props.invite_token && hasOpenSlot && isPlayer;
 
   const isChallengee =
     isChallenge && isPlayer && myId != null && myId !== props.creator_id;
-  const showChallengePopover = isChallengee;
+
+  const opponentName =
+    b?.id === props.creator_id ? w?.display_name : b?.display_name;
+
+  let lobbyPopover: UiCapabilities["lobbyPopover"];
+  if (isChallengee) {
+    const challengerName =
+      (b?.id === props.creator_id ? b?.display_name : w?.display_name) ?? "?";
+    lobbyPopover = {
+      variant: "challengee",
+      title: `${challengerName} challenged you to a game`,
+    };
+  } else if (isCreator && !isDone && !res && hasOpenSlot && isChallenge) {
+    lobbyPopover = {
+      variant: "creator-challenge",
+      title: `Waiting for ${opponentName ?? "opponent"} to accept`,
+    };
+  } else if (isCreator && !isDone && !res && hasOpenSlot && !isChallenge) {
+    lobbyPopover = {
+      variant: "creator-waiting",
+      title: "Waiting for opponent",
+    };
+  } else if (
+    !isPlayer &&
+    hasOpenSlot &&
+    !isDone &&
+    !res &&
+    (canJoinGame || !!props.has_valid_token)
+  ) {
+    lobbyPopover = {
+      variant: "join",
+      title: "Join this game",
+    };
+  }
 
   const canClaimVictory =
     isPlayer && !isDone && !res && !!oppDisconnected?.gone;
@@ -535,7 +571,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
     canJoinGame,
     showInviteLink,
-    showChallengePopover,
+    lobbyPopover,
     canClaimVictory,
     disconnectCountdown,
     canRematch,

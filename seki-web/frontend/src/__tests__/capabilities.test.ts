@@ -1021,10 +1021,10 @@ describe("lobby / lifecycle", () => {
       currentUserId.value = 2;
       initialProps.value = { ...initialProps.value, creator_id: 1 };
     });
-    expect(caps().showChallengePopover).toBe(true);
+    expect(caps().lobbyPopover?.variant).toBe("challengee");
   });
 
-  it("no challenge popover for creator", () => {
+  it("no challengee popover for creator", () => {
     batch(() => {
       gameStage.value = GameStage.Challenge;
       black.value = userBlack;
@@ -1033,7 +1033,7 @@ describe("lobby / lifecycle", () => {
       currentUserId.value = 1;
       initialProps.value = { ...initialProps.value, creator_id: 1 };
     });
-    expect(caps().showChallengePopover).toBe(false);
+    expect(caps().lobbyPopover?.variant).toBe("creator-challenge");
   });
 
   it("canRematch when game done with result and is player", () => {
