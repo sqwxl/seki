@@ -2,10 +2,14 @@ import { h } from "preact";
 import { useEffect, useMemo, useRef } from "preact/hooks";
 import type { GameTreeData } from "../game/types";
 
-const NODE_RADIUS = 12;
-const COL_SPACING = 32;
-const ROW_SPACING = 34;
-const PADDING = 20;
+const isDesktop =
+  typeof window !== "undefined" &&
+  window.matchMedia("(min-width: 768px)").matches;
+const SCALE = isDesktop ? 2 : 1;
+const NODE_RADIUS = 12 * SCALE;
+const COL_SPACING = 32 * SCALE;
+const ROW_SPACING = 34 * SCALE;
+const PADDING = 20 * SCALE;
 
 type LayoutNode = {
   id: number;
@@ -169,6 +173,11 @@ export function MoveTree({
         // Same-branch check: horizontal checks y, vertical checks x
         const straight = vertical ? x1 === x2 : y1 === y2;
 
+        const edgeStyle = {
+          stroke: "var(--tree-edge)",
+          strokeWidth: 2,
+        };
+
         if (straight) {
           edges.push(
             <line
@@ -177,8 +186,7 @@ export function MoveTree({
               y1={y1}
               x2={x2}
               y2={y2}
-              stroke="#888"
-              stroke-width={1.5}
+              style={edgeStyle}
             />,
           );
         } else {
@@ -189,8 +197,7 @@ export function MoveTree({
               key={`e-${treeNode.parent}-${node.id}`}
               points={`${x1},${y1} ${mid} ${x2},${y2}`}
               fill="none"
-              stroke="#888"
-              stroke-width={1.5}
+              style={edgeStyle}
             />,
           );
         }
@@ -213,14 +220,15 @@ export function MoveTree({
     const isRoot = stone === 0;
     const onPath = isRoot || activePath.has(node.id);
     const radius = NODE_RADIUS;
-    // Active: heavier stroke for path emphasis; muted: lighter stroke
-    const strokeColor = onPath ? "#444" : "#aaa";
+    const strokeColor = onPath
+      ? "var(--tree-stroke)"
+      : "var(--tree-stroke-muted)";
     const strokeWidth = onPath ? 2 : 1;
-    // Muted fills: #666/#ccc give 3.6:1 contrast between muted black/white
-    const blackFill = onPath ? "#222" : "#666";
-    const whiteFill = onPath ? "#fff" : "#ddd";
+    const blackFill = onPath ? "var(--tree-black)" : "var(--tree-black-muted)";
+    const whiteFill = onPath ? "var(--tree-white)" : "var(--tree-white-muted)";
     const stoneFill = stone === 1 ? blackFill : whiteFill;
-    const textFill = stone === 1 ? "#fff" : "#222";
+    const textFill =
+      stone === 1 ? "var(--tree-text-on-black)" : "var(--tree-text-on-white)";
 
     nodes.push(
       <g
@@ -230,30 +238,38 @@ export function MoveTree({
       >
         {isRoot ? (
           <>
-            <circle
-              cx={x}
-              cy={y}
-              r={radius}
-              fill="transparent"
-              stroke={isCurrent ? "#555" : "none"}
-              stroke-width={1}
-              stroke-dasharray="3 3"
-            />
+            <circle cx={x} cy={y} r={radius} style={{ fill: "transparent" }} />
+            {isCurrent && (
+              <circle
+                cx={x}
+                cy={y}
+                r={radius + 3 * SCALE}
+                style={{
+                  fill: "none",
+                  stroke: "var(--blue)",
+                  strokeWidth: 1.5 * SCALE,
+                }}
+              />
+            )}
             <line
               x1={x - radius}
               y1={y}
               x2={x + radius}
               y2={y}
-              stroke="#888"
-              stroke-width={1.5}
+              style={{
+                stroke: "var(--tree-edge)",
+                strokeWidth: 2,
+              }}
             />
             <line
               x1={x}
               y1={y - radius}
               x2={x}
               y2={y + radius}
-              stroke="#555"
-              stroke-width={2}
+              style={{
+                stroke: "var(--tree-edge)",
+                strokeWidth: 2,
+              }}
             />
           </>
         ) : isPass ? (
@@ -262,29 +278,62 @@ export function MoveTree({
             y={y - radius}
             width={radius * 2}
             height={radius * 2}
-            rx={2}
-            fill={stoneFill}
-            stroke={strokeColor}
-            stroke-width={strokeWidth}
+            rx={2 * SCALE}
+            style={{
+              fill: stoneFill,
+              stroke: strokeColor,
+              strokeWidth,
+            }}
           />
         ) : (
           <circle
             cx={x}
             cy={y}
             r={radius}
-            fill={stoneFill}
-            stroke={strokeColor}
-            stroke-width={strokeWidth}
+            style={{
+              fill: stoneFill,
+              stroke: strokeColor,
+              strokeWidth,
+            }}
           />
         )}
+        {isCurrent &&
+          !isRoot &&
+          (isPass ? (
+            <rect
+              x={x - radius - 3 * SCALE}
+              y={y - radius - 3 * SCALE}
+              width={(radius + 3 * SCALE) * 2}
+              height={(radius + 3 * SCALE) * 2}
+              rx={3 * SCALE}
+              style={{
+                fill: "none",
+                stroke: "var(--blue)",
+                strokeWidth: 1.5 * SCALE,
+              }}
+            />
+          ) : (
+            <circle
+              cx={x}
+              cy={y}
+              r={radius + 3 * SCALE}
+              style={{
+                fill: "none",
+                stroke: "var(--blue)",
+                strokeWidth: 1.5 * SCALE,
+              }}
+            />
+          ))}
         {!isRoot && (
           <text
             x={x}
             y={y}
             text-anchor="middle"
             dominant-baseline="central"
-            font-size={10}
-            fill={textFill}
+            style={{
+              fontSize: 10 * SCALE,
+              fill: textFill,
+            }}
           >
             {node.col}
           </text>
