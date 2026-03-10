@@ -96,26 +96,17 @@ function activeStone(stage: GameStage): "black" | "white" | undefined {
 export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
   const b = props.black?.display_name ?? "?";
   const w = props.white?.display_name ?? "?";
-
-  // Show creator first; fall back to black vs white (e.g. SGF imports)
-  const creatorIsWhite =
-    props.creator_id != null && props.white?.id === props.creator_id;
-  const first = creatorIsWhite ? w : b;
-  const second = creatorIsWhite ? b : w;
-  const firstStone: "black" | "white" = creatorIsWhite ? "white" : "black";
-  const secondStone: "black" | "white" = creatorIsWhite ? "black" : "white";
   const active = activeStone(props.stage);
 
   const parts = buildDescriptionParts(props);
 
   if (props.dismissed && props.result) {
-    // Render result outside the struck-through content
     const partsWithoutResult = parts.filter((p) => p !== props.result);
     return (
       <>
         <span class="dismissed-content">
-          <UserLabel name={first} stone={firstStone} /> vs{" "}
-          <UserLabel name={second} stone={secondStone} />
+          <UserLabel name={b} stone="black" /> vs{" "}
+          <UserLabel name={w} stone="white" />
           {partsWithoutResult.length > 0 &&
             ` - ${partsWithoutResult.join(" - ")}`}
         </span>
@@ -127,14 +118,9 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
 
   return (
     <>
-      <UserLabel name={first} stone={firstStone} bold={active === firstStone} />{" "}
-      vs{" "}
-      <UserLabel
-        name={second}
-        stone={secondStone}
-        bold={active === secondStone}
-      />{" "}
-      - {parts.join(" - ")}
+      <UserLabel name={b} stone="black" bold={active === "black"} /> vs{" "}
+      <UserLabel name={w} stone="white" bold={active === "white"} /> -{" "}
+      {parts.join(" - ")}
     </>
   );
 }
