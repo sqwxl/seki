@@ -6,6 +6,7 @@ type UserLabelProps = {
   profileUrl?: string;
   isOnline?: boolean;
   showRegistered?: boolean;
+  bold?: boolean;
 };
 
 function StoneIcon({ stone }: { stone: "black" | "white" | "nigiri" }) {
@@ -23,7 +24,7 @@ export function UserLabel(props: UserLabelProps) {
   );
 
   return (
-    <span class="user-label">
+    <span class={props.bold ? "user-label active-turn" : "user-label"}>
       {props.stone && (
         <span class="stone-icon">
           <StoneIcon stone={props.stone} />

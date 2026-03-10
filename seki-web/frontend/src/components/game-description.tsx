@@ -83,6 +83,16 @@ export function GameListItem({
   );
 }
 
+function activeStone(stage: GameStage): "black" | "white" | undefined {
+  if (stage === GameStage.BlackToPlay) {
+    return "black";
+  }
+  if (stage === GameStage.WhiteToPlay) {
+    return "white";
+  }
+  return undefined;
+}
+
 export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
   const b = props.black?.display_name ?? "?";
   const w = props.white?.display_name ?? "?";
@@ -94,6 +104,7 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
   const second = creatorIsWhite ? b : w;
   const firstStone: "black" | "white" = creatorIsWhite ? "white" : "black";
   const secondStone: "black" | "white" = creatorIsWhite ? "black" : "white";
+  const active = activeStone(props.stage);
 
   const parts = buildDescriptionParts(props);
 
@@ -116,8 +127,14 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
 
   return (
     <>
-      <UserLabel name={first} stone={firstStone} /> vs{" "}
-      <UserLabel name={second} stone={secondStone} /> - {parts.join(" - ")}
+      <UserLabel name={first} stone={firstStone} bold={active === firstStone} />{" "}
+      vs{" "}
+      <UserLabel
+        name={second}
+        stone={secondStone}
+        bold={active === secondStone}
+      />{" "}
+      - {parts.join(" - ")}
     </>
   );
 }

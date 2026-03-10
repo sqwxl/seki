@@ -328,6 +328,10 @@ a.nav-dropdown-item {
   flex-shrink: 0;
 }
 
+.user-label.active-turn .player-name {
+  font-weight: bold;
+}
+
 .presence-dot {
   display: none;
   flex-shrink: 0;
