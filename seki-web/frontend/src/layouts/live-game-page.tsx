@@ -177,21 +177,18 @@ function buildControls(
     };
   }
 
-  // --- Analysis / Presentation toggle ---
-  // Exit buttons (priority: presentation overrides > analysis)
+  // --- Analysis / Presentation toggle (single button) ---
   if (caps.canReturnControl) {
-    controlsProps.exitAnalysis = { onClick: props.returnControl };
+    controlsProps.analyze = { onClick: props.returnControl, active: true };
   } else if (caps.canExitPresentation) {
-    controlsProps.exitAnalysis = { onClick: props.exitPresentation };
+    controlsProps.analyze = { onClick: props.exitPresentation, active: true };
   } else if (caps.canExitAnalysis) {
-    controlsProps.exitAnalysis = {
+    controlsProps.analyze = {
       onClick: props.exitAnalysis,
       disabled: caps.canExitEstimate,
+      active: true,
     };
-  }
-
-  // Enter buttons (priority: presentation > analyzeChoice > analysis)
-  if (caps.showAnalyzeChoice) {
+  } else if (caps.showAnalyzeChoice) {
     const options: Array<{
       label: string;
       onClick: () => void;

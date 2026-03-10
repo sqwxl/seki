@@ -56,8 +56,7 @@ export type ControlsProps = {
   acceptChallenge?: ButtonDef;
   declineChallenge?: ConfirmDef & { disabled?: boolean };
   rematch?: { onConfirm: (swapColors: boolean) => void; disabled?: boolean };
-  analyze?: ButtonDef;
-  exitAnalysis?: ButtonDef;
+  analyze?: ButtonDef & { active?: boolean };
   estimate?: ButtonDef;
   exitEstimate?: ButtonDef;
   sgfImport?: { onFileChange: (input: HTMLInputElement) => void };
@@ -418,9 +417,9 @@ export function UIControls(
 ) {
   return (
     <>
-      {!props.excludeAnalysis && (
+      {!props.excludeAnalysis && props.analyze && (
         <span class="analysis-toggle">
-          {props.analyze && props.analyzeChoice && (
+          {props.analyzeChoice && !props.analyze.active ? (
             <>
               <button
                 title={props.analyze.title ?? "Analyze"}
@@ -443,23 +442,18 @@ export function UIControls(
                 <button popovertarget="analyze-choice">Cancel</button>
               </div>
             </>
-          )}
-          {props.analyze && !props.analyzeChoice && (
+          ) : (
             <button
-              title={props.analyze.title ?? "Analyze"}
+              class={props.analyze.active ? "active" : undefined}
+              title={
+                props.analyze.active
+                  ? "Back to game"
+                  : (props.analyze.title ?? "Analyze")
+              }
               disabled={props.analyze.disabled}
               onClick={props.analyze.onClick}
             >
-              <IconAnalysis />
-            </button>
-          )}
-          {props.exitAnalysis && (
-            <button
-              title="Back to game"
-              disabled={props.exitAnalysis.disabled}
-              onClick={props.exitAnalysis.onClick}
-            >
-              <IconX />
+              {props.analyze.active ? <IconX /> : <IconAnalysis />}
             </button>
           )}
         </span>

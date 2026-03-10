@@ -151,7 +151,7 @@ export function liveGame(
 
   // --- Mode transition helpers ---
 
-  function enterAnalysis() {
+  function enterAnalysis({ restorePosition = true } = {}) {
     const cur = gamePhase.value;
     mc.clear();
     if (cur.phase === "presentation" && cur.role === "synced-viewer") {
@@ -159,7 +159,9 @@ export function liveGame(
     } else {
       toAnalysis();
     }
-    restoreAnalysisPosition();
+    if (restorePosition) {
+      restoreAnalysisPosition();
+    }
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
     doRender();
@@ -418,15 +420,17 @@ export function liveGame(
         estimateScore.value = territoryInfo.score;
       }
       // Auto-enter analysis when navigating away from latest game move
+      // or onto a variation branch (e.g. clicking a variation in the move tree)
       // (skip for presentation viewers — their board is driven by snapshots)
       if (
         board.value &&
         !analysisMode.value &&
         !estimateMode.value &&
-        engine.view_index() < moves.value.length &&
+        (engine.view_index() < moves.value.length ||
+          !engine.is_on_main_line()) &&
         !(presentationActive.value && !isPresenter.value)
       ) {
-        enterAnalysis();
+        enterAnalysis({ restorePosition: false });
       }
       // Broadcast snapshot to viewers when presenting
       if (presentationActive.value && isPresenter.value) {
@@ -477,7 +481,7 @@ export function liveGame(
       // Completed game with saved analysis (and user didn't explicitly exit)
       enterAnalysis();
     } else {
-      board.value.render();
+      board.value.navigate("main-end");
       doRender();
     }
   });

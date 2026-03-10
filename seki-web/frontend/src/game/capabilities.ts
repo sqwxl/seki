@@ -293,6 +293,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     (phase.phase === "presentation" &&
       (phase.role === "presenter" || phase.role === "local-analysis"));
   const inEstimate = phase.phase === "estimate";
+  const estimateFromAnalysis = phase.phase === "estimate" && phase.fromAnalysis;
   const inPresentation = phase.phase === "presentation";
   const isSyncedViewer =
     phase.phase === "presentation" && phase.role === "synced-viewer";
@@ -436,7 +437,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const canEnterAnalysis =
     !inAnalysis && !inEstimate && !isReview && !inPresentation;
 
-  const canExitAnalysis = inAnalysis && !inEstimate;
+  const canExitAnalysis = inAnalysis || estimateFromAnalysis;
 
   const onFinalized = boardFinalized.value;
   const showEnterEstimate =

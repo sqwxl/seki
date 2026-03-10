@@ -21,6 +21,9 @@ pub struct Replay {
     path: Vec<NodeId>,
     /// Undo stack: previous engine states for O(1) back().
     history: Vec<Engine>,
+    /// When set, `main_line_path` stops at this node instead of following
+    /// children[0] into analysis branches beyond the base game moves.
+    base_tip: Option<NodeId>,
 }
 
 impl Replay {
@@ -34,12 +37,13 @@ impl Replay {
             engine: Engine::new(cols, rows),
             path: Vec::new(),
             history: Vec::new(),
+            base_tip: None,
         }
     }
 
     pub fn with_moves(cols: u8, rows: u8, moves: Vec<Turn>) -> Self {
         let tree = GameTree::from_moves(&moves);
-        let path = Self::main_line_path(&tree);
+        let path = Self::main_line_path_impl(&tree, None);
         let current = path.last().copied();
         let engine = Engine::with_moves(cols, rows, moves);
         Self {
@@ -51,6 +55,7 @@ impl Replay {
             engine,
             path,
             history: Vec::new(),
+            base_tip: None,
         }
     }
 
@@ -83,20 +88,32 @@ impl Replay {
         }
     }
 
-    /// Build the main-line path (following children[0] from root to leaf).
-    fn main_line_path(tree: &GameTree) -> Vec<NodeId> {
+    /// Build the main-line path (following children[0] from root).
+    /// When `base_tip` is set, stops there instead of continuing into
+    /// analysis branches beyond the base game moves.
+    fn main_line_path_impl(tree: &GameTree, base_tip: Option<NodeId>) -> Vec<NodeId> {
         let roots = tree.root_children();
         if roots.is_empty() {
             return Vec::new();
         }
         let mut path = vec![roots[0]];
+        if base_tip == Some(roots[0]) {
+            return path;
+        }
         loop {
             let children = tree.children_of(Some(*path.last().unwrap()));
             if children.is_empty() {
                 return path;
             }
             path.push(children[0]);
+            if base_tip == Some(children[0]) {
+                return path;
+            }
         }
+    }
+
+    fn main_line_path(&self) -> Vec<NodeId> {
+        Self::main_line_path_impl(&self.tree, self.base_tip)
     }
 
     /// Follow the remembered path from current to a leaf.
@@ -150,6 +167,10 @@ impl Replay {
         self.current
     }
 
+    pub fn base_tip(&self) -> Option<NodeId> {
+        self.base_tip
+    }
+
     /// Flat moves along the path from root to current node.
     pub fn moves(&self) -> Vec<Turn> {
         match self.current {
@@ -186,7 +207,7 @@ impl Replay {
     }
 
     pub fn is_at_main_end(&self) -> bool {
-        let main = Self::main_line_path(&self.tree);
+        let main = self.main_line_path();
         self.current == main.last().copied()
     }
 
@@ -194,7 +215,7 @@ impl Replay {
         match self.current {
             None => true,
             Some(id) => {
-                let main = Self::main_line_path(&self.tree);
+                let main = self.main_line_path();
                 main.contains(&id)
             }
         }
@@ -367,7 +388,7 @@ impl Replay {
 
     /// Jump to the end of the main line (children[0] from root to leaf).
     pub fn to_main_end(&mut self) {
-        let main = Self::main_line_path(&self.tree);
+        let main = self.main_line_path();
         self.current = main.last().copied();
         self.path = main;
         self.rebuild();
@@ -386,8 +407,9 @@ impl Replay {
     /// Builds a fresh linear GameTree and sets current to latest.
     pub fn replace_moves(&mut self, moves: Vec<Turn>) {
         self.tree = GameTree::from_moves(&moves);
-        self.path = Self::main_line_path(&self.tree);
+        self.path = self.main_line_path();
         self.current = self.path.last().copied();
+        self.base_tip = self.current;
         self.rebuild();
     }
 
@@ -410,13 +432,14 @@ impl Replay {
         {
             self.path = self.tree.path_to(tip);
         }
+        self.base_tip = parent;
         parent
     }
 
     /// Wholesale replace the tree (e.g. from localStorage restore).
     pub fn replace_tree(&mut self, tree: GameTree) {
         self.tree = tree;
-        self.path = Self::main_line_path(&self.tree);
+        self.path = self.main_line_path();
         self.current = self.path.last().copied();
         self.rebuild();
     }
@@ -847,6 +870,55 @@ mod tests {
         r2.to_start();
         r2.to_latest();
         assert_eq!(r2.view_index(), 5);
+    }
+
+    #[test]
+    fn replace_tree_with_variation_off_last_node_stops_at_base_tip() {
+        // Simulate exact runtime flow:
+        // 1. Factory: Replay::new (empty)
+        // 2. updateBaseMoves: merge_base_moves + to_latest
+        // 3. replace_tree with saved tree (has variation off last node)
+        // 4. merge_base_moves again (no-op)
+        // 5. to_main_end
+        let base_moves = vec![
+            Turn::play(Stone::Black, (0, 0)),
+            Turn::play(Stone::White, (1, 0)),
+            Turn::pass(Stone::Black),
+            Turn::pass(Stone::White), // node 3 = base tip
+        ];
+
+        // Step 1: empty board
+        let mut r = Replay::new(9, 9);
+
+        // Step 2: merge base moves (simulates updateBaseMoves)
+        let tip = r.merge_base_moves(base_moves.clone());
+        assert_eq!(tip, Some(3));
+        assert_eq!(r.base_tip(), Some(3));
+        r.to_latest();
+        assert_eq!(r.current_node(), Some(3));
+
+        // Step 3: replace_tree with saved tree that has a variation off node 3
+        let mut saved_tree = GameTree::from_moves(&base_moves);
+        saved_tree.add_child(Some(3), Turn::play(Stone::Black, (5, 5))); // node 4 = variation
+        r.replace_tree(saved_tree);
+        assert_eq!(
+            r.current_node(),
+            Some(3),
+            "replace_tree should stop at base_tip"
+        );
+
+        // Step 4: merge_base_moves again (no-op, same moves)
+        r.merge_base_moves(base_moves.clone());
+        assert_eq!(r.current_node(), Some(3), "merge should not move cursor");
+
+        // Step 5: to_main_end
+        r.to_start();
+        r.to_main_end();
+        assert_eq!(
+            r.current_node(),
+            Some(3),
+            "to_main_end should stop at base_tip"
+        );
     }
 
     #[test]
