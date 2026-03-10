@@ -8,7 +8,7 @@ import type {
   Point,
   VertexEventHandler,
 } from "./types";
-import { avg, signEquals } from "./helper";
+import { signEquals } from "./helper";
 import Marker from "./marker";
 
 type VertexProps = {
@@ -90,10 +90,12 @@ export default function Vertex(props: VertexProps): JSX.Element {
   const hasPaintNeighbor =
     !!paint || !!paintLeft || !!paintRight || !!paintTop || !!paintBottom;
 
-  const paintOpacityValues = paint
-    ? [Math.abs(paint) * 0.5]
-    : [paintLeft, paintRight, paintTop, paintBottom].map((x) =>
-        x != null && x !== 0 && !isNaN(x) ? 0.5 : 0,
+  const paintOpacity = paint
+    ? Math.abs(paint) * 0.5
+    : Math.max(
+        ...[paintLeft, paintRight, paintTop, paintBottom].map((x) =>
+          x != null && x !== 0 && !isNaN(x) ? 0.5 : 0,
+        ),
       );
 
   return (
@@ -164,7 +166,7 @@ export default function Vertex(props: VertexProps): JSX.Element {
           style={
             {
               ...absoluteStyle(3),
-              "--goban-paint-opacity": String(avg(paintOpacityValues)),
+              "--goban-paint-opacity": String(paintOpacity),
               "--goban-paint-box-shadow": [
                 signEquals(paintLeft, paintTop, paintTopLeft)
                   ? [Math.sign(paintTop ?? 0), "-.5em -.5em"]
