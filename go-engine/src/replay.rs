@@ -872,4 +872,107 @@ mod tests {
         assert_eq!(r.view_index(), 3);
         assert_eq!(r.last_play_pos(), Some((2, 0)));
     }
+
+    #[test]
+    fn restore_analysis_preserves_main_line_cursor() {
+        // Reproduce the exact save/restore flow from live-game.tsx:
+        // 1. Start with base moves
+        // 2. Enter analysis, create a variation from the last base move
+        // 3. Navigate to a main-line node (not a variation)
+        // 4. Save tree + nodeId
+        // 5. Simulate page refresh: new Replay, updateBaseMoves, replace_tree, merge_base_moves, navigate_to
+        // 6. Verify cursor is still on the saved main-line node
+
+        let base_moves = vec![
+            Turn::play(Stone::Black, (0, 0)),
+            Turn::play(Stone::White, (1, 0)),
+            Turn::play(Stone::Black, (2, 0)),
+        ];
+
+        // --- Original session ---
+        let mut r = Replay::new(9, 9);
+        // Simulate updateBaseMoves: merge + to_latest
+        r.merge_base_moves(base_moves.clone());
+        r.to_latest();
+        assert_eq!(r.view_index(), 3);
+
+        // Enter analysis: create a variation from the last move
+        r.try_play(3, 0); // node 3: analysis variation
+        assert_eq!(r.tree().len(), 4);
+
+        // Navigate back to a main-line node (e.g., move 2 = node 1)
+        r.navigate_to(1);
+        assert_eq!(r.view_index(), 2);
+        assert_eq!(r.last_play_pos(), Some((1, 0)));
+
+        // Save analysis state
+        let saved_tree = serde_json::to_string(r.tree()).unwrap();
+        let saved_node_id = r.current_node();
+        assert_eq!(saved_node_id, Some(1));
+
+        // --- Page refresh: new Replay ---
+        let mut r2 = Replay::new(9, 9);
+
+        // Step 1: updateBaseMoves (merge + to_latest)
+        r2.merge_base_moves(base_moves.clone());
+        r2.to_latest();
+        assert_eq!(r2.view_index(), 3);
+
+        // Step 2: restoreAnalysis — replace_tree
+        let restored_tree: crate::game_tree::GameTree = serde_json::from_str(&saved_tree).unwrap();
+        r2.replace_tree(restored_tree);
+        // replace_tree sets cursor to main line end
+        assert_eq!(r2.tree().len(), 4);
+
+        // Step 3: merge_base_moves (should be no-op since tree already has them)
+        r2.merge_base_moves(base_moves.clone());
+        assert_eq!(r2.tree().len(), 4); // no new nodes
+
+        // Step 4: navigate_to saved node
+        r2.navigate_to(saved_node_id.unwrap());
+
+        // CRITICAL: cursor should be at node 1 (main-line move 2)
+        assert_eq!(r2.current_node(), Some(1));
+        assert_eq!(r2.view_index(), 2);
+        assert_eq!(r2.last_play_pos(), Some((1, 0)));
+    }
+
+    #[test]
+    fn restore_analysis_preserves_variation_cursor() {
+        // Same flow but cursor on a variation node — this reportedly works fine
+        let base_moves = vec![
+            Turn::play(Stone::Black, (0, 0)),
+            Turn::play(Stone::White, (1, 0)),
+            Turn::play(Stone::Black, (2, 0)),
+        ];
+
+        let mut r = Replay::new(9, 9);
+        r.merge_base_moves(base_moves.clone());
+        r.to_latest();
+
+        // Create variation from last base move
+        r.back();
+        r.try_play(3, 0); // node 3: variation
+        assert_eq!(r.view_index(), 3);
+        assert_eq!(r.current_node(), Some(3));
+
+        // Save
+        let saved_tree = serde_json::to_string(r.tree()).unwrap();
+        let saved_node_id = r.current_node();
+        assert_eq!(saved_node_id, Some(3));
+
+        // Refresh
+        let mut r2 = Replay::new(9, 9);
+        r2.merge_base_moves(base_moves.clone());
+        r2.to_latest();
+
+        let restored_tree: crate::game_tree::GameTree = serde_json::from_str(&saved_tree).unwrap();
+        r2.replace_tree(restored_tree);
+        r2.merge_base_moves(base_moves.clone());
+        r2.navigate_to(saved_node_id.unwrap());
+
+        assert_eq!(r2.current_node(), Some(3));
+        assert_eq!(r2.view_index(), 3);
+        assert_eq!(r2.last_play_pos(), Some((3, 0)));
+    }
 }
