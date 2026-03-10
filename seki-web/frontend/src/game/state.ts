@@ -69,7 +69,8 @@ export const settledTerritory = signal<SettledTerritoryData | undefined>(
 );
 export const onlineUsers = signal<Map<number, UserData>>(new Map());
 export const nigiri = signal(false);
-export const undoRejected = signal(false);
+export type UndoRequestState = "none" | "sent" | "received" | "rejected";
+export const undoRequest = signal<UndoRequestState>("none");
 export const allowUndo = signal(false);
 export const opponentDisconnected = signal<
   { since: Date; gracePeriodMs?: number; gone: boolean } | undefined
@@ -85,7 +86,6 @@ export const hasUnreadChat = signal(false);
 // UI mode flags
 // ---------------------------------------------------------------------------
 export const mobileTab = signal<"board" | "chat" | "analysis">("board");
-export const undoResponseNeeded = signal(false);
 
 // analysisMode and estimateMode are derived from gamePhase (see below)
 
@@ -200,7 +200,12 @@ export function applyGameStateMessage(data: StateMessage): void {
     gameStage.value = data.stage;
     currentTurn.value = data.current_turn_stone;
     moves.value = data.moves ?? [];
-    undoRejected.value = data.undo_rejected;
+    // Server undo_rejected resets per-move; sync local undo state
+    if (data.undo_rejected) {
+      undoRequest.value = "rejected";
+    } else if (undoRequest.value !== "received") {
+      undoRequest.value = "none";
+    }
     allowUndo.value = data.allow_undo ?? false;
     if (data.nigiri !== undefined) {
       nigiri.value = data.nigiri;
@@ -232,10 +237,10 @@ export function applyUndo(
   data: UndoAcceptedMessage | UndoRejectedMessage,
 ): void {
   batch(() => {
-    undoResponseNeeded.value = false;
-    if (data.undo_rejected !== undefined) {
-      undoRejected.value = data.undo_rejected;
-    }
+    undoRequest.value =
+      data.undo_rejected !== undefined && data.undo_rejected
+        ? "rejected"
+        : "none";
     if (data.state) {
       gameState.value = data.state;
       currentTurn.value = data.current_turn_stone ?? null;

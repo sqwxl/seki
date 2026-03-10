@@ -20,7 +20,7 @@ import {
   territory,
   settledTerritory,
   onlineUsers,
-  undoRejected,
+  undoRequest,
   allowUndo,
   playerStone,
   initialProps,
@@ -305,6 +305,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const confirmPassRequired = canPass && !inAnalysis;
 
   // Undo
+  const undoState = undoRequest.value;
   const canRequestUndo =
     isPlayer &&
     allowUndo.value &&
@@ -312,15 +313,17 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     !isChallenge &&
     mvs.length > 0 &&
     !isMyTurn &&
-    !undoRejected.value &&
+    undoState === "none" &&
     !modeActive;
 
   let undoTooltip = "";
   if (isPlayer && allowUndo.value && (isPlay || isChallenge)) {
     if (isChallenge) {
       undoTooltip = "Challenge not yet accepted";
-    } else if (undoRejected.value) {
+    } else if (undoState === "rejected") {
       undoTooltip = "Undo was rejected for this move";
+    } else if (undoState === "sent") {
+      undoTooltip = "Undo request pending";
     } else if (mvs.length === 0) {
       undoTooltip = "No moves to undo";
     } else if (isMyTurn) {

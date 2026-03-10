@@ -114,21 +114,42 @@ export function GameSettingsForm({
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Save to localStorage on form submit
+  // Save to localStorage on form submit + prevent implicit submission
+  // (mobile keyboards have a "Next"/"Go" button that triggers Enter,
+  //  which browsers treat as form submit unless we intercept it)
   useEffect(() => {
     const form = rootRef.current?.closest("form");
     if (!form) {
       return;
     }
-    const handler = () => {
+    const onSubmit = () => {
       try {
         storage.setJson(GAME_SETTINGS, settingsRef.current);
       } catch {
         // ignore
       }
     };
-    form.addEventListener("submit", handler);
-    return () => form.removeEventListener("submit", handler);
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "BUTTON") {
+        e.preventDefault();
+        // Move focus to the next focusable field
+        const inputs = Array.from(
+          form.querySelectorAll<HTMLElement>(
+            "input:not([hidden]):not([disabled]), select:not([disabled]), button:not([disabled])",
+          ),
+        );
+        const idx = inputs.indexOf(e.target as HTMLElement);
+        if (idx >= 0 && idx < inputs.length - 1) {
+          inputs[idx + 1].focus();
+        }
+      }
+    };
+    form.addEventListener("submit", onSubmit);
+    form.addEventListener("keydown", onKeydown);
+    return () => {
+      form.removeEventListener("submit", onSubmit);
+      form.removeEventListener("keydown", onKeydown);
+    };
   }, []);
 
   // Fetch recent opponents when switching to challenge mode

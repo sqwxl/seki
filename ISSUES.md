@@ -13,6 +13,7 @@
 
 - [ ] Timer should not appear to skip a second when starting periods (should round up) `[test: frontend:unit]`
 - [ ] Restored time control choice in game form should correctly set radio input (shows time settings but "None" is selected)
+- [x] **Bug:** On mobile, hitting the "next field" button on the keyboard in the new game form must advance to the next field instead of submitting the form
 - [ ] Timer format must switch to seconds.millis when t < 10s `[test: frontend:unit]`
 
 ### Visibility
@@ -28,12 +29,25 @@
 - [ ] Pending outgoing challenges must appear in Challenges section for both challenger and challengee. `[test: e2e:ws]`
 - [ ] Games list order must be always be the same (ie, live updates insert in the right place) `[test: e2e:ws]`)
 - [ ] Aborted/Declined games should use strikeout style in game lists
+- [ ] Lobby/Game info popovers must include the following items (can include more depending on context):
+  - Board dimensions
+  - Komi
+  - Handicap
+  - Time control
+  - Rules (not yet implemented)
+  - Rated?
+  - Takebacks?
+  - Private?
+  - Black ('?' for unknown or random)
+  - White ('?' for unknown or random)
 
 ## 4. Joining Games (as player)
 
 ## 5. Challenges
 
 ## 6. Playing Moves
+
+- [ ] **Bug:** Crosshairs cursor must not remain visible after playing a move (possibly stale hover state) `[test: frontend:unit]`
 
 ### Move Confirmation Mode
 
@@ -54,7 +68,7 @@
 
 ### Requesting
 
-- [ ] Undo button must be disabled with "Request pending" tooltip while an outgoing undo request is awaiting response `[test: frontend:unit]`
+- [x] Undo button must be disabled with "Request pending" tooltip while an outgoing undo request is awaiting response `[test: frontend:unit]`
 - [ ] Undo button must not be rendered on finished games `[test: frontend:unit]`
 - [ ] Pending undo request (both requester and responder UI) must be dismissed when the game ends (resign, timeout, territory settle) `[test: e2e:ws]`
 - [ ] Pending undo request must be dismissed when a move is played via API while a request is in flight `[test: e2e:ws]`
@@ -68,14 +82,19 @@
 
 ### Entry
 
+- [ ] **Bug:** Client must not be able to trigger a new territory review on a finished game by clicking the move count button `[test: e2e:ws]`
 - [ ] Frontend must disable move input during territory review `[test: e2e:ws]`
 
 ### Dead Stone Toggling
 
 ### Territory Approval
 
+- [ ] Territory accept button must use the same component and appearance as the move confirm button `[test: frontend:unit]`
+- [ ] Game status component must show contextual territory phase messages: "Territory review; select dead stones; accept when ready" and "Opponent accepted. {secs}s" `[test: frontend:unit]`
+- [ ] **Bug:** Territory overlay sometimes disappears after game is settled (returns on refresh) `[test: frontend:unit]`
 - [ ] System message must read: "Territory will be auto-confirmed in $TIME" `[test: e2e:ws]`
-- [ ] Territory terminator node should only appear once (current bug exists where an extra terminator node is appended to the active node after initial game load)
+- [ ] **Bug:** Territory terminator node should only appear once (current bug exists where an extra terminator node is appended to the active node after initial game load)
+- [ ] **Bug:** Territory node must not count towards move count (component should show previous node's turn count) `[test: frontend:unit]`
 
 ### Scoring
 
@@ -127,6 +146,7 @@
 
 ### In-Game Analysis
 
+- [ ] Move tree must always be visible in live game analysis, regardless of move tree UI setting `[test: frontend:unit]`
 - [ ] Analysis tree must be restored on refresh `[test: e2e]`
 - [ ] Refreshing in-progress live game must always return to latest node on main branch. `[test: e2e]`
 - [ ] Refreshing settled game must always return to last viewed node. `[test: e2e]`
@@ -188,6 +208,7 @@
 - [ ] Multiple tabs must maintain separate connections `[test: e2e:ws]`
 - [ ] Server restart must be handled gracefully `[test: e2e:ws]`
 - [ ] Disconnected client must optimistically show played move if disconnected during player's turn
+- [ ] Opponent disconnected message must use consistent UI (currently poor/inconsistent presentation) `[test: frontend:unit]`
 - [ ] No visual disconnection indicator for the local player — when WS closes, the clock keeps ticking and nothing tells the user they're offline; the 2s reconnect delay is invisible
 - [ ] No `player_reconnected` broadcast after server restart — if the server restarts between disconnect and reconnect, in-memory disconnect tracking is lost; clock recovery from DB is correct but the opponent doesn't see the reconnection notification
 

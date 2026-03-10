@@ -26,7 +26,7 @@ import {
   territory,
   settledTerritory,
   onlineUsers,
-  undoRejected,
+  undoRequest,
   allowUndo,
   opponentDisconnected,
   playerStone,
@@ -81,7 +81,7 @@ function resetAllSignals() {
     territory.value = undefined;
     settledTerritory.value = undefined;
     onlineUsers.value = new Map();
-    undoRejected.value = false;
+    undoRequest.value = "none";
     allowUndo.value = false;
     opponentDisconnected.value = undefined;
     playerStone.value = 0;
@@ -307,7 +307,7 @@ describe("undo", () => {
       gameStage.value = GameStage.WhiteToPlay;
       currentTurn.value = -1;
       moves.value = [{ kind: "play", stone: 1, pos: [3, 3] }];
-      undoRejected.value = true;
+      undoRequest.value = "rejected";
     });
     expect(caps().canRequestUndo).toBe(false);
     expect(caps().undoTooltip).toBe("Undo was rejected for this move");

@@ -15,7 +15,7 @@ import {
   gameId,
   playerStone,
   analysisMode,
-  undoResponseNeeded,
+  undoRequest,
   territory,
   settledTerritory,
   opponentDisconnected,
@@ -170,11 +170,11 @@ export function handleGameMessage(
       break;
     }
     case "undo_request_sent": {
-      // No state change needed — signals auto-propagate
+      undoRequest.value = "sent";
       break;
     }
     case "undo_response_needed": {
-      undoResponseNeeded.value = true;
+      undoRequest.value = "received";
       break;
     }
     case "player_disconnected": {

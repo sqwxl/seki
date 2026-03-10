@@ -24,7 +24,7 @@ import {
   territory,
   settledTerritory,
   chatMessages,
-  undoResponseNeeded,
+  undoRequest,
   estimateMode,
   board,
   playerStone,
@@ -113,14 +113,14 @@ function buildControls(
   }
 
   // --- Undo response (ephemeral — read from signal) ---
-  if (undoResponseNeeded.value) {
+  if (undoRequest.value === "received") {
     controlsProps.undoResponse = {
       onAccept: () => {
-        undoResponseNeeded.value = false;
+        undoRequest.value = "none";
         channel.acceptUndo();
       },
       onReject: () => {
-        undoResponseNeeded.value = false;
+        undoRequest.value = "none";
         channel.rejectUndo();
       },
     };
