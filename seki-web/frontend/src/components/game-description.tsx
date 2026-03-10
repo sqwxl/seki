@@ -72,12 +72,12 @@ export function GameListItem({
       title={isMyTurn(game, playerId) ? "Your turn" : undefined}
     >
       <a href={`/games/${game.id}`}>
+        <GameDescription {...game} dismissed={dismissed} />
         {game.settings.is_private && (
           <span class="private-badge" title="Private">
             <IconPrivate />
           </span>
         )}
-        <GameDescription {...game} dismissed={dismissed} />
       </a>
     </li>
   );

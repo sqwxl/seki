@@ -525,7 +525,7 @@ a.nav-dropdown-item {
 
   .private-badge {
     display: inline-flex;
-    margin-right: 0.3em;
+    margin-left: 0.3em;
     vertical-align: middle;
     opacity: 0.6;
   }
