@@ -1,5 +1,6 @@
 import { GameStage, type UserData, type GameSettings } from "../game/types";
 import { UserLabel } from "./user-label";
+import { IconPrivate } from "./icons";
 import { buildDescriptionParts } from "../utils/format";
 
 export type GameUpdate = {
@@ -50,7 +51,39 @@ export function isMyTurn(
   }
 }
 
-export function GameDescription(props: LiveGameItem) {
+export function GameListItem({
+  game,
+  playerId,
+}: {
+  game: LiveGameItem;
+  playerId: number | undefined;
+}) {
+  const dismissed = game.result === "Aborted" || game.result === "Declined";
+  const classes = [
+    isMyTurn(game, playerId) ? "your-turn" : "",
+    dismissed ? "dismissed" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <li
+      key={game.id}
+      class={classes || undefined}
+      title={isMyTurn(game, playerId) ? "Your turn" : undefined}
+    >
+      <a href={`/games/${game.id}`}>
+        {game.settings.is_private && (
+          <span class="private-badge" title="Private">
+            <IconPrivate />
+          </span>
+        )}
+        <GameDescription {...game} dismissed={dismissed} />
+      </a>
+    </li>
+  );
+}
+
+export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
   const b = props.black?.display_name ?? "?";
   const w = props.white?.display_name ?? "?";
 
@@ -63,6 +96,23 @@ export function GameDescription(props: LiveGameItem) {
   const secondStone: "black" | "white" = creatorIsWhite ? "black" : "white";
 
   const parts = buildDescriptionParts(props);
+
+  if (props.dismissed && props.result) {
+    // Render result outside the struck-through content
+    const partsWithoutResult = parts.filter((p) => p !== props.result);
+    return (
+      <>
+        <span class="dismissed-content">
+          <UserLabel name={first} stone={firstStone} /> vs{" "}
+          <UserLabel name={second} stone={secondStone} />
+          {partsWithoutResult.length > 0 &&
+            ` - ${partsWithoutResult.join(" - ")}`}
+        </span>
+        {" - "}
+        {props.result}
+      </>
+    );
+  }
 
   return (
     <>

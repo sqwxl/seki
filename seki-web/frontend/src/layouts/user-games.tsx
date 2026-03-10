@@ -1,13 +1,9 @@
 import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "../ws";
-import { GameDescription, isMyTurn } from "../components/game-description";
+import { GameListItem } from "../components/game-description";
 import type { LiveGameItem } from "../components/game-description";
-import type {
-  GameCreatedMessage,
-  GameUpdatedMessage,
-  GameRemovedMessage,
-} from "./games-list";
+import type { GameCreatedMessage, GameUpdatedMessage } from "./games-list";
 import type { UserData } from "../game/types";
 import { parseDatasetJson } from "../utils/format";
 import { readUserData } from "../game/util";
@@ -72,16 +68,8 @@ function UserGames({ initial }: { initial?: InitialData }) {
         });
       }),
 
-      subscribe<GameRemovedMessage>("game_removed", (msg) => {
-        setGames((prev) => {
-          if (!prev.has(msg.game_id)) {
-            return prev;
-          }
-          const next = new Map(prev);
-          next.delete(msg.game_id);
-          return next;
-        });
-      }),
+      // Don't subscribe to game_removed — profile keeps all games
+      // visible, showing aborted/declined with dismissed styling.
     ];
 
     return () => {
@@ -103,15 +91,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
     <>
       <ul class="games-list">
         {visibleGames.map((g) => (
-          <li
-            key={g.id}
-            class={isMyTurn(g, currentUserId) ? "your-turn" : undefined}
-            title={isMyTurn(g, currentUserId) ? "Your turn" : undefined}
-          >
-            <a href={`/games/${g.id}`}>
-              <GameDescription {...g} />
-            </a>
-          </li>
+          <GameListItem key={g.id} game={g} playerId={currentUserId} />
         ))}
       </ul>
       {visibleCount < allGames.length && (

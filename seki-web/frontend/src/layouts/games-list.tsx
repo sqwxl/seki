@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { subscribe } from "../ws";
-import { GameDescription, isMyTurn } from "../components/game-description";
+import { GameListItem } from "../components/game-description";
 import type { LiveGameItem, GameUpdate } from "../components/game-description";
 import { GameStage, type UserData } from "../game/types";
 import { parseDatasetJson } from "../utils/format";
@@ -61,15 +61,7 @@ function GameSection({
       ) : (
         <ul class="games-list">
           {games.map((g) => (
-            <li
-              key={g.id}
-              class={isMyTurn(g, playerId) ? "your-turn" : undefined}
-              title={isMyTurn(g, playerId) ? "Your turn" : undefined}
-            >
-              <a href={`/games/${g.id}`}>
-                <GameDescription {...g} />
-              </a>
-            </li>
+            <GameListItem key={g.id} game={g} playerId={playerId} />
           ))}
         </ul>
       )}
@@ -134,31 +126,31 @@ function GamesList({ initial }: { initial?: InitMessage }) {
     playerId !== undefined &&
     (g.black?.id === playerId || g.white?.id === playerId);
 
-  const isVisible = (g: LiveGameItem) =>
-    g.result !== "Aborted" && g.result !== "Declined";
+  const isDismissed = (g: LiveGameItem) =>
+    g.result === "Aborted" || g.result === "Declined";
 
   const isIncomingChallenge = (g: LiveGameItem) =>
     g.stage === GameStage.Challenge && g.creator_id !== playerId;
 
   const challenges = allGames.filter(
-    (g) => isMyGame(g) && isVisible(g) && isIncomingChallenge(g),
+    (g) => isMyGame(g) && !isDismissed(g) && isIncomingChallenge(g),
   );
   const userGames = allGames.filter(
-    (g) => isMyGame(g) && isVisible(g) && !isIncomingChallenge(g),
+    (g) => isMyGame(g) && !isIncomingChallenge(g),
   );
   const openGames = allGames.filter(
     (g) =>
       !isMyGame(g) &&
       !g.settings.is_private &&
       !g.settings.invite_only &&
-      isVisible(g) &&
+      !isDismissed(g) &&
       (!g.black || !g.white),
   );
   const publicGames = allGames.filter(
     (g) =>
       !isMyGame(g) &&
       !g.settings.is_private &&
-      isVisible(g) &&
+      !isDismissed(g) &&
       g.black &&
       g.white,
   );

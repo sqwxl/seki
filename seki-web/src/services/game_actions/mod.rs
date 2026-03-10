@@ -485,7 +485,11 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
         })
         .await;
 
-    broadcast_system_chat(state, game_id, "Game aborted", None).await;
+    let username = gwp
+        .player_by_id(player_id)
+        .map(|u| u.username.as_str())
+        .unwrap_or("Unknown");
+    broadcast_system_chat(state, game_id, &format!("Game aborted by {username}"), None).await;
 
     if let Some(engine) = state.registry.get_engine(game_id).await {
         broadcast_game_state(state, &gwp, &engine).await;

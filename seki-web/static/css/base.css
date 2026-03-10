@@ -505,5 +505,24 @@ a.nav-dropdown-item {
       border-radius: 50%;
       background: var(--red);
     }
+
+    &.dismissed {
+      opacity: 0.5;
+    }
+  }
+
+  .dismissed-content {
+    text-decoration: line-through;
+
+    .user-label {
+      text-decoration: line-through;
+    }
+  }
+
+  .private-badge {
+    display: inline-flex;
+    margin-right: 0.3em;
+    vertical-align: middle;
+    opacity: 0.6;
   }
 }

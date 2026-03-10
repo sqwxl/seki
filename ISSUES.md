@@ -18,7 +18,7 @@
 
 ### Visibility
 
-- [ ] Private games are indicated as such using the private icon in game lists.
+- [x] Private games are indicated as such using the private icon in game lists.
 
 ### Invitations
 
@@ -28,7 +28,7 @@
 
 - [ ] Pending outgoing challenges must appear in Challenges section for both challenger and challengee. `[test: e2e:ws]`
 - [ ] Games list order must be always be the same (ie, live updates insert in the right place) `[test: e2e:ws]`)
-- [ ] Aborted/Declined games should use strikeout style in game lists
+- [x] Aborted/Declined games should use strikeout style in game lists
 - [ ] Lobby/Game info popovers must include the following items (can include more depending on context):
   - Board dimensions
   - Komi
@@ -62,14 +62,14 @@
 
 ## 9. Aborting
 
-- [ ] "Game aborted" system chat message must include username ("Game aborted by $user") `[test: e2e:ws]`
+- [x] "Game aborted" system chat message must include username ("Game aborted by $user") `[test: e2e:ws]`
 
 ## 10. Undo / Takeback
 
 ### Requesting
 
 - [x] Undo button must be disabled with "Request pending" tooltip while an outgoing undo request is awaiting response `[test: frontend:unit]`
-- [ ] Undo button must not be rendered on finished games `[test: frontend:unit]`
+- [x] Undo button must not be rendered on finished games `[test: frontend:unit]`
 - [ ] Pending undo request (both requester and responder UI) must be dismissed when the game ends (resign, timeout, territory settle) `[test: e2e:ws]`
 - [ ] Pending undo request must be dismissed when a move is played via API while a request is in flight `[test: e2e:ws]`
 - [ ] Server must reject undo responses (`respond_to_undo`) if the game is already over `[test: e2e:ws]`
@@ -131,8 +131,8 @@
 
 ### Keyboard
 
-- [ ] Up arrow must jump to start (empty board) `[test: frontend:unit]`
-- [ ] Down arrow must jump to last node in branch`[test: frontend:unit]`
+- [x] Up arrow must jump to start (empty board) `[test: frontend:unit]`
+- [x] Down arrow must jump to last node in branch`[test: frontend:unit]`
 
 ### Button Controls
 

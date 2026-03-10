@@ -871,10 +871,12 @@ class BoardController implements Board {
             e.preventDefault();
             this.navigate("forward");
             break;
+          case "ArrowUp":
           case "Home":
             e.preventDefault();
             this.navigate("start");
             break;
+          case "ArrowDown":
           case "End":
             e.preventDefault();
             this.navigate("end");
