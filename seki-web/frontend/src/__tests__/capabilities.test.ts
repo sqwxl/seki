@@ -43,6 +43,7 @@ import {
   hasUnreadChat,
   presentationActive,
   canStartPresentation,
+  boardFinalized,
 } from "../game/state";
 
 // ---------------------------------------------------------------------------
@@ -127,6 +128,7 @@ function resetAllSignals() {
     hasUnreadChat.value = false;
     presentationActive.value = false;
     canStartPresentation.value = false;
+    boardFinalized.value = false;
   });
   resetPhase();
 }
@@ -709,6 +711,32 @@ describe("mode transitions", () => {
       };
     });
     expect(caps().canEnterEstimate).toBe(true);
+  });
+
+  it("estimate disabled but visible on finalized node during play", () => {
+    setupPlayingGame();
+    boardFinalized.value = true;
+    expect(caps().showEnterEstimate).toBe(true);
+    expect(caps().canEnterEstimate).toBe(false);
+  });
+
+  it("estimate disabled but visible on finalized node on done game", () => {
+    setupPlayingGame();
+    batch(() => {
+      gameStage.value = GameStage.Completed;
+      result.value = "B+R";
+      settledTerritory.value = {
+        ownership: Array(361).fill(0),
+        dead_stones: [],
+        score: {
+          black: { territory: 50, captures: 3 },
+          white: { territory: 45, captures: 2 },
+        },
+      };
+      boardFinalized.value = true;
+    });
+    expect(caps().showEnterEstimate).toBe(true);
+    expect(caps().canEnterEstimate).toBe(false);
   });
 
   it("cannot enter estimate on done game without settled territory", () => {

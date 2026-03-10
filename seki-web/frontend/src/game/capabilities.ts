@@ -70,6 +70,7 @@ export type UiCapabilities = {
   canEnterAnalysis: boolean;
   canExitAnalysis: boolean;
   canEnterEstimate: boolean;
+  showEnterEstimate: boolean;
   canExitEstimate: boolean;
   canEnterPresentation: boolean;
   canExitPresentation: boolean;
@@ -437,8 +438,10 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
   const canExitAnalysis = inAnalysis && !inEstimate;
 
-  const canEnterEstimate =
+  const onFinalized = boardFinalized.value;
+  const showEnterEstimate =
     !inEstimate && !isReview && (isPlay || (isDone && !!settled));
+  const canEnterEstimate = showEnterEstimate && !onFinalized;
   const estimateTitle = isDone && !!settled ? "Show territory" : undefined;
 
   const canExitEstimate = inEstimate;
@@ -496,7 +499,6 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   // --- Player panels ---
 
   const isNigiriPending = nigiri.value && !isPlay && !isReview && !res;
-  const onFinalized = boardFinalized.value;
   const score =
     estimateScore.value ??
     terr?.score ??
@@ -605,6 +607,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     canEnterAnalysis,
     canExitAnalysis,
     canEnterEstimate,
+    showEnterEstimate,
     canExitEstimate,
     canEnterPresentation,
     canExitPresentation,
@@ -662,6 +665,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 export type AnalysisCapabilities = {
   canPass: boolean;
   canEstimate: boolean;
+  showEstimate: boolean;
   canPlayMove: boolean;
   showTerritoryReady: boolean;
   showTerritoryExit: boolean;
@@ -675,7 +679,8 @@ export const analysisCapabilities = computed((): AnalysisCapabilities => {
 
   return {
     canPass: canPlay,
-    canEstimate: canPlay,
+    canEstimate: canPlay && !finalized,
+    showEstimate: canPlay,
     canPlayMove: canPlay,
     showTerritoryReady: reviewing,
     showTerritoryExit: reviewing,

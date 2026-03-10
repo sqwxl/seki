@@ -164,13 +164,14 @@ function buildAnalysisControls(
     };
   }
 
-  // Play controls (hidden during territory review/finalized)
+  // Play controls (hidden during territory review, disabled on finalized nodes)
   if (caps.canPass) {
     controlsProps.pass = { onClick: () => board?.pass() };
   }
-  if (caps.canEstimate) {
+  if (caps.showEstimate) {
     controlsProps.estimate = {
       onClick: () => board?.enterTerritoryReview(),
+      disabled: !caps.canEstimate,
     };
   }
   if (caps.showSgfImport) {

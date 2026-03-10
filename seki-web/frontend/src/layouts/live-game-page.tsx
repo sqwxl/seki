@@ -242,10 +242,11 @@ function buildControls(
       onClick: props.exitEstimate,
       title: caps.exitEstimateTitle,
     };
-  } else if (caps.canEnterEstimate) {
+  } else if (caps.showEnterEstimate) {
     controlsProps.estimate = {
       onClick: props.enterEstimate,
       title: caps.estimateTitle,
+      disabled: !caps.canEnterEstimate,
     };
   }
 
