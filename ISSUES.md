@@ -4,15 +4,11 @@
 
 ## 1. Auth & Sessions
 
-- [x] Logout should redirect to the initiating page, just like login `[test: backend:integration]`
-
 ## 2. Game Creation
 
 ### Time Control
 
-- [ ] Timer should not appear to skip a second when starting periods (should round up) `[test: frontend:unit]`
 - [ ] Restored time control choice in game form should correctly set radio input (shows time settings but "None" is selected)
-- [ ] Timer format must switch to seconds.millis when t < 10s `[test: frontend:unit]`
 
 ### Invitations
 
@@ -59,7 +55,6 @@
 
 - [ ] Pending undo request (both requester and responder UI) must be dismissed when the game ends (resign, timeout, territory settle) `[test: e2e:ws]`
 - [ ] Pending undo request must be dismissed when a move is played via API while a request is in flight `[test: e2e:ws]`
-- [x] Server must reject undo responses (`respond_to_undo`) if the game is already over `[test: e2e:ws]`
 
 ### Responding
 
@@ -117,15 +112,10 @@
 
 ### Move Tree
 
-- [ ] Current position must be highlighted `[test: frontend:unit]`
-- [ ] Active path must be highlighted `[test: frontend:unit]`
-- [ ] Container must auto-scroll to keep current node visible
-
 ## 15. Analysis Mode
 
 ### In-Game Analysis
 
-- [ ] Move tree must always be visible in live game analysis, regardless of move tree UI setting `[test: frontend:unit]`
 - [ ] Analysis tree must be restored on refresh `[test: e2e]`
 - [ ] Refreshing in-progress live game must always return to latest node on main branch. `[test: e2e]`
 - [ ] Refreshing settled game must always return to last viewed node. `[test: e2e]`
@@ -166,6 +156,8 @@
 
 ## 18. UI / Display
 
+- [ ] Popovers should not obscure global nav bar.
+
 ### Mobile / Responsive
 
 - [ ] Board must resize dynamically when window is resized (both mobile and desktop layouts)
@@ -176,8 +168,6 @@
 ### Tab Title
 
 ## 19. Sound Effects
-
-- [ ] Placing a stone manually must trigger sound in analysis
 
 ## 20. WebSocket Connection
 

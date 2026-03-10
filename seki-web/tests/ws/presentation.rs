@@ -17,9 +17,7 @@ async fn finish_game(ts: &TestServer) -> i64 {
     let _ = white.recv_kind("state").await;
 
     white.pass(game_id).await;
-    let _ = black.recv_kind("chat").await;
     let _ = black.recv_kind("state").await;
-    let _ = white.recv_kind("chat").await;
     let _ = white.recv_kind("state").await;
 
     // Both approve -> game ends

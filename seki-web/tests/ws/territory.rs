@@ -16,11 +16,7 @@ async fn enter_territory_review(game_id: i64, black: &mut WsClient, white: &mut 
     // White passes — triggers territory review
     white.pass(game_id).await;
 
-    // Each player receives a chat and a state message (order may vary).
-    // Use recv_kind to find each without assuming order.
-    let _ = black.recv_kind("chat").await;
     let b_state = black.recv_kind("state").await;
-    let _ = white.recv_kind("chat").await;
     let _ = white.recv_kind("state").await;
 
     assert_eq!(b_state["stage"], "territory_review");

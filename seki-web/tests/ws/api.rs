@@ -1367,7 +1367,47 @@ async fn approve_territory_via_api() {
 #[tokio::test]
 async fn toggle_resets_approval() {
     let server = TestServer::start().await;
-    let game_id = server.enter_territory_review().await;
+    let game_id = server.create_and_join().await;
+
+    // Play stones so there's something to toggle in territory review
+    let resp = server
+        .client_black
+        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .json(&json!({"col": 0, "row": 0}))
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success(), "black play failed");
+
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .json(&json!({"col": 8, "row": 8}))
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success(), "white play failed");
+
+    // Two passes to enter territory review
+    let resp = server
+        .client_black
+        .post(format!("http://{}/api/games/{game_id}/pass", server.addr))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success(), "black pass failed");
+
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/pass", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success(), "white pass failed");
 
     // Black approves
     server
@@ -1381,7 +1421,7 @@ async fn toggle_resets_approval() {
         .await
         .unwrap();
 
-    // White toggles a chain — should reset both approvals
+    // White toggles the stone at (0,0) — should reset both approvals
     let resp = server
         .client_white
         .post(format!(

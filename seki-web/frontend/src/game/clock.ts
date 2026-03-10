@@ -25,8 +25,9 @@ export const clockDisplay = signal<ClockDisplay>({
 });
 
 export function formatClock(ms: number, isCorrespondence: boolean): string {
+  const clamped = Math.max(0, ms);
   if (isCorrespondence) {
-    const totalSecs = Math.max(0, Math.floor(ms / 1000));
+    const totalSecs = Math.ceil(clamped / 1000);
     const days = Math.floor(totalSecs / 86400);
     const hours = Math.floor((totalSecs % 86400) / 3600);
     if (days > 0) {
@@ -35,11 +36,14 @@ export function formatClock(ms: number, isCorrespondence: boolean): string {
     const mins = Math.floor((totalSecs % 3600) / 60);
     return `${hours}h ${mins}m`;
   }
-  const totalSecs = Math.max(0, Math.floor(ms / 1000));
-  if (totalSecs < 10) {
-    const tenths = Math.max(0, Math.floor(ms / 100)) / 10;
+  // Under 10s: show tenths for precision
+  if (clamped < 10000) {
+    const tenths = Math.floor(clamped / 100) / 10;
     return tenths.toFixed(1);
   }
+  // Round up so the display doesn't appear to skip a second at period
+  // boundaries (e.g. 29.9s remaining shows "0:30", not "0:29").
+  const totalSecs = Math.ceil(clamped / 1000);
   if (totalSecs >= 3600) {
     const hours = Math.floor(totalSecs / 3600);
     const mins = Math.floor((totalSecs % 3600) / 60);
