@@ -253,13 +253,6 @@ pub async fn pass(
             .registry
             .init_territory_review(game_id, dead_stones)
             .await;
-        broadcast_system_chat(
-            state,
-            game_id,
-            "Territory review has begun",
-            Some(engine.moves().len() as i32),
-        )
-        .await;
     }
 
     broadcast_game_state(state, &gwp, &engine).await;

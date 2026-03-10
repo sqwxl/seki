@@ -533,6 +533,20 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const challengee = b?.id !== props.creator_id ? b : w;
   const boardNav = navState.value;
 
+  // Territory review: opponent approval + countdown
+  const opponentApproved =
+    isReview && isPlayer
+      ? stone === 1
+        ? !!terr?.white_approved
+        : !!terr?.black_approved
+      : false;
+
+  let territoryCountdownSecs: number | undefined;
+  if (isReview && terr?.expires_at) {
+    const remaining = new Date(terr.expires_at).getTime() - Date.now();
+    territoryCountdownSecs = Math.ceil(Math.max(0, remaining) / 1000);
+  }
+
   const statusText =
     getStatusText({
       stage,
@@ -545,6 +559,9 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
       challengeWaitingFor: challengee?.display_name,
       hasOpenSlot,
       isBlackTurn: boardNav.boardTurnStone === 1,
+      isPlayer,
+      opponentApproved,
+      territoryCountdownSecs,
     }) ?? "";
 
   let presentationStatusSuffix = "";

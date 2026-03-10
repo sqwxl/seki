@@ -24,8 +24,7 @@ async fn single_pass() {
 /// 4.2 — Consecutive passes enter territory review.
 ///
 /// Black passes, White passes. Both receive state with stage "territory_review"
-/// and a non-null "territory" field. A system chat with "Territory review" text
-/// is also broadcast. The chat and state may arrive in either order.
+/// and a non-null "territory" field.
 #[tokio::test]
 async fn consecutive_passes_enter_territory_review() {
     let server = TestServer::start().await;
@@ -45,16 +44,9 @@ async fn consecutive_passes_enter_territory_review() {
     // White passes — should trigger territory review
     white.pass(game_id).await;
 
-    // After white's pass, each player receives a system chat message first
-    // ("Territory review has begun"), then the state broadcast. Use recv_kind
-    // to skip interleaved lobby broadcasts (game_updated). Order matters:
-    // the server sends chat before state, and recv_kind discards non-matching messages.
-    let b_chat = black.recv_kind("chat").await;
     let b_state = black.recv_kind("state").await;
-    let w_chat = white.recv_kind("chat").await;
     let w_state = white.recv_kind("state").await;
 
-    // Verify state messages
     assert_eq!(b_state["stage"], "territory_review");
     assert_eq!(w_state["stage"], "territory_review");
 
@@ -65,23 +57,6 @@ async fn consecutive_passes_enter_territory_review() {
     assert!(
         w_state.get("territory").is_some() && !w_state["territory"].is_null(),
         "expected non-null territory field in white's state"
-    );
-
-    // Verify chat messages
-    let b_text = b_chat["text"].as_str().expect("chat should have text");
-    assert!(
-        b_text.contains("Territory review"),
-        "expected territory review chat, got: {b_text}"
-    );
-    assert!(
-        b_chat["player_id"].is_null(),
-        "system chat should have null player_id"
-    );
-
-    let w_text = w_chat["text"].as_str().expect("chat should have text");
-    assert!(
-        w_text.contains("Territory review"),
-        "expected territory review chat, got: {w_text}"
     );
 }
 

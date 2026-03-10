@@ -35,6 +35,7 @@ import {
   black,
   white,
   result,
+  territory,
   settledTerritory,
   chatMessages,
   analysisMode,
@@ -673,6 +674,18 @@ export function liveGame(
     // If already gone or no grace period, render once and done
     if (dc.gone || dc.gracePeriodMs == null) {
       doRender();
+      return;
+    }
+    const interval = setInterval(() => doRender(), 1000);
+    doRender();
+    return () => clearInterval(interval);
+  });
+
+  // --- Territory countdown timer ---
+  // Re-render every second while territory review has an expiry deadline
+  effect(() => {
+    const terr = territory.value;
+    if (!terr?.expires_at) {
       return;
     }
     const interval = setInterval(() => doRender(), 1000);

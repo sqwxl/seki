@@ -33,6 +33,10 @@ export type StatusInput = {
   isChallengeCreator?: boolean;
   // Open game
   hasOpenSlot?: boolean;
+  // Territory review
+  isPlayer?: boolean;
+  opponentApproved?: boolean;
+  territoryCountdownSecs?: number;
 };
 
 export function getStatusText(input: StatusInput): string | undefined {
@@ -71,6 +75,12 @@ export function getStatusText(input: StatusInput): string | undefined {
   if (stage === GameStage.TerritoryReview) {
     if (input.territoryScore) {
       return formatResult(input.territoryScore, input.komi);
+    }
+    if (input.opponentApproved && input.territoryCountdownSecs != null) {
+      return `Opponent accepted. ${input.territoryCountdownSecs}s`;
+    }
+    if (input.isPlayer) {
+      return "Select dead stones; accept when ready";
     }
     return "Territory review";
   }
