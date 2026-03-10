@@ -329,7 +329,7 @@ a.nav-dropdown-item {
 }
 
 .user-label.active-turn .player-name {
-  font-weight: bold;
+  text-decoration: underline;
 }
 
 .presence-dot {
