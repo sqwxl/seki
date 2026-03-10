@@ -479,8 +479,8 @@ export function liveGame(
     if (saved?.active) {
       // Page was refreshed while in analysis — restore exact position
       enterAnalysis();
-    } else if (saved && result.value) {
-      // Completed game with saved analysis — restore at main end
+    } else if (saved && saved.active !== false && result.value) {
+      // Completed game with saved analysis (and user didn't explicitly exit)
       enterAnalysis();
     } else {
       board.value.render();
