@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 use argon2::password_hash::SaltString;
@@ -13,7 +14,138 @@ use sqlx::PgPool;
 use testcontainers::runners::AsyncRunner;
 use testcontainers_modules::postgres::Postgres;
 use tokio::net::TcpListener;
+use tokio::sync::OnceCell;
 use tokio_tungstenite::tungstenite;
+
+// ---------------------------------------------------------------------------
+// Shared Postgres container (one per test binary)
+// ---------------------------------------------------------------------------
+
+static SHARED_PG: LazyLock<SharedPostgres> = LazyLock::new(SharedPostgres::new);
+static DB_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+struct SharedPostgres {
+    container: OnceCell<(testcontainers::ContainerAsync<Postgres>, String, u16)>,
+    template_ready: OnceCell<()>,
+}
+
+impl SharedPostgres {
+    fn new() -> Self {
+        Self {
+            container: OnceCell::new(),
+            template_ready: OnceCell::new(),
+        }
+    }
+
+    /// Returns (host, port) of the shared container, starting it on first call.
+    async fn get_container(&self) -> (&str, u16) {
+        let (_, host, port) = self
+            .container
+            .get_or_init(|| async {
+                let mut attempts = 0;
+                loop {
+                    let c = Postgres::default().start().await.unwrap();
+                    match (c.get_host().await, c.get_host_port_ipv4(5432).await) {
+                        (Ok(host), Ok(port)) => break (c, host.to_string(), port),
+                        _ => {
+                            attempts += 1;
+                            if attempts >= 3 {
+                                panic!("Failed to get container port after {attempts} attempts");
+                            }
+                            tokio::time::sleep(Duration::from_millis(500)).await;
+                        }
+                    }
+                }
+            })
+            .await;
+        (host.as_str(), *port)
+    }
+
+    /// Ensure the template database exists (migrations + test users). Idempotent.
+    async fn ensure_template(&self, host: &str, port: u16) {
+        self.template_ready
+            .get_or_init(|| async {
+                let admin_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
+                let admin_pool = PgPool::connect(&admin_url).await.unwrap();
+
+                // Create the template database
+                sqlx::query("CREATE DATABASE template_seki")
+                    .execute(&admin_pool)
+                    .await
+                    .unwrap();
+                admin_pool.close().await;
+
+                // Run migrations on the template
+                let tpl_url = format!("postgres://postgres:postgres@{host}:{port}/template_seki");
+                let tpl_pool = PgPool::connect(&tpl_url).await.unwrap();
+                seki_web::db::run_migrations(&tpl_pool).await.unwrap();
+
+                // Hash a test password once (Argon2 is expensive)
+                let salt = SaltString::generate(&mut OsRng);
+                let password_hash = Argon2::default()
+                    .hash_password(b"testpassword", &salt)
+                    .unwrap()
+                    .to_string();
+
+                // Insert the three test users
+                for (token, username, api_token) in [
+                    (
+                        "black-session-token",
+                        "test-black",
+                        "test-black-api-token-12345",
+                    ),
+                    (
+                        "white-session-token",
+                        "test-white",
+                        "test-white-api-token-67890",
+                    ),
+                    (
+                        "spectator-session-token",
+                        "test-spectator",
+                        "test-spectator-api-token-99999",
+                    ),
+                ] {
+                    sqlx::query(
+                        "INSERT INTO users (session_token, username, password_hash, api_token) \
+                         VALUES ($1, $2, $3, $4)",
+                    )
+                    .bind(token)
+                    .bind(username)
+                    .bind(&password_hash)
+                    .bind(api_token)
+                    .execute(&tpl_pool)
+                    .await
+                    .unwrap();
+                }
+
+                tpl_pool.close().await;
+            })
+            .await;
+    }
+
+    /// Create a fresh database cloned from the template. Returns a pool connected to it.
+    async fn create_test_db(&self) -> PgPool {
+        let (host, port) = self.get_container().await;
+        self.ensure_template(host, port).await;
+
+        let db_name = format!("test_{}", DB_COUNTER.fetch_add(1, Ordering::Relaxed));
+        let admin_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
+        let admin_pool = PgPool::connect(&admin_url).await.unwrap();
+
+        sqlx::query(&format!("CREATE DATABASE {db_name} TEMPLATE template_seki"))
+            .execute(&admin_pool)
+            .await
+            .unwrap();
+        admin_pool.close().await;
+
+        let db_url = format!("postgres://postgres:postgres@{host}:{port}/{db_name}");
+        PgPool::connect(&db_url).await.unwrap()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// TestServer
+// ---------------------------------------------------------------------------
 
 /// A running test server with three pre-authenticated users.
 pub struct TestServer {
@@ -28,83 +160,28 @@ pub struct TestServer {
     jar_black: Arc<Jar>,
     jar_white: Arc<Jar>,
     jar_spectator: Arc<Jar>,
-    // Keep the container alive for the lifetime of the test
-    _container: testcontainers::ContainerAsync<Postgres>,
 }
 
 impl TestServer {
     pub async fn start() -> Self {
-        // Start ephemeral Postgres via testcontainers (retry to avoid PortNotExposed race)
-        let (container, database_url) = {
-            let mut attempts = 0;
-            loop {
-                let c = Postgres::default().start().await.unwrap();
-                match (c.get_host().await, c.get_host_port_ipv4(5432).await) {
-                    (Ok(host), Ok(port)) => {
-                        break (
-                            c,
-                            format!("postgres://postgres:postgres@{host}:{port}/postgres"),
-                        );
-                    }
-                    _ => {
-                        attempts += 1;
-                        if attempts >= 3 {
-                            panic!("Failed to get container port after {attempts} attempts");
-                        }
-                        tokio::time::sleep(Duration::from_millis(500)).await;
-                    }
-                }
-            }
-        };
+        let pool = SHARED_PG.create_test_db().await;
 
-        let pool = sqlx::PgPool::connect(&database_url).await.unwrap();
-
-        // Run app migrations
-        seki_web::db::run_migrations(&pool).await.unwrap();
-
-        // Hash a test password with argon2
-        let salt = SaltString::generate(&mut OsRng);
-        let password_hash = Argon2::default()
-            .hash_password(b"testpassword", &salt)
-            .unwrap()
-            .to_string();
-
-        // Insert two registered users directly
-        let black_id: i64 = sqlx::query_scalar(
-            "INSERT INTO users (session_token, username, password_hash, api_token) \
-             VALUES ($1, $2, $3, $4) RETURNING id",
-        )
-        .bind("black-session-token")
-        .bind("test-black")
-        .bind(&password_hash)
-        .bind("test-black-api-token-12345")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-
-        let white_id: i64 = sqlx::query_scalar(
-            "INSERT INTO users (session_token, username, password_hash, api_token) \
-             VALUES ($1, $2, $3, $4) RETURNING id",
-        )
-        .bind("white-session-token")
-        .bind("test-white")
-        .bind(&password_hash)
-        .bind("test-white-api-token-67890")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-
-        let spectator_id: i64 = sqlx::query_scalar(
-            "INSERT INTO users (session_token, username, password_hash, api_token) \
-             VALUES ($1, $2, $3, $4) RETURNING id",
-        )
-        .bind("spectator-session-token")
-        .bind("test-spectator")
-        .bind(&password_hash)
-        .bind("test-spectator-api-token-99999")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        // Fetch user IDs from the cloned template
+        let black_id: i64 =
+            sqlx::query_scalar("SELECT id FROM users WHERE username = 'test-black'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let white_id: i64 =
+            sqlx::query_scalar("SELECT id FROM users WHERE username = 'test-white'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let spectator_id: i64 =
+            sqlx::query_scalar("SELECT id FROM users WHERE username = 'test-spectator'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         // Build and spawn the server (zero grace period for instant disconnect in tests)
         let presence =
@@ -210,7 +287,6 @@ impl TestServer {
             jar_black,
             jar_white,
             jar_spectator,
-            _container: container,
         }
     }
 
