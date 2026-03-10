@@ -46,6 +46,7 @@ import {
   currentUserId,
   initialProps as initialPropsSignal,
   estimateScore,
+  boardFinalized,
   showCoordinates,
   moveConfirmEnabled,
   presentationActive,
@@ -408,6 +409,7 @@ export function liveGame(
     onStonePlay: playStoneSound,
     onPass: playPassSound,
     onRender: (engine, territoryInfo) => {
+      boardFinalized.value = territoryInfo.finalized;
       // Auto-exit estimate when territory review gets cleared (e.g. by navigation)
       if (estimateMode.value && !territoryInfo.reviewing) {
         phaseExitEstimate();
@@ -447,6 +449,8 @@ export function liveGame(
         atLatest: engine.is_at_latest(),
         atMainEnd: engine.is_at_main_end(),
         counter: `${engine.view_index()}`,
+        boardTurnStone: engine.current_turn_stone(),
+        boardLastMoveWasPass: engine.last_move_was_pass(),
       };
       doRender();
     },

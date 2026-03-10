@@ -27,6 +27,7 @@ import {
   nigiri,
   opponentDisconnected,
   estimateScore,
+  boardFinalized,
   showMoveTree,
   moveConfirmEnabled,
   navState,
@@ -495,7 +496,11 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   // --- Player panels ---
 
   const isNigiriPending = nigiri.value && !isPlay && !isReview && !res;
-  const score = estimateScore.value ?? terr?.score ?? settled?.score;
+  const onFinalized = boardFinalized.value;
+  const score =
+    estimateScore.value ??
+    terr?.score ??
+    (onFinalized ? settled?.score : undefined);
 
   const panelOpts = {
     stone,
@@ -525,20 +530,21 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
   // --- Status text ---
 
-  const lastMove = mvs[mvs.length - 1];
   const challengee = b?.id !== props.creator_id ? b : w;
+  const boardNav = navState.value;
 
   const statusText =
     getStatusText({
       stage,
-      result: res ?? undefined,
+      result: onFinalized ? (res ?? undefined) : undefined,
       komi: props.komi,
       estimateScore: inEstimate ? estimateScore.value : undefined,
       territoryScore: terr?.score,
-      lastMoveWasPass: lastMove?.kind === "pass",
+      lastMoveWasPass: boardNav.boardLastMoveWasPass,
       isChallengeCreator: myId != null && myId === props.creator_id,
       challengeWaitingFor: challengee?.display_name,
       hasOpenSlot,
+      isBlackTurn: boardNav.boardTurnStone === 1,
     }) ?? "";
 
   let presentationStatusSuffix = "";
@@ -648,7 +654,7 @@ export type AnalysisCapabilities = {
 
 export const analysisCapabilities = computed((): AnalysisCapabilities => {
   const { reviewing, finalized } = analysisTerritoryInfo.value;
-  const canPlay = !reviewing && !finalized;
+  const canPlay = !reviewing;
 
   return {
     canPass: canPlay,

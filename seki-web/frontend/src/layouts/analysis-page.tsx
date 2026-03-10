@@ -223,6 +223,7 @@ export function AnalysisPage(props: AnalysisPageProps) {
   const board = analysisBoard.value;
   const { reviewing, finalized, score } = analysisTerritoryInfo.value;
   const isBlackTurn = board ? board.engine.current_turn_stone() === 1 : true;
+  const lastMoveWasPass = board ? board.engine.last_move_was_pass() : false;
 
   const statusText = getStatusText({
     stage: reviewing
@@ -232,6 +233,7 @@ export function AnalysisPage(props: AnalysisPageProps) {
         : GameStage.WhiteToPlay,
     komi: KOMI,
     territoryScore: reviewing || finalized ? score : undefined,
+    lastMoveWasPass,
     isBlackTurn,
   });
 

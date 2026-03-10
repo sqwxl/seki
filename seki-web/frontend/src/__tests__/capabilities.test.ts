@@ -118,6 +118,8 @@ function resetAllSignals() {
       atLatest: true,
       atMainEnd: true,
       counter: "0",
+      boardTurnStone: 1,
+      boardLastMoveWasPass: false,
     };
     estimateScore.value = undefined;
     showMoveTree.value = false;
@@ -555,6 +557,8 @@ describe("navigation", () => {
       atLatest: false,
       atMainEnd: true,
       counter: "5/10",
+      boardTurnStone: 1,
+      boardLastMoveWasPass: false,
     };
     const nav = caps().nav;
     expect(nav.atStart).toBe(false);
@@ -579,6 +583,8 @@ describe("navigation", () => {
       atLatest: false,
       atMainEnd: false,
       counter: "5/10",
+      boardTurnStone: 1,
+      boardLastMoveWasPass: false,
     };
     const nav = caps().nav;
     expect(nav.atStart).toBe(true);

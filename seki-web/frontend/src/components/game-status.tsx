@@ -88,6 +88,11 @@ export function getStatusText(input: StatusInput): string | undefined {
 
   // Fallback for analysis: use turn
   if (input.isBlackTurn !== undefined) {
+    if (input.lastMoveWasPass) {
+      return input.isBlackTurn
+        ? "Black to play (White passed)"
+        : "White to play (Black passed)";
+    }
     return input.isBlackTurn ? "Black to play" : "White to play";
   }
 

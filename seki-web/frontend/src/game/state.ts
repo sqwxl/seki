@@ -114,8 +114,11 @@ export const navState = signal({
   atLatest: true,
   atMainEnd: true,
   counter: "0",
+  boardTurnStone: 1,
+  boardLastMoveWasPass: false,
 });
 export const estimateScore = signal<ScoreData | undefined>(undefined);
+export const boardFinalized = signal(false);
 export const showMoveTree = signal(storage.get(SHOW_MOVE_TREE) === "true");
 export const showCoordinates = signal(storage.get(SHOW_COORDINATES) === "true");
 export const moveConfirmEnabled = signal(readMoveConfirmation());

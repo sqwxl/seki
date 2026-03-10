@@ -280,6 +280,10 @@ impl WasmEngine {
         self.inner.last_play_pos().is_some()
     }
 
+    pub fn last_move_was_pass(&self) -> bool {
+        self.inner.last_move().is_some_and(|t| t.is_pass())
+    }
+
     pub fn last_move_col(&self) -> i8 {
         self.inner
             .last_play_pos()
