@@ -150,7 +150,7 @@ function renderMoveTree(
   moveTreeEl: HTMLElement,
   doRender: () => void,
   direction?: "horizontal" | "vertical",
-  branchAfterNodeId?: number,
+  branchAfterNodes?: Set<number>,
 ): void {
   const nodeCount = engine.tree_node_count();
   if (nodeCount !== cachedTreeNodeCount || !cachedTree) {
@@ -191,7 +191,7 @@ function renderMoveTree(
     <MoveTree
       tree={tree}
       currentNodeId={currentNodeId}
-      branchAfterNodeId={branchAfterNodeId}
+      branchAfterNodes={branchAfterNodes}
       direction={direction}
       onNavigate={(nodeId) => {
         if (nodeId === rootId) {
@@ -597,11 +597,7 @@ class BoardController implements Board {
     }
 
     const onVertexClick = (_: Event, [col, row]: Point) => {
-      if (finalized) {
-        return;
-      }
-
-      if (this.territoryState) {
+      if (this.territoryState && !finalized) {
         let newDead: [number, number][];
         try {
           const deadJson = this.engine.toggle_dead_chain(
@@ -629,7 +625,8 @@ class BoardController implements Board {
       }
     };
 
-    const canPlay = !finalized && !overlay && (this.config.canPlay?.() ?? true);
+    const canPlay =
+      (!overlay || finalized) && (this.config.canPlay?.() ?? true);
     const crosshairStone = canPlay ? this.engine.current_turn_stone() : 0;
 
     renderFromEngine(
@@ -649,16 +646,24 @@ class BoardController implements Board {
     const territoryInfo = this.renderBoard();
 
     if (this.config.moveTreeEl) {
-      const branchId =
-        this.config.branchAtBaseTip && this._baseTipNodeId >= 0
-          ? this._baseTipNodeId
-          : undefined;
+      let branchNodes: Set<number> | undefined;
+      if (this.config.branchAtBaseTip && this._baseTipNodeId >= 0) {
+        branchNodes = new Set([this._baseTipNodeId]);
+      }
+      if (this.finalizedNodes.size > 0) {
+        if (!branchNodes) {
+          branchNodes = new Set();
+        }
+        for (const id of this.finalizedNodes.keys()) {
+          branchNodes.add(id);
+        }
+      }
       renderMoveTree(
         this.engine,
         this.config.moveTreeEl,
         () => this.render(),
         this.resolveTreeDirection(),
-        branchId,
+        branchNodes,
       );
     }
 

@@ -15,7 +15,7 @@ type LayoutNode = {
 
 function layoutTree(
   tree: GameTreeData,
-  branchAfterNodeId?: number,
+  branchAfterNodes?: Set<number>,
 ): LayoutNode[] {
   if (tree.nodes.length === 0) {
     return [];
@@ -28,7 +28,7 @@ function layoutTree(
     layout[nodeId] = { id: nodeId, col, row };
 
     const children = tree.nodes[nodeId].children;
-    const allBranch = nodeId === branchAfterNodeId;
+    const allBranch = branchAfterNodes?.has(nodeId) ?? false;
     for (let i = 0; i < children.length; i++) {
       if (i === 0 && !allBranch) {
         // First child stays on the same row
@@ -57,7 +57,7 @@ function layoutTree(
 type MoveTreeProps = {
   tree: GameTreeData;
   currentNodeId: number;
-  branchAfterNodeId?: number;
+  branchAfterNodes?: Set<number>;
   direction?: "horizontal" | "vertical";
   onNavigate: (nodeId: number) => void;
 };
@@ -65,14 +65,14 @@ type MoveTreeProps = {
 export function MoveTree({
   tree,
   currentNodeId,
-  branchAfterNodeId,
+  branchAfterNodes,
   direction = "horizontal",
   onNavigate,
 }: MoveTreeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const layout = useMemo(
-    () => layoutTree(tree, branchAfterNodeId),
-    [tree, branchAfterNodeId],
+    () => layoutTree(tree, branchAfterNodes),
+    [tree, branchAfterNodes],
   );
   const vertical = direction === "vertical";
 
