@@ -91,10 +91,10 @@
 
 - [ ] Territory accept button must use the same component and appearance as the move confirm button `[test: frontend:unit]`
 - [ ] Game status component must show contextual territory phase messages: "Territory review; select dead stones; accept when ready" and "Opponent accepted. {secs}s" `[test: frontend:unit]`
-- [ ] **Bug:** Territory overlay sometimes disappears after game is settled (returns on refresh) `[test: frontend:unit]`
+- [x] **Bug:** Territory overlay sometimes disappears after game is settled (returns on refresh) `[test: frontend:unit]`
 - [ ] System message must read: "Territory will be auto-confirmed in $TIME" `[test: e2e:ws]`
-- [ ] **Bug:** Territory terminator node should only appear once (current bug exists where an extra terminator node is appended to the active node after initial game load)
-- [ ] **Bug:** Territory node must not count towards move count (component should show previous node's turn count) `[test: frontend:unit]`
+- [x] **Bug:** Territory terminator node should only appear once (current bug exists where an extra terminator node is appended to the active node after initial game load)
+- [x] **Bug:** Territory node must not count towards move count (component should show previous node's turn count) `[test: frontend:unit]`
 
 ### Scoring
 

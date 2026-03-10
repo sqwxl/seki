@@ -458,9 +458,9 @@ export function liveGame(
       resetMovesTracker(moves.value.length);
       board.value.updateBaseMoves(movesJson);
     }
-    // Append score_agreed terminator for games that ended via territory
+    // Mark the base tip as settled for games that ended via territory
     if (settledTerritory.value) {
-      board.value.appendScoreAgreed(settledTerritory.value.dead_stones);
+      board.value.markSettled(settledTerritory.value.dead_stones);
     }
     // Auto-restore analysis branches from localStorage.
     // For in-progress games, always start at the latest move — analysis

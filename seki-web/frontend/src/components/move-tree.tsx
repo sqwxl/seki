@@ -57,7 +57,6 @@ function layoutTree(
 type MoveTreeProps = {
   tree: GameTreeData;
   currentNodeId: number;
-  finalizedNodeIds?: Set<number>;
   branchAfterNodeId?: number;
   direction?: "horizontal" | "vertical";
   onNavigate: (nodeId: number) => void;
@@ -66,7 +65,6 @@ type MoveTreeProps = {
 export function MoveTree({
   tree,
   currentNodeId,
-  finalizedNodeIds,
   branchAfterNodeId,
   direction = "horizontal",
   onNavigate,
@@ -212,10 +210,6 @@ export function MoveTree({
     const isCurrent = node.id === currentNodeId;
     const stone = treeNode.turn.stone;
     const isPass = treeNode.turn.kind === "pass";
-    const isScoreAgreed = treeNode.turn.kind === "score_agreed";
-    const isFinalized =
-      isScoreAgreed || (finalizedNodeIds?.has(node.id) ?? false);
-
     const isRoot = stone === 0;
     const onPath = isRoot || activePath.has(node.id);
     const radius = NODE_RADIUS;
@@ -234,23 +228,7 @@ export function MoveTree({
         style={{ cursor: "pointer" }}
         onClick={() => onNavigate(node.id)}
       >
-        {isFinalized ? (
-          <>
-            {/* Split circle: left=black, right=white */}
-            <path
-              d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 0 ${x} ${y + radius} Z`}
-              fill={blackFill}
-              stroke={strokeColor}
-              stroke-width={strokeWidth}
-            />
-            <path
-              d={`M ${x} ${y - radius} A ${radius} ${radius} 0 0 1 ${x} ${y + radius} Z`}
-              fill={whiteFill}
-              stroke={strokeColor}
-              stroke-width={strokeWidth}
-            />
-          </>
-        ) : isRoot ? (
+        {isRoot ? (
           <>
             <circle
               cx={x}
@@ -299,7 +277,7 @@ export function MoveTree({
             stroke-width={strokeWidth}
           />
         )}
-        {!isFinalized && !isRoot && (
+        {!isRoot && (
           <text
             x={x}
             y={y}

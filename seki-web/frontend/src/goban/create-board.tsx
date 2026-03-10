@@ -149,7 +149,6 @@ function renderMoveTree(
   engine: WasmEngine,
   moveTreeEl: HTMLElement,
   doRender: () => void,
-  finalizedNodeIds?: Set<number>,
   direction?: "horizontal" | "vertical",
   branchAfterNodeId?: number,
 ): void {
@@ -192,7 +191,6 @@ function renderMoveTree(
     <MoveTree
       tree={tree}
       currentNodeId={currentNodeId}
-      finalizedNodeIds={finalizedNodeIds}
       branchAfterNodeId={branchAfterNodeId}
       direction={direction}
       onNavigate={(nodeId) => {
@@ -275,7 +273,7 @@ export type Board = {
   finalizeTerritoryReview: () => ScoreData | undefined;
   isTerritoryReview: () => boolean;
   isFinalized: () => boolean;
-  appendScoreAgreed: (deadStones: [number, number][]) => void;
+  markSettled: (deadStones: [number, number][]) => void;
   exportSnapshot: () => string;
   importSnapshot: (json: string) => void;
   destroy: () => void;
@@ -496,28 +494,24 @@ class BoardController implements Board {
     }
     const score = this.territoryState.score;
     const deadStones = this.territoryState.deadStones;
-    // Create a score_agreed node as a child of the current node
-    const newNodeId = this.engine.score_agreed();
-    if (newNodeId < 0) {
+    const nodeId = this.engine.current_node_id();
+    if (nodeId < 0) {
       return undefined;
     }
-    this.finalizedNodes.set(newNodeId, deadStones);
+    this.finalizedNodes.set(nodeId, deadStones);
     this.saveFinalizedNodes();
     this.territoryState = undefined;
-    invalidateTreeCache();
     this.save();
     this.render();
     return score;
   }
 
-  appendScoreAgreed(deadStones: [number, number][]): void {
-    const newNodeId = this.engine.score_agreed();
-    if (newNodeId < 0) {
+  markSettled(deadStones: [number, number][]): void {
+    if (this._baseTipNodeId < 0) {
       return;
     }
-    this.finalizedNodes.set(newNodeId, deadStones);
+    this.finalizedNodes.set(this._baseTipNodeId, deadStones);
     this.saveFinalizedNodes();
-    invalidateTreeCache();
   }
 
   isTerritoryReview(): boolean {
@@ -655,22 +649,14 @@ class BoardController implements Board {
     const territoryInfo = this.renderBoard();
 
     if (this.config.moveTreeEl) {
-      const fIds =
-        this.finalizedNodes.size > 0
-          ? new Set(this.finalizedNodes.keys())
-          : undefined;
       const branchId =
         this.config.branchAtBaseTip && this._baseTipNodeId >= 0
           ? this._baseTipNodeId
           : undefined;
-      const treeSize = this.engine.tree_node_count();
-      const hasAnalysis =
-        branchId != null ? treeSize > this.baseMoveCount : treeSize > 0;
       renderMoveTree(
         this.engine,
         this.config.moveTreeEl,
         () => this.render(),
-        fIds,
         this.resolveTreeDirection(),
         branchId,
       );

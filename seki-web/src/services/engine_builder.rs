@@ -86,7 +86,6 @@ pub(crate) fn convert_turns(db_turns: &[TurnRow]) -> Vec<Turn> {
                 }
                 Move::Pass => Turn::pass(stone),
                 Move::Resign => Turn::resign(stone),
-                Move::ScoreAgreed => Turn::score_agreed(stone),
             }
         })
         .collect()

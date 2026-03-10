@@ -90,7 +90,7 @@ impl Goban {
                 Move::Pass => {
                     self = self.pass();
                 }
-                Move::Resign | Move::ScoreAgreed => {}
+                Move::Resign => {}
             }
         }
 

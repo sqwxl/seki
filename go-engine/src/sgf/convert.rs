@@ -293,11 +293,8 @@ fn build_sgf_line(tree: &GameTree, start: NodeId) -> (Vec<sgf::Node>, Vec<sgf::G
     }
 }
 
-/// Convert a Turn into an SGF Node. Returns None for non-move turns (e.g. ScoreAgreed).
+/// Convert a Turn into an SGF Node.
 fn turn_to_sgf_node(turn: &Turn) -> Option<sgf::Node> {
-    if turn.is_score_agreed() {
-        return None;
-    }
     let prop = match (turn.stone, turn.pos) {
         (Stone::Black, Some(pt)) => Property::Black(Some(pt)),
         (Stone::Black, None) => Property::Black(None),

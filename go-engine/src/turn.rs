@@ -10,7 +10,6 @@ pub enum Move {
     Play,
     Pass,
     Resign,
-    ScoreAgreed,
 }
 
 impl std::str::FromStr for Move {
@@ -21,7 +20,6 @@ impl std::str::FromStr for Move {
             "play" => Ok(Move::Play),
             "pass" => Ok(Move::Pass),
             "resign" => Ok(Move::Resign),
-            "score_agreed" => Ok(Move::ScoreAgreed),
             _ => Err(format!("invalid move: {s}")),
         }
     }
@@ -33,7 +31,6 @@ impl fmt::Display for Move {
             Move::Play => write!(f, "play"),
             Move::Pass => write!(f, "pass"),
             Move::Resign => write!(f, "resign"),
-            Move::ScoreAgreed => write!(f, "score_agreed"),
         }
     }
 }
@@ -71,14 +68,6 @@ impl Turn {
         }
     }
 
-    pub fn score_agreed(stone: Stone) -> Self {
-        Turn {
-            kind: Move::ScoreAgreed,
-            stone,
-            pos: None,
-        }
-    }
-
     pub fn is_play(&self) -> bool {
         self.kind == Move::Play
     }
@@ -89,10 +78,6 @@ impl Turn {
 
     pub fn is_resign(&self) -> bool {
         self.kind == Move::Resign
-    }
-
-    pub fn is_score_agreed(&self) -> bool {
-        self.kind == Move::ScoreAgreed
     }
 }
 

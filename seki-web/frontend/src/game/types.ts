@@ -29,7 +29,7 @@ export type GameState = {
 };
 
 export type TurnData = {
-  kind: "play" | "pass" | "resign" | "score_agreed";
+  kind: "play" | "pass" | "resign";
   stone: number;
   pos: [number, number] | null;
 };
