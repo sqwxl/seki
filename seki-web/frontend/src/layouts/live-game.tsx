@@ -131,30 +131,22 @@ export function liveGame(
     });
   }
 
-  function restoreAnalysis(): boolean {
+  /** Navigate to the last saved analysis position (tree is already loaded). */
+  function restoreAnalysisPosition(): void {
     if (!board.value) {
-      return false;
+      return;
     }
     const saved = storage.getJson<{ tree: string; nodeId: number }>(
       analysisKey,
     );
     if (!saved) {
-      return false;
-    }
-    if (!board.value.engine.replace_tree(saved.tree)) {
-      return false;
-    }
-    // The saved analysis tree may be from an earlier point in the game.
-    // Merge current base moves so all game moves are navigable.
-    if (moves.value.length > 0) {
-      board.value.engine.merge_base_moves(JSON.stringify(moves.value));
+      return;
     }
     if (saved.nodeId >= 0) {
       board.value.engine.navigate_to(saved.nodeId);
     } else {
       board.value.engine.to_start();
     }
-    return true;
   }
 
   // --- Mode transition helpers ---
@@ -167,7 +159,7 @@ export function liveGame(
     } else {
       toAnalysis();
     }
-    restoreAnalysis();
+    restoreAnalysisPosition();
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
     doRender();
@@ -187,10 +179,7 @@ export function liveGame(
       }
     } else {
       toLive();
-      if (board.value) {
-        board.value.updateBaseMoves(JSON.stringify(moves.value));
-        board.value.navigate("main-end");
-      }
+      board.value?.navigate("main-end");
     }
     mobileTab.value = "board";
     board.value?.render();
@@ -443,10 +432,8 @@ export function liveGame(
       if (presentationActive.value && isPresenter.value) {
         broadcastSnapshot();
       }
-      // Persist analysis state on every render so refresh always restores correctly
-      if (analysisMode.value) {
-        saveAnalysis();
-      }
+      // Persist analysis tree on every render so branches survive refresh
+      saveAnalysis();
       // Update nav state signal so Preact re-renders the controls
       navState.value = {
         atStart: engine.is_at_start(),
@@ -470,12 +457,19 @@ export function liveGame(
     if (settledTerritory.value) {
       board.value.markSettled(settledTerritory.value.dead_stones);
     }
-    // Auto-restore analysis from localStorage.
+    // Always restore the saved tree so analysis branches persist across refreshes.
     const saved = storage.getJson<{
       tree: string;
       nodeId: number;
       active?: boolean;
     }>(analysisKey);
+    if (saved) {
+      // Restore the full tree (with branches) into the engine
+      board.value.engine.replace_tree(saved.tree);
+      if (moves.value.length > 0) {
+        board.value.engine.merge_base_moves(JSON.stringify(moves.value));
+      }
+    }
     if (saved?.active) {
       // Page was refreshed while in analysis — restore exact position
       enterAnalysis();
@@ -512,9 +506,7 @@ export function liveGame(
     pendingMove: mc,
     notificationState,
     onNewMove: () => {
-      if (analysisMode.value) {
-        exitAnalysis();
-      } else if (estimateMode.value) {
+      if (estimateMode.value) {
         doExitEstimate();
       }
     },
@@ -522,7 +514,7 @@ export function liveGame(
       if (isPresenter.value) {
         mc.clear();
         toPresentation("presenter");
-        restoreAnalysis();
+        restoreAnalysisPosition();
         board.value?.setMoveTreeEl(moveTreeEl);
       } else {
         // Clean up any active mode before syncing with presentation
@@ -597,7 +589,7 @@ export function liveGame(
         toPresentation("presenter");
         if (!wasAnalysis) {
           mc.clear();
-          restoreAnalysis();
+          restoreAnalysisPosition();
           board.value?.setMoveTreeEl(moveTreeEl);
         }
       } else {
