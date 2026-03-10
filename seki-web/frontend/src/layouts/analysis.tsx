@@ -15,6 +15,7 @@ import {
   handleMoveConfirmClick,
   dismissMoveConfirmOnClickOutside,
 } from "../utils/move-confirm";
+import { todayYYYYMMDD } from "../utils/format";
 import { readFileAsText, downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
 import type { Sign } from "../goban/types";
@@ -213,11 +214,14 @@ export function initAnalysis(root: HTMLElement) {
       overtime: analysisMeta.value?.overtime,
     };
     const sgf = board.engine.export_sgf(JSON.stringify(meta));
-    const filename =
-      analysisMeta.value?.game_name ??
-      (analysisMeta.value?.black_name && analysisMeta.value?.white_name
-        ? `${analysisMeta.value.black_name}-vs-${analysisMeta.value.white_name}`
-        : "analysis");
+    const date = todayYYYYMMDD();
+    const hasNames =
+      analysisMeta.value?.black_name && analysisMeta.value?.white_name;
+    const filename = analysisMeta.value?.game_name
+      ? `${date}-${analysisMeta.value.game_name}`
+      : hasNames
+        ? `${date}-${analysisMeta.value!.black_name}-vs-${analysisMeta.value!.white_name}`
+        : "analysis";
     downloadSgf(sgf, `${filename}.sgf`);
   }
 

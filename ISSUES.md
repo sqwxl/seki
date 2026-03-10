@@ -5,7 +5,6 @@
 ## 1. Auth & Sessions
 
 - [ ] Logout should redirect to the initiating page, just like login `[test: backend:integration]`
-- [ ] Token currently shown in clear on settings page — potential security issue
 
 ## 2. Game Creation
 
@@ -13,12 +12,7 @@
 
 - [ ] Timer should not appear to skip a second when starting periods (should round up) `[test: frontend:unit]`
 - [ ] Restored time control choice in game form should correctly set radio input (shows time settings but "None" is selected)
-- [x] **Bug:** On mobile, hitting the "next field" button on the keyboard in the new game form must advance to the next field instead of submitting the form
 - [ ] Timer format must switch to seconds.millis when t < 10s `[test: frontend:unit]`
-
-### Visibility
-
-- [x] Private games are indicated as such using the private icon in game lists.
 
 ### Invitations
 
@@ -28,7 +22,6 @@
 
 - [ ] Pending outgoing challenges must appear in Challenges section for both challenger and challengee. `[test: e2e:ws]`
 - [ ] Games list order must be always be the same (ie, live updates insert in the right place) `[test: e2e:ws]`)
-- [x] Aborted/Declined games should use strikeout style in game lists
 - [ ] Lobby/Game info popovers must include the following items (can include more depending on context):
   - Board dimensions
   - Komi
@@ -58,18 +51,12 @@
 
 ## 8. Resigning
 
-- [ ] System chat message "Game over. {result}" must be broadcast on resign `[test: e2e:ws]`
-
 ## 9. Aborting
-
-- [x] "Game aborted" system chat message must include username ("Game aborted by $user") `[test: e2e:ws]`
 
 ## 10. Undo / Takeback
 
 ### Requesting
 
-- [x] Undo button must be disabled with "Request pending" tooltip while an outgoing undo request is awaiting response `[test: frontend:unit]`
-- [x] Undo button must not be rendered on finished games `[test: frontend:unit]`
 - [ ] Pending undo request (both requester and responder UI) must be dismissed when the game ends (resign, timeout, territory settle) `[test: e2e:ws]`
 - [ ] Pending undo request must be dismissed when a move is played via API while a request is in flight `[test: e2e:ws]`
 - [ ] Server must reject undo responses (`respond_to_undo`) if the game is already over `[test: e2e:ws]`
@@ -91,10 +78,7 @@
 
 - [ ] Territory accept button must use the same component and appearance as the move confirm button `[test: frontend:unit]`
 - [ ] Game status component must show contextual territory phase messages: "Territory review; select dead stones; accept when ready" and "Opponent accepted. {secs}s" `[test: frontend:unit]`
-- [x] **Bug:** Territory overlay sometimes disappears after game is settled (returns on refresh) `[test: frontend:unit]`
 - [ ] System message must read: "Territory will be auto-confirmed in $TIME" `[test: e2e:ws]`
-- [x] **Bug:** Territory terminator node should only appear once (current bug exists where an extra terminator node is appended to the active node after initial game load)
-- [x] **Bug:** Territory node must not count towards move count (component should show previous node's turn count) `[test: frontend:unit]`
 
 ### Scoring
 
@@ -128,11 +112,6 @@
 ## 13. Chat
 
 ## 14. Move Navigation
-
-### Keyboard
-
-- [x] Up arrow must jump to start (empty board) `[test: frontend:unit]`
-- [x] Down arrow must jump to last node in branch`[test: frontend:unit]`
 
 ### Button Controls
 
@@ -168,8 +147,6 @@
 - [ ] Unsupported board sizes must be rejected (untested) `[test: backend:unit, frontend:unit]`
 
 ### SGF Export
-
-- [ ] Filename must be: "{YYYYMMDD}-{Black}-vs-{White}.sgf" live for games or analysis board with set player names; "analysis.sgf" for standalone without set names `[test: frontend:unit]`
 
 ## 16. Presentation Mode (Post-Game)
 

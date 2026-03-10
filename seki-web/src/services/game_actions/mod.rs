@@ -332,6 +332,11 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
 
     broadcast_game_state(state, &gwp, &engine).await;
 
+    if let Some(result) = engine.result() {
+        let move_number = Some(engine.moves().len() as i32);
+        broadcast_system_chat(state, game_id, &format!("Game over. {result}"), move_number).await;
+    }
+
     Ok(engine)
 }
 

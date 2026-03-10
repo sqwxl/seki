@@ -12,7 +12,7 @@ import {
   dismissMoveConfirmOnClickOutside,
 } from "../utils/move-confirm";
 import { storage, gameAnalysisKey } from "../utils/storage";
-import { settingsToSgfTime } from "../utils/format";
+import { settingsToSgfTime, todayYYYYMMDD } from "../utils/format";
 import { joinGame, subscribe, subscribePresence } from "../ws";
 import { createGameChannel } from "../game/channel";
 import { updateTurnFlash, stopFlashing, updateTitle } from "../game/ui";
@@ -273,7 +273,7 @@ export function liveGame(
     const sgf = board.value.engine.export_sgf(JSON.stringify(meta));
     const bName = black.value?.display_name ?? "Black";
     const wName = white.value?.display_name ?? "White";
-    downloadSgf(sgf, `${bName}-vs-${wName}.sgf`);
+    downloadSgf(sgf, `${todayYYYYMMDD()}-${bName}-vs-${wName}.sgf`);
   }
 
   // --- Vertex click handler ---

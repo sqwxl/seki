@@ -46,10 +46,13 @@
                 </p>
                 <form action="/settings/token" method="post" class="inline-form">
                     {% if let Some(token) = api_token %}
-                        <input type="text"
+                        <input id="api-token"
+                               type="password"
                                value="{{ token }}"
                                readonly
                                style="font-family:monospace">
+                        <button type="button"
+                                onclick="const i=document.getElementById('api-token');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'Show':'Hide'">Show</button>
                         <button type="submit">Regenerate Token</button>
                     {% else %}
                         <button type="submit">Generate Token</button>
