@@ -4,7 +4,7 @@
 
 ## 1. Auth & Sessions
 
-- [ ] Logout should redirect to the initiating page, just like login `[test: backend:integration]`
+- [x] Logout should redirect to the initiating page, just like login `[test: backend:integration]`
 
 ## 2. Game Creation
 
@@ -59,7 +59,7 @@
 
 - [ ] Pending undo request (both requester and responder UI) must be dismissed when the game ends (resign, timeout, territory settle) `[test: e2e:ws]`
 - [ ] Pending undo request must be dismissed when a move is played via API while a request is in flight `[test: e2e:ws]`
-- [ ] Server must reject undo responses (`respond_to_undo`) if the game is already over `[test: e2e:ws]`
+- [x] Server must reject undo responses (`respond_to_undo`) if the game is already over `[test: e2e:ws]`
 
 ### Responding
 

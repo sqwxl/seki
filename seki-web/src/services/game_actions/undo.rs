@@ -95,6 +95,12 @@ pub async fn respond_to_undo(
 ) -> Result<(), AppError> {
     let mut gwp = load_game_and_check_player(state, game_id, player_id).await?;
 
+    if gwp.game.result.is_some() {
+        return Err(AppError::UnprocessableEntity(
+            "The game is over".to_string(),
+        ));
+    }
+
     if !state.registry.is_undo_requested(game_id).await {
         return Err(AppError::UnprocessableEntity(
             "No pending undo request".to_string(),

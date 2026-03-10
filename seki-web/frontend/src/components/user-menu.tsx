@@ -125,9 +125,9 @@ function UserMenu() {
                 type="button"
                 class="nav-dropdown-item"
                 onClick={() => {
-                  fetch("/logout", { method: "POST" }).then(() =>
-                    location.replace("/"),
-                  );
+                  fetch("/logout", { method: "POST" }).then(() => {
+                    location.reload();
+                  });
                 }}
               >
                 <IconLogout /> Log out
