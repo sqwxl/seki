@@ -71,7 +71,6 @@
 
 ### Territory Approval
 
-- Territory accept button must use the same component and appearance as the move confirm button `[test: frontend:unit]`
 - Game status component must show contextual territory phase messages: "Territory review; select dead stones; accept when ready" and "Opponent accepted. {secs}s" `[test: frontend:unit]`
 - System message must read: "Territory will be auto-confirmed in $TIME" `[test: e2e:ws]`
 
@@ -128,7 +127,6 @@
 ### Score Estimator
 
 - Exit estimate must return to normal board view `[test: e2e]`
-- Clicking "Accept" must end branch with final territory node (like accepting after double-pass)
 - Clicking "Estimate score" button on a node which precedes an accepted estimate/territory simply moves to that node (bypass review flow)
 
 ### SGF Import

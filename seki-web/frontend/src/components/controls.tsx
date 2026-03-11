@@ -52,7 +52,7 @@ export type ControlsProps = {
 
   abort?: ConfirmDef & { disabled?: boolean };
   claimVictory?: ConfirmDef & { disabled?: boolean };
-  acceptTerritory?: ConfirmDef & { disabled?: boolean };
+  acceptTerritory?: ButtonDef;
   acceptChallenge?: ButtonDef;
   declineChallenge?: ConfirmDef & { disabled?: boolean };
   rematch?: { onConfirm: (swapColors: boolean) => void; disabled?: boolean };
@@ -314,15 +314,6 @@ export function GameControls(props: ControlsProps) {
           confirm={props.resign}
         />
       )}
-      {props.acceptTerritory && (
-        <ConfirmButton
-          id="accept-territory-btn"
-          icon={() => <>Accept</>}
-          title="Accept territory"
-          disabled={props.acceptTerritory.disabled}
-          confirm={props.acceptTerritory}
-        />
-      )}
       {props.rematch && (
         <ConfirmButton
           id="rematch-btn"
@@ -360,12 +351,16 @@ export function GameControls(props: ControlsProps) {
 
 export function NavControls({
   nav,
-  confirmMove,
+  counterOverride,
 }: {
   nav: ControlsProps["nav"];
-  confirmMove?: ButtonDef;
+  counterOverride?: {
+    onClick: () => void;
+    disabled?: boolean;
+    title?: string;
+    content: preact.ComponentChildren;
+  };
 }) {
-  const confirming = !!confirmMove;
   return (
     <div class="controls-nav">
       <button
@@ -384,15 +379,19 @@ export function NavControls({
       </button>
       <button
         class={
-          confirming ? "controls-counter controls-confirm" : "controls-counter"
+          counterOverride
+            ? "controls-counter controls-confirm"
+            : "controls-counter"
         }
-        title={confirming ? "Confirm move" : "Go to end of main line"}
-        disabled={confirming ? confirmMove.disabled : nav.atMainEnd}
+        title={counterOverride?.title ?? "Go to end of main line"}
+        disabled={counterOverride ? counterOverride.disabled : nav.atMainEnd}
         onClick={
-          confirming ? confirmMove.onClick : () => nav.onNavigate("main-end")
+          counterOverride
+            ? counterOverride.onClick
+            : () => nav.onNavigate("main-end")
         }
       >
-        {confirming ? <IconCheck /> : nav.counter}
+        {counterOverride ? counterOverride.content : nav.counter}
       </button>
       <button
         title="Forward"

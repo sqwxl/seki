@@ -146,8 +146,11 @@ function buildControls(
   // --- Territory accept ---
   if (caps.canAcceptTerritory) {
     controlsProps.acceptTerritory = {
-      message: "Accept territory?",
-      onConfirm: () => channel.approveTerritory(),
+      onClick: () => channel.approveTerritory(),
+    };
+  } else if (caps.canFinalizeTerritory) {
+    controlsProps.acceptTerritory = {
+      onClick: () => board.value?.finalizeTerritoryReview(),
     };
   }
 
