@@ -48,6 +48,8 @@ import {
   initialProps as initialPropsSignal,
   estimateScore,
   boardFinalized,
+  boardFinalizedScore,
+  boardReviewing,
   showCoordinates,
   moveConfirmEnabled,
   presentationActive,
@@ -401,6 +403,10 @@ export function liveGame(
     onPass: playPassSound,
     onRender: (engine, territoryInfo) => {
       boardFinalized.value = territoryInfo.finalized;
+      boardFinalizedScore.value = territoryInfo.finalized
+        ? territoryInfo.score
+        : undefined;
+      boardReviewing.value = territoryInfo.reviewing;
       // Auto-exit estimate when territory review gets cleared (e.g. by navigation)
       if (estimateMode.value && !territoryInfo.reviewing) {
         phaseExitEstimate();

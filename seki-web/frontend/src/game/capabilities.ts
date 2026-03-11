@@ -1,6 +1,7 @@
 import { computed } from "@preact/signals";
 import type { PlayerPanelProps } from "../components/player-panel";
 import { getStatusText } from "../components/game-status";
+import { formatResult } from "../utils/format";
 import type { TerritoryOverlay } from "../goban/create-board";
 import type { Point } from "../goban/types";
 import { GameStage, isPlayStage } from "./types";
@@ -28,6 +29,8 @@ import {
   opponentDisconnected,
   estimateScore,
   boardFinalized,
+  boardFinalizedScore,
+  boardReviewing,
   showMoveTree,
   moveConfirmEnabled,
   navState,
@@ -53,6 +56,7 @@ export type UiCapabilities = {
   showResign: boolean;
   canAbort: boolean;
   canAcceptTerritory: boolean;
+  canFinalizeTerritory: boolean;
   canToggleDeadStones: boolean;
 
   // Lobby / lifecycle
@@ -358,6 +362,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
       (stone === 1 && terr?.black_approved) ||
       (stone === -1 && terr?.white_approved)
     );
+  const canFinalizeTerritory = inEstimate && boardReviewing.value;
   const canToggleDeadStones = isReview && isPlayer;
 
   // --- Lobby / lifecycle ---
@@ -503,7 +508,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const score =
     estimateScore.value ??
     terr?.score ??
-    (onFinalized ? settled?.score : undefined);
+    (onFinalized ? (boardFinalizedScore.value ?? settled?.score) : undefined);
 
   const panelOpts = {
     stone,
@@ -553,7 +558,11 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const statusText =
     getStatusText({
       stage,
-      result: onFinalized ? (res ?? undefined) : undefined,
+      result: onFinalized
+        ? boardFinalizedScore.value
+          ? formatResult(boardFinalizedScore.value, props.komi)
+          : (res ?? undefined)
+        : undefined,
       komi: props.komi,
       estimateScore: inEstimate ? estimateScore.value : undefined,
       territoryScore: terr?.score,
@@ -596,6 +605,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     showResign,
     canAbort,
     canAcceptTerritory,
+    canFinalizeTerritory,
     canToggleDeadStones,
 
     canJoinGame,
