@@ -361,7 +361,7 @@ export function GameSettingsForm({
           <label>
             <input
               type="radio"
-              name="time_control"
+              name="_time_control"
               value="none"
               checked={tcActive("none")}
               onChange={() => set("timeControl", "none")}
@@ -371,7 +371,7 @@ export function GameSettingsForm({
           <label>
             <input
               type="radio"
-              name="time_control"
+              name="_time_control"
               value="fischer"
               checked={tcActive("fischer")}
               onChange={() => set("timeControl", "fischer")}
@@ -381,7 +381,7 @@ export function GameSettingsForm({
           <label>
             <input
               type="radio"
-              name="time_control"
+              name="_time_control"
               value="byoyomi"
               checked={tcActive("byoyomi")}
               onChange={() => set("timeControl", "byoyomi")}
@@ -391,7 +391,7 @@ export function GameSettingsForm({
           <label>
             <input
               type="radio"
-              name="time_control"
+              name="_time_control"
               value="correspondence"
               checked={tcActive("correspondence")}
               onChange={() => set("timeControl", "correspondence")}
@@ -399,6 +399,7 @@ export function GameSettingsForm({
             Correspondence
           </label>
         </div>
+        <input type="hidden" name="time_control" value={s.timeControl} />
         <div
           id="tc-fischer"
           style={{ display: tcActive("fischer") ? "" : "none" }}

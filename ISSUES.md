@@ -8,7 +8,6 @@
 
 ### Time Control
 
-- Restored time control choice in game form should correctly set radio input (shows time settings but "None" is selected)
 
 ### Invitations
 
