@@ -65,7 +65,6 @@
 ### Territory Approval
 
 - Game status component must show contextual territory phase messages: "Territory review; select dead stones; accept when ready" and "Opponent accepted. {secs}s" `[test: frontend:unit]`
-- System message must read: "Territory will be auto-confirmed in $TIME" `[test: e2e:ws]`
 
 ### Scoring
 
@@ -92,7 +91,6 @@
 ### Edge Cases
 
 - Very fast moves: increment must still be applied correctly (not tested) `[test: backend:unit]`
-- `timeoutFlagSent` race with reconnect: `syncClock` resets the flag unconditionally, so a near-simultaneous `state_sync` after sending a timeout flag could cause a duplicate `timeout_flag`; server handler must be idempotent `[test: e2e:ws]`
 - Silent clock fallback on cache miss: if `ClockState::from_game` finds NULL clock columns on a timed game, it falls back to `ClockState::new`, silently resetting the clock `[test: backend:unit]`
 
 ## 13. Chat
