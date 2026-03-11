@@ -11,7 +11,6 @@
 
 ### Invitations
 
-- Private games must be accessible to anyone with the invite link (token) (currently blocks anyone after player slots filled with 'Game is already full' error) `[test: backend:integration]`
 
 ## 3. Game Lobby / Games List
 
