@@ -135,9 +135,14 @@ pub async fn settle_territory(
     .execute(&mut *tx)
     .await?;
 
-    Game::set_ended(&mut *tx, game_id, &result, "completed").await?;
+    let ended = Game::set_ended(&mut *tx, game_id, &result, "completed").await?;
 
     tx.commit().await?;
+
+    if !ended {
+        // Another caller already settled this game — skip duplicate broadcasts.
+        return Ok(());
+    }
 
     // Non-transactional post-actions
     state

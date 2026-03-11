@@ -152,6 +152,8 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
   useEffect(() => {
     const el = contentRef.current;
     if (!el || !crosshairActive) {
+      touchTargetRef.current = null;
+      setTouchTarget(null);
       return;
     }
 

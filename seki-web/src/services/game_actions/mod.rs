@@ -313,19 +313,25 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
             return Err(AppError::Internal(e.to_string()));
         }
 
-        if let Some(result) = engine.result() {
-            Game::set_ended(&mut *tx, game_id, result, "completed").await?;
-        }
+        let ended = if let Some(result) = engine.result() {
+            Game::set_ended(&mut *tx, game_id, result, "completed").await?
+        } else {
+            false
+        };
 
         tx.commit().await?;
 
-        gwp.game.result = engine.result().map(String::from);
-        gwp.game.stage = "completed".to_string();
+        if ended {
+            gwp.game.result = engine.result().map(String::from);
+            gwp.game.stage = "completed".to_string();
+        }
     }
 
     broadcast_game_state(state, &gwp, &engine).await;
 
-    if let Some(result) = engine.result() {
+    if gwp.game.result.is_some()
+        && let Some(result) = engine.result()
+    {
         let move_number = Some(engine.moves().len() as i32);
         broadcast_system_chat(state, game_id, &format!("Game over. {result}"), move_number).await;
     }
@@ -656,9 +662,14 @@ pub async fn end_game_on_time(
 
     // Persist all DB writes in a transaction
     let mut tx = state.db.begin().await?;
-    Game::set_ended(&mut *tx, game_id, result, "completed").await?;
+    let ended = Game::set_ended(&mut *tx, game_id, result, "completed").await?;
     persist_clock(state, &mut *tx, game_id, &clock, tc, None).await?;
     tx.commit().await?;
+
+    if !ended {
+        // Another caller already ended this game — skip duplicate broadcasts.
+        return Ok(());
+    }
 
     // Non-transactional post-actions
     let _ = state

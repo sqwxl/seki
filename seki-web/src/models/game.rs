@@ -366,21 +366,25 @@ impl Game {
         Ok(())
     }
 
+    /// Sets the game result and stage. Returns `true` if the row was updated
+    /// (i.e. the game hadn't already ended). Callers should skip post-actions
+    /// when this returns `false` to avoid duplicate broadcasts.
     pub async fn set_ended(
         executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
         result: &str,
         stage: &str,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "UPDATE games SET ended_at = NOW(), result = $1, stage = $2, updated_at = NOW() WHERE id = $3",
+    ) -> Result<bool, sqlx::Error> {
+        let res = sqlx::query(
+            "UPDATE games SET ended_at = NOW(), result = $1, stage = $2, updated_at = NOW() \
+             WHERE id = $3 AND result IS NULL",
         )
         .bind(result)
         .bind(stage)
         .bind(game_id)
         .execute(executor)
         .await?;
-        Ok(())
+        Ok(res.rows_affected() > 0)
     }
 
     pub async fn update_cached_engine_state(

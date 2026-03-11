@@ -36,7 +36,6 @@
 
 ## 6. Playing Moves
 
-- **Bug:** Crosshairs cursor must not remain visible after playing a move (possibly stale hover state) `[test: frontend:unit]`
 
 ### Move Confirmation Mode
 
@@ -64,7 +63,7 @@
 
 ### Entry
 
-- **Bug:** Client must not be able to trigger a new territory review on a finished game by clicking the move count button `[test: e2e:ws]`
+- **Bug:** Client must not be able to trigger a new territory review on a finished game by clicking the move count button `[test: e2e:ws]` <!-- possibly stale: server already guards against this, frontend state needs verification -->
 - Frontend must disable move input during territory review `[test: e2e:ws]`
 
 ### Dead Stone Toggling
@@ -77,7 +76,6 @@
 ### Scoring
 
 - Dead stones counted as captures for opponent (not verified) `[test: backend:unit]`
-- System chat message ("Game over. {result}") must be broadcast only once per game (currently duplicated) `[test: e2e:ws]`
 
 ## 12. Clock / Timer
 
