@@ -52,7 +52,6 @@
 
 ### Requesting
 
-- Pending undo request (both requester and responder UI) must be dismissed when the game ends (resign, timeout, territory settle) `[test: e2e:ws]`
 - Pending undo request must be dismissed when a move is played via API while a request is in flight `[test: e2e:ws]`
 
 ### Responding

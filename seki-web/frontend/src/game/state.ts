@@ -205,8 +205,11 @@ export function applyGameStateMessage(data: StateMessage): void {
     gameStage.value = data.stage;
     currentTurn.value = data.current_turn_stone;
     moves.value = data.moves ?? [];
-    // Server undo_rejected resets per-move; sync local undo state
-    if (data.undo_rejected) {
+    // Server undo_rejected resets per-move; sync local undo state.
+    // Always dismiss on game end so the popover doesn't linger.
+    if (data.result) {
+      undoRequest.value = "none";
+    } else if (data.undo_rejected) {
       undoRequest.value = "rejected";
     } else if (undoRequest.value !== "received") {
       undoRequest.value = "none";
