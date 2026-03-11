@@ -51,7 +51,6 @@
 
 ### Requesting
 
-- Pending undo request must be dismissed when a move is played via API while a request is in flight `[test: e2e:ws]`
 
 ### Responding
 
@@ -62,7 +61,6 @@
 ### Entry
 
 - **Bug:** Client must not be able to trigger a new territory review on a finished game by clicking the move count button `[test: e2e:ws]` <!-- possibly stale: server already guards against this, frontend state needs verification -->
-- Frontend must disable move input during territory review `[test: e2e:ws]`
 
 ### Dead Stone Toggling
 

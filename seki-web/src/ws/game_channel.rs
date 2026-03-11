@@ -81,7 +81,10 @@ pub async fn send_initial_state(
             None => {
                 // Load from game row on first connect
                 ClockState::from_game(&gwp.game).unwrap_or_else(|| {
-                    // Shouldn't happen, but fallback to fresh
+                    tracing::warn!(
+                        game_id,
+                        "Clock columns NULL on timed game — resetting to fresh clock"
+                    );
                     ClockState::new(&tc).unwrap()
                 })
             }
