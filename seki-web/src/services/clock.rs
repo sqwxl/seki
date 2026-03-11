@@ -707,6 +707,44 @@ mod tests {
         assert_eq!(t.flag_grace_ms(), t.quota_ms);
     }
 
+    // -- process_move / deduct --
+
+    #[test]
+    fn fischer_increment_applied_on_fast_move() {
+        let tc = TimeControl::Fischer {
+            main_time_secs: 300,
+            increment_secs: 5,
+        };
+        let mut clock = ClockState::new(&tc).unwrap();
+        let start = Utc::now();
+
+        // Start the clock
+        clock.start(start);
+
+        // Black plays almost instantly (1ms)
+        let after_move = start + chrono::TimeDelta::milliseconds(1);
+        clock.process_move(Stone::Black, Some(Stone::Black), &tc, after_move);
+
+        // Should have gained nearly the full 5s increment
+        assert_eq!(clock.black_remaining_ms, 300_000 - 1 + 5_000);
+    }
+
+    #[test]
+    fn fischer_increment_applied_on_zero_elapsed() {
+        let tc = TimeControl::Fischer {
+            main_time_secs: 300,
+            increment_secs: 10,
+        };
+        let mut clock = ClockState::new(&tc).unwrap();
+        let now = Utc::now();
+        clock.start(now);
+
+        // Move at the exact same timestamp (0ms elapsed)
+        clock.process_move(Stone::Black, Some(Stone::Black), &tc, now);
+
+        assert_eq!(clock.black_remaining_ms, 300_000 + 10_000);
+    }
+
     // -- to_json includes server_now_ms --
 
     #[test]

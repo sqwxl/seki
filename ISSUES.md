@@ -88,7 +88,6 @@
 
 ### Edge Cases
 
-- Very fast moves: increment must still be applied correctly (not tested) `[test: backend:unit]`
 - Silent clock fallback on cache miss: if `ClockState::from_game` finds NULL clock columns on a timed game, it falls back to `ClockState::new`, silently resetting the clock `[test: backend:unit]`
 
 ## 13. Chat
