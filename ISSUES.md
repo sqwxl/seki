@@ -64,11 +64,9 @@
 
 ### Territory Approval
 
-- Game status component must show contextual territory phase messages: "Territory review; select dead stones; accept when ready" and "Opponent accepted. {secs}s" `[test: frontend:unit]`
 
 ### Scoring
 
-- Dead stones counted as captures for opponent (not verified) `[test: backend:unit]`
 
 ## 12. Clock / Timer
 

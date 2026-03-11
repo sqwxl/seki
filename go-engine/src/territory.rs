@@ -1593,4 +1593,24 @@ mod tests {
             }
         }
     }
+
+    // -- Scoring --
+
+    #[test]
+    fn dead_stones_counted_as_opponent_captures() {
+        // Black surrounds one dead White stone at (1,1)
+        let goban = goban_from_layout(&["BBB", "BWB", "BBB"]);
+        let mut dead = HashSet::new();
+        dead.insert((1u8, 1u8));
+
+        let ownership = estimate_territory(&goban, &dead);
+        let gs = score(&goban, &ownership, &dead, 6.5);
+
+        // Dead white stone should count as a Black capture
+        assert_eq!(gs.black.captures, 1, "dead W stone → Black capture");
+        assert_eq!(gs.white.captures, 0, "no dead B stones → 0 White captures");
+        // (1,1) is Black territory
+        assert_eq!(gs.black.territory, 1);
+        assert_eq!(gs.white.territory, 0);
+    }
 }
