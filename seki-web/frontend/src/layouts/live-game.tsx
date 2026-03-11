@@ -667,6 +667,17 @@ export function liveGame(
     },
   );
 
+  // --- Sync move confirmation toggle with mc state ---
+  effect(() => {
+    const enabled = moveConfirmEnabled.value;
+    mc.enabled = enabled;
+    if (!enabled && mc.value) {
+      mc.clear();
+      board.value?.render();
+      doRender();
+    }
+  });
+
   // --- Disconnect countdown timer ---
   // Re-render every second while grace period is active so the countdown updates
   effect(() => {

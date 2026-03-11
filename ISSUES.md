@@ -38,8 +38,6 @@
 
 ### Move Confirmation Mode
 
-- Toggling move confirmation from user menu must immediately enable/disable this feature.
-- Disabling move confirmation must dismiss any pending premove
 
 ## 7. Passing
 
@@ -125,8 +123,8 @@
 
 ### SGF Import
 
-- Non-square board SGF must be rejected with error (untested) `[test: backend:unit, frontend:unit]`
-- Unsupported board sizes must be rejected (untested) `[test: backend:unit, frontend:unit]`
+- Non-square board SGF must be rejected with error (frontend validates, backend untested) `[test: backend:unit]`
+- Unsupported board sizes must be rejected (frontend validates, backend untested) `[test: backend:unit]`
 
 ### SGF Export
 
