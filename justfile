@@ -1,7 +1,7 @@
 set shell := ["fish", "-c"]
 
 [parallel]
-dev: services wasm-hot server-hot frontend-hot
+run: services wasm-hot server-hot frontend-hot
 
 services:
     docker compose up -d db mailpit
