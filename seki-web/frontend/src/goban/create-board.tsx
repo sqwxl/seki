@@ -100,10 +100,12 @@ function renderFromEngine(
     }
   }
 
-  // On desktop, reset inline --col-width so we measure against the CSS default
-  const body = desktopMQ.matches
-    ? (gobanEl.closest(".game-page-body") as HTMLElement | null)
-    : null;
+  // Reset inline --col-width so we measure against the CSS default.
+  // On desktop the post-render code below sets it to the rendered board width;
+  // clearing it first lets the container shrink to the CSS-defined size.
+  // This is also needed when crossing from desktop → mobile: the stale inline
+  // pixel value would otherwise override the mobile CSS default.
+  const body = gobanEl.closest(".game-page-body") as HTMLElement | null;
   body?.style.removeProperty("--col-width");
 
   const vertexSize = computeVertexSize(gobanEl, cols, rows, showCoordinates);
@@ -127,8 +129,9 @@ function renderFromEngine(
     gobanEl,
   );
 
-  // Sync --col-width to the rendered board width
-  if (body) {
+  // Sync --col-width to the rendered board width (desktop only — on mobile
+  // the CSS default min(90vw, 70vh) handles sizing)
+  if (desktopMQ.matches && body) {
     const goban = gobanEl.querySelector(".goban") as HTMLElement | null;
     if (goban) {
       body.style.setProperty("--col-width", `${goban.offsetWidth}px`);
