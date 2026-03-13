@@ -266,6 +266,7 @@ export type Board = {
   pass: () => boolean;
   navigate: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string) => void;
+  setKomi: (komi: number) => void;
   setShowCoordinates: (show: boolean) => void;
   setMoveTreeEl: (el: HTMLElement | null) => void;
   enterTerritoryReview: () => void;
@@ -759,6 +760,10 @@ class BoardController implements Board {
 
     this.baseMoves = movesJson;
     this.baseMoveCount = newCount;
+  }
+
+  setKomi(komi: number): void {
+    this.komi = komi;
   }
 
   setShowCoordinates(show: boolean): void {

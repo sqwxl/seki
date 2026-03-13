@@ -136,7 +136,7 @@
   padding: 0 0.4em;
 }
 
-.size-select-group {
+.inline-control-group {
   display: inline-flex;
   align-items: center;
   gap: 0.25em;

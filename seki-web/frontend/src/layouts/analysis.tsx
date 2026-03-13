@@ -5,6 +5,7 @@ import { readShowCoordinates } from "../utils/coord-toggle";
 import {
   storage,
   ANALYSIS_SIZE,
+  ANALYSIS_KOMI,
   ANALYSIS_SGF_META,
   ANALYSIS_SGF_TEXT,
   analysisTreeKey,
@@ -21,6 +22,7 @@ import type { SgfMeta } from "../utils/sgf";
 import type { Sign } from "../goban/types";
 import {
   analysisBoard,
+  analysisKomi,
   analysisMeta,
   analysisSize,
   analysisTerritoryInfo,
@@ -30,7 +32,6 @@ import { mobileTab, showCoordinates } from "../game/state";
 import { AnalysisPage } from "./analysis-page";
 
 const VALID_SIZES = [9, 13, 19];
-const KOMI = 6.5;
 
 export function initAnalysis(root: HTMLElement) {
   const gobanRef = createRef<HTMLDivElement>();
@@ -45,6 +46,8 @@ export function initAnalysis(root: HTMLElement) {
     parsed = 19;
   }
   analysisSize.value = parsed;
+  const savedKomi = storage.get(ANALYSIS_KOMI);
+  analysisKomi.value = savedKomi != null ? parseFloat(savedKomi) : 6.5;
   analysisMeta.value = storage.getJson(ANALYSIS_SGF_META);
 
   let sgfText: string | undefined = storage.get(ANALYSIS_SGF_TEXT) ?? undefined;
@@ -60,6 +63,13 @@ export function initAnalysis(root: HTMLElement) {
     return mc.getGhostStone();
   }
 
+  // --- Komi change ---
+  function handleKomiChange(komi: number) {
+    analysisKomi.value = komi;
+    storage.set(ANALYSIS_KOMI, String(komi));
+    analysisBoard.value?.setKomi(komi);
+  }
+
   // --- Render ---
   function doRender() {
     render(
@@ -68,6 +78,7 @@ export function initAnalysis(root: HTMLElement) {
         mc={mc}
         moveTreeEl={moveTreeEl}
         onSizeChange={handleSizeChange}
+        onKomiChange={handleKomiChange}
         handleSgfImport={handleSgfImport}
         handleSgfExport={handleSgfExport}
       />,
@@ -102,7 +113,7 @@ export function initAnalysis(root: HTMLElement) {
       rows: size,
       showCoordinates: showCoordinates.value,
       gobanEl: gobanRef.current!,
-      komi: KOMI,
+      komi: analysisKomi.value,
       moveTreeEl,
       moveTreeDirection: "responsive",
       storageKey: analysisTreeKey(size),
@@ -209,7 +220,7 @@ export function initAnalysis(root: HTMLElement) {
     const meta: SgfMeta = {
       cols: analysisSize.value,
       rows: analysisSize.value,
-      komi: analysisMeta.value?.komi ?? KOMI,
+      komi: analysisMeta.value?.komi ?? analysisKomi.value,
       handicap: analysisMeta.value?.handicap,
       black_name: analysisMeta.value?.black_name,
       white_name: analysisMeta.value?.white_name,

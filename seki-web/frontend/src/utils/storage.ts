@@ -4,6 +4,7 @@
 
 // Analysis page
 export const ANALYSIS_SIZE = "seki:analysis:size";
+export const ANALYSIS_KOMI = "seki:analysis:komi";
 export const ANALYSIS_SGF_META = "seki:analysis:sgf_meta";
 export const ANALYSIS_SGF_TEXT = "seki:analysis:sgf_text";
 

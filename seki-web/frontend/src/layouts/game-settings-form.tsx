@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { storage, GAME_SETTINGS } from "../utils/storage";
 import {
-  IconBalance,
+  IconKomi,
   IconNigiri,
   IconGrid4x4,
   IconUndo,
@@ -247,7 +247,7 @@ export function GameSettingsForm({
         </div>
         <div>
           <label for="komi">
-            <IconBalance /> Komi
+            <IconKomi /> Komi
           </label>
           <input
             type="number"

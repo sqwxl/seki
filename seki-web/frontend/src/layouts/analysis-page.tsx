@@ -17,12 +17,11 @@ import type { AnalysisCapabilities } from "../game/capabilities";
 import { analysisCapabilities, buildPlayerPanels } from "../game/capabilities";
 import {
   analysisBoard,
+  analysisKomi,
   analysisMeta,
   analysisSize,
   analysisTerritoryInfo,
 } from "./analysis-state";
-
-const KOMI = 6.5;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -105,7 +104,7 @@ function buildAnalysisPlayerPanel({
   }
 
   const panels = buildPlayerPanels({
-    komi: KOMI,
+    komi: analysisKomi.value,
     captures: {
       black: engine.captures_black(),
       white: engine.captures_white(),
@@ -138,7 +137,8 @@ function buildAnalysisControls(
   caps: AnalysisCapabilities,
   props: AnalysisPageProps,
 ): ControlsProps {
-  const { mc, onSizeChange, handleSgfImport, handleSgfExport } = props;
+  const { mc, onSizeChange, onKomiChange, handleSgfImport, handleSgfExport } =
+    props;
   const board = analysisBoard.value;
 
   const controlsProps: ControlsProps = {
@@ -151,6 +151,10 @@ function buildAnalysisControls(
       value: analysisSize.value,
       options: [9, 13, 19],
       onChange: onSizeChange,
+    },
+    komiSelect: {
+      value: analysisKomi.value,
+      onChange: onKomiChange,
     },
   };
 
@@ -212,6 +216,7 @@ export type AnalysisPageProps = {
   mc: MoveConfirmState;
   moveTreeEl: HTMLElement;
   onSizeChange: (size: number) => void;
+  onKomiChange: (komi: number) => void;
   handleSgfImport: (input: HTMLInputElement) => void;
   handleSgfExport: () => void;
 };

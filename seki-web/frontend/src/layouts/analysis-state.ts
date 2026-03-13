@@ -5,6 +5,7 @@ import type { SgfMeta } from "../utils/sgf";
 export const analysisBoard = signal<Board | undefined>(undefined);
 export const analysisMeta = signal<SgfMeta | undefined>(undefined);
 export const analysisSize = signal(19);
+export const analysisKomi = signal(6.5);
 export const analysisTerritoryInfo = signal<TerritoryInfo>({
   reviewing: false,
   finalized: false,

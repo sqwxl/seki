@@ -10,6 +10,7 @@ import { clockDisplay } from "./clock";
 import { gamePhase } from "./phase";
 import type { GamePhase } from "./phase";
 import {
+  analysisKomi,
   analysisTerritoryInfo,
   analysisNavState,
 } from "../layouts/analysis-state";
@@ -702,8 +703,6 @@ export type AnalysisCapabilities = {
   statusText: string;
 };
 
-const ANALYSIS_KOMI = 6.5;
-
 export const analysisCapabilities = computed((): AnalysisCapabilities => {
   const { reviewing, finalized, score } = analysisTerritoryInfo.value;
   const nav = analysisNavState.value;
@@ -717,8 +716,9 @@ export const analysisCapabilities = computed((): AnalysisCapabilities => {
         : isBlackTurn
           ? GameStage.BlackToPlay
           : GameStage.WhiteToPlay,
-      komi: ANALYSIS_KOMI,
-      territoryScore: reviewing || finalized ? score : undefined,
+      komi: analysisKomi.value,
+      estimateScore: finalized ? score : undefined,
+      territoryScore: reviewing ? score : undefined,
       lastMoveWasPass: nav.boardLastMoveWasPass,
       isBlackTurn,
     }) ?? "";

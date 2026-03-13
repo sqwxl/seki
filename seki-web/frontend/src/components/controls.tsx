@@ -19,6 +19,7 @@ import {
   IconStonesBw,
   IconCancel,
   IconGrid4x4,
+  IconKomi,
 } from "./icons";
 
 type ButtonDef = {
@@ -66,6 +67,11 @@ export type ControlsProps = {
     value: number;
     options: number[];
     onChange: (size: number) => void;
+  };
+
+  komiSelect?: {
+    value: number;
+    onChange: (komi: number) => void;
   };
 
   territoryReady?: ButtonDef;
@@ -235,32 +241,6 @@ function CopyInviteLinkButton({ onClick }: { onClick: () => void }) {
     >
       Invite
     </button>
-  );
-}
-
-function SizeSelect({
-  value,
-  options,
-  onChange,
-}: {
-  value: number;
-  options: number[];
-  onChange: (size: number) => void;
-}) {
-  return (
-    <select
-      title="Board size"
-      value={String(value)}
-      onChange={(e) =>
-        onChange(parseInt((e.target as HTMLSelectElement).value, 10))
-      }
-    >
-      {options.map((s) => (
-        <option key={s} value={String(s)}>
-          {s}×{s}
-        </option>
-      ))}
-    </select>
   );
 }
 
@@ -490,9 +470,39 @@ export function UIControls(
         </button>
       )}
       {props.sizeSelect && (
-        <span class="size-select-group">
+        <span class="inline-control-group">
           <IconGrid4x4 title="Board size" />
-          <SizeSelect {...props.sizeSelect} />
+          <select
+            title="Board size"
+            value={String(props.sizeSelect.value)}
+            onChange={(e) =>
+              props.sizeSelect!.onChange(
+                parseInt((e.target as HTMLSelectElement).value, 10),
+              )
+            }
+          >
+            {props.sizeSelect.options.map((s) => (
+              <option key={s} value={String(s)}>
+                {s}×{s}
+              </option>
+            ))}
+          </select>
+        </span>
+      )}
+      {props.komiSelect && (
+        <span class="inline-control-group">
+          <IconKomi title="Komi" />
+          <input
+            type="number"
+            title="Komi"
+            value={props.komiSelect.value}
+            step={0.5}
+            min={-100.5}
+            max={100.5}
+            onChange={(e) =>
+              props.komiSelect!.onChange(parseFloat(e.currentTarget.value) || 0)
+            }
+          />
         </span>
       )}
     </>
