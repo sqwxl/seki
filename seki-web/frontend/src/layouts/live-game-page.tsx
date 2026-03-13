@@ -112,8 +112,8 @@ function buildControls(
     };
   }
 
-  // --- Undo response (ephemeral — read from signal) ---
-  if (undoRequest.value === "received") {
+  // --- Undo response ---
+  if (caps.showUndoResponse) {
     controlsProps.undoResponse = {
       onAccept: () => {
         undoRequest.value = "none";
@@ -229,10 +229,10 @@ function buildControls(
     controlsProps.analyze = { onClick: () => {} };
   } else if (caps.canEnterPresentation) {
     controlsProps.analyze = { onClick: props.enterPresentation };
-  } else if (caps.canEnterAnalysis) {
+  } else if (caps.showAnalysis) {
     controlsProps.analyze = {
       onClick: props.enterAnalysis,
-      disabled: caps.canExitEstimate,
+      disabled: !caps.canEnterAnalysis,
     };
   }
 

@@ -9,7 +9,10 @@ import type { TerritoryData, SettledTerritoryData, UserData } from "./types";
 import { clockDisplay } from "./clock";
 import { gamePhase } from "./phase";
 import type { GamePhase } from "./phase";
-import { analysisTerritoryInfo } from "../layouts/analysis-state";
+import {
+  analysisTerritoryInfo,
+  analysisNavState,
+} from "../layouts/analysis-state";
 import {
   gameState,
   gameStage,
@@ -72,6 +75,7 @@ export type UiCapabilities = {
 
   // Mode transitions
   canEnterAnalysis: boolean;
+  showAnalysis: boolean;
   canExitAnalysis: boolean;
   canEnterEstimate: boolean;
   showEnterEstimate: boolean;
@@ -83,6 +87,9 @@ export type UiCapabilities = {
   // Navigation
   canNavigate: boolean;
   showMoveConfirmToggle: boolean;
+
+  // Undo response
+  showUndoResponse: boolean;
 
   // Contextual metadata
   undoTooltip: string;
@@ -308,7 +315,8 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const canPass = isPlayer && isPlay && isMyTurn && !inEstimate && !inAnalysis;
   const passIsAnalysisPass = inAnalysis && !inEstimate;
   const showPass =
-    (isPlayer && (isPlay || isChallenge) && !inEstimate) || passIsAnalysisPass;
+    (isPlayer && (isPlay || isChallenge) && !estimateFromAnalysis) ||
+    passIsAnalysisPass;
   const confirmPassRequired = canPass && !inAnalysis;
 
   // Undo
@@ -340,7 +348,10 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     }
   }
 
-  const canResign = isPlayer && isPlay && !isChallenge && mvs.length > 0;
+  const showUndoResponse = undoState === "received";
+
+  const canResign =
+    isPlayer && isPlay && !isChallenge && mvs.length > 0 && !modeActive;
   const showResign = isPlayer && (isPlay || isChallenge);
 
   // Abort: player + no moves + not done + (not challenge OR is creator)
@@ -441,6 +452,9 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
   const canEnterAnalysis =
     !inAnalysis && !inEstimate && !isReview && !inPresentation;
+  // Keep the analysis button visible (but disabled) during estimate-from-live to prevent layout shift
+  const showAnalysis =
+    canEnterAnalysis || (inEstimate && !estimateFromAnalysis);
 
   const canExitAnalysis = inAnalysis || estimateFromAnalysis;
 
@@ -616,6 +630,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     canRematch,
 
     canEnterAnalysis,
+    showAnalysis,
     canExitAnalysis,
     canEnterEstimate,
     showEnterEstimate,
@@ -626,6 +641,8 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
     canNavigate,
     showMoveConfirmToggle,
+
+    showUndoResponse,
 
     undoTooltip,
     passIsAnalysisPass,
@@ -682,11 +699,29 @@ export type AnalysisCapabilities = {
   showTerritoryExit: boolean;
   showSgfImport: boolean;
   showSgfExport: boolean;
+  statusText: string;
 };
 
+const ANALYSIS_KOMI = 6.5;
+
 export const analysisCapabilities = computed((): AnalysisCapabilities => {
-  const { reviewing, finalized } = analysisTerritoryInfo.value;
+  const { reviewing, finalized, score } = analysisTerritoryInfo.value;
+  const nav = analysisNavState.value;
   const canPlay = !reviewing;
+
+  const isBlackTurn = nav.boardTurnStone === 1;
+  const statusText =
+    getStatusText({
+      stage: reviewing
+        ? GameStage.TerritoryReview
+        : isBlackTurn
+          ? GameStage.BlackToPlay
+          : GameStage.WhiteToPlay,
+      komi: ANALYSIS_KOMI,
+      territoryScore: reviewing || finalized ? score : undefined,
+      lastMoveWasPass: nav.boardLastMoveWasPass,
+      isBlackTurn,
+    }) ?? "";
 
   return {
     canPass: canPlay,
@@ -697,5 +732,6 @@ export const analysisCapabilities = computed((): AnalysisCapabilities => {
     showTerritoryExit: reviewing,
     showSgfImport: canPlay,
     showSgfExport: canPlay,
+    statusText,
   };
 });

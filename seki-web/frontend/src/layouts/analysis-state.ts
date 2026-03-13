@@ -10,3 +10,7 @@ export const analysisTerritoryInfo = signal<TerritoryInfo>({
   finalized: false,
   score: undefined,
 });
+export const analysisNavState = signal({
+  boardTurnStone: 1,
+  boardLastMoveWasPass: false,
+});

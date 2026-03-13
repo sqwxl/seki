@@ -24,6 +24,7 @@ import {
   analysisMeta,
   analysisSize,
   analysisTerritoryInfo,
+  analysisNavState,
 } from "./analysis-state";
 import { mobileTab, showCoordinates } from "../game/state";
 import { AnalysisPage } from "./analysis-page";
@@ -131,8 +132,12 @@ export function initAnalysis(root: HTMLElement) {
         mc.clear();
         playPassSound();
       },
-      onRender: (_engine, territoryInfo) => {
+      onRender: (engine, territoryInfo) => {
         analysisTerritoryInfo.value = territoryInfo;
+        analysisNavState.value = {
+          boardTurnStone: engine.current_turn_stone(),
+          boardLastMoveWasPass: engine.last_move_was_pass(),
+        };
         doRender();
       },
     });

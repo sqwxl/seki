@@ -1,7 +1,6 @@
 import type { ControlsProps } from "../components/controls";
 import type { PlayerPanelProps } from "../components/player-panel";
-import { GameStatus, getStatusText } from "../components/game-status";
-import { GameStage } from "../game/types";
+import { GameStatus } from "../components/game-status";
 import {
   blackSymbol,
   whiteSymbol,
@@ -143,7 +142,10 @@ function buildAnalysisControls(
   const board = analysisBoard.value;
 
   const controlsProps: ControlsProps = {
-    layout: "analysis",
+    layout:
+      caps.showTerritoryReady || caps.showTerritoryExit
+        ? "analysis-review"
+        : "analysis",
     nav: buildNavProps(board),
     sizeSelect: {
       value: analysisSize.value,
@@ -221,22 +223,7 @@ export function AnalysisPage(props: AnalysisPageProps) {
 
   const controlsProps = buildAnalysisControls(caps, props);
 
-  const board = analysisBoard.value;
-  const { reviewing, finalized, score } = analysisTerritoryInfo.value;
-  const isBlackTurn = board ? board.engine.current_turn_stone() === 1 : true;
-  const lastMoveWasPass = board ? board.engine.last_move_was_pass() : false;
-
-  const statusText = getStatusText({
-    stage: reviewing
-      ? GameStage.TerritoryReview
-      : isBlackTurn
-        ? GameStage.BlackToPlay
-        : GameStage.WhiteToPlay,
-    komi: KOMI,
-    territoryScore: reviewing || finalized ? score : undefined,
-    lastMoveWasPass,
-    isBlackTurn,
-  });
+  const statusText = caps.statusText;
 
   return (
     <GamePageLayout

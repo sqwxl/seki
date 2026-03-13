@@ -238,10 +238,19 @@ describe("pass", () => {
     expect(caps().canPass).toBe(false);
   });
 
-  it("disabled in estimate mode", () => {
+  it("disabled but visible in estimate mode from live", () => {
     setupPlayingGame();
     toEstimate();
     expect(caps().canPass).toBe(false);
+    expect(caps().showPass).toBe(true);
+  });
+
+  it("hidden in estimate mode from analysis", () => {
+    setupPlayingGame();
+    toAnalysis();
+    toEstimate();
+    expect(caps().canPass).toBe(false);
+    expect(caps().showPass).toBe(false);
   });
 
   it("disabled during challenge", () => {
@@ -382,6 +391,22 @@ describe("resign", () => {
     setupPlayingGame();
     playerStone.value = 0;
     expect(caps().canResign).toBe(false);
+  });
+
+  it("disabled but visible in estimate mode", () => {
+    setupPlayingGame();
+    moves.value = [{ kind: "play", stone: 1, pos: [3, 3] }];
+    toEstimate();
+    expect(caps().canResign).toBe(false);
+    expect(caps().showResign).toBe(true);
+  });
+
+  it("disabled but visible in analysis mode", () => {
+    setupPlayingGame();
+    moves.value = [{ kind: "play", stone: 1, pos: [3, 3] }];
+    toAnalysis();
+    expect(caps().canResign).toBe(false);
+    expect(caps().showResign).toBe(true);
   });
 });
 
@@ -758,6 +783,21 @@ describe("mode transitions", () => {
     setupPlayingGame();
     toEstimate();
     expect(caps().canExitEstimate).toBe(true);
+  });
+
+  it("showAnalysis stays true during estimate from live game", () => {
+    setupPlayingGame();
+    toEstimate();
+    expect(caps().canEnterAnalysis).toBe(false);
+    expect(caps().showAnalysis).toBe(true);
+  });
+
+  it("showAnalysis false during estimate from analysis", () => {
+    setupPlayingGame();
+    toAnalysis();
+    toEstimate();
+    // When entering estimate from analysis, canExitAnalysis handles visibility
+    expect(caps().showAnalysis).toBe(false);
   });
 
   it("canEnterPresentation on finished game when eligible", () => {
@@ -1320,6 +1360,19 @@ describe("estimate territory overlay", () => {
     expect(overlay).toBeDefined();
     expect(overlay!.paintMap).toEqual([1, -1, null]);
     expect(overlay!.dimmedVertices).toEqual([[5, 5]]);
+  });
+
+  it("showUndoResponse is true when undoRequest is received", () => {
+    setupPlayingGame();
+    moves.value = [{ stone: 1, kind: "play", pos: [3, 3] }];
+    undoRequest.value = "received";
+    expect(caps().showUndoResponse).toBe(true);
+  });
+
+  it("showUndoResponse is false when undoRequest is not received", () => {
+    setupPlayingGame();
+    undoRequest.value = "none";
+    expect(caps().showUndoResponse).toBe(false);
   });
 
   it("no territory overlay in estimate from analysis", () => {

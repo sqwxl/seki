@@ -7,9 +7,7 @@ import {
 import { IconCheck } from "../components/icons";
 
 export function Controls(props: ControlsProps) {
-  const reviewing =
-    props.layout === "analysis" &&
-    !!(props.territoryReady || props.territoryExit);
+  const reviewing = props.layout === "analysis-review";
 
   if (reviewing) {
     const reviewOverride = props.territoryReady

@@ -33,7 +33,7 @@ type ConfirmDef = {
 };
 
 export type ControlsProps = {
-  layout?: "analysis";
+  layout?: "analysis" | "analysis-review";
 
   // Nav bar
   nav: {
