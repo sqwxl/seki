@@ -1,3 +1,5 @@
+import { signal } from "@preact/signals";
+
 /**
  * Shared live WebSocket connection.
  *
@@ -26,6 +28,8 @@ window.__ws = { close: () => ws?.close() };
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSends: string[] = [];
 
+export const localDisconnected = signal(false);
+
 function ensureConnected() {
   if (!ws && !reconnectTimer) {
     connect();
@@ -38,6 +42,7 @@ function connect() {
   ws = new WebSocket(url);
 
   ws.onopen = () => {
+    localDisconnected.value = false;
     // Notify game handlers before re-joining so they can reset stale state
     for (const [gameId, handler] of gameHandlers) {
       handler({ kind: "ws_reconnected", game_id: gameId });
@@ -83,6 +88,12 @@ function connect() {
   };
 
   ws.onclose = () => {
+    localDisconnected.value = true;
+    // Notify game handlers that we're disconnected so they can show UI feedback
+    for (const [gameId, handler] of gameHandlers) {
+      handler({ kind: "ws_disconnected", game_id: gameId });
+    }
+
     ws = undefined;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = undefined;

@@ -4,6 +4,7 @@ import { initUserGames } from "./layouts/user-games";
 import { initAnalysis } from "./layouts/analysis";
 import { initUnreadTracking } from "./game/unread";
 import { initNotificationBell } from "./components/notification-bell";
+import { initConnectionStatus } from "./components/connection-status";
 import { initNewGameForm } from "./layouts/game-settings-form";
 import type { InitialGameProps } from "./game/types";
 import { parseDatasetJson } from "./utils/format";
@@ -24,6 +25,7 @@ initUserMenu();
 initFormValidation();
 initUnreadTracking();
 initNotificationBell();
+initConnectionStatus();
 
 initNotificationSettings();
 

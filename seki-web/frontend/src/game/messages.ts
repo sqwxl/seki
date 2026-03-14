@@ -7,6 +7,7 @@ import { updateTurnFlash, syncTerritoryCountdown } from "./ui";
 import type { TerritoryCountdown } from "./ui";
 import { notifyTurn, type NotificationState } from "./notifications";
 import { markRead } from "./unread";
+import { localDisconnected } from "../ws";
 import { playStoneSound, playPassSound } from "./sound";
 import {
   board,
@@ -103,6 +104,7 @@ export function handleGameMessage(
   switch (data.kind) {
     case "state_sync":
     case "state": {
+      localDisconnected.value = false;
       const isLiveUpdate = data.kind === "state";
 
       const prevStage = gameStage.value;
@@ -246,10 +248,15 @@ export function handleGameMessage(
       break;
     }
     case "ws_reconnected": {
+      localDisconnected.value = false;
       // Clear stale local state before the server sends fresh state on rejoin.
       // Without this, presentation signals from a previous session persist
       // (e.g. "You are presenting" after the presentation ended while offline).
       clearPresentation();
+      break;
+    }
+    case "ws_disconnected": {
+      localDisconnected.value = true;
       break;
     }
     default: {
