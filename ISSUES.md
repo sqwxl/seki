@@ -160,7 +160,7 @@
 - Server restart must be handled gracefully `[test: e2e:ws]`
 - Disconnected client must optimistically show played move if disconnected during player's turn
 - Opponent disconnected message must use consistent UI (currently poor/inconsistent presentation) `[test: frontend:unit]`
-- No visual disconnection indicator for the local player — when WS closes, the clock keeps ticking and nothing tells the user they're offline; the 2s reconnect delay is invisible
+- [x] No visual disconnection indicator for the local player — when WS closes, the clock keeps ticking and nothing tells the user they're offline; the 2s reconnect delay is invisible (now shows icon in navbar and pauses local clock)
 - No `player_reconnected` broadcast after server restart — if the server restarts between disconnect and reconnect, in-memory disconnect tracking is lost; clock recovery from DB is correct but the opponent doesn't see the reconnection notification
 
 ## 21. REST API — Needs Thorough Automated Testing
