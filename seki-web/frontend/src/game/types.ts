@@ -288,4 +288,5 @@ export type IncomingMessage =
   | ControlChangedMessage
   | ControlRequestedMessage
   | ControlRequestCancelledMessage
-  | { kind: "ws_reconnected"; game_id: number };
+  | { kind: "ws_reconnected"; game_id: number }
+  | { kind: "ws_disconnected"; game_id: number };
