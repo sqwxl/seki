@@ -1,0 +1,5 @@
+packages:
+  - seki-web/frontend
+
+allowBuilds:
+  esbuild: true

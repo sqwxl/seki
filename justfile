@@ -1,7 +1,6 @@
 set shell := ["fish", "-c"]
 
-[parallel]
-run-hot: build services wasm-hot serve-hot frontend-hot
+run-hot: hot-setup hot
 
 run: build services serve
 
@@ -12,7 +11,7 @@ wasm-hot:
     watchexec -w go-engine -w go-engine-wasm -- wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm
 
 frontend-hot:
-    cd seki-web/frontend && pnpm run dev
+    pnpm --dir seki-web/frontend run dev
 
 serve-hot:
     watchexec -r -i .claude -i target -i node_modules -i seki-web/static/wasm -- cargo run -p seki-web
@@ -23,7 +22,7 @@ serve:
 build: deps build-rs build-wasm build-js
 
 deps:
-    cargo binstall wasm-pack && cargo binstall watchexec-cli && cd seki-web/frontend && pnpm install 
+    cargo binstall wasm-pack && cargo binstall watchexec-cli && pnpm --dir seki-web/frontend install
 
 build-rs:
     cargo build -p seki-web
@@ -32,4 +31,15 @@ build-wasm:
     wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm
 
 build-js:
-    cd seki-web/frontend && pnpm run build
+    pnpm --dir seki-web/frontend run build
+
+hot-setup: deps services
+
+[parallel]
+hot: wasm-hot serve-hot frontend-hot
+
+openapi:
+    cargo run -p seki-web --bin gen-openapi > seki-web/frontend/openapi.json
+
+generate-api-client: openapi
+    pnpm --dir seki-web/frontend run generate-api-client
