@@ -22,7 +22,7 @@ function BellIcon() {
   return <IconBell />;
 }
 
-function NotificationBell() {
+export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 

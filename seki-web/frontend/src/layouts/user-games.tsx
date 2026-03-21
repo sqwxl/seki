@@ -8,7 +8,7 @@ import type { UserData } from "../game/types";
 import { parseDatasetJson } from "../utils/format";
 import { readUserData } from "../game/util";
 
-type InitialData = {
+export type UserGamesInitialData = {
   profile_user_id: number;
   games: LiveGameItem[];
 };
@@ -22,7 +22,7 @@ function involvesUser(
 
 const GAMES_PER_PAGE = 10;
 
-function UserGames({ initial }: { initial?: InitialData }) {
+export function UserGames({ initial }: { initial?: UserGamesInitialData }) {
   const currentUserId = readUserData()?.id;
   const [games, setGames] = useState<Map<number, LiveGameItem>>(() => {
     const map = new Map<number, LiveGameItem>();
@@ -108,7 +108,7 @@ function UserGames({ initial }: { initial?: InitialData }) {
 }
 
 function initUserGames(root: HTMLElement) {
-  const initial = parseDatasetJson<InitialData>(root, "initialGames");
+  const initial = parseDatasetJson<UserGamesInitialData>(root, "initialGames");
   render(<UserGames initial={initial} />, root);
 }
 

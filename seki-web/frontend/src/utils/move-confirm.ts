@@ -78,8 +78,8 @@ export function dismissMoveConfirmOnClickOutside(
   mc: MoveConfirmState,
   gobanEl: () => HTMLElement | null | undefined,
   onDismiss: () => void,
-): void {
-  document.addEventListener("pointerdown", (e) => {
+): () => void {
+  const onPointerDown = (e: PointerEvent) => {
     if (!mc.value) {
       return;
     }
@@ -92,5 +92,8 @@ export function dismissMoveConfirmOnClickOutside(
     }
     mc.clear();
     onDismiss();
-  });
+  };
+
+  document.addEventListener("pointerdown", onPointerDown);
+  return () => document.removeEventListener("pointerdown", onPointerDown);
 }

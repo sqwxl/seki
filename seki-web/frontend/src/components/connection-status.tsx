@@ -2,7 +2,7 @@ import { render } from "preact";
 import { IconOffline } from "./icons";
 import { localDisconnected } from "../ws";
 
-function ConnectionStatus() {
+export function ConnectionStatus() {
   if (!localDisconnected.value) {
     return null;
   }

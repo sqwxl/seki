@@ -46,7 +46,7 @@ function isNotifSupported(): boolean {
   return "Notification" in window;
 }
 
-function NotificationSettings({ hasEmail }: { hasEmail: boolean }) {
+export function NotificationSettings({ hasEmail }: { hasEmail: boolean }) {
   const userData = readUserData();
   const prefs = userData?.preferences ?? {};
 

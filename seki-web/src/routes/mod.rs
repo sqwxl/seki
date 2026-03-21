@@ -4,7 +4,9 @@ pub mod auth;
 pub mod games;
 pub mod health;
 pub mod settings;
+pub mod spa;
 pub mod users;
+pub mod web_api;
 
 pub(crate) fn wants_json(headers: &axum::http::HeaderMap) -> bool {
     headers

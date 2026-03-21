@@ -69,7 +69,7 @@ function GameSection({
   );
 }
 
-function GamesList({ initial }: { initial?: InitMessage }) {
+export function GamesList({ initial }: { initial?: InitMessage }) {
   const [games, setGames] = useState<Map<number, LiveGameItem>>(() =>
     initial ? buildGamesMap(initial) : new Map(),
   );

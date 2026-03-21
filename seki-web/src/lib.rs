@@ -76,23 +76,23 @@ pub async fn build_router_with_registry_and_presence(
     };
 
     let app = Router::new()
-        .route("/analysis", get(routes::analysis::analysis_board))
-        .route("/", get(routes::games::list_games))
-        .route("/games", get(routes::games::list_games))
-        .route("/games/new", get(routes::games::new_game))
+        .route("/analysis", get(routes::spa::shell))
+        .route("/", get(routes::spa::shell))
+        .route("/games", get(routes::spa::shell))
+        .route("/games/new", get(routes::spa::shell))
         .route("/games", post(routes::games::create_game))
-        .route("/games/{id}", get(routes::games::show_game))
+        .route("/games/{id}", get(routes::spa::shell))
         .route("/games/{id}/join", post(routes::games::join_game))
         .route("/games/{id}/rematch", post(routes::games::rematch_game))
         .route("/users/search", get(routes::users::search_users))
-        .route("/users/{username}", get(routes::users::profile))
+        .route("/users/{username}", get(routes::spa::shell))
         .route("/users/{username}", post(routes::users::update_username))
-        .route("/register", get(routes::auth::register_form))
+        .route("/register", get(routes::spa::shell))
         .route("/register", post(routes::auth::register))
-        .route("/login", get(routes::auth::login_form))
+        .route("/login", get(routes::spa::shell))
         .route("/login", post(routes::auth::login))
         .route("/logout", post(routes::auth::logout))
-        .route("/settings", get(routes::settings::settings_page))
+        .route("/settings", get(routes::spa::shell))
         .route("/settings/token", post(routes::settings::generate_token))
         .route("/settings/email", post(routes::settings::update_email))
         .route(
@@ -100,7 +100,7 @@ pub async fn build_router_with_registry_and_presence(
             patch(routes::settings::update_preferences),
         )
         .route("/ws", get(ws::live::ws_upgrade))
-        .nest("/api", routes::api::router())
+        .nest("/api", routes::api::router().merge(routes::web_api::router()))
         .route("/up", get(routes::health::health_check))
         .nest_service(
             "/static",

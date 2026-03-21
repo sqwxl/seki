@@ -60,7 +60,11 @@ function handleMoveTreeToggle() {
   analysisBoard.value?.render();
 }
 
-function UserMenu() {
+export function UserMenu({
+  onLogout,
+}: {
+  onLogout?: () => void | Promise<void>;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const userData = readUserData();
@@ -124,11 +128,7 @@ function UserMenu() {
               <button
                 type="button"
                 class="nav-dropdown-item"
-                onClick={() => {
-                  fetch("/logout", { method: "POST" }).then(() => {
-                    location.reload();
-                  });
-                }}
+                onClick={() => onLogout?.()}
               >
                 <IconLogout /> Log out
               </button>

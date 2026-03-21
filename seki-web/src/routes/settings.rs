@@ -20,14 +20,24 @@ pub async fn settings_page(current_user: CurrentUser) -> Response {
 pub async fn generate_token(
     State(state): State<AppState>,
     current_user: CurrentUser,
+    headers: axum::http::HeaderMap,
 ) -> Result<Response, AppError> {
+    let json = wants_json(&headers);
     if !current_user.is_registered() {
+        if json {
+            return Ok(Json(json!({"redirect": "/login"})).into_response());
+        }
         return Ok(Redirect::to("/login").into_response());
     }
 
     User::generate_api_token(&state.db, current_user.id).await?;
 
-    Ok(Redirect::to(&format!("/users/{}", current_user.username)).into_response())
+    let url = format!("/users/{}", current_user.username);
+    if json {
+        Ok(Json(json!({"redirect": url})).into_response())
+    } else {
+        Ok(Redirect::to(&url).into_response())
+    }
 }
 
 // PATCH /settings/preferences

@@ -9,7 +9,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
 use crate::models::message::Message;
-use crate::routes::serialize_user_data;
+use crate::routes::{serialize_user_data, wants_json};
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
@@ -90,8 +90,10 @@ pub struct CreateGameForm {
 pub async fn create_game(
     State(state): State<AppState>,
     current_user: CurrentUser,
+    headers: axum::http::HeaderMap,
     Form(form): Form<CreateGameForm>,
 ) -> Result<Response, AppError> {
+    let json = wants_json(&headers);
     let cols = form.cols;
     let time_control = match form.time_control.as_deref() {
         Some("fischer") => TimeControlType::Fischer,
@@ -157,9 +159,21 @@ pub async fn create_game(
                         .await;
                 });
             }
-            Ok(Redirect::to(&format!("/games/{}", game.id)).into_response())
+            let url = format!("/games/{}", game.id);
+            if json {
+                Ok(axum::Json(serde_json::json!({ "redirect": url })).into_response())
+            } else {
+                Ok(Redirect::to(&url).into_response())
+            }
         }
         Err(e) => {
+            if json {
+                return Ok((
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    axum::Json(serde_json::json!({ "error": e.to_string() })),
+                )
+                    .into_response());
+            }
             let tmpl = GamesNewTemplate {
                 user_username: current_user.username.clone(),
                 user_is_registered: current_user.is_registered(),
@@ -336,13 +350,19 @@ pub async fn show_game(
 pub async fn join_game(
     State(state): State<AppState>,
     current_user: CurrentUser,
+    headers: axum::http::HeaderMap,
     Path(id): Path<i64>,
     Query(query): Query<ShowGameQuery>,
 ) -> Result<Response, AppError> {
+    let json = wants_json(&headers);
     let gwp = Game::find_with_players(&state.db, id).await?;
 
     if gwp.has_player(current_user.id) {
-        return Ok(Redirect::to(&format!("/games/{id}")).into_response());
+        let url = format!("/games/{id}");
+        if json {
+            return Ok(axum::Json(serde_json::json!({ "redirect": url })).into_response());
+        }
+        return Ok(Redirect::to(&url).into_response());
     }
 
     // For invite-only games, require a valid token
@@ -413,7 +433,12 @@ pub async fn join_game(
 
     crate::services::live::notify_game_created(&state, &gwp);
 
-    Ok(Redirect::to(&format!("/games/{id}")).into_response())
+    let url = format!("/games/{id}");
+    if json {
+        Ok(axum::Json(serde_json::json!({ "redirect": url })).into_response())
+    } else {
+        Ok(Redirect::to(&url).into_response())
+    }
 }
 
 #[derive(Deserialize)]
@@ -425,9 +450,11 @@ pub struct RematchForm {
 pub async fn rematch_game(
     State(state): State<AppState>,
     current_user: CurrentUser,
+    headers: axum::http::HeaderMap,
     Path(id): Path<i64>,
     Form(form): Form<RematchForm>,
 ) -> Result<Response, AppError> {
+    let json = wants_json(&headers);
     let gwp = Game::find_with_players(&state.db, id).await?;
 
     if gwp.game.result.is_none() {
@@ -490,5 +517,10 @@ pub async fn rematch_game(
     if let Ok(gwp) = Game::find_with_players(&state.db, game.id).await {
         crate::services::live::notify_game_created(&state, &gwp);
     }
-    Ok(Redirect::to(&format!("/games/{}", game.id)).into_response())
+    let url = format!("/games/{}", game.id);
+    if json {
+        Ok(axum::Json(serde_json::json!({ "redirect": url })).into_response())
+    } else {
+        Ok(Redirect::to(&url).into_response())
+    }
 }

@@ -75,6 +75,7 @@ export function liveGame(
   initialProps: InitialGameProps,
   gameId: number,
   root: HTMLElement,
+  initialChatLog: ChatEntry[] = [],
 ) {
   const userData = readUserData();
   const pStone = derivePlayerStone(
@@ -112,6 +113,7 @@ export function liveGame(
     getSign: () => playerStone.value as Sign,
   });
   moveConfirmEnabled.value = mc.enabled;
+  const disposers: Array<() => void> = [];
 
   // --- Move tree element ---
   const moveTreeEl = document.createElement("div");
@@ -318,10 +320,7 @@ export function liveGame(
   }
 
   // --- Parse initial chat history ---
-  const chatLogRaw = root.dataset.chatLog;
-  if (chatLogRaw) {
-    chatMessages.value = JSON.parse(chatLogRaw) as ChatEntry[];
-  }
+  chatMessages.value = initialChatLog;
 
   // --- Render ---
   function doRender() {
@@ -493,7 +492,7 @@ export function liveGame(
   });
 
   // --- Dismiss pending move confirmation on click outside goban ---
-  dismissMoveConfirmOnClickOutside(
+  const stopDismissOutside = dismissMoveConfirmOnClickOutside(
     mc,
     () => gobanRef.current,
     () => {
@@ -621,13 +620,15 @@ export function liveGame(
     },
   };
   markRead(gameId);
-  joinGame(gameId, (raw) => handleGameMessage(raw, deps));
+  const leaveGame = joinGame(gameId, (raw) => handleGameMessage(raw, deps));
 
   // --- Presence subscriptions (lobby-level, no game_id) ---
-  subscribe<{ users: Record<string, boolean> }>("presence_state", (data) => {
-    const map = new Map<number, UserData>();
-    for (const [idStr, online] of Object.entries(data.users)) {
-      const id = Number(idStr);
+  const unsubPresenceState = subscribe<{ users: Record<string, boolean> }>(
+    "presence_state",
+    (data) => {
+      const map = new Map<number, UserData>();
+      for (const [idStr, online] of Object.entries(data.users)) {
+        const id = Number(idStr);
       if (online) {
         const userData =
           black.value?.id === id
@@ -641,8 +642,9 @@ export function liveGame(
       }
     }
     onlineUsers.value = map;
-  });
-  subscribe<{ user_id: number; online: boolean }>(
+    },
+  );
+  const unsubPresenceChanged = subscribe<{ user_id: number; online: boolean }>(
     "presence_changed",
     (data) => {
       const userData =
@@ -668,7 +670,7 @@ export function liveGame(
   );
 
   // --- Sync move confirmation toggle with mc state ---
-  effect(() => {
+  disposers.push(effect(() => {
     const enabled = moveConfirmEnabled.value;
     mc.enabled = enabled;
     if (!enabled && mc.value) {
@@ -676,11 +678,11 @@ export function liveGame(
       board.value?.render();
       doRender();
     }
-  });
+  }));
 
   // --- Disconnect countdown timer ---
   // Re-render every second while grace period is active so the countdown updates
-  effect(() => {
+  disposers.push(effect(() => {
     const dc = opponentDisconnected.value;
     if (!dc) {
       return;
@@ -693,11 +695,11 @@ export function liveGame(
     const interval = setInterval(() => doRender(), 1000);
     doRender();
     return () => clearInterval(interval);
-  });
+  }));
 
   // --- Territory countdown timer ---
   // Re-render every second while territory review has an expiry deadline
-  effect(() => {
+  disposers.push(effect(() => {
     const terr = territory.value;
     if (!terr?.expires_at) {
       return;
@@ -705,32 +707,49 @@ export function liveGame(
     const interval = setInterval(() => doRender(), 1000);
     doRender();
     return () => clearInterval(interval);
-  });
+  }));
 
   // --- Re-render board when returning from Chat tab ---
-  effect(() => {
+  disposers.push(effect(() => {
     if (mobileTab.value !== "chat" && board.value) {
       requestAnimationFrame(() => {
         board.value?.render();
       });
     }
-  });
+  }));
 
   // --- Sync analysis mode with mobile tab ---
-  effect(() => {
+  disposers.push(effect(() => {
     const tab = mobileTab.value;
     if (tab === "analysis" && !analysisMode.peek()) {
       enterAnalysis();
     } else if (tab === "board" && analysisMode.peek()) {
       exitAnalysis();
     }
-  });
+  }));
 
   // --- Tab title flash on visibility change ---
-  document.addEventListener("visibilitychange", () => {
+  const onVisibilityChange = () => {
     if (!document.hidden) {
       // Stop flashing when returning to tab; starting only happens on new moves
       stopFlashing();
     }
-  });
+  };
+  document.addEventListener("visibilitychange", onVisibilityChange);
+
+  return () => {
+    for (const dispose of disposers) {
+      dispose();
+    }
+    stopDismissOutside();
+    leaveGame();
+    unsubPresenceState();
+    unsubPresenceChanged();
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    territoryCountdown.interval && clearInterval(territoryCountdown.interval);
+    clockState.interval && clearInterval(clockState.interval);
+    board.value?.destroy();
+    board.value = undefined;
+    render(null, root);
+  };
 }

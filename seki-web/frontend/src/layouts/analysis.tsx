@@ -241,17 +241,8 @@ export function initAnalysis(root: HTMLElement) {
     downloadSgf(sgf, `${filename}.sgf`);
   }
 
-  // Re-render board when returning to Board tab
-  effect(() => {
-    if (mobileTab.value === "board" && analysisBoard.value) {
-      requestAnimationFrame(() => {
-        analysisBoard.value?.render();
-      });
-    }
-  });
-
   // --- Dismiss pending move confirmation on click outside goban ---
-  dismissMoveConfirmOnClickOutside(
+  const stopDismissOutside = dismissMoveConfirmOnClickOutside(
     mc,
     () => gobanRef.current,
     () => {
@@ -260,5 +251,25 @@ export function initAnalysis(root: HTMLElement) {
     },
   );
 
+  const disposers = [
+    effect(() => {
+      if (mobileTab.value === "board" && analysisBoard.value) {
+        requestAnimationFrame(() => {
+          analysisBoard.value?.render();
+        });
+      }
+    }),
+  ];
+
   initBoard(analysisSize.value);
+
+  return () => {
+    for (const dispose of disposers) {
+      dispose();
+    }
+    stopDismissOutside();
+    analysisBoard.value?.destroy();
+    analysisBoard.value = undefined;
+    render(null, root);
+  };
 }
