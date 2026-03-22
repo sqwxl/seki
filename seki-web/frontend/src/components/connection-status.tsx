@@ -1,4 +1,3 @@
-import { render } from "preact";
 import { IconOffline } from "./icons";
 import { localDisconnected } from "../ws";
 
@@ -12,12 +11,4 @@ export function ConnectionStatus() {
       <IconOffline />
     </span>
   );
-}
-
-export function initConnectionStatus(): void {
-  const root = document.getElementById("connection-status");
-  if (!root) {
-    return;
-  }
-  render(<ConnectionStatus />, root);
 }

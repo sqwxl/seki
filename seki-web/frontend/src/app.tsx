@@ -34,13 +34,13 @@ declare global {
 
 type Route =
   | { kind: "games" }
-  | { kind: "new-game"; opponent?: string | null }
+  | { kind: "new-game"; opponent?: string | null; error?: string | null }
   | { kind: "game"; id: number; token?: string | null }
   | { kind: "analysis" }
-  | { kind: "profile"; username: string }
-  | { kind: "login"; redirect?: string | null }
-  | { kind: "register" }
-  | { kind: "settings" }
+  | { kind: "profile"; username: string; error?: string | null }
+  | { kind: "login"; redirect?: string | null; error?: string | null }
+  | { kind: "register"; error?: string | null }
+  | { kind: "settings"; error?: string | null }
   | { kind: "not-found" };
 
 type FetchError = {
@@ -98,6 +98,7 @@ function parseRoute(url: URL): Route {
     return {
       kind: "new-game",
       opponent: url.searchParams.get("opponent"),
+      error: url.searchParams.get("error"),
     };
   }
   if (path === "/analysis") {
@@ -107,13 +108,14 @@ function parseRoute(url: URL): Route {
     return {
       kind: "login",
       redirect: url.searchParams.get("redirect"),
+      error: url.searchParams.get("error"),
     };
   }
   if (path === "/register") {
-    return { kind: "register" };
+    return { kind: "register", error: url.searchParams.get("error") };
   }
   if (path === "/settings") {
-    return { kind: "settings" };
+    return { kind: "settings", error: url.searchParams.get("error") };
   }
   const gameMatch = path.match(/^\/games\/(\d+)$/);
   if (gameMatch) {
@@ -125,7 +127,11 @@ function parseRoute(url: URL): Route {
   }
   const userMatch = path.match(/^\/users\/([^/]+)$/);
   if (userMatch) {
-    return { kind: "profile", username: decodeURIComponent(userMatch[1]) };
+    return {
+      kind: "profile",
+      username: decodeURIComponent(userMatch[1]),
+      error: url.searchParams.get("error"),
+    };
   }
   return { kind: "not-found" };
 }
@@ -433,6 +439,10 @@ function NewGameScreen({
     setHead("New Game - Seki", "Play Go (Weiqi/Baduk) online with friends");
   }, []);
 
+  useEffect(() => {
+    setError(route.error ?? undefined);
+  }, [route.error]);
+
   async function onSubmit(e: Event) {
     e.preventDefault();
     setError(undefined);
@@ -465,10 +475,12 @@ function NewGameScreen({
 
 function ProfileScreen({
   username,
+  initialError,
   navigate,
   refreshSession,
 }: {
   username: string;
+  initialError?: string | null;
   navigate: (to: string, replace?: boolean) => void;
   refreshSession: () => Promise<void>;
 }) {
@@ -481,6 +493,10 @@ function ProfileScreen({
   useEffect(() => {
     setHead(`${username} - Seki`, `${username}'s Go profile on Seki`);
   }, [username]);
+
+  useEffect(() => {
+    setMessage(initialError ?? undefined);
+  }, [initialError]);
 
   async function submitUsername(e: Event) {
     e.preventDefault();
@@ -644,12 +660,14 @@ function AuthFormScreen({
   navigate,
   refreshSession,
   redirectTarget,
+  initialError,
 }: {
   mode: "login" | "register";
   currentUser: UserData | undefined;
   navigate: (to: string, replace?: boolean) => void;
   refreshSession: () => Promise<void>;
   redirectTarget?: string | null;
+  initialError?: string | null;
 }) {
   const [error, setError] = useState<string | undefined>();
 
@@ -662,6 +680,10 @@ function AuthFormScreen({
       navigate("/", true);
     }
   }, [mode, currentUser, navigate]);
+
+  useEffect(() => {
+    setError(initialError ?? undefined);
+  }, [initialError]);
 
   async function onSubmit(e: Event) {
     e.preventDefault();
@@ -747,16 +769,19 @@ function AuthFormScreen({
 
 function SettingsRedirect({
   currentUser,
+  error,
   navigate,
 }: {
   currentUser: UserData | undefined;
+  error?: string | null;
   navigate: (to: string, replace?: boolean) => void;
 }) {
   useEffect(() => {
     if (currentUser?.display_name) {
-      navigate(`/users/${encodeURIComponent(currentUser.display_name)}`, true);
+      const suffix = error ? `?error=${encodeURIComponent(error)}` : "";
+      navigate(`/users/${encodeURIComponent(currentUser.display_name)}${suffix}`, true);
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, error, navigate]);
 
   return null;
 }
@@ -793,6 +818,7 @@ function Screen({
       return (
         <ProfileScreen
           username={route.username}
+          initialError={route.error}
           navigate={navigate}
           refreshSession={refreshSession}
         />
@@ -805,6 +831,7 @@ function Screen({
           navigate={navigate}
           refreshSession={refreshSession}
           redirectTarget={route.redirect}
+          initialError={route.error}
         />
       );
     case "register":
@@ -814,10 +841,17 @@ function Screen({
           currentUser={currentUser}
           navigate={navigate}
           refreshSession={refreshSession}
+          initialError={route.error}
         />
       );
     case "settings":
-      return <SettingsRedirect currentUser={currentUser} navigate={navigate} />;
+      return (
+        <SettingsRedirect
+          currentUser={currentUser}
+          error={route.error}
+          navigate={navigate}
+        />
+      );
     default:
       return <NotFoundScreen />;
   }

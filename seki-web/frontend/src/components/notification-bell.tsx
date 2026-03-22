@@ -1,4 +1,3 @@
-import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { unreadGames, hasUnread, markRead } from "../game/unread";
 import { ToggleButton } from "./toggle-button";
@@ -105,12 +104,4 @@ function gameLabel(g: {
     return `Challenge: ${b} vs ${w}`;
   }
   return `Your turn: ${b} vs ${w}`;
-}
-
-export function initNotificationBell(): void {
-  const root = document.getElementById("notification-bell");
-  if (!root) {
-    return;
-  }
-  render(<NotificationBell />, root);
 }

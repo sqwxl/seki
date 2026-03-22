@@ -1,11 +1,9 @@
-import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { subscribe } from "../ws";
 import { GameListItem } from "../components/game-description";
 import type { LiveGameItem } from "../components/game-description";
 import type { GameCreatedMessage, GameUpdatedMessage } from "./games-list";
 import type { UserData } from "../game/types";
-import { parseDatasetJson } from "../utils/format";
 import { readUserData } from "../game/util";
 
 export type UserGamesInitialData = {
@@ -106,10 +104,3 @@ export function UserGames({ initial }: { initial?: UserGamesInitialData }) {
     </>
   );
 }
-
-function initUserGames(root: HTMLElement) {
-  const initial = parseDatasetJson<UserGamesInitialData>(root, "initialGames");
-  render(<UserGames initial={initial} />, root);
-}
-
-export { initUserGames };

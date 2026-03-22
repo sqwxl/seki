@@ -1,4 +1,3 @@
-import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { ToggleButton } from "./toggle-button";
 import { readUserData } from "../game/util";
@@ -155,12 +154,4 @@ export function UserMenu({
       )}
     </div>
   );
-}
-
-export function initUserMenu(): void {
-  const root = document.getElementById("user-menu");
-  if (!root) {
-    return;
-  }
-  render(<UserMenu />, root);
 }

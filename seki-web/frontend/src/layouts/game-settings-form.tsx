@@ -1,4 +1,3 @@
-import { render } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
 import { storage, GAME_SETTINGS } from "../utils/storage";
 import {
@@ -689,10 +688,4 @@ export function GameSettingsForm({
       <button type="submit">{submitText}</button>
     </div>
   );
-}
-
-export function initNewGameForm(root: HTMLElement) {
-  const opponent =
-    new URLSearchParams(window.location.search).get("opponent") ?? undefined;
-  render(<GameSettingsForm opponent={opponent} />, root);
 }

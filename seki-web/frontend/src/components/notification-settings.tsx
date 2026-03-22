@@ -1,4 +1,3 @@
-import { render } from "preact";
 import { useState } from "preact/hooks";
 import { savePref } from "../utils/preferences";
 import { readUserData } from "../game/util";
@@ -123,13 +122,4 @@ export function NotificationSettings({ hasEmail }: { hasEmail: boolean }) {
       )}
     </div>
   );
-}
-
-export function initNotificationSettings(): void {
-  const root = document.getElementById("notification-settings");
-  if (!root) {
-    return;
-  }
-  const hasEmail = root.dataset.email === "true";
-  render(<NotificationSettings hasEmail={hasEmail} />, root);
 }
