@@ -182,6 +182,40 @@ export function initGameState(
   });
 }
 
+/** Reset route-scoped runtime state that previously relied on a full page load. */
+export function resetGameRuntimeState(): void {
+  batch(() => {
+    territory.value = undefined;
+    settledTerritory.value = undefined;
+    onlineUsers.value = new Map();
+    nigiri.value = false;
+    undoRequest.value = "none";
+    allowUndo.value = false;
+    opponentDisconnected.value = undefined;
+    chatMessages.value = [];
+    hasUnreadChat.value = false;
+    canStartPresentation.value = false;
+    presentationActive.value = false;
+    presenterId.value = 0;
+    originatorId.value = 0;
+    controlRequest.value = undefined;
+    board.value = undefined;
+    navState.value = {
+      atStart: true,
+      atLatest: true,
+      atMainEnd: true,
+      counter: "0",
+      boardTurnStone: 1,
+      boardLastMoveWasPass: false,
+    };
+    estimateScore.value = undefined;
+    boardFinalized.value = false;
+    boardFinalizedScore.value = undefined;
+    boardReviewing.value = false;
+    mobileTab.value = "board";
+  });
+}
+
 // Track territory approval for chat messages (local to this module)
 let _prevBlackApproved = false;
 let _prevWhiteApproved = false;

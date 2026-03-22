@@ -58,6 +58,7 @@ import {
   navState,
   mobileTab,
   setPresence,
+  resetGameRuntimeState,
 } from "../game/state";
 import {
   gamePhase,
@@ -68,6 +69,7 @@ import {
   toPresentation,
   toPresentationLocalAnalysis,
   toPresentationSyncedViewer,
+  resetPhase,
 } from "../game/phase";
 import { LiveGamePage, getServerTerritory } from "./live-game-page";
 
@@ -87,6 +89,8 @@ export function liveGame(
   console.debug("InitialGameProps", initialProps);
   console.debug("UserData", userData, "playerStone", pStone);
 
+  resetPhase();
+  resetGameRuntimeState();
   initGameState(gameId, userData?.id ?? 0, pStone, initialProps);
 
   const clockState: ClockState = {
@@ -749,7 +753,8 @@ export function liveGame(
     territoryCountdown.interval && clearInterval(territoryCountdown.interval);
     clockState.interval && clearInterval(clockState.interval);
     board.value?.destroy();
-    board.value = undefined;
+    resetPhase();
+    resetGameRuntimeState();
     render(null, root);
   };
 }
