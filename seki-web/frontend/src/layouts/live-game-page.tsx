@@ -12,6 +12,8 @@ import { TabBar } from "../components/tab-bar";
 import type { GameChannel } from "../game/channel";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { GamePageLayout } from "./game-page-layout";
+import { requestSpaNavigation } from "../utils/spa-navigation";
+import { postForm } from "../utils/web-client";
 import {
   type LiveGameControlsState,
   liveGameControlsState,
@@ -174,17 +176,20 @@ function buildControls(
   // --- Rematch ---
   if (caps.canRematch) {
     controlsProps.rematch = {
-      onConfirm: (swapColors) => {
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = `/games/${gameId.value}/rematch`;
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = "swap_colors";
-        input.value = swapColors ? "true" : "false";
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
+      onConfirm: async (swapColors) => {
+        const formData = new FormData();
+        formData.set("swap_colors", swapColors ? "true" : "false");
+        try {
+          const result = await postForm(
+            `/games/${gameId.value}/rematch`,
+            formData,
+          );
+          if (typeof result.redirect === "string") {
+            requestSpaNavigation(result.redirect);
+          }
+        } catch (err) {
+          window.alert((err as { message: string }).message);
+        }
       },
     };
   }
@@ -367,12 +372,20 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
           onDecline={() => props.channel.declineChallenge()}
           onAbort={() => props.channel.abort()}
           onJoin={() => {
-            const form = document.createElement("form");
-            form.method = "POST";
             const token = initialProps.value.invite_token;
-            form.action = `/games/${gameId.value}/join${token ? `?token=${token}` : ""}`;
-            document.body.appendChild(form);
-            form.submit();
+            const url = `/games/${gameId.value}/join${token ? `?token=${token}` : ""}`;
+            void postForm(url, new FormData())
+              .then((result) => {
+                if (typeof result.redirect === "string") {
+                  requestSpaNavigation(result.redirect, {
+                    replace: true,
+                    reload: true,
+                  });
+                }
+              })
+              .catch((err: { message: string }) => {
+                window.alert(err.message);
+              });
           }}
           copyInviteLink={
             status.showInviteLink

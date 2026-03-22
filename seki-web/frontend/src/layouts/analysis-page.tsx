@@ -22,6 +22,8 @@ import {
   analysisBoard,
   analysisKomi,
   analysisMeta,
+  analysisPendingMove,
+  analysisRenderNonce,
   analysisSize,
   analysisTerritoryInfo,
 } from "./analysis-state";
@@ -142,6 +144,7 @@ function buildAnalysisControls(
 ): ControlsProps {
   const { mc, onSizeChange, onKomiChange, handleSgfImport, handleSgfExport } =
     props;
+  analysisRenderNonce.value;
   const board = analysisBoard.value;
 
   const controlsProps: ControlsProps = {
@@ -191,12 +194,13 @@ function buildAnalysisControls(
   }
 
   // Confirm move (ephemeral)
-  if (mc.value) {
+  if (analysisPendingMove.value) {
     controlsProps.confirmMove = {
       onClick: () => {
-        if (mc.value && board) {
-          const [col, row] = mc.value;
+        if (analysisPendingMove.value && board) {
+          const [col, row] = analysisPendingMove.value;
           mc.clear();
+          analysisPendingMove.value = undefined;
           if (board.engine.try_play(col, row)) {
             playStoneSound();
             board.save();
@@ -208,6 +212,41 @@ function buildAnalysisControls(
   }
 
   return controlsProps;
+}
+
+function AnalysisTopPanel() {
+  analysisRenderNonce.value;
+  const panel = buildAnalysisPlayerPanel({ position: "top" });
+  return panel ? <PlayerPanel {...panel} /> : null;
+}
+
+function AnalysisBottomPanel() {
+  analysisRenderNonce.value;
+  const panel = buildAnalysisPlayerPanel({ position: "bottom" });
+  return panel ? <PlayerPanel {...panel} /> : null;
+}
+
+function AnalysisControlsSlot(props: AnalysisPageProps) {
+  const caps = analysisCapabilities.value;
+  return <Controls {...buildAnalysisControls(caps, props)} />;
+}
+
+function AnalysisMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
+  return (
+    <div
+      class="move-tree-slot"
+      ref={(el) => {
+        if (el && !el.contains(moveTreeEl)) {
+          el.appendChild(moveTreeEl);
+        }
+      }}
+    />
+  );
+}
+
+function AnalysisTabBar(props: AnalysisPageProps) {
+  const caps = analysisCapabilities.value;
+  return <TabBar controls={buildAnalysisControls(caps, props)} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -229,10 +268,6 @@ export function AnalysisPage(props: AnalysisPageProps) {
   const caps = analysisCapabilities.value;
   const size = analysisSize.value;
 
-  const controlsProps = buildAnalysisControls(caps, props);
-  const topPanel = buildAnalysisPlayerPanel({ position: "top" });
-  const bottomPanel = buildAnalysisPlayerPanel({ position: "bottom" });
-
   const statusText = caps.statusText;
 
   return (
@@ -240,21 +275,12 @@ export function AnalysisPage(props: AnalysisPageProps) {
       header={<AnalysisHeader />}
       gobanRef={gobanRef}
       gobanStyle={`aspect-ratio: ${size}/${size}`}
-      playerTop={topPanel ? <PlayerPanel {...topPanel} /> : undefined}
-      playerBottom={bottomPanel ? <PlayerPanel {...bottomPanel} /> : undefined}
-      controls={<Controls {...controlsProps} />}
+      playerTop={<AnalysisTopPanel />}
+      playerBottom={<AnalysisBottomPanel />}
+      controls={<AnalysisControlsSlot {...props} />}
       status={statusText ? <GameStatus text={statusText} /> : undefined}
-      moveTree={
-        <div
-          class="move-tree-slot"
-          ref={(el) => {
-            if (el && !el.contains(moveTreeEl)) {
-              el.appendChild(moveTreeEl);
-            }
-          }}
-        />
-      }
-      tabBar={<TabBar controls={controlsProps} />}
+      moveTree={<AnalysisMoveTree moveTreeEl={moveTreeEl} />}
+      tabBar={<AnalysisTabBar {...props} />}
     />
   );
 }

@@ -24,9 +24,12 @@ import {
   analysisBoard,
   analysisKomi,
   analysisMeta,
+  analysisPendingMove,
+  analysisRenderNonce,
   analysisSize,
   analysisTerritoryInfo,
   analysisNavState,
+  resetAnalysisRuntimeState,
 } from "./analysis-state";
 import { mobileTab, showCoordinates } from "../game/state";
 import { AnalysisPage } from "./analysis-page";
@@ -59,6 +62,15 @@ export function initAnalysis(root: HTMLElement) {
       (analysisBoard.value?.engine.current_turn_stone() ?? 1) as Sign,
   });
 
+  function syncPendingMove() {
+    analysisPendingMove.value = mc.value;
+  }
+
+  function clearPendingMove() {
+    mc.clear();
+    analysisPendingMove.value = undefined;
+  }
+
   function ghostStone() {
     return mc.getGhostStone();
   }
@@ -68,22 +80,6 @@ export function initAnalysis(root: HTMLElement) {
     analysisKomi.value = komi;
     storage.set(ANALYSIS_KOMI, String(komi));
     analysisBoard.value?.setKomi(komi);
-  }
-
-  // --- Render ---
-  function doRender() {
-    render(
-      <AnalysisPage
-        gobanRef={gobanRef}
-        mc={mc}
-        moveTreeEl={moveTreeEl}
-        onSizeChange={handleSizeChange}
-        onKomiChange={handleKomiChange}
-        handleSgfImport={handleSgfImport}
-        handleSgfExport={handleSgfExport}
-      />,
-      root,
-    );
   }
 
   // --- Size change ---
@@ -102,11 +98,8 @@ export function initAnalysis(root: HTMLElement) {
     if (analysisBoard.value) {
       analysisBoard.value.destroy();
     }
-    mc.clear();
+    clearPendingMove();
     analysisBoard.value = undefined;
-
-    // Render layout first so the goban div exists
-    doRender();
 
     const board = await createBoard({
       cols: size,
@@ -128,7 +121,7 @@ export function initAnalysis(root: HTMLElement) {
           row,
           !!analysisBoard.value?.engine.is_legal(col, row),
         );
-        doRender();
+        syncPendingMove();
         if (action === "confirm") {
           return false;
         }
@@ -136,11 +129,11 @@ export function initAnalysis(root: HTMLElement) {
         return true;
       },
       onStonePlay: () => {
-        mc.clear();
+        clearPendingMove();
         playStoneSound();
       },
       onPass: () => {
-        mc.clear();
+        clearPendingMove();
         playPassSound();
       },
       onRender: (engine, territoryInfo) => {
@@ -149,11 +142,12 @@ export function initAnalysis(root: HTMLElement) {
           boardTurnStone: engine.current_turn_stone(),
           boardLastMoveWasPass: engine.last_move_was_pass(),
         };
-        doRender();
+        analysisRenderNonce.value += 1;
       },
     });
 
     analysisBoard.value = board;
+    analysisRenderNonce.value += 1;
 
     // Restore move_times from saved SGF text (tree already restored via storageKey)
     if (sgfText) {
@@ -246,8 +240,8 @@ export function initAnalysis(root: HTMLElement) {
     mc,
     () => gobanRef.current,
     () => {
+      analysisPendingMove.value = undefined;
       analysisBoard.value?.render();
-      doRender();
     },
   );
 
@@ -261,6 +255,20 @@ export function initAnalysis(root: HTMLElement) {
     }),
   ];
 
+  resetAnalysisRuntimeState();
+  render(
+    <AnalysisPage
+      gobanRef={gobanRef}
+      mc={mc}
+      moveTreeEl={moveTreeEl}
+      onSizeChange={handleSizeChange}
+      onKomiChange={handleKomiChange}
+      handleSgfImport={handleSgfImport}
+      handleSgfExport={handleSgfExport}
+    />,
+    root,
+  );
+
   initBoard(analysisSize.value);
 
   return () => {
@@ -270,6 +278,7 @@ export function initAnalysis(root: HTMLElement) {
     stopDismissOutside();
     analysisBoard.value?.destroy();
     analysisBoard.value = undefined;
+    resetAnalysisRuntimeState();
     render(null, root);
   };
 }

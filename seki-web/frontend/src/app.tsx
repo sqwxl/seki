@@ -18,6 +18,11 @@ import { initTheme } from "./utils/theme";
 import { initPreferences } from "./utils/preferences";
 import { type InitialGameProps, type UserData } from "./game/types";
 import { readUserData, writeUserData } from "./game/util";
+import {
+  SPA_NAVIGATE_EVENT,
+  type SpaNavigateDetail,
+} from "./utils/spa-navigation";
+import { postForm } from "./utils/web-client";
 
 void ensureWasm();
 
@@ -213,28 +218,6 @@ function prefetchRouteData(url: string | undefined): void {
     return;
   }
   void fetchRouteData(url);
-}
-
-async function postForm(
-  url: string,
-  formData: FormData,
-): Promise<Record<string, unknown>> {
-  const body = new URLSearchParams();
-  formData.forEach((value, key) => body.append(key, String(value)));
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { Accept: "application/json" },
-    body,
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw {
-      status: response.status,
-      message: data.error ?? "Request failed",
-      field: data.field,
-    };
-  }
-  return data;
 }
 
 async function patchJson(
@@ -841,9 +824,10 @@ function Screen({
 }
 
 function App() {
-  const [locationKey, setLocationKey] = useState(
-    `${window.location.pathname}${window.location.search}`,
-  );
+  const [locationState, setLocationState] = useState(() => ({
+    key: `${window.location.pathname}${window.location.search}`,
+    version: 0,
+  }));
   const [currentUser, setCurrentUser] = useState<UserData | undefined>(() =>
     readUserData(),
   );
@@ -863,15 +847,26 @@ function App() {
     setCurrentUser(next);
   }
 
-  const navigate = (to: string, replace = false) => {
+  const navigate = (to: string, replace = false, reload = false) => {
     const url = new URL(to, window.location.origin);
     const nextKey = `${url.pathname}${url.search}`;
+    if (reload) {
+      const dataUrl = getRouteDataUrl(parseRoute(url));
+      if (dataUrl) {
+        routeDataCache.delete(dataUrl);
+        inflightRouteData.delete(dataUrl);
+      }
+    }
     if (replace) {
       window.history.replaceState({}, "", nextKey);
-    } else if (nextKey !== locationKey) {
+    } else if (nextKey !== locationState.key) {
       window.history.pushState({}, "", nextKey);
     }
-    setLocationKey(nextKey);
+    setLocationState((prev) => ({
+      key: nextKey,
+      version:
+        reload || nextKey !== prev.key ? prev.version + 1 : prev.version,
+    }));
     if (!url.pathname.startsWith("/games/")) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
@@ -879,7 +874,10 @@ function App() {
 
   useEffect(() => {
     const onPopState = () => {
-      setLocationKey(`${window.location.pathname}${window.location.search}`);
+      setLocationState((prev) => ({
+        key: `${window.location.pathname}${window.location.search}`,
+        version: prev.version + 1,
+      }));
     };
     const onClick = (event: MouseEvent) => {
       if (
@@ -923,7 +921,18 @@ function App() {
       }
       prefetchRouteData(getRouteDataUrl(parseRoute(url)));
     };
+    const onSpaNavigate = (event: Event) => {
+      const detail = (event as CustomEvent<SpaNavigateDetail>).detail;
+      if (!detail?.to) {
+        return;
+      }
+      navigate(detail.to, detail.replace, detail.reload);
+    };
     window.addEventListener("popstate", onPopState);
+    window.addEventListener(
+      SPA_NAVIGATE_EVENT,
+      onSpaNavigate as EventListener,
+    );
     document.addEventListener("click", onClick);
     document.addEventListener("mouseenter", onPrefetch, true);
     document.addEventListener("focusin", onPrefetch);
@@ -933,14 +942,21 @@ function App() {
     });
     return () => {
       window.removeEventListener("popstate", onPopState);
+      window.removeEventListener(
+        SPA_NAVIGATE_EVENT,
+        onSpaNavigate as EventListener,
+      );
       document.removeEventListener("click", onClick);
       document.removeEventListener("mouseenter", onPrefetch, true);
       document.removeEventListener("focusin", onPrefetch);
       document.removeEventListener("touchstart", onPrefetch, true);
     };
-  }, [locationKey]);
+  }, [locationState.key]);
 
-  const route = useMemo(() => parseRoute(currentUrl()), [locationKey]);
+  const route = useMemo(
+    () => parseRoute(currentUrl()),
+    [locationState.key, locationState.version],
+  );
 
   async function handleLogout() {
     await fetch("/logout", {
@@ -981,6 +997,7 @@ function App() {
           currentUser={currentUser}
           navigate={navigate}
           refreshSession={refreshSession}
+          key={`${locationState.key}:${locationState.version}`}
         />
       </main>
     </>
