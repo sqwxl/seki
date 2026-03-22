@@ -1,9 +1,7 @@
 use axum::Router;
 use axum::routing::{get, patch, post};
 use tokio::sync::broadcast;
-use tower::ServiceBuilder;
 use tower_http::services::ServeDir;
-use tower_http::set_header::SetResponseHeaderLayer;
 use tower_sessions::cookie::time::Duration;
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::PostgresStore;
@@ -104,14 +102,11 @@ pub async fn build_router_with_registry_and_presence(
         .route("/up", get(routes::health::health_check))
         .nest_service(
             "/static",
-            ServiceBuilder::new()
-                .layer(SetResponseHeaderLayer::overriding(
-                    axum::http::header::CACHE_CONTROL,
-                    axum::http::HeaderValue::from_static("no-cache"),
-                ))
-                .service(ServeDir::new(std::env::var("STATIC_DIR").unwrap_or_else(
-                    |_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string(),
-                ))),
+            ServeDir::new(
+                std::env::var("STATIC_DIR").unwrap_or_else(|_| {
+                    concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()
+                }),
+            ),
         )
         .layer(session_layer)
         .with_state(state.clone());

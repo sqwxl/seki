@@ -1,4 +1,5 @@
 use axum::extract::{Path, Query, State};
+use axum::http::Uri;
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
@@ -24,6 +25,91 @@ pub fn router() -> Router<AppState> {
         .route("/web/users/{username}", axum::routing::get(user_profile))
 }
 
+#[derive(Serialize)]
+pub struct BootstrapPayload {
+    pub url: Option<String>,
+    pub data: Option<serde_json::Value>,
+}
+
+pub async fn bootstrap_for_location(
+    state: &AppState,
+    current_user: &CurrentUser,
+    uri: &Uri,
+) -> Result<BootstrapPayload, AppError> {
+    let path = uri.path();
+    let query = uri.query();
+    let Some(url) = route_data_url(path, query) else {
+        return Ok(BootstrapPayload {
+            url: None,
+            data: None,
+        });
+    };
+
+    let data = match path {
+        "/" | "/games" => serde_json::to_value(load_games_index(state, current_user).await?)?,
+        "/games/new" => serde_json::to_value(load_new_game(query_param(query, "opponent")))?,
+        "/analysis" => serde_json::to_value(AnalysisData {})?,
+        _ if path.starts_with("/games/") => {
+            let game_id = path
+                .trim_start_matches("/games/")
+                .parse::<i64>()
+                .map_err(|_| AppError::NotFound("Game not found".to_string()))?;
+            serde_json::to_value(
+                load_game_show(state, current_user, game_id, query_param(query, "token")).await?,
+            )?
+        }
+        _ if path.starts_with("/users/") => {
+            let username = path.trim_start_matches("/users/").to_string();
+            serde_json::to_value(load_user_profile(state, current_user, username).await?)?
+        }
+        _ => {
+            return Ok(BootstrapPayload {
+                url: None,
+                data: None,
+            });
+        }
+    };
+
+    Ok(BootstrapPayload {
+        url: Some(url),
+        data: Some(data),
+    })
+}
+
+fn route_data_url(path: &str, query: Option<&str>) -> Option<String> {
+    match path {
+        "/" | "/games" => Some("/api/web/games".to_string()),
+        "/games/new" => {
+            let opponent = query_param(query, "opponent");
+            Some(match opponent {
+                Some(opponent) => format!("/api/web/games/new?opponent={opponent}"),
+                None => "/api/web/games/new".to_string(),
+            })
+        }
+        "/analysis" => Some("/api/web/analysis".to_string()),
+        _ if path.starts_with("/games/") => {
+            let token = query_param(query, "token");
+            Some(match token {
+                Some(token) => format!("{path}?token={token}").replacen("/games", "/api/web/games", 1),
+                None => path.replacen("/games", "/api/web/games", 1),
+            })
+        }
+        _ if path.starts_with("/users/") => Some(path.replacen("/users", "/api/web/users", 1)),
+        _ => None,
+    }
+}
+
+fn query_param(query: Option<&str>, key: &str) -> Option<String> {
+    query.and_then(|query| {
+        query.split('&').find_map(|pair| {
+            let mut parts = pair.splitn(2, '=');
+            let k = parts.next()?;
+            let v = parts.next().unwrap_or_default();
+            if k == key { Some(v.to_string()) } else { None }
+        })
+    })
+}
+
 async fn session_me(current_user: CurrentUser) -> Json<UserData> {
     Json(UserData::from(&current_user.user))
 }
@@ -39,6 +125,13 @@ async fn games_index(
     State(state): State<AppState>,
     current_user: CurrentUser,
 ) -> Result<Json<GamesIndexData>, AppError> {
+    Ok(Json(load_games_index(&state, &current_user).await?))
+}
+
+async fn load_games_index(
+    state: &AppState,
+    current_user: &CurrentUser,
+) -> Result<GamesIndexData, AppError> {
     let (player_games, public_games) = tokio::join!(
         Game::list_for_player(&state.db, current_user.id),
         Game::list_public_with_players(&state.db, Some(current_user.id)),
@@ -51,11 +144,11 @@ async fn games_index(
         build_live_items(&state.db, &public_games),
     );
 
-    Ok(Json(GamesIndexData {
+    Ok(GamesIndexData {
         player_id: current_user.id,
         player_games: player_items,
         public_games: public_items,
-    }))
+    })
 }
 
 #[derive(Deserialize)]
@@ -69,32 +162,18 @@ struct NewGameData {
 }
 
 async fn new_game(Query(query): Query<NewGameQuery>) -> Json<NewGameData> {
-    Json(NewGameData {
-        opponent: query.opponent,
-    })
+    Json(load_new_game(query.opponent))
+}
+
+fn load_new_game(opponent: Option<String>) -> NewGameData {
+    NewGameData {
+        opponent,
+    }
 }
 
 #[derive(Deserialize)]
-struct ShowGameQuery {
+struct GameShowToken {
     token: Option<String>,
-}
-
-#[derive(Serialize)]
-struct GameChatEntry {
-    user_id: Option<i64>,
-    display_name: Option<String>,
-    text: String,
-    move_number: Option<i32>,
-    sent_at: chrono::DateTime<chrono::Utc>,
-}
-
-#[derive(Serialize)]
-struct GamePageData {
-    game_id: i64,
-    game_props: InitialGameProps,
-    chat_log: Vec<GameChatEntry>,
-    og_title: String,
-    og_description: String,
 }
 
 async fn game_show(
@@ -103,6 +182,18 @@ async fn game_show(
     Path(id): Path<i64>,
     Query(query): Query<ShowGameQuery>,
 ) -> Result<Json<GamePageData>, AppError> {
+    Ok(Json(
+        load_game_show(&state, &current_user, id, query.token).await?,
+    ))
+}
+
+async fn load_game_show(
+    state: &AppState,
+    current_user: &CurrentUser,
+    id: i64,
+    token: Option<String>,
+) -> Result<GamePageData, AppError> {
+    let query = GameShowToken { token };
     let gwp = Game::find_with_players(&state.db, id).await?;
 
     let is_player = gwp.has_player(current_user.id);
@@ -133,7 +224,7 @@ async fn game_show(
 
     let is_creator = gwp.game.creator_id == Some(current_user.id);
     let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
-    let game_props = build_game_props(&state, &current_user, &gwp, has_valid_token).await?;
+    let game_props = build_game_props(state, current_user, &gwp, has_valid_token).await?;
 
     let black_name = gwp
         .black
@@ -153,7 +244,7 @@ async fn game_show(
         format!("Watch this {board_size} Go game on Seki")
     };
 
-    Ok(Json(GamePageData {
+    Ok(GamePageData {
         game_id: gwp.game.id,
         game_props: InitialGameProps {
             invite_token: if is_creator || has_valid_token {
@@ -166,8 +257,31 @@ async fn game_show(
         chat_log,
         og_title,
         og_description,
-    }))
+    })
 }
+#[derive(Deserialize)]
+struct ShowGameQuery {
+    token: Option<String>,
+}
+
+#[derive(Serialize)]
+struct GameChatEntry {
+    user_id: Option<i64>,
+    display_name: Option<String>,
+    text: String,
+    move_number: Option<i32>,
+    sent_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Serialize)]
+struct GamePageData {
+    game_id: i64,
+    game_props: InitialGameProps,
+    chat_log: Vec<GameChatEntry>,
+    og_title: String,
+    og_description: String,
+}
+
 
 #[derive(Serialize)]
 struct AnalysisData {}
@@ -197,6 +311,16 @@ async fn user_profile(
     current_user: CurrentUser,
     Path(username): Path<String>,
 ) -> Result<Json<UserProfileData>, AppError> {
+    Ok(Json(
+        load_user_profile(&state, &current_user, username).await?,
+    ))
+}
+
+async fn load_user_profile(
+    state: &AppState,
+    current_user: &CurrentUser,
+    username: String,
+) -> Result<UserProfileData, AppError> {
     let profile_user = User::find_by_username(&state.db, &username)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
@@ -207,7 +331,7 @@ async fn user_profile(
     let items = build_live_items(&state.db, &games).await;
     let is_own_profile = current_user.id == profile_user.id;
 
-    Ok(Json(UserProfileData {
+    Ok(UserProfileData {
         profile_username: profile_user.username,
         initial_games: UserGamesData {
             profile_user_id: profile_user.id,
@@ -225,7 +349,7 @@ async fn user_profile(
             None
         },
         user_is_registered: current_user.is_registered(),
-    }))
+    })
 }
 
 async fn build_game_props(

@@ -1,13 +1,12 @@
 import { render } from "preact";
+import type { ComponentType } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { GamesList, type InitMessage } from "./layouts/games-list";
 import {
   UserGames,
   type UserGamesInitialData,
 } from "./layouts/user-games";
-import { GameSettingsForm } from "./layouts/game-settings-form";
-import { liveGame } from "./layouts/live-game";
-import { initAnalysis } from "./layouts/analysis";
+import { ensureWasm } from "./goban/create-board";
 import type { ChatEntry } from "./components/chat";
 import { NotificationBell } from "./components/notification-bell";
 import { ConnectionStatus } from "./components/connection-status";
@@ -19,6 +18,14 @@ import { initTheme } from "./utils/theme";
 import { initPreferences } from "./utils/preferences";
 import { type InitialGameProps, type UserData } from "./game/types";
 import { readUserData, writeUserData } from "./game/util";
+
+void ensureWasm();
+
+declare global {
+  interface Window {
+    __sekiBootstrap?: BootstrapPayload;
+  }
+}
 
 type Route =
   | { kind: "games" }
@@ -56,6 +63,22 @@ type ProfileData = {
   user_email?: string | null;
   user_is_registered: boolean;
 };
+
+type BootstrapPayload = {
+  url?: string;
+  data?: unknown;
+};
+
+type GameSettingsFormProps = {
+  opponent?: string;
+};
+
+const loadLiveGameModule = () => import("./layouts/live-game");
+const loadAnalysisModule = () => import("./layouts/analysis");
+const loadGameSettingsFormModule = () => import("./layouts/game-settings-form");
+
+const routeDataCache = new Map<string, unknown>();
+const inflightRouteData = new Map<string, Promise<unknown>>();
 
 function currentUrl(): URL {
   return new URL(window.location.href);
@@ -120,6 +143,76 @@ async function fetchJson<T>(url: string): Promise<T> {
   }
 
   return payload as T;
+}
+
+function getBootstrapData(): BootstrapPayload | undefined {
+  if (window.__sekiBootstrap) {
+    return window.__sekiBootstrap;
+  }
+  const el = document.getElementById("bootstrap-data");
+  if (!el?.textContent) {
+    return;
+  }
+  const payload = JSON.parse(el.textContent) as BootstrapPayload;
+  window.__sekiBootstrap = payload;
+  return payload;
+}
+
+function seedBootstrapCache(): void {
+  const payload = getBootstrapData();
+  if (payload?.url && payload.data !== undefined) {
+    routeDataCache.set(payload.url, payload.data);
+  }
+}
+
+function getRouteDataUrl(route: Route): string | undefined {
+  switch (route.kind) {
+    case "games":
+      return "/api/web/games";
+    case "new-game":
+      return route.opponent
+        ? `/api/web/games/new?opponent=${encodeURIComponent(route.opponent)}`
+        : "/api/web/games/new";
+    case "game":
+      return route.token
+        ? `/api/web/games/${route.id}?token=${encodeURIComponent(route.token)}`
+        : `/api/web/games/${route.id}`;
+    case "analysis":
+      return "/api/web/analysis";
+    case "profile":
+      return `/api/web/users/${encodeURIComponent(route.username)}`;
+    default:
+      return undefined;
+  }
+}
+
+async function fetchRouteData<T>(url: string): Promise<T> {
+  if (routeDataCache.has(url)) {
+    return routeDataCache.get(url) as T;
+  }
+  const inflight = inflightRouteData.get(url);
+  if (inflight) {
+    return (await inflight) as T;
+  }
+  const request = fetchJson<T>(url)
+    .then((data) => {
+      routeDataCache.set(url, data);
+      inflightRouteData.delete(url);
+      return data;
+    })
+    .catch((err) => {
+      inflightRouteData.delete(url);
+      throw err;
+    });
+  inflightRouteData.set(url, request as Promise<unknown>);
+  return request;
+}
+
+function prefetchRouteData(url: string | undefined): void {
+  if (!url || routeDataCache.has(url) || inflightRouteData.has(url)) {
+    return;
+  }
+  void fetchRouteData(url);
 }
 
 async function postForm(
@@ -187,15 +280,43 @@ function LoadingState() {
   return <p>Loading...</p>;
 }
 
+function useLazyModule<T>(loader: () => Promise<T>) {
+  const [mod, setMod] = useState<T | undefined>();
+  const [error, setError] = useState<string | undefined>();
+
+  useEffect(() => {
+    let cancelled = false;
+    loader()
+      .then((next) => {
+        if (!cancelled) {
+          setMod(next);
+        }
+      })
+      .catch((err: Error) => {
+        if (!cancelled) {
+          setError(err.message);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loader]);
+
+  return { mod, error };
+}
+
 function useRouteData<T>(url: string) {
-  const [data, setData] = useState<T | undefined>();
+  const [data, setData] = useState<T | undefined>(() =>
+    routeDataCache.get(url) as T | undefined,
+  );
   const [error, setError] = useState<FetchError | undefined>();
 
   useEffect(() => {
     let cancelled = false;
-    setData(undefined);
+    const cached = routeDataCache.get(url) as T | undefined;
+    setData(cached);
     setError(undefined);
-    fetchJson<T>(url)
+    fetchRouteData<T>(url)
       .then((next) => {
         if (!cancelled) {
           setData(next);
@@ -216,21 +337,32 @@ function useRouteData<T>(url: string) {
 
 function LiveGameScreen({ data }: { data: GamePageData }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const { mod, error } = useLazyModule(loadLiveGameModule);
 
   useEffect(() => {
     setHead(data.og_title, data.og_description);
   }, [data]);
 
   useEffect(() => {
-    if (!rootRef.current) {
+    if (!rootRef.current || !mod) {
       return;
     }
-    return liveGame(data.game_props, data.game_id, rootRef.current, data.chat_log);
-  }, [data]);
+    return mod.liveGame(
+      data.game_props,
+      data.game_id,
+      rootRef.current,
+      data.chat_log,
+    );
+  }, [data, mod]);
+
+  if (error) {
+    return <ErrorState message={error} />;
+  }
 
   return (
     <div class="game-page">
       <div ref={rootRef} class="game-page-body" />
+      {!mod && <LoadingState />}
       <div id="game-error"></div>
     </div>
   );
@@ -238,21 +370,27 @@ function LiveGameScreen({ data }: { data: GamePageData }) {
 
 function AnalysisScreen() {
   const rootRef = useRef<HTMLDivElement>(null);
+  const { mod, error } = useLazyModule(loadAnalysisModule);
 
   useEffect(() => {
     setHead("Analysis Board - Seki", "Play Go (Weiqi/Baduk) online with friends");
   }, []);
 
   useEffect(() => {
-    if (!rootRef.current) {
+    if (!rootRef.current || !mod) {
       return;
     }
-    return initAnalysis(rootRef.current);
-  }, []);
+    return mod.initAnalysis(rootRef.current);
+  }, [mod]);
+
+  if (error) {
+    return <ErrorState message={error} />;
+  }
 
   return (
     <div class="game-page">
       <div ref={rootRef} class="game-page-body" />
+      {!mod && <LoadingState />}
     </div>
   );
 }
@@ -299,6 +437,14 @@ function NewGameScreen({
     `/api/web/games/new${route.opponent ? `?opponent=${encodeURIComponent(route.opponent)}` : ""}`,
   );
   const [error, setError] = useState<string | undefined>();
+  const {
+    mod: formModule,
+    error: formError,
+  } = useLazyModule(loadGameSettingsFormModule);
+
+  const FormComponent = formModule?.GameSettingsForm as
+    | ComponentType<GameSettingsFormProps>
+    | undefined;
 
   useEffect(() => {
     setHead("New Game - Seki", "Play Go (Weiqi/Baduk) online with friends");
@@ -322,9 +468,13 @@ function NewGameScreen({
   return (
     <>
       <h1>New Game</h1>
-      {error && <div class="flash">{error}</div>}
+      {(error || formError) && <div class="flash">{error ?? formError}</div>}
       <form id="new-game-form" action="/games" method="post" onSubmit={onSubmit}>
-        <GameSettingsForm opponent={data?.opponent ?? undefined} />
+        {FormComponent ? (
+          <FormComponent opponent={data?.opponent ?? undefined} />
+        ) : (
+          <LoadingState />
+        )}
       </form>
     </>
   );
@@ -761,11 +911,32 @@ function App() {
       event.preventDefault();
       navigate(`${url.pathname}${url.search}`);
     };
+    const onPrefetch = (event: MouseEvent | FocusEvent | TouchEvent) => {
+      const target = event.target as HTMLElement | null;
+      const link = target?.closest("a");
+      if (!link) {
+        return;
+      }
+      const url = new URL(link.href, window.location.origin);
+      if (url.origin !== window.location.origin) {
+        return;
+      }
+      prefetchRouteData(getRouteDataUrl(parseRoute(url)));
+    };
     window.addEventListener("popstate", onPopState);
     document.addEventListener("click", onClick);
+    document.addEventListener("mouseenter", onPrefetch, true);
+    document.addEventListener("focusin", onPrefetch);
+    document.addEventListener("touchstart", onPrefetch, {
+      passive: true,
+      capture: true,
+    });
     return () => {
       window.removeEventListener("popstate", onPopState);
       document.removeEventListener("click", onClick);
+      document.removeEventListener("mouseenter", onPrefetch, true);
+      document.removeEventListener("focusin", onPrefetch);
+      document.removeEventListener("touchstart", onPrefetch, true);
     };
   }, [locationKey]);
 
@@ -817,5 +988,6 @@ function App() {
 }
 
 export function mountApp() {
+  seedBootstrapCache();
   render(<App />, document.body);
 }
