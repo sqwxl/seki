@@ -31,11 +31,14 @@ import {
   initialProps,
   gameId,
   estimateScore,
+  boardFinalized,
+  boardFinalizedScore,
   showMoveTree,
   nigiri,
   allowUndo,
   onlineUsers,
 } from "../game/state";
+import { formatResult } from "../utils/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -291,6 +294,21 @@ export function LiveGamePage(props: LiveGamePageProps) {
   const controlsProps = buildControls(caps, props);
 
   const fullStatusText = caps.statusText + caps.presentationStatusSuffix;
+  const finalizedScore =
+    boardFinalized.value && boardFinalizedScore.value
+      ? boardFinalizedScore.value
+      : undefined;
+  const infoStage =
+    boardFinalized.value && (finalizedScore || result.value)
+      ? GameStage.Completed
+      : gameStage.value;
+  const infoResult = finalizedScore
+    ? formatResult(finalizedScore, initialProps.value.komi)
+    : (result.value ?? undefined);
+  const infoEstimateScore =
+    estimateMode.value || boardFinalized.value
+      ? (estimateScore.value ?? finalizedScore)
+      : undefined;
 
   return (
     <GamePageLayout
@@ -306,18 +324,16 @@ export function LiveGamePage(props: LiveGamePageProps) {
               <GameInfo
                 settings={initialProps.value.settings}
                 komi={initialProps.value.komi}
-                stage={gameStage.value}
+                stage={infoStage}
                 moveCount={moves.value.length}
-                result={result.value ?? undefined}
+                result={infoResult}
                 black={black.value}
                 white={white.value}
                 capturesBlack={gameState.value.captures.black}
                 capturesWhite={gameState.value.captures.white}
                 territory={territory.value}
                 settledTerritory={settledTerritory.value}
-                estimateScore={
-                  estimateMode.value ? estimateScore.value : undefined
-                }
+                estimateScore={infoEstimateScore}
               />
             </GameStatus>
           )}

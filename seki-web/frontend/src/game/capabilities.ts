@@ -570,16 +570,31 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     territoryCountdownSecs = Math.ceil(Math.max(0, remaining) / 1000);
   }
 
+  const statusStage =
+    onFinalized && res
+      ? res === "Aborted"
+        ? GameStage.Aborted
+        : res === "Declined"
+          ? GameStage.Declined
+          : GameStage.Completed
+      : stage;
+  const statusResult =
+    statusStage === GameStage.Completed ||
+    statusStage === GameStage.Aborted ||
+    statusStage === GameStage.Declined
+      ? (res ?? undefined)
+      : undefined;
+
   const statusText =
     getStatusText({
-      stage,
-      result: onFinalized
-        ? boardFinalizedScore.value
-          ? formatResult(boardFinalizedScore.value, props.komi)
-          : (res ?? undefined)
-        : undefined,
+      stage: statusStage,
+      result: statusResult,
       komi: props.komi,
-      estimateScore: inEstimate ? estimateScore.value : undefined,
+      estimateScore:
+        inEstimate || onFinalized
+          ? (estimateScore.value ??
+            (onFinalized ? boardFinalizedScore.value : undefined))
+          : undefined,
       territoryScore: terr?.score,
       lastMoveWasPass: boardNav.boardLastMoveWasPass,
       isChallengeCreator: myId != null && myId === props.creator_id,
