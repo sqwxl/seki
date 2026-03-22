@@ -1,11 +1,10 @@
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
-use askama::Template;
 use axum::Form;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 use serde_json::json;
 use tower_sessions::Session;
@@ -13,9 +12,8 @@ use tower_sessions::Session;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::user::User;
-use crate::routes::{serialize_user_data, wants_json};
+use crate::routes::wants_json;
 use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
-use crate::templates::auth::{LoginTemplate, RegisterTemplate};
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
     headers
@@ -53,20 +51,6 @@ pub struct LoginForm {
     pub password: String,
 }
 
-// GET /register
-pub async fn register_form(current_user: CurrentUser) -> Result<Response, AppError> {
-    if current_user.is_registered() {
-        return Ok(Redirect::to("/").into_response());
-    }
-    let tmpl = RegisterTemplate {
-        user_username: current_user.username.clone(),
-        user_is_registered: false,
-        user_data: serialize_user_data(&current_user),
-        flash: None,
-    };
-    Ok(Html(tmpl.render()?).into_response())
-}
-
 // POST /register
 pub async fn register(
     State(state): State<AppState>,
@@ -80,16 +64,10 @@ pub async fn register(
 
     let username = form.username.trim().to_string();
     let json = wants_json(&headers);
-    let user_data = serialize_user_data(&current_user);
-    let user_username = current_user.username.clone();
-    let render_error = |msg: String| -> Result<Response, AppError> {
-        let tmpl = RegisterTemplate {
-            user_username: user_username.clone(),
-            user_is_registered: false,
-            user_data: user_data.clone(),
-            flash: Some(msg),
-        };
-        Ok((StatusCode::UNPROCESSABLE_ENTITY, Html(tmpl.render()?)).into_response())
+    let redirect_error = |msg: &str| -> Result<Response, AppError> {
+        let query = serde_urlencoded::to_string([("error", msg)])
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        Ok(Redirect::to(&format!("/register?{query}")).into_response())
     };
 
     // Validate
@@ -102,7 +80,7 @@ pub async fn register(
             )
                 .into_response());
         }
-        return render_error(msg.to_string());
+        return redirect_error(msg);
     }
     if form.password.len() < 8 {
         let msg = "Password must be at least 8 characters.";
@@ -113,7 +91,7 @@ pub async fn register(
             )
                 .into_response());
         }
-        return render_error(msg.to_string());
+        return redirect_error(msg);
     }
     if form.password != form.password_confirmation {
         let msg = "Passwords do not match.";
@@ -124,7 +102,7 @@ pub async fn register(
             )
                 .into_response());
         }
-        return render_error(msg.to_string());
+        return redirect_error(msg);
     }
 
     // Check uniqueness
@@ -140,7 +118,7 @@ pub async fn register(
             )
                 .into_response());
         }
-        return render_error(msg.to_string());
+        return redirect_error(msg);
     }
 
     // Hash password
@@ -156,25 +134,6 @@ pub async fn register(
         return Ok(axum::Json(json!({"redirect": "/"})).into_response());
     }
     Ok(Redirect::to("/").into_response())
-}
-
-// GET /login
-pub async fn login_form(
-    current_user: CurrentUser,
-    headers: axum::http::HeaderMap,
-) -> Result<Response, AppError> {
-    if current_user.is_registered() {
-        return Ok(Redirect::to("/").into_response());
-    }
-    let redirect = referer_path(&headers);
-    let tmpl = LoginTemplate {
-        user_username: current_user.username.clone(),
-        user_is_registered: false,
-        user_data: serialize_user_data(&current_user),
-        flash: None,
-        redirect,
-    };
-    Ok(Html(tmpl.render()?).into_response())
 }
 
 #[derive(Deserialize)]
@@ -193,15 +152,14 @@ pub async fn login(
 ) -> Result<Response, AppError> {
     let json = wants_json(&headers);
     let redirect = query.redirect.clone();
-    let render_error = |msg: String| -> Result<Response, AppError> {
-        let tmpl = LoginTemplate {
-            user_username: String::new(),
-            user_is_registered: false,
-            user_data: "{}".to_string(),
-            flash: Some(msg),
-            redirect: redirect.clone(),
-        };
-        Ok((StatusCode::UNPROCESSABLE_ENTITY, Html(tmpl.render()?)).into_response())
+    let redirect_error = |msg: &str| -> Result<Response, AppError> {
+        let mut pairs = vec![("error", msg)];
+        if !redirect.is_empty() {
+            pairs.push(("redirect", redirect.as_str()));
+        }
+        let query = serde_urlencoded::to_string(pairs)
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        Ok(Redirect::to(&format!("/login?{query}")).into_response())
     };
 
     let login_err = "Invalid username or password.";
@@ -216,7 +174,7 @@ pub async fn login(
                 )
                     .into_response());
             }
-            return render_error(login_err.to_string());
+            return redirect_error(login_err);
         }
     };
 
@@ -230,7 +188,7 @@ pub async fn login(
                 )
                     .into_response());
             }
-            return render_error(login_err.to_string());
+            return redirect_error(login_err);
         }
     };
 
@@ -248,7 +206,7 @@ pub async fn login(
             )
                 .into_response());
         }
-        return render_error(login_err.to_string());
+        return redirect_error(login_err);
     }
 
     // Save the current anonymous token in a cookie so we can restore it on logout

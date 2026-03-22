@@ -1,19 +1,15 @@
-use askama::Template;
 use axum::Form;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::AppState;
 use crate::error::AppError;
-use crate::models::game::Game;
 use crate::models::user::User;
-use crate::routes::{serialize_user_data, wants_json};
-use crate::services::live::build_live_items;
+use crate::routes::wants_json;
 use crate::session::CurrentUser;
-use crate::templates::user_profile::UserProfileTemplate;
 
 #[derive(Deserialize)]
 pub struct SearchQuery {
@@ -70,53 +66,6 @@ pub struct UpdateUsernameForm {
     pub username: String,
 }
 
-// GET /users/:username
-pub async fn profile(
-    State(state): State<AppState>,
-    current_user: CurrentUser,
-    Path(username): Path<String>,
-) -> Result<Response, AppError> {
-    let profile_user = User::find_by_username(&state.db, &username)
-        .await?
-        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
-
-    let games = Game::list_all_for_player(&state.db, profile_user.id)
-        .await
-        .unwrap_or_default();
-
-    let items = build_live_items(&state.db, &games).await;
-
-    let initial_games = serde_json::to_string(&serde_json::json!({
-        "profile_user_id": profile_user.id,
-        "games": items,
-    }))
-    .unwrap_or_default();
-
-    let is_own_profile = current_user.id == profile_user.id;
-
-    let tmpl = UserProfileTemplate {
-        user_username: current_user.username.clone(),
-        user_is_registered: current_user.is_registered(),
-        user_data: serialize_user_data(&current_user),
-        profile_username: profile_user.username.clone(),
-        initial_games,
-        is_own_profile,
-        api_token: if is_own_profile {
-            current_user.api_token.clone()
-        } else {
-            None
-        },
-        user_email: if is_own_profile {
-            current_user.email.clone()
-        } else {
-            None
-        },
-        flash: None,
-    };
-
-    Ok(Html(tmpl.render()?).into_response())
-}
-
 // POST /users/:username
 pub async fn update_username(
     State(state): State<AppState>,
@@ -147,7 +96,9 @@ pub async fn update_username(
             )
                 .into_response());
         }
-        return render_profile_with_flash(&state, &current_user, &profile_user, msg).await;
+        let query = serde_urlencoded::to_string([("error", msg)])
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        return Ok(Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response());
     }
 
     // No change
@@ -172,7 +123,9 @@ pub async fn update_username(
             )
                 .into_response());
         }
-        return render_profile_with_flash(&state, &current_user, &profile_user, msg).await;
+        let query = serde_urlencoded::to_string([("error", msg)])
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        return Ok(Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response());
     }
 
     // Update
@@ -194,41 +147,10 @@ pub async fn update_username(
                 )
                     .into_response());
             }
-            render_profile_with_flash(&state, &current_user, &profile_user, msg).await
+            let query = serde_urlencoded::to_string([("error", msg)])
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+            Ok(Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response())
         }
         Err(e) => Err(AppError::Internal(e.to_string())),
     }
-}
-
-async fn render_profile_with_flash(
-    state: &AppState,
-    current_user: &CurrentUser,
-    profile_user: &User,
-    flash: &str,
-) -> Result<Response, AppError> {
-    let games = Game::list_all_for_player(&state.db, profile_user.id)
-        .await
-        .unwrap_or_default();
-
-    let items = build_live_items(&state.db, &games).await;
-
-    let initial_games = serde_json::to_string(&serde_json::json!({
-        "profile_user_id": profile_user.id,
-        "games": items,
-    }))
-    .unwrap_or_default();
-
-    let tmpl = UserProfileTemplate {
-        user_username: current_user.username.clone(),
-        user_is_registered: current_user.is_registered(),
-        user_data: serialize_user_data(current_user),
-        profile_username: profile_user.username.clone(),
-        initial_games,
-        is_own_profile: true,
-        api_token: current_user.api_token.clone(),
-        user_email: current_user.email.clone(),
-        flash: Some(flash.to_string()),
-    };
-
-    Ok((StatusCode::UNPROCESSABLE_ENTITY, Html(tmpl.render()?)).into_response())
 }

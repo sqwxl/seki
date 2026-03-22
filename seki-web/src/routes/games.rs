@@ -1,71 +1,18 @@
-use askama::Template;
 use axum::Form;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
-use crate::models::message::Message;
-use crate::routes::{serialize_user_data, wants_json};
+use crate::routes::wants_json;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
-use crate::services::live::build_live_items;
-use crate::services::presentation_actions;
 use crate::services::state_serializer;
 use crate::session::CurrentUser;
-use crate::templates::UserData;
-use crate::templates::games_list::GamesListTemplate;
-use crate::templates::games_new::GamesNewTemplate;
-use crate::templates::games_show::{GamesShowTemplate, InitialGameProps};
-
-// GET /
-pub async fn new_game(current_user: CurrentUser) -> Result<Response, AppError> {
-    let tmpl = GamesNewTemplate {
-        user_username: current_user.username.clone(),
-        user_is_registered: current_user.is_registered(),
-        user_data: serialize_user_data(&current_user),
-        flash: None,
-    };
-    Ok(Html(tmpl.render()?).into_response())
-}
-
-// GET /games
-pub async fn list_games(
-    State(state): State<AppState>,
-    current_user: CurrentUser,
-) -> Result<Response, AppError> {
-    let (player_games, public_games) = tokio::join!(
-        Game::list_for_player(&state.db, current_user.id),
-        Game::list_public_with_players(&state.db, Some(current_user.id)),
-    );
-
-    let player_games = player_games.unwrap_or_default();
-    let public_games = public_games.unwrap_or_default();
-    let (player_items, public_items) = tokio::join!(
-        build_live_items(&state.db, &player_games),
-        build_live_items(&state.db, &public_games),
-    );
-
-    let initial_games = serde_json::to_string(&serde_json::json!({
-        "player_id": current_user.id,
-        "player_games": player_items,
-        "public_games": public_items,
-    }))
-    .unwrap_or_default();
-
-    let tmpl = GamesListTemplate {
-        user_username: current_user.username.clone(),
-        user_is_registered: current_user.is_registered(),
-        user_data: serialize_user_data(&current_user),
-        initial_games,
-    };
-
-    Ok(Html(tmpl.render()?).into_response())
-}
 
 #[derive(Deserialize)]
 pub struct CreateGameForm {
@@ -174,13 +121,9 @@ pub async fn create_game(
                 )
                     .into_response());
             }
-            let tmpl = GamesNewTemplate {
-                user_username: current_user.username.clone(),
-                user_is_registered: current_user.is_registered(),
-                user_data: serialize_user_data(&current_user),
-                flash: Some(e.to_string()),
-            };
-            Ok((StatusCode::UNPROCESSABLE_ENTITY, Html(tmpl.render()?)).into_response())
+            let query = serde_urlencoded::to_string([("error", e.to_string())])
+                .map_err(|err| AppError::Internal(err.to_string()))?;
+            Ok(Redirect::to(&format!("/games/new?{query}")).into_response())
         }
     }
 }
@@ -188,162 +131,6 @@ pub async fn create_game(
 #[derive(Deserialize)]
 pub struct ShowGameQuery {
     pub token: Option<String>,
-}
-
-// GET /games/:id
-pub async fn show_game(
-    State(state): State<AppState>,
-    current_user: CurrentUser,
-    Path(id): Path<i64>,
-    Query(query): Query<ShowGameQuery>,
-) -> Result<Response, AppError> {
-    let gwp = Game::find_with_players(&state.db, id).await?;
-
-    // Access control for private games
-    let is_player = gwp.has_player(current_user.id);
-    let has_valid_token = gwp
-        .game
-        .invite_token
-        .as_deref()
-        .zip(query.token.as_deref())
-        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
-
-    if gwp.game.is_private && !is_player && !has_valid_token {
-        return Err(AppError::Forbidden(
-            "This game is private. You need an invite link to view it.".to_string(),
-        ));
-    }
-
-    // Build chat log JSON
-    let messages = Message::find_by_game_id_with_sender(&state.db, id).await?;
-    let chat_log: Vec<serde_json::Value> = messages
-        .iter()
-        .map(|msg| {
-            serde_json::json!({
-                "user_id": msg.user_id,
-                "display_name": msg.display_name,
-                "text": msg.text,
-                "move_number": msg.move_number,
-                "sent_at": msg.created_at
-            })
-        })
-        .collect();
-    let chat_log_json = serde_json::to_string(&chat_log).unwrap_or_else(|_| "[]".to_string());
-
-    let is_creator = gwp.game.creator_id == Some(current_user.id);
-    let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
-
-    let engine = state
-        .registry
-        .get_or_init_engine(&state.db, &gwp.game)
-        .await?;
-
-    // The engine derives stage from moves, but the DB is authoritative for
-    // terminal states, challenges, and games that started but have no moves yet.
-    let stage = if gwp.game.result.is_some() {
-        gwp.game.stage.clone()
-    } else if gwp.game.stage == "challenge" {
-        "challenge".to_string()
-    } else if engine.stage() == go_engine::Stage::Unstarted
-        && gwp.game.stage != "unstarted"
-        && gwp.game.stage != "challenge"
-    {
-        // DB says game started but engine has no moves yet
-        if gwp.game.handicap >= 2 {
-            "white_to_play".to_string()
-        } else {
-            "black_to_play".to_string()
-        }
-    } else {
-        engine.stage().to_string()
-    };
-
-    // Load settled territory for finished games
-    let settled_territory = if gwp.game.result.is_some() {
-        Game::load_settled_territory(&state.db, id)
-            .await
-            .ok()
-            .flatten()
-            .map(|raw| state_serializer::build_settled_territory(&engine, gwp.game.komi, raw))
-    } else {
-        None
-    };
-
-    let can_start_pres = presentation_actions::can_start_presentation(
-        &state.registry,
-        id,
-        gwp.game.result.is_some(),
-        gwp.has_player(current_user.id),
-        gwp.black.as_ref().map(|u| u.id),
-        gwp.white.as_ref().map(|u| u.id),
-        gwp.game.ended_at,
-    )
-    .await;
-
-    let game_props = serde_json::to_string(&InitialGameProps {
-        state: engine.game_state(),
-        creator_id: gwp.game.creator_id,
-        black: gwp.black.as_ref().map(UserData::from),
-        white: gwp.white.as_ref().map(UserData::from),
-        komi: gwp.game.komi,
-        stage: stage.clone(),
-        settings: crate::services::live::GameSettings {
-            cols: gwp.game.cols,
-            rows: gwp.game.rows,
-            handicap: engine_builder::game_handicap(&gwp.game) as i32,
-            time_control: gwp.game.time_control,
-            main_time_secs: gwp.game.main_time_secs,
-            increment_secs: gwp.game.increment_secs,
-            byoyomi_time_secs: gwp.game.byoyomi_time_secs,
-            byoyomi_periods: gwp.game.byoyomi_periods,
-            is_private: gwp.game.is_private,
-            invite_only: gwp.game.invite_only,
-        },
-        moves: engine.moves().to_vec(),
-        current_turn_stone: engine.current_turn_stone().to_int() as i32,
-        result: gwp.game.result.clone(),
-        settled_territory,
-        nigiri: gwp.game.nigiri,
-        can_start_presentation: can_start_pres,
-        has_valid_token,
-        invite_token: if is_creator || has_valid_token {
-            gwp.game.invite_token.clone()
-        } else {
-            None
-        },
-    })
-    .unwrap();
-
-    let black_name = gwp
-        .black
-        .as_ref()
-        .map(|u| u.username.as_str())
-        .unwrap_or("Black");
-    let white_name = gwp
-        .white
-        .as_ref()
-        .map(|u| u.username.as_str())
-        .unwrap_or("White");
-    let board_size = format!("{}×{}", gwp.game.cols, gwp.game.rows);
-    let og_title = format!("{black_name} vs {white_name} — {board_size}");
-    let og_description = if has_open_slot {
-        format!("Join this {board_size} Go game on Seki")
-    } else {
-        format!("Watch this {board_size} Go game on Seki")
-    };
-
-    let tmpl = GamesShowTemplate {
-        user_username: current_user.username.clone(),
-        user_is_registered: current_user.is_registered(),
-        user_data: serialize_user_data(&current_user),
-        game_id: gwp.game.id,
-        game_props,
-        chat_log_json,
-        og_title,
-        og_description,
-    };
-
-    Ok(Html(tmpl.render()?).into_response())
 }
 
 // POST /games/:id/join

@@ -81,7 +81,9 @@ pub async fn update_email(
             )
                 .into_response());
         }
-        return Err(AppError::UnprocessableEntity(msg.to_string()));
+        let query = serde_urlencoded::to_string([("error", msg)])
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        return Ok(Redirect::to(&format!("/settings?{query}")).into_response());
     }
 
     // Check for duplicates (another user with this email)
@@ -96,7 +98,9 @@ pub async fn update_email(
             )
                 .into_response());
         }
-        return Err(AppError::UnprocessableEntity(msg.to_string()));
+        let query = serde_urlencoded::to_string([("error", msg)])
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        return Ok(Redirect::to(&format!("/settings?{query}")).into_response());
     }
 
     User::update_email(&state.db, current_user.id, &email).await?;

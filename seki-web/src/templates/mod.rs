@@ -1,10 +1,5 @@
-pub mod analysis;
-pub mod auth;
-pub mod games_list;
-pub mod games_new;
 pub mod games_show;
 pub mod shell;
-pub mod user_profile;
 
 use serde::Serialize;
 

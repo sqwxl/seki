@@ -1,4 +1,3 @@
-use askama::Template;
 use go_engine::{GameState, Turn};
 use serde::Serialize;
 
@@ -26,17 +25,4 @@ pub struct InitialGameProps {
     pub has_valid_token: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invite_token: Option<String>,
-}
-
-#[derive(Template)]
-#[template(path = "games/show.html")]
-pub struct GamesShowTemplate {
-    pub user_username: String,
-    pub user_is_registered: bool,
-    pub user_data: String,
-    pub game_id: i64,
-    pub game_props: String,
-    pub chat_log_json: String,
-    pub og_title: String,
-    pub og_description: String,
 }
