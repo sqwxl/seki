@@ -1,9 +1,4 @@
 import type { ComponentChildren, Ref } from "preact";
-import { PlayerPanel } from "../components/player-panel";
-import type { PlayerPanelProps } from "../components/player-panel";
-import type { ControlsProps } from "../components/controls";
-import { Controls } from "./controls";
-import { TabBar } from "../components/tab-bar";
 import { mobileTab } from "../game/state";
 
 export type GamePageLayoutProps = {
@@ -11,12 +6,13 @@ export type GamePageLayoutProps = {
   gobanRef: Ref<HTMLDivElement>;
   gobanStyle?: string;
   gobanClass?: string;
-  playerTop?: PlayerPanelProps;
-  playerBottom?: PlayerPanelProps;
-  controls?: ControlsProps;
+  playerTop?: ComponentChildren;
+  playerBottom?: ComponentChildren;
+  controls?: ComponentChildren;
   status?: ComponentChildren;
   chat?: ComponentChildren;
   moveTree?: ComponentChildren;
+  tabBar?: ComponentChildren;
 };
 
 export function GamePageLayout(props: GamePageLayoutProps) {
@@ -34,7 +30,7 @@ export function GamePageLayout(props: GamePageLayoutProps) {
       <div class={`game-board-view ${tab === "chat" ? "tab-hidden" : ""}`}>
         {props.playerTop && (
           <div class="player-panel player-top">
-            <PlayerPanel {...props.playerTop} />
+            {props.playerTop}
           </div>
         )}
         <div class="game-board-area">
@@ -46,12 +42,12 @@ export function GamePageLayout(props: GamePageLayoutProps) {
         </div>
         {props.playerBottom && (
           <div class="player-panel player-bottom">
-            <PlayerPanel {...props.playerBottom} />
+            {props.playerBottom}
           </div>
         )}
         {props.controls && (
           <div class="controls">
-            <Controls {...props.controls} />
+            {props.controls}
           </div>
         )}
         {props.moveTree}
@@ -61,7 +57,7 @@ export function GamePageLayout(props: GamePageLayoutProps) {
           {props.chat}
         </div>
       )}
-      {hasChat && <TabBar controls={props.controls} />}
+      {hasChat && props.tabBar}
     </>
   );
 }

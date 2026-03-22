@@ -4,14 +4,20 @@ import { GameStage } from "../game/types";
 import { Chat } from "../components/chat";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
+import { PlayerPanel } from "../components/player-panel";
 import type { ControlsProps } from "../components/controls";
 import { LobbyControls, LobbyPopover } from "../components/controls";
+import { Controls } from "./controls";
+import { TabBar } from "../components/tab-bar";
 import type { GameChannel } from "../game/channel";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { GamePageLayout } from "./game-page-layout";
-import type { UiCapabilities } from "../game/capabilities";
 import {
-  liveGameCapabilities,
+  type LiveGameControlsState,
+  liveGameControlsState,
+  liveGameMoveTreeState,
+  liveGamePanelState,
+  liveGameStatusState,
   buildTerritoryOverlay,
 } from "../game/capabilities";
 import {
@@ -33,7 +39,6 @@ import {
   estimateScore,
   boardFinalized,
   boardFinalizedScore,
-  showMoveTree,
   nigiri,
   allowUndo,
   onlineUsers,
@@ -80,7 +85,7 @@ export function getServerTerritory(): TerritoryOverlay | undefined {
 // ---------------------------------------------------------------------------
 
 function buildControls(
-  caps: UiCapabilities,
+  caps: LiveGameControlsState,
   props: LiveGamePageProps,
 ): ControlsProps {
   const { channel, mc } = props;
@@ -286,16 +291,22 @@ function buildControls(
   return controlsProps;
 }
 
-// ---------------------------------------------------------------------------
-// Page component
-// ---------------------------------------------------------------------------
+function LiveGameTopPanel() {
+  return <PlayerPanel {...liveGamePanelState.value.topPanel} />;
+}
 
-export function LiveGamePage(props: LiveGamePageProps) {
-  const { channel, mc, moveTreeEl, gobanRef } = props;
-  const caps = liveGameCapabilities.value;
-  const controlsProps = buildControls(caps, props);
+function LiveGameBottomPanel() {
+  return <PlayerPanel {...liveGamePanelState.value.bottomPanel} />;
+}
 
-  const fullStatusText = caps.statusText + caps.presentationStatusSuffix;
+function LiveGameControls(props: LiveGamePageProps) {
+  return <Controls {...buildControls(liveGameControlsState.value, props)} />;
+}
+
+function LiveGameStatusSlot(props: LiveGamePageProps) {
+  const status = liveGameStatusState.value;
+  const fullStatusText =
+    status.statusText + status.presentationStatusSuffix;
   const finalizedScore =
     boardFinalized.value && boardFinalizedScore.value
       ? boardFinalizedScore.value
@@ -313,76 +324,104 @@ export function LiveGamePage(props: LiveGamePageProps) {
       : undefined;
 
   return (
+    <>
+      {fullStatusText && (
+        <GameStatus text={fullStatusText}>
+          <GameInfo
+            settings={initialProps.value.settings}
+            komi={initialProps.value.komi}
+            stage={infoStage}
+            moveCount={moves.value.length}
+            result={infoResult}
+            black={black.value}
+            white={white.value}
+            capturesBlack={gameState.value.captures.black}
+            capturesWhite={gameState.value.captures.white}
+            territory={territory.value}
+            settledTerritory={settledTerritory.value}
+            estimateScore={infoEstimateScore}
+          />
+        </GameStatus>
+      )}
+      <LobbyControls {...buildControls(liveGameControlsState.value, props)} />
+      {status.disconnectCountdown && (
+        <p class="disconnect-countdown">{status.disconnectCountdown}</p>
+      )}
+      {status.lobbyPopover && (
+        <LobbyPopover
+          variant={status.lobbyPopover.variant}
+          title={status.lobbyPopover.title}
+          settings={initialProps.value.settings}
+          komi={initialProps.value.komi}
+          allowUndo={allowUndo.value}
+          yourColor={
+            status.lobbyPopover.variant === "challengee"
+              ? nigiri.value
+                ? "Random"
+                : playerStone.value === 1
+                  ? "Black"
+                  : "White"
+              : undefined
+          }
+          onAccept={() => props.channel.acceptChallenge()}
+          onDecline={() => props.channel.declineChallenge()}
+          onAbort={() => props.channel.abort()}
+          onJoin={() => {
+            const form = document.createElement("form");
+            form.method = "POST";
+            const token = initialProps.value.invite_token;
+            form.action = `/games/${gameId.value}/join${token ? `?token=${token}` : ""}`;
+            document.body.appendChild(form);
+            form.submit();
+          }}
+          copyInviteLink={
+            status.showInviteLink
+              ? () => {
+                  const token = initialProps.value.invite_token;
+                  const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
+                  navigator.clipboard.writeText(url);
+                }
+              : undefined
+          }
+        />
+      )}
+    </>
+  );
+}
+
+function LiveGameMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
+  const showMoveTree = liveGameMoveTreeState.value.showMoveTree;
+  return (
+    <div
+      class={`move-tree-slot${!showMoveTree ? " hidden" : ""}`}
+      ref={(el) => {
+        if (el && !el.contains(moveTreeEl)) {
+          el.appendChild(moveTreeEl);
+        }
+      }}
+    />
+  );
+}
+
+function LiveGameTabBar(props: LiveGamePageProps) {
+  return <TabBar controls={buildControls(liveGameControlsState.value, props)} />;
+}
+
+// ---------------------------------------------------------------------------
+// Page component
+// ---------------------------------------------------------------------------
+
+export function LiveGamePage(props: LiveGamePageProps) {
+  const { channel, moveTreeEl, gobanRef } = props;
+
+  return (
     <GamePageLayout
       gobanRef={gobanRef}
-      gobanStyle={`aspect-ratio: ${caps.boardAspectRatio}`}
-      playerTop={caps.topPanel}
-      playerBottom={caps.bottomPanel}
-      controls={controlsProps}
-      status={
-        <>
-          {fullStatusText && (
-            <GameStatus text={fullStatusText}>
-              <GameInfo
-                settings={initialProps.value.settings}
-                komi={initialProps.value.komi}
-                stage={infoStage}
-                moveCount={moves.value.length}
-                result={infoResult}
-                black={black.value}
-                white={white.value}
-                capturesBlack={gameState.value.captures.black}
-                capturesWhite={gameState.value.captures.white}
-                territory={territory.value}
-                settledTerritory={settledTerritory.value}
-                estimateScore={infoEstimateScore}
-              />
-            </GameStatus>
-          )}
-          <LobbyControls {...controlsProps} />
-          {caps.disconnectCountdown && (
-            <p class="disconnect-countdown">{caps.disconnectCountdown}</p>
-          )}
-          {caps.lobbyPopover && (
-            <LobbyPopover
-              variant={caps.lobbyPopover.variant}
-              title={caps.lobbyPopover.title}
-              settings={initialProps.value.settings}
-              komi={initialProps.value.komi}
-              allowUndo={allowUndo.value}
-              yourColor={
-                caps.lobbyPopover.variant === "challengee"
-                  ? nigiri.value
-                    ? "Random"
-                    : playerStone.value === 1
-                      ? "Black"
-                      : "White"
-                  : undefined
-              }
-              onAccept={() => channel.acceptChallenge()}
-              onDecline={() => channel.declineChallenge()}
-              onAbort={() => channel.abort()}
-              onJoin={() => {
-                const form = document.createElement("form");
-                form.method = "POST";
-                const token = initialProps.value.invite_token;
-                form.action = `/games/${gameId.value}/join${token ? `?token=${token}` : ""}`;
-                document.body.appendChild(form);
-                form.submit();
-              }}
-              copyInviteLink={
-                caps.showInviteLink
-                  ? () => {
-                      const token = initialProps.value.invite_token;
-                      const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
-                      navigator.clipboard.writeText(url);
-                    }
-                  : undefined
-              }
-            />
-          )}
-        </>
-      }
+      gobanStyle={`aspect-ratio: ${gameState.value.cols}/${gameState.value.rows}`}
+      playerTop={<LiveGameTopPanel />}
+      playerBottom={<LiveGameBottomPanel />}
+      controls={<LiveGameControls {...props} />}
+      status={<LiveGameStatusSlot {...props} />}
       chat={
         <div class="chat">
           <Chat
@@ -395,16 +434,8 @@ export function LiveGamePage(props: LiveGamePageProps) {
           />
         </div>
       }
-      moveTree={
-        <div
-          class={`move-tree-slot${!caps.showMoveTree ? " hidden" : ""}`}
-          ref={(el) => {
-            if (el && !el.contains(moveTreeEl)) {
-              el.appendChild(moveTreeEl);
-            }
-          }}
-        />
-      }
+      moveTree={<LiveGameMoveTree moveTreeEl={moveTreeEl} />}
+      tabBar={<LiveGameTabBar {...props} />}
     />
   );
 }

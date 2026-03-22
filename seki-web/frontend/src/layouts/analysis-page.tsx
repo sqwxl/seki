@@ -1,6 +1,9 @@
 import type { ControlsProps } from "../components/controls";
 import type { PlayerPanelProps } from "../components/player-panel";
+import { PlayerPanel } from "../components/player-panel";
 import { GameStatus } from "../components/game-status";
+import { Controls } from "./controls";
+import { TabBar } from "../components/tab-bar";
 import {
   blackSymbol,
   whiteSymbol,
@@ -227,6 +230,8 @@ export function AnalysisPage(props: AnalysisPageProps) {
   const size = analysisSize.value;
 
   const controlsProps = buildAnalysisControls(caps, props);
+  const topPanel = buildAnalysisPlayerPanel({ position: "top" });
+  const bottomPanel = buildAnalysisPlayerPanel({ position: "bottom" });
 
   const statusText = caps.statusText;
 
@@ -235,9 +240,9 @@ export function AnalysisPage(props: AnalysisPageProps) {
       header={<AnalysisHeader />}
       gobanRef={gobanRef}
       gobanStyle={`aspect-ratio: ${size}/${size}`}
-      playerTop={buildAnalysisPlayerPanel({ position: "top" })}
-      playerBottom={buildAnalysisPlayerPanel({ position: "bottom" })}
-      controls={controlsProps}
+      playerTop={topPanel ? <PlayerPanel {...topPanel} /> : undefined}
+      playerBottom={bottomPanel ? <PlayerPanel {...bottomPanel} /> : undefined}
+      controls={<Controls {...controlsProps} />}
       status={statusText ? <GameStatus text={statusText} /> : undefined}
       moveTree={
         <div
@@ -249,6 +254,7 @@ export function AnalysisPage(props: AnalysisPageProps) {
           }}
         />
       }
+      tabBar={<TabBar controls={controlsProps} />}
     />
   );
 }

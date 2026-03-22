@@ -140,6 +140,58 @@ export type UiCapabilities = {
   };
 };
 
+export type LiveGameControlsState = Pick<
+  UiCapabilities,
+  | "canPass"
+  | "showPass"
+  | "canRequestUndo"
+  | "canResign"
+  | "showResign"
+  | "canAbort"
+  | "canAcceptTerritory"
+  | "canFinalizeTerritory"
+  | "canClaimVictory"
+  | "canRematch"
+  | "canExitAnalysis"
+  | "canEnterAnalysis"
+  | "showAnalysis"
+  | "canEnterEstimate"
+  | "showEnterEstimate"
+  | "canExitEstimate"
+  | "canEnterPresentation"
+  | "canExitPresentation"
+  | "canReturnControl"
+  | "showMoveConfirmToggle"
+  | "showUndoResponse"
+  | "undoTooltip"
+  | "passIsAnalysisPass"
+  | "confirmPassRequired"
+  | "estimateTitle"
+  | "exitEstimateTitle"
+  | "showAnalyzeChoice"
+  | "canTakeControl"
+  | "canRequestControl"
+  | "canCancelControlRequest"
+  | "controlRequestPending"
+  | "controlRequestDisplayName"
+  | "controlRequestUserId"
+  | "showControlRequestResponse"
+  | "nav"
+>;
+
+export type LiveGamePanelState = Pick<UiCapabilities, "topPanel" | "bottomPanel">;
+
+export type LiveGameStatusState = Pick<
+  UiCapabilities,
+  | "statusText"
+  | "presentationStatusSuffix"
+  | "disconnectCountdown"
+  | "lobbyPopover"
+  | "showInviteLink"
+>;
+
+export type LiveGameMoveTreeState = Pick<UiCapabilities, "showMoveTree">;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -169,6 +221,14 @@ function deriveTerritoryOverlay(
     return buildTerritoryOverlay(settled);
   }
   return undefined;
+}
+
+function isAnalysisCapablePhase(phase: GamePhase): boolean {
+  return (
+    phase.phase === "analysis" ||
+    (phase.phase === "presentation" &&
+      (phase.role === "presenter" || phase.role === "local-analysis"))
+  );
 }
 
 type ScoreInput = {
@@ -695,6 +755,247 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     nav,
   };
 });
+
+export const liveGameControlsState = computed(
+  (): LiveGameControlsState => {
+    const caps = liveGameCapabilities.value;
+    return {
+      canPass: caps.canPass,
+      showPass: caps.showPass,
+      canRequestUndo: caps.canRequestUndo,
+      canResign: caps.canResign,
+      showResign: caps.showResign,
+      canAbort: caps.canAbort,
+      canAcceptTerritory: caps.canAcceptTerritory,
+      canFinalizeTerritory: caps.canFinalizeTerritory,
+      canClaimVictory: caps.canClaimVictory,
+      canRematch: caps.canRematch,
+      canExitAnalysis: caps.canExitAnalysis,
+      canEnterAnalysis: caps.canEnterAnalysis,
+      showAnalysis: caps.showAnalysis,
+      canEnterEstimate: caps.canEnterEstimate,
+      showEnterEstimate: caps.showEnterEstimate,
+      canExitEstimate: caps.canExitEstimate,
+      canEnterPresentation: caps.canEnterPresentation,
+      canExitPresentation: caps.canExitPresentation,
+      canReturnControl: caps.canReturnControl,
+      showMoveConfirmToggle: caps.showMoveConfirmToggle,
+      showUndoResponse: caps.showUndoResponse,
+      undoTooltip: caps.undoTooltip,
+      passIsAnalysisPass: caps.passIsAnalysisPass,
+      confirmPassRequired: caps.confirmPassRequired,
+      estimateTitle: caps.estimateTitle,
+      exitEstimateTitle: caps.exitEstimateTitle,
+      showAnalyzeChoice: caps.showAnalyzeChoice,
+      canTakeControl: caps.canTakeControl,
+      canRequestControl: caps.canRequestControl,
+      canCancelControlRequest: caps.canCancelControlRequest,
+      controlRequestPending: caps.controlRequestPending,
+      controlRequestDisplayName: caps.controlRequestDisplayName,
+      controlRequestUserId: caps.controlRequestUserId,
+      showControlRequestResponse: caps.showControlRequestResponse,
+      nav: caps.nav,
+    };
+  },
+);
+
+export const liveGamePanelState = computed(
+  (): LiveGamePanelState => {
+    const stone = playerStone.value;
+    const stage = gameStage.value;
+    const res = result.value;
+    const props = initialProps.value;
+    const b = black.value;
+    const w = white.value;
+    const online = onlineUsers.value;
+    const cd = clockDisplay.value;
+    const terr = territory.value;
+    const settled = settledTerritory.value;
+    const isPlay = isPlayStage(stage);
+    const isReview = stage === GameStage.TerritoryReview;
+    const isNigiriPending = nigiri.value && !isPlay && !isReview && !res;
+    const onFinalized = boardFinalized.value;
+    const score =
+      estimateScore.value ??
+      terr?.score ??
+      (onFinalized ? (boardFinalizedScore.value ?? settled?.score) : undefined);
+    const panelOpts = {
+      stone,
+      blackUser: b,
+      whiteUser: w,
+      online,
+      komi: props.komi,
+      captures: gameState.value.captures,
+      score,
+      cd,
+      isNigiriPending,
+    };
+
+    return {
+      topPanel: derivePlayerPanel({ ...panelOpts, position: "top" }),
+      bottomPanel: derivePlayerPanel({ ...panelOpts, position: "bottom" }),
+    };
+  },
+);
+
+export const liveGameStatusState = computed(
+  (): LiveGameStatusState => {
+    const phase = gamePhase.value;
+    const stage = gameStage.value;
+    const stone = playerStone.value;
+    const isPlayer = stone !== 0;
+    const isDone =
+      stage === GameStage.Completed ||
+      stage === GameStage.Aborted ||
+      stage === GameStage.Declined;
+    const res = result.value;
+    const props = initialProps.value;
+    const b = black.value;
+    const w = white.value;
+    const terr = territory.value;
+    const oppDisconnected = opponentDisconnected.value;
+    const hasOpenSlot = !b || !w;
+    const challengee = b?.id !== props.creator_id ? b : w;
+    const myId = stone === 1 ? b?.id : w?.id;
+    const isReview = stage === GameStage.TerritoryReview;
+    const inEstimate = phase.phase === "estimate";
+    const inPresentation = phase.phase === "presentation";
+    const onFinalized = boardFinalized.value;
+    const boardNav = navState.value;
+
+    const opponentApproved =
+      isReview && isPlayer
+        ? stone === 1
+          ? !!terr?.white_approved
+          : !!terr?.black_approved
+        : false;
+
+    let territoryCountdownSecs: number | undefined;
+    if (isReview && terr?.expires_at) {
+      const remaining = new Date(terr.expires_at).getTime() - uiNowMs.value;
+      territoryCountdownSecs = Math.ceil(Math.max(0, remaining) / 1000);
+    }
+
+    const statusStage =
+      onFinalized && res
+        ? res === "Aborted"
+          ? GameStage.Aborted
+          : res === "Declined"
+            ? GameStage.Declined
+            : GameStage.Completed
+        : stage;
+    const statusResult =
+      statusStage === GameStage.Completed ||
+      statusStage === GameStage.Aborted ||
+      statusStage === GameStage.Declined
+        ? (res ?? undefined)
+        : undefined;
+
+    let disconnectCountdown: string | undefined;
+    if (isPlayer && !isDone && !res && oppDisconnected) {
+      if (oppDisconnected.gone) {
+        disconnectCountdown = "Opponent left the game.";
+      } else if (oppDisconnected.gracePeriodMs != null) {
+        const elapsed = uiNowMs.value - oppDisconnected.since.getTime();
+        const remaining = Math.max(
+          0,
+          Math.ceil((oppDisconnected.gracePeriodMs - elapsed) / 1000),
+        );
+        disconnectCountdown =
+          remaining > 0
+            ? `Opponent left. ${remaining}s to reconnect.`
+            : "Opponent left the game.";
+      } else {
+        disconnectCountdown = "Opponent disconnected.";
+      }
+    }
+
+    let lobbyPopover: UiCapabilities["lobbyPopover"];
+    const hasValidToken = !!props.has_valid_token;
+    const isChallenge = stage === GameStage.Challenge;
+    const isCreator = myId != null && myId === props.creator_id;
+    const isChallengee =
+      isChallenge && isPlayer && myId != null && myId !== props.creator_id;
+    const opponentName =
+      b?.id === props.creator_id ? w?.display_name : b?.display_name;
+
+    if (isChallengee) {
+      const challengerName =
+        (b?.id === props.creator_id ? b?.display_name : w?.display_name) ?? "?";
+      lobbyPopover = {
+        variant: "challengee",
+        title: `${challengerName} challenged you to a game`,
+      };
+    } else if (isCreator && !isDone && !res && isChallenge) {
+      lobbyPopover = {
+        variant: "creator-challenge",
+        title: `Waiting for ${opponentName ?? "opponent"} to accept`,
+      };
+    } else if (isCreator && !isDone && !res && hasOpenSlot && !isChallenge) {
+      lobbyPopover = {
+        variant: "creator-waiting",
+        title: "Waiting for opponent",
+      };
+    } else if (
+      !isPlayer &&
+      hasOpenSlot &&
+      !isDone &&
+      !res &&
+      ((!props.settings.is_private || hasValidToken) &&
+        (!props.settings.invite_only || hasValidToken) ||
+        hasValidToken)
+    ) {
+      lobbyPopover = {
+        variant: "join",
+        title: "Join this game",
+      };
+    }
+
+    const statusText =
+      getStatusText({
+        stage: statusStage,
+        result: statusResult,
+        komi: props.komi,
+        estimateScore:
+          inEstimate || onFinalized
+            ? (estimateScore.value ??
+              (onFinalized ? boardFinalizedScore.value : undefined))
+            : undefined,
+        territoryScore: terr?.score,
+        lastMoveWasPass: boardNav.boardLastMoveWasPass,
+        isChallengeCreator: myId != null && myId === props.creator_id,
+        challengeWaitingFor: challengee?.display_name,
+        hasOpenSlot,
+        isBlackTurn: boardNav.boardTurnStone === 1,
+        isPlayer,
+        opponentApproved,
+        territoryCountdownSecs,
+      }) ?? "";
+
+    let presentationStatusSuffix = "";
+    if (inPresentation) {
+      if (isPresenter.value) {
+        presentationStatusSuffix = " (You are presenting)";
+      } else if (presenterDisplayName.value) {
+        presentationStatusSuffix = ` (${presenterDisplayName.value} presenting)`;
+      }
+    }
+
+    return {
+      statusText,
+      presentationStatusSuffix,
+      disconnectCountdown,
+      lobbyPopover,
+      showInviteLink: !!props.invite_token && hasOpenSlot && isPlayer,
+    };
+  },
+);
+
+export const liveGameMoveTreeState = computed(
+  (): LiveGameMoveTreeState => ({
+    showMoveTree: showMoveTree.value || isAnalysisCapablePhase(gamePhase.value),
+  }),
+);
 
 // ---------------------------------------------------------------------------
 // Analysis capabilities (minimal — engine-derived state stays in the page)
