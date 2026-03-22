@@ -420,7 +420,7 @@ function NewGameScreen({
   navigate,
 }: {
   route: Extract<Route, { kind: "new-game" }>;
-  navigate: (to: string, replace?: boolean) => void;
+  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
 }) {
   const { data } = useRouteData<NewGameData>(
     `/api/web/games/new${route.opponent ? `?opponent=${encodeURIComponent(route.opponent)}` : ""}`,
@@ -481,7 +481,7 @@ function ProfileScreen({
 }: {
   username: string;
   initialError?: string | null;
-  navigate: (to: string, replace?: boolean) => void;
+  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
   refreshSession: () => Promise<void>;
 }) {
   const { data, error } = useRouteData<ProfileData>(
@@ -521,7 +521,7 @@ function ProfileScreen({
       const result = await postForm(form.action, new FormData(form));
       await refreshSession();
       if (typeof result.redirect === "string") {
-        navigate(result.redirect, true);
+        navigate(result.redirect, true, true);
       }
     } catch (err) {
       setMessage((err as { message: string }).message);
@@ -540,7 +540,7 @@ function ProfileScreen({
         throw new Error(result.error ?? "Request failed");
       }
       if (typeof result.redirect === "string") {
-        navigate(result.redirect, true);
+        navigate(result.redirect, true, true);
       }
     } catch (err) {
       setMessage((err as Error).message);
@@ -664,7 +664,7 @@ function AuthFormScreen({
 }: {
   mode: "login" | "register";
   currentUser: UserData | undefined;
-  navigate: (to: string, replace?: boolean) => void;
+  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
   refreshSession: () => Promise<void>;
   redirectTarget?: string | null;
   initialError?: string | null;
@@ -774,7 +774,7 @@ function SettingsRedirect({
 }: {
   currentUser: UserData | undefined;
   error?: string | null;
-  navigate: (to: string, replace?: boolean) => void;
+  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
 }) {
   useEffect(() => {
     if (currentUser?.display_name) {
@@ -802,7 +802,7 @@ function Screen({
 }: {
   route: Route;
   currentUser: UserData | undefined;
-  navigate: (to: string, replace?: boolean) => void;
+  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
   refreshSession: () => Promise<void>;
 }) {
   switch (route.kind) {

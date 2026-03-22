@@ -81,6 +81,7 @@ export function liveGame(
   root: HTMLElement,
   initialChatLog: ChatEntry[] = [],
 ) {
+  let disposed = false;
   const userData = readUserData();
   const pStone = derivePlayerStone(
     userData,
@@ -461,6 +462,10 @@ export function liveGame(
       };
     },
   }).then((b) => {
+    if (disposed) {
+      b.destroy();
+      return;
+    }
     board.value = b;
     board.value.setMoveTreeEl(moveTreeEl);
     if (moves.value.length > 0) {
@@ -768,6 +773,7 @@ export function liveGame(
   document.addEventListener("visibilitychange", onVisibilityChange);
 
   return () => {
+    disposed = true;
     for (const dispose of disposers) {
       dispose();
     }

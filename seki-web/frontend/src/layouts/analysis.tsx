@@ -16,16 +16,18 @@ import {
   handleMoveConfirmClick,
   dismissMoveConfirmOnClickOutside,
 } from "../utils/move-confirm";
-import { todayYYYYMMDD } from "../utils/format";
+import { todayYYYYMMDD, formatSgfTime, formatTime } from "../utils/format";
 import { readFileAsText, downloadSgf } from "../utils/sgf";
 import type { SgfMeta } from "../utils/sgf";
 import type { Sign } from "../goban/types";
+import type { PlayerPanelProps } from "../components/player-panel";
+import { buildPlayerPanels } from "../game/capabilities";
 import {
   analysisBoard,
   analysisKomi,
   analysisMeta,
   analysisPendingMove,
-  analysisRenderNonce,
+  analysisPanelState,
   analysisSize,
   analysisTerritoryInfo,
   analysisNavState,
@@ -54,6 +56,8 @@ export function initAnalysis(root: HTMLElement) {
   analysisMeta.value = storage.getJson(ANALYSIS_SGF_META);
 
   let sgfText: string | undefined = storage.get(ANALYSIS_SGF_TEXT) ?? undefined;
+  let disposed = false;
+  let boardInitVersion = 0;
 
   showCoordinates.value = readShowCoordinates();
 
@@ -82,6 +86,84 @@ export function initAnalysis(root: HTMLElement) {
     analysisBoard.value?.setKomi(komi);
   }
 
+  function buildAnalysisPanels(board: NonNullable<typeof analysisBoard.value>): {
+    top: PlayerPanelProps;
+    bottom: PlayerPanelProps;
+  } {
+    const engine = board.engine;
+    const meta = analysisMeta.value;
+    const { score } = analysisTerritoryInfo.value;
+    const whiteName = meta?.white_name ?? "White";
+    const blackName = meta?.black_name ?? "Black";
+
+    const mtJson = engine.current_move_time();
+    let bClock = "";
+    let wClock = "";
+    if (mtJson) {
+      const mt = JSON.parse(mtJson) as {
+        black_time?: number;
+        black_periods?: number;
+        white_time?: number;
+        white_periods?: number;
+      };
+      if (mt.black_time != null) {
+        bClock = formatTime(mt.black_time);
+        if (mt.black_periods != null) {
+          bClock += ` (${mt.black_periods})`;
+        }
+      }
+      if (mt.white_time != null) {
+        wClock = formatTime(mt.white_time);
+        if (mt.white_periods != null) {
+          wClock += ` (${mt.white_periods})`;
+        }
+      }
+    }
+    if (!bClock && !wClock) {
+      const fallback =
+        formatSgfTime(meta?.time_limit_secs, meta?.overtime) ?? "";
+      bClock = fallback;
+      wClock = fallback;
+    }
+
+    const panels = buildPlayerPanels({
+      komi: analysisKomi.value,
+      captures: {
+        black: engine.captures_black(),
+        white: engine.captures_white(),
+      },
+      score,
+    });
+
+    return {
+      top: {
+        ...panels.white,
+        name: whiteName,
+        stone: "white",
+        clock: wClock,
+      },
+      bottom: {
+        ...panels.black,
+        name: blackName,
+        stone: "black",
+        clock: bClock,
+      },
+    };
+  }
+
+  function syncAnalysisUi(board: NonNullable<typeof analysisBoard.value>) {
+    const engine = board.engine;
+    analysisNavState.value = {
+      atStart: engine.is_at_start(),
+      atLatest: engine.is_at_latest(),
+      atMainEnd: engine.is_at_main_end(),
+      counter: `${engine.view_index()}`,
+      boardTurnStone: engine.current_turn_stone(),
+      boardLastMoveWasPass: engine.last_move_was_pass(),
+    };
+    analysisPanelState.value = buildAnalysisPanels(board);
+  }
+
   // --- Size change ---
   function handleSizeChange(size: number) {
     analysisSize.value = size;
@@ -95,6 +177,7 @@ export function initAnalysis(root: HTMLElement) {
 
   // --- Board initialization ---
   async function initBoard(size: number) {
+    const initVersion = ++boardInitVersion;
     if (analysisBoard.value) {
       analysisBoard.value.destroy();
     }
@@ -138,16 +221,19 @@ export function initAnalysis(root: HTMLElement) {
       },
       onRender: (engine, territoryInfo) => {
         analysisTerritoryInfo.value = territoryInfo;
-        analysisNavState.value = {
-          boardTurnStone: engine.current_turn_stone(),
-          boardLastMoveWasPass: engine.last_move_was_pass(),
-        };
-        analysisRenderNonce.value += 1;
+        if (analysisBoard.value) {
+          syncAnalysisUi(analysisBoard.value);
+        }
       },
     });
 
+    if (disposed || initVersion !== boardInitVersion) {
+      board.destroy();
+      return;
+    }
+
     analysisBoard.value = board;
-    analysisRenderNonce.value += 1;
+    syncAnalysisUi(board);
 
     // Restore move_times from saved SGF text (tree already restored via storageKey)
     if (sgfText) {
@@ -272,6 +358,8 @@ export function initAnalysis(root: HTMLElement) {
   initBoard(analysisSize.value);
 
   return () => {
+    disposed = true;
+    boardInitVersion += 1;
     for (const dispose of disposers) {
       dispose();
     }

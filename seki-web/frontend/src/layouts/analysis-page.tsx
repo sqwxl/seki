@@ -22,10 +22,11 @@ import {
   analysisBoard,
   analysisKomi,
   analysisMeta,
+  analysisPanelState,
   analysisPendingMove,
-  analysisRenderNonce,
   analysisSize,
   analysisTerritoryInfo,
+  analysisNavState,
 } from "./analysis-state";
 
 // ---------------------------------------------------------------------------
@@ -61,98 +62,27 @@ function AnalysisHeader() {
   return <>{meta && <p>{formatSgfDescription(meta)}</p>}</>;
 }
 
-/**
- * Player panels read from WASM engine state (captures, move time) which
- * doesn't trigger signal updates — must be called during render.
- */
-function buildAnalysisPlayerPanel({
-  position,
-}: {
-  position: "top" | "bottom";
-}) {
-  const board = analysisBoard.value;
-  const meta = analysisMeta.value;
-
-  if (!board) {
-    return undefined;
-  }
-
-  const engine = board.engine;
-  const { score } = analysisTerritoryInfo.value;
-
-  const whiteName = meta?.white_name ?? "White";
-  const blackName = meta?.black_name ?? "Black";
-
-  // Per-move time (BL/WL) if available, else static time settings
-  const mtJson = engine.current_move_time();
-  let bClock = "";
-  let wClock = "";
-  if (mtJson) {
-    const mt = JSON.parse(mtJson);
-    if (mt.black_time != null) {
-      bClock = formatTime(mt.black_time);
-      if (mt.black_periods != null) {
-        bClock += ` (${mt.black_periods})`;
-      }
-    }
-    if (mt.white_time != null) {
-      wClock = formatTime(mt.white_time);
-      if (mt.white_periods != null) {
-        wClock += ` (${mt.white_periods})`;
-      }
-    }
-  }
-  if (!bClock && !wClock) {
-    const fallback = formatSgfTime(meta?.time_limit_secs, meta?.overtime) ?? "";
-    bClock = fallback;
-    wClock = fallback;
-  }
-
-  const panels = buildPlayerPanels({
-    komi: analysisKomi.value,
-    captures: {
-      black: engine.captures_black(),
-      white: engine.captures_white(),
-    },
-    score,
-  });
-
-  const whitePanel: PlayerPanelProps = {
-    ...panels.white,
-    name: whiteName,
-    stone: "white",
-    clock: wClock,
-  };
-  const blackPanel: PlayerPanelProps = {
-    ...panels.black,
-    name: blackName,
-    stone: "black",
-    clock: bClock,
-  };
-
-  // White on top, black on bottom
-  return position === "top" ? whitePanel : blackPanel;
-}
-
-// ---------------------------------------------------------------------------
-// Controls builder — maps capabilities + callbacks to ControlsProps
-// ---------------------------------------------------------------------------
-
 function buildAnalysisControls(
   caps: AnalysisCapabilities,
   props: AnalysisPageProps,
 ): ControlsProps {
   const { mc, onSizeChange, onKomiChange, handleSgfImport, handleSgfExport } =
     props;
-  analysisRenderNonce.value;
   const board = analysisBoard.value;
+  const nav = analysisNavState.value;
 
   const controlsProps: ControlsProps = {
     layout:
       caps.showTerritoryReady || caps.showTerritoryExit
         ? "analysis-review"
         : "analysis",
-    nav: buildNavProps(board),
+    nav: {
+      atStart: nav.atStart,
+      atLatest: nav.atLatest,
+      atMainEnd: nav.atMainEnd,
+      counter: nav.counter,
+      onNavigate: (action) => board?.navigate(action),
+    },
     sizeSelect: {
       value: analysisSize.value,
       options: [9, 13, 19],
@@ -215,14 +145,12 @@ function buildAnalysisControls(
 }
 
 function AnalysisTopPanel() {
-  analysisRenderNonce.value;
-  const panel = buildAnalysisPlayerPanel({ position: "top" });
+  const panel = analysisPanelState.value.top;
   return panel ? <PlayerPanel {...panel} /> : null;
 }
 
 function AnalysisBottomPanel() {
-  analysisRenderNonce.value;
-  const panel = buildAnalysisPlayerPanel({ position: "bottom" });
+  const panel = analysisPanelState.value.bottom;
   return panel ? <PlayerPanel {...panel} /> : null;
 }
 
