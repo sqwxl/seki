@@ -37,6 +37,7 @@ import {
   nigiri,
   allowUndo,
   onlineUsers,
+  pendingMove,
 } from "../game/state";
 import { formatResult } from "../utils/format";
 
@@ -269,12 +270,13 @@ function buildControls(
   }
 
   // --- Confirm move (ephemeral — read from mc state) ---
-  if (mc.value) {
+  if (pendingMove.value) {
     controlsProps.confirmMove = {
       onClick: () => {
-        if (mc.value) {
-          const [col, row] = mc.value;
+        if (pendingMove.value) {
+          const [col, row] = pendingMove.value;
           mc.clear();
+          pendingMove.value = undefined;
           channel.play(col, row);
         }
       },

@@ -59,6 +59,8 @@ import {
   mobileTab,
   setPresence,
   resetGameRuntimeState,
+  pendingMove,
+  uiNowMs,
 } from "../game/state";
 import {
   gamePhase,
@@ -123,6 +125,15 @@ export function liveGame(
   const moveTreeEl = document.createElement("div");
   moveTreeEl.className = "move-tree";
 
+  function syncPendingMove() {
+    pendingMove.value = mc.value;
+  }
+
+  function clearPendingMove() {
+    mc.clear();
+    pendingMove.value = undefined;
+  }
+
   // --- Analysis persistence helpers ---
   const analysisKey = gameAnalysisKey(gameId);
 
@@ -161,7 +172,7 @@ export function liveGame(
 
   function enterAnalysis({ restorePosition = true } = {}) {
     const cur = gamePhase.value;
-    mc.clear();
+    clearPendingMove();
     if (cur.phase === "presentation" && cur.role === "synced-viewer") {
       toPresentationLocalAnalysis();
     } else {
@@ -172,14 +183,13 @@ export function liveGame(
     }
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
-    doRender();
   }
 
   function exitAnalysis() {
     if (gamePhase.value.phase === "estimate") {
       doExitEstimate();
     }
-    mc.clear();
+    clearPendingMove();
     saveAnalysis(false);
     const cur = gamePhase.value;
     if (cur.phase === "presentation" && cur.role === "local-analysis") {
@@ -193,17 +203,15 @@ export function liveGame(
     }
     mobileTab.value = "board";
     board.value?.render();
-    doRender();
   }
 
   function enterEstimate() {
     const wasAnalysis = analysisMode.value;
-    mc.clear();
+    clearPendingMove();
     toEstimate();
     if (settledTerritory.value && !wasAnalysis) {
       // Static overlay for finished games — just toggle and re-render
       board.value?.render();
-      doRender();
     } else {
       board.value?.enterTerritoryReview();
     }
@@ -219,10 +227,8 @@ export function liveGame(
     estimateScore.value = undefined;
     if (settledTerritory.value && !wasFromAnalysis) {
       board.value?.render();
-      doRender();
     } else {
       board.value?.exitTerritoryReview();
-      doRender();
     }
   }
 
@@ -303,7 +309,7 @@ export function liveGame(
     const isMyTurn = currentTurn.value === playerStone.value;
     if (isMyTurn) {
       if (!mc.enabled) {
-        mc.clear();
+        clearPendingMove();
         channel.play(col, row);
       } else {
         const action = handleMoveConfirmClick(
@@ -313,10 +319,11 @@ export function liveGame(
           board.value.engine.is_legal(col, row),
         );
         if (action === "confirm") {
+          syncPendingMove();
           channel.play(col, row);
         } else {
+          syncPendingMove();
           board.value.render();
-          doRender();
         }
       }
     }
@@ -326,33 +333,29 @@ export function liveGame(
   // --- Parse initial chat history ---
   chatMessages.value = initialChatLog;
 
-  // --- Render ---
-  function doRender() {
-    render(
-      <LiveGamePage
-        channel={channel}
-        mc={mc}
-        moveTreeEl={moveTreeEl}
-        gobanRef={gobanRef}
-        enterAnalysis={enterAnalysis}
-        exitAnalysis={exitAnalysis}
-        enterEstimate={enterEstimate}
-        exitEstimate={doExitEstimate}
-        handleSgfExport={handleSgfExport}
-        enterPresentation={enterPresentation}
-        exitPresentation={exitPresentation}
-        returnControl={returnControl}
-      />,
-      root,
-    );
-    updateTitle();
-  }
-
   // Initial render (before board loads)
-  doRender();
+  render(
+    <LiveGamePage
+      channel={channel}
+      mc={mc}
+      moveTreeEl={moveTreeEl}
+      gobanRef={gobanRef}
+      enterAnalysis={enterAnalysis}
+      exitAnalysis={exitAnalysis}
+      enterEstimate={enterEstimate}
+      exitEstimate={doExitEstimate}
+      handleSgfExport={handleSgfExport}
+      enterPresentation={enterPresentation}
+      exitPresentation={exitPresentation}
+      returnControl={returnControl}
+    />,
+    root,
+  );
 
-  // Static board preview while WASM loads
-  if (gobanRef.current) {
+  // Static preview only helps on empty boards; on populated boards it makes the
+  // eventual WASM handoff visibly jumpier because the preview and engine render
+  // have different timing and placement state.
+  if (gobanRef.current && !gameState.value.board.some((cell) => cell !== 0)) {
     const gs = gameState.value;
     render(
       <Goban
@@ -456,7 +459,6 @@ export function liveGame(
         boardTurnStone: engine.current_turn_stone(),
         boardLastMoveWasPass: engine.last_move_was_pass(),
       };
-      doRender();
     },
   }).then((b) => {
     board.value = b;
@@ -491,7 +493,6 @@ export function liveGame(
       enterAnalysis();
     } else {
       board.value.navigate("main-end");
-      doRender();
     }
   });
 
@@ -500,8 +501,8 @@ export function liveGame(
     mc,
     () => gobanRef.current,
     () => {
+      pendingMove.value = undefined;
       board.value?.render();
-      doRender();
     },
   );
 
@@ -516,7 +517,25 @@ export function liveGame(
     clockState,
     territoryCountdown,
     channel,
-    pendingMove: mc,
+    pendingMove: {
+      get value() {
+        return mc.value;
+      },
+      set value(v) {
+        mc.value = v;
+        pendingMove.value = v;
+      },
+      get enabled() {
+        return mc.enabled;
+      },
+      set enabled(v) {
+        mc.enabled = v;
+      },
+      getGhostStone: () => mc.getGhostStone(),
+      clear: () => {
+        clearPendingMove();
+      },
+    },
     notificationState,
     onNewMove: () => {
       if (estimateMode.value) {
@@ -525,7 +544,7 @@ export function liveGame(
     },
     onPresentationStarted: (snapshot: string) => {
       if (isPresenter.value) {
-        mc.clear();
+        clearPendingMove();
         toPresentation("presenter");
         restoreAnalysisPosition();
         board.value?.setMoveTreeEl(moveTreeEl);
@@ -538,7 +557,7 @@ export function liveGame(
           board.value?.exitTerritoryReview();
         }
         if (wasInAnalysis) {
-          mc.clear();
+          clearPendingMove();
           saveAnalysis();
         }
         toPresentation("synced-viewer");
@@ -548,7 +567,6 @@ export function liveGame(
         }
       }
       board.value?.render();
-      doRender();
     },
     onPresentationEnded: (wasPresenter: boolean) => {
       lastPresentationSnapshot = "";
@@ -570,7 +588,6 @@ export function liveGame(
           }
         }
       }
-      doRender();
     },
     onPresentationUpdate: (snapshot: string) => {
       // Always cache the latest snapshot for re-sync on analysis exit
@@ -601,7 +618,7 @@ export function liveGame(
         const wasAnalysis = analysisMode.value;
         toPresentation("presenter");
         if (!wasAnalysis) {
-          mc.clear();
+          clearPendingMove();
           restoreAnalysisPosition();
           board.value?.setMoveTreeEl(moveTreeEl);
         }
@@ -612,7 +629,7 @@ export function liveGame(
           estimateScore.value = undefined;
           board.value?.exitTerritoryReview();
         }
-        mc.clear();
+        clearPendingMove();
         saveAnalysis();
         toPresentation("synced-viewer");
         if (lastPresentationSnapshot && board.value) {
@@ -620,7 +637,6 @@ export function liveGame(
         }
       }
       board.value?.render();
-      doRender();
     },
   };
   markRead(gameId);
@@ -678,38 +694,38 @@ export function liveGame(
     const enabled = moveConfirmEnabled.value;
     mc.enabled = enabled;
     if (!enabled && mc.value) {
-      mc.clear();
+      clearPendingMove();
       board.value?.render();
-      doRender();
     }
   }));
 
   // --- Disconnect countdown timer ---
-  // Re-render every second while grace period is active so the countdown updates
   disposers.push(effect(() => {
     const dc = opponentDisconnected.value;
     if (!dc) {
       return;
     }
-    // If already gone or no grace period, render once and done
     if (dc.gone || dc.gracePeriodMs == null) {
-      doRender();
+      uiNowMs.value = Date.now();
       return;
     }
-    const interval = setInterval(() => doRender(), 1000);
-    doRender();
+    const interval = setInterval(() => {
+      uiNowMs.value = Date.now();
+    }, 1000);
+    uiNowMs.value = Date.now();
     return () => clearInterval(interval);
   }));
 
   // --- Territory countdown timer ---
-  // Re-render every second while territory review has an expiry deadline
   disposers.push(effect(() => {
     const terr = territory.value;
     if (!terr?.expires_at) {
       return;
     }
-    const interval = setInterval(() => doRender(), 1000);
-    doRender();
+    const interval = setInterval(() => {
+      uiNowMs.value = Date.now();
+    }, 1000);
+    uiNowMs.value = Date.now();
     return () => clearInterval(interval);
   }));
 
@@ -720,6 +736,16 @@ export function liveGame(
         board.value?.render();
       });
     }
+  }));
+
+  disposers.push(effect(() => {
+    initialPropsSignal.value.creator_id;
+    black.value;
+    white.value;
+    gameStage.value;
+    result.value;
+    moves.value.length;
+    updateTitle();
   }));
 
   // --- Sync analysis mode with mobile tab ---

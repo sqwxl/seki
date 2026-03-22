@@ -16,6 +16,7 @@ import type {
 import { GameStage as GS, isPlayStage } from "./types";
 import type { Board } from "../goban/create-board";
 import type { ChatEntry } from "../components/chat";
+import type { Point } from "../goban/types";
 import { storage, SHOW_MOVE_TREE, SHOW_COORDINATES } from "../utils/storage";
 import { readMoveConfirmation } from "../utils/move-confirm";
 
@@ -81,6 +82,8 @@ export const opponentDisconnected = signal<
 // ---------------------------------------------------------------------------
 export const chatMessages = signal<ChatEntry[]>([]);
 export const hasUnreadChat = signal(false);
+export const pendingMove = signal<Point | undefined>(undefined);
+export const uiNowMs = signal(Date.now());
 
 // ---------------------------------------------------------------------------
 // UI mode flags
@@ -194,6 +197,8 @@ export function resetGameRuntimeState(): void {
     opponentDisconnected.value = undefined;
     chatMessages.value = [];
     hasUnreadChat.value = false;
+    pendingMove.value = undefined;
+    uiNowMs.value = Date.now();
     canStartPresentation.value = false;
     presentationActive.value = false;
     presenterId.value = 0;

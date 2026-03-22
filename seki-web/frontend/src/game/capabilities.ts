@@ -45,6 +45,7 @@ import {
   controlRequest,
   presenterDisplayName,
   canStartPresentation,
+  uiNowMs,
 } from "./state";
 
 // ---------------------------------------------------------------------------
@@ -432,7 +433,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     if (oppDisconnected.gone) {
       disconnectCountdown = "Opponent left the game.";
     } else if (oppDisconnected.gracePeriodMs != null) {
-      const elapsed = Date.now() - oppDisconnected.since.getTime();
+      const elapsed = uiNowMs.value - oppDisconnected.since.getTime();
       const remaining = Math.max(
         0,
         Math.ceil((oppDisconnected.gracePeriodMs - elapsed) / 1000),
@@ -566,7 +567,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
   let territoryCountdownSecs: number | undefined;
   if (isReview && terr?.expires_at) {
-    const remaining = new Date(terr.expires_at).getTime() - Date.now();
+    const remaining = new Date(terr.expires_at).getTime() - uiNowMs.value;
     territoryCountdownSecs = Math.ceil(Math.max(0, remaining) / 1000);
   }
 
