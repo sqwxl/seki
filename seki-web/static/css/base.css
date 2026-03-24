@@ -127,27 +127,6 @@ button:disabled:hover {
   border-color: var(--border);
 }
 
-[popover] {
-  padding: 0.75em;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--bg);
-  color: var(--fg);
-  box-shadow: var(--shadow-elevated);
-}
-
-[popover]:not(:popover-open) {
-  display: none;
-}
-
-[popover]::backdrop {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-:root[data-theme="dark"] [popover]::backdrop {
-  background: rgba(0, 0, 0, 0.5);
-}
-
 /* --- Link-styled button (overrides base reset) --- */
 
 button.link {
@@ -184,7 +163,7 @@ main {
   flex-direction: column;
   align-items: stretch;
   width: 100%;
-  padding: 0 0.75em;
+  padding: 0.75em 0.75em 0;
 }
 
 main:not(:has(.game-page)) {
@@ -194,7 +173,10 @@ main:not(:has(.game-page)) {
 
 nav {
   display: flex;
+  position: relative;
+  z-index: 300;
   width: 100%;
+  background: var(--bg);
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
@@ -250,7 +232,7 @@ a:visited {
   position: absolute;
   top: 100%;
   right: 0;
-  z-index: 100;
+  z-index: 400;
   min-width: 14em;
   max-width: 22em;
   background: var(--bg);
@@ -259,6 +241,11 @@ a:visited {
   box-shadow: var(--shadow-elevated);
   margin-top: 0.5em;
   gap: 0;
+}
+
+.flash {
+  position: relative;
+  z-index: 325;
 }
 
 .nav-dropdown-section {

@@ -126,7 +126,6 @@ function ButtonContent(props: {
 }
 
 function ConfirmPopover({
-  popoverRef,
   icon,
   message,
   onConfirm,
@@ -135,7 +134,6 @@ function ConfirmPopover({
   closeOnCancel = true,
   children,
 }: {
-  popoverRef: preact.RefObject<HTMLDivElement>;
   icon: preact.ComponentType<{ title?: string }>;
   message: string;
   onConfirm: () => void;
@@ -147,11 +145,7 @@ function ConfirmPopover({
   const Icon = icon;
   const disableActions = pending != null;
   return (
-    <div
-      class="confirm-popover"
-      popover="manual"
-      ref={popoverRef}
-    >
+    <div class="confirm-popover">
       <Icon />
       <p>{message}</p>
       {children}
@@ -170,15 +164,40 @@ function ConfirmPopover({
           disabled={disableActions}
           onClick={() => {
             onCancel?.();
-            if (closeOnCancel && !disableActions) {
-              popoverRef.current?.hidePopover();
-            }
           }}
         >
           <ButtonContent pending={pending === "cancel"} icon={IconX} />
         </button>
       </div>
     </div>
+  );
+}
+
+function ConfirmModal({
+  open,
+  dismissible = true,
+  onDismiss,
+  children,
+}: {
+  open: boolean;
+  dismissible?: boolean;
+  onDismiss?: () => void;
+  children: preact.ComponentChildren;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <>
+      <div
+        class={`confirm-popover-backdrop${dismissible ? " dismissible" : ""}`}
+        onClick={dismissible ? onDismiss : undefined}
+      />
+      <div class="confirm-popover-modal">
+        {children}
+      </div>
+    </>
   );
 }
 
@@ -199,26 +218,11 @@ function ConfirmButton({
   buttonClass?: string;
   children?: preact.ComponentChildren;
 }) {
-  const popoverId = `${id}-confirm`;
   const Icon = icon;
   const [open, setOpen] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const wasPendingRef = useRef(false);
   const isPending = confirm.pending != null;
-
-  useEffect(() => {
-    const popover = popoverRef.current;
-    if (!popover) {
-      return;
-    }
-    if (open && !popover.matches(":popover-open")) {
-      popover.showPopover();
-    }
-    if (!open && popover.matches(":popover-open")) {
-      popover.hidePopover();
-    }
-  }, [open]);
 
   useEffect(() => {
     if (isPending) {
@@ -235,7 +239,7 @@ function ConfirmButton({
     }
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (popoverRef.current?.contains(target) || buttonRef.current?.contains(target)) {
+      if (buttonRef.current?.contains(target)) {
         return;
       }
       setOpen(false);
@@ -256,21 +260,28 @@ function ConfirmButton({
       >
         <ButtonContent pending={isPending} icon={Icon} />
       </button>
-      {open && (
+      <ConfirmModal
+        open={open}
+        dismissible={!isPending}
+        onDismiss={() => setOpen(false)}
+      >
         <ConfirmPopover
-          key={popoverId}
-          popoverRef={popoverRef}
+          key={id}
           icon={icon}
           message={confirm.message}
           onConfirm={confirm.onConfirm}
-          onCancel={() => setOpen(false)}
+          onCancel={closeOnCancelHandler(setOpen)}
           pending={confirm.pending}
         >
           {children}
         </ConfirmPopover>
-      )}
+      </ConfirmModal>
     </>
   );
+}
+
+function closeOnCancelHandler(setOpen: (open: boolean) => void) {
+  return () => setOpen(false);
 }
 
 function SgfImportButton({
@@ -330,37 +341,21 @@ function ModalConfirmPopover(
       }
     | undefined,
 ) {
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const popover = popoverRef.current;
-    if (!popover || !props) {
-      return;
-    }
-    if (!popover.matches(":popover-open")) {
-      popover.showPopover();
-    }
-    return () => {
-      if (popover.matches(":popover-open")) {
-        popover.hidePopover();
-      }
-    };
-  }, [props]);
-
   if (!props) {
     return null;
   }
 
   return (
-    <ConfirmPopover
-      popoverRef={popoverRef}
-      icon={props.icon}
-      message={props.message}
-      onConfirm={props.onConfirm}
-      onCancel={props.onCancel}
-      pending={props.pending}
-      closeOnCancel={false}
-    />
+    <ConfirmModal open dismissible={false}>
+      <ConfirmPopover
+        icon={props.icon}
+        message={props.message}
+        onConfirm={props.onConfirm}
+        onCancel={props.onCancel}
+        pending={props.pending}
+        closeOnCancel={false}
+      />
+    </ConfirmModal>
   );
 }
 
@@ -520,19 +515,6 @@ export function UIControls(
     props.analyzeChoice?.options.some((option) => option.pending) ?? false;
 
   useEffect(() => {
-    const popover = analyzeChoiceRef.current;
-    if (!popover) {
-      return;
-    }
-    if (analyzeChoiceOpen && !popover.matches(":popover-open")) {
-      popover.showPopover();
-    }
-    if (!analyzeChoiceOpen && popover.matches(":popover-open")) {
-      popover.hidePopover();
-    }
-  }, [analyzeChoiceOpen]);
-
-  useEffect(() => {
     if (!analyzeChoiceOpen || analyzeChoicePending) {
       return;
     }
@@ -571,18 +553,18 @@ export function UIControls(
                 <ButtonContent pending={props.analyze.pending} icon={IconAnalysis} />
               </button>
               {analyzeChoiceOpen && (
-                <div id="analyze-choice" popover="manual" ref={analyzeChoiceRef}>
-                {props.analyzeChoice.options.map((opt) => (
-                  <button
-                    key={opt.label}
-                    disabled={opt.disabled || opt.pending || analyzeChoicePending}
-                    onClick={() => {
-                      opt.onClick();
-                    }}
-                  >
-                    <ButtonContent pending={opt.pending} label={opt.label} />
-                  </button>
-                ))}
+                <div id="analyze-choice" class="controls-menu-dropdown">
+                  {props.analyzeChoice.options.map((opt) => (
+                    <button
+                      key={opt.label}
+                      disabled={opt.disabled || opt.pending || analyzeChoicePending}
+                      onClick={() => {
+                        opt.onClick();
+                      }}
+                    >
+                      <ButtonContent pending={opt.pending} label={opt.label} />
+                    </button>
+                  ))}
                   <button
                     disabled={analyzeChoicePending}
                     onClick={() => setAnalyzeChoiceOpen(false)}
@@ -725,6 +707,7 @@ export function LobbyPopover({
   rated = false,
   yourColor,
   pendingAction,
+  showAbort = false,
   onAccept,
   onDecline,
   onAbort,
@@ -739,6 +722,7 @@ export function LobbyPopover({
   rated?: boolean;
   yourColor?: "Black" | "White" | "Random";
   pendingAction?: "accept" | "decline" | "abort" | "join";
+  showAbort?: boolean;
   onAccept?: () => void;
   onDecline?: () => void;
   onAbort?: () => void;
@@ -750,89 +734,84 @@ export function LobbyPopover({
   const disableActions = pendingAction != null;
 
   return (
-    <div
-      id="lobby-popover"
-      class="confirm-popover"
-      popover="manual"
-      ref={(el) => {
-        if (el && !el.matches(":popover-open")) {
-          el.showPopover();
-        }
-      }}
-    >
-      <IconStonesBw />
-      <p>
-        <strong>{title}</strong>
-      </p>
-      <dl class="game-info-details" style="margin-top: 0.5em">
-        <dt>Rated</dt>
-        <dd>{rated ? "Yes" : "No"}</dd>
-        {yourColor && (
-          <>
-            <dt>Your color</dt>
-            <dd>{yourColor}</dd>
-          </>
-        )}
-        <dt>Board</dt>
-        <dd>{size}</dd>
-        <dt>Komi</dt>
-        <dd>{String(komi)}</dd>
-        <dt>Handicap</dt>
-        <dd>{settings.handicap >= 2 ? String(settings.handicap) : "None"}</dd>
-        <dt>Time</dt>
-        <dd>{tc || "Unlimited"}</dd>
-        <dt>Takebacks</dt>
-        <dd>{allowUndo ? "Yes" : "No"}</dd>
-      </dl>
-      <div class="confirm-actions">
-        {variant === "challengee" && (
-          <>
+    <ConfirmModal open dismissible={false}>
+      <div id="lobby-popover" class="confirm-popover">
+        <IconStonesBw />
+        <p>
+          <strong>{title}</strong>
+        </p>
+        <dl class="game-info-details" style="margin-top: 0.5em">
+          <dt>Rated</dt>
+          <dd>{rated ? "Yes" : "No"}</dd>
+          {yourColor && (
+            <>
+              <dt>Your color</dt>
+              <dd>{yourColor}</dd>
+            </>
+          )}
+          <dt>Board</dt>
+          <dd>{size}</dd>
+          <dt>Komi</dt>
+          <dd>{String(komi)}</dd>
+          <dt>Handicap</dt>
+          <dd>{settings.handicap >= 2 ? String(settings.handicap) : "None"}</dd>
+          <dt>Time</dt>
+          <dd>{tc || "Unlimited"}</dd>
+          <dt>Takebacks</dt>
+          <dd>{allowUndo ? "Yes" : "No"}</dd>
+        </dl>
+        <div class="confirm-actions">
+          {variant === "challengee" && (
+            <>
+              <button
+                class="btn-success"
+                disabled={disableActions}
+                onClick={onAccept}
+              >
+                <ButtonContent
+                  pending={pendingAction === "accept"}
+                  label="Accept"
+                />
+              </button>
+              <button
+                class="btn-warn"
+                disabled={disableActions}
+                onClick={onDecline}
+              >
+                <ButtonContent
+                  pending={pendingAction === "decline"}
+                  label="Decline"
+                />
+              </button>
+            </>
+          )}
+          {variant === "join" && (
             <button
               class="btn-success"
               disabled={disableActions}
-              onClick={onAccept}
+              onClick={onJoin}
             >
-              <ButtonContent
-                pending={pendingAction === "accept"}
-                label="Accept"
-              />
+              <ButtonContent pending={pendingAction === "join"} label="Join" />
             </button>
-            <button
-              class="btn-warn"
-              disabled={disableActions}
-              onClick={onDecline}
-            >
-              <ButtonContent
-                pending={pendingAction === "decline"}
-                label="Decline"
-              />
-            </button>
-          </>
-        )}
-        {variant === "join" && (
-          <button
-            class="btn-success"
-            disabled={disableActions}
-            onClick={onJoin}
-          >
-            <ButtonContent pending={pendingAction === "join"} label="Join" />
-          </button>
-        )}
-        {(variant === "creator-waiting" || variant === "creator-challenge") && (
-          <>
-            {copyInviteLink && (
-              <CopyInviteLinkButton onClick={copyInviteLink} />
-            )}
-            <button
-              class="btn-warn"
-              disabled={disableActions}
-              onClick={onAbort}
-            >
-              <ButtonContent pending={pendingAction === "abort"} label="Abort" />
-            </button>
-          </>
-        )}
+          )}
+          {(variant === "creator-waiting" || variant === "creator-challenge") && (
+            <>
+              {copyInviteLink && (
+                <CopyInviteLinkButton onClick={copyInviteLink} />
+              )}
+              {showAbort && (
+                <button
+                  class="btn-warn"
+                  disabled={disableActions}
+                  onClick={onAbort}
+                >
+                  <ButtonContent pending={pendingAction === "abort"} label="Abort" />
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </ConfirmModal>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type {
   ScoreData,
   UserData,
@@ -41,8 +41,9 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export function GameInfo(props: GameInfoProps) {
+  const [open, setOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const popoverId = "game-info-popover";
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const { settings, komi } = props;
   const size = formatSize(settings.cols, settings.rows);
@@ -81,44 +82,68 @@ export function GameInfo(props: GameInfoProps) {
   const isDone =
     props.stage === GameStage.Completed || props.stage === GameStage.Aborted;
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (
+        popoverRef.current?.contains(target) ||
+        buttonRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
   return (
     <div class="game-info">
-      <button class="game-info-bar" popovertarget={popoverId}>
+      <button
+        ref={buttonRef}
+        class="game-info-bar"
+        onClick={() => setOpen((value) => !value)}
+      >
         <IconInfo />
         <span>{parts.join(" · ")}</span>
       </button>
-      <div id={popoverId} class="game-info-popover" popover ref={popoverRef}>
-        <div class="game-info-popover-header">
-          <IconInfo />
-        </div>
-        <dl class="game-info-details">
-          {statusText && <Row label="Status" value={statusText} />}
-          <Row label="Board" value={size} />
-          <Row label="Komi" value={String(komi)} />
-          {settings.handicap >= 2 && (
-            <Row label="Handicap" value={String(settings.handicap)} />
-          )}
-          {tcDetail && <Row label="Time" value={tcDetail} />}
-          <Row
-            label="Black"
-            value={`${bName} ${blackSymbol()} ${props.capturesBlack} caps`}
-          />
-          <Row
-            label="White"
-            value={`${wName} ${whiteSymbol()} ${props.capturesWhite} caps`}
-          />
-          <Row label="Moves" value={String(props.moveCount)} />
-          {score && (
+      {open && (
+        <div class="game-info-popover" ref={popoverRef}>
+          <div class="game-info-popover-header">
+            <IconInfo />
+          </div>
+          <dl class="game-info-details">
+            {statusText && <Row label="Status" value={statusText} />}
+            <Row label="Board" value={size} />
+            <Row label="Komi" value={String(komi)} />
+            {settings.handicap >= 2 && (
+              <Row label="Handicap" value={String(settings.handicap)} />
+            )}
+            {tcDetail && <Row label="Time" value={tcDetail} />}
             <Row
-              label="Territory"
-              value={`B: ${score.black.territory} / W: ${score.white.territory}`}
+              label="Black"
+              value={`${bName} ${blackSymbol()} ${props.capturesBlack} caps`}
             />
-          )}
-          {isDone && props.result && (
-            <Row label="Result" value={props.result} />
-          )}
-        </dl>
-      </div>
+            <Row
+              label="White"
+              value={`${wName} ${whiteSymbol()} ${props.capturesWhite} caps`}
+            />
+            <Row label="Moves" value={String(props.moveCount)} />
+            {score && (
+              <Row
+                label="Territory"
+                value={`B: ${score.black.territory} / W: ${score.white.territory}`}
+              />
+            )}
+            {isDone && props.result && (
+              <Row label="Result" value={props.result} />
+            )}
+          </dl>
+        </div>
+      )}
     </div>
   );
 }

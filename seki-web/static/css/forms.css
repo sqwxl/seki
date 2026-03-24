@@ -93,6 +93,39 @@ input[type="radio"] {
   gap: 0.25em;
   text-align: center;
   max-width: 16em;
+  z-index: 250;
+}
+
+.confirm-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .confirm-popover-backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.confirm-popover-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  padding: 1rem;
+}
+
+.confirm-popover-modal > .confirm-popover {
+  pointer-events: auto;
+  padding: 0.75em;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow-elevated);
 }
 
 .confirm-popover > .icon {

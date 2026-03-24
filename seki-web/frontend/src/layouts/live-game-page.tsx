@@ -466,6 +466,7 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
               : undefined
           }
           pendingAction={pendingLobbyAction}
+          showAbort={liveGameControlsState.value.canAbort}
           onAccept={() => {
             clearGameFlashMessage();
             if (!setPendingAction("accept-challenge")) {
