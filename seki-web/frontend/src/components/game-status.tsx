@@ -49,7 +49,7 @@ export function getStatusText(input: StatusInput): string | undefined {
 
   if (stage === GameStage.Challenge) {
     if (input.isChallengeCreator && input.challengeWaitingFor) {
-      return `Waiting for ${input.challengeWaitingFor} to accept`;
+      return `Waiting for ${input.challengeWaitingFor}`;
     }
     if (!input.isChallengeCreator) {
       return "Waiting for your response";

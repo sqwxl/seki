@@ -417,7 +417,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const showResign = isPlayer && (isPlay || isChallenge);
 
   // Abort: player + no moves + not done + (not challenge OR is creator)
-  const myId = stone === 1 ? b?.id : w?.id;
+  const myId = currentUserId.value || undefined;
   const isCreator = myId != null && myId === props.creator_id;
   const canAbort =
     isPlayer &&
@@ -456,16 +456,14 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
 
   let lobbyPopover: UiCapabilities["lobbyPopover"];
   if (isChallengee) {
-    const challengerName =
-      (b?.id === props.creator_id ? b?.display_name : w?.display_name) ?? "?";
     lobbyPopover = {
       variant: "challengee",
-      title: `${challengerName} challenged you to a game`,
+      title: "Waiting for your response",
     };
   } else if (isCreator && !isDone && !res && isChallenge) {
     lobbyPopover = {
       variant: "creator-challenge",
-      title: `Waiting for ${opponentName ?? "opponent"} to accept`,
+      title: `Waiting for ${opponentName ?? "opponent"}`,
     };
   } else if (isCreator && !isDone && !res && hasOpenSlot && !isChallenge) {
     lobbyPopover = {
@@ -786,7 +784,7 @@ export const liveGameControlsState = computed(
       phase.phase === "presentation" && phase.role === "synced-viewer";
     const modeActive = inAnalysis || inEstimate;
     const undoState = undoRequest.value;
-    const myId = stone === 1 ? b?.id : w?.id;
+    const myId = currentUserId.value || undefined;
     const isCreator = myId != null && myId === props.creator_id;
     const onFinalized = boardFinalized.value;
     const myControlRequest = controlRequest.value?.userId === currentUserId.value;
@@ -995,7 +993,7 @@ export const liveGameStatusState = computed(
     const oppDisconnected = opponentDisconnected.value;
     const hasOpenSlot = !b || !w;
     const challengee = b?.id !== props.creator_id ? b : w;
-    const myId = stone === 1 ? b?.id : w?.id;
+    const myId = currentUserId.value || undefined;
     const isReview = stage === GameStage.TerritoryReview;
     const inEstimate = phase.phase === "estimate";
     const inPresentation = phase.phase === "presentation";
@@ -1059,16 +1057,14 @@ export const liveGameStatusState = computed(
       b?.id === props.creator_id ? w?.display_name : b?.display_name;
 
     if (isChallengee) {
-      const challengerName =
-        (b?.id === props.creator_id ? b?.display_name : w?.display_name) ?? "?";
       lobbyPopover = {
         variant: "challengee",
-        title: `${challengerName} challenged you to a game`,
+        title: "Waiting for your response",
       };
     } else if (isCreator && !isDone && !res && isChallenge) {
       lobbyPopover = {
         variant: "creator-challenge",
-        title: `Waiting for ${opponentName ?? "opponent"} to accept`,
+        title: `Waiting for ${opponentName ?? "opponent"}`,
       };
     } else if (isCreator && !isDone && !res && hasOpenSlot && !isChallenge) {
       lobbyPopover = {

@@ -94,6 +94,8 @@ pub fn serialize_state(
     // for terminal states (done), challenges, and started-but-no-moves games.
     let stage_str = if gwp.game.result.is_some() {
         gwp.game.stage.clone()
+    } else if gwp.game.stage == "unstarted" {
+        "unstarted".to_string()
     } else if gwp.game.stage == "challenge" {
         "challenge".to_string()
     } else if engine.stage() == go_engine::Stage::Unstarted

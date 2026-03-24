@@ -14,7 +14,7 @@ import {
   toPresentation,
   toPresentationLocalAnalysis,
 } from "../game/phase";
-import { liveGameCapabilities } from "../game/capabilities";
+import { liveGameCapabilities, liveGameStatusState } from "../game/capabilities";
 import {
   gameState,
   gameStage,
@@ -161,6 +161,10 @@ function setupPlayingAsWhite() {
 
 function caps() {
   return liveGameCapabilities.value;
+}
+
+function statusCaps() {
+  return liveGameStatusState.value;
 }
 
 // ---------------------------------------------------------------------------
@@ -1133,6 +1137,21 @@ describe("lobby / lifecycle", () => {
       currentUserId.value = 999;
     });
     expect(caps().lobbyPopover?.variant).toBe("join");
+  });
+
+  it("status popover uses current user id for spectator on white-created open game", () => {
+    batch(() => {
+      gameStage.value = GameStage.Unstarted;
+      black.value = undefined;
+      white.value = { ...userWhite, id: 34 };
+      playerStone.value = 0;
+      currentUserId.value = 145;
+      initialProps.value = {
+        ...initialProps.value,
+        creator_id: 34,
+      };
+    });
+    expect(statusCaps().lobbyPopover?.variant).toBe("join");
   });
 
   it("join popover for token holder on private game with open slot", () => {

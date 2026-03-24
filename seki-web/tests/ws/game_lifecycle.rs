@@ -27,6 +27,26 @@ async fn create_and_join_stage_transitions() {
 }
 
 #[tokio::test]
+async fn handicap_open_game_with_white_creator_stays_unstarted() {
+    let server = TestServer::start().await;
+
+    let game_id = server
+        .create_game_with(serde_json::json!({
+            "cols": 13,
+            "komi": 0.5,
+            "handicap": 5,
+            "color": "white"
+        }))
+        .await;
+
+    let mut spectator = server.ws_spectator().await;
+    let _init = spectator.recv_kind("init").await;
+    let state = spectator.join_game(game_id).await;
+
+    assert_eq!(state["stage"], "unstarted");
+}
+
+#[tokio::test]
 async fn abort_before_first_move() {
     let server = TestServer::start().await;
     let game_id = server.create_and_join().await;

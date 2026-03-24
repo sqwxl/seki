@@ -365,6 +365,8 @@ async fn build_game_props(
 
     let stage = if gwp.game.result.is_some() {
         gwp.game.stage.clone()
+    } else if gwp.game.stage == "unstarted" {
+        "unstarted".to_string()
     } else if gwp.game.stage == "challenge" {
         "challenge".to_string()
     } else if engine.stage() == go_engine::Stage::Unstarted
