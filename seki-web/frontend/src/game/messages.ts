@@ -14,6 +14,7 @@ import {
   moves,
   gameStage,
   gameId,
+  currentTurn,
   playerStone,
   analysisMode,
   undoRequest,
@@ -22,8 +23,12 @@ import {
   opponentDisconnected,
   black,
   white,
+  result,
   presenterId,
   controlRequest,
+  clearPendingAction,
+  pendingAction,
+  setGameFlashMessage,
   applyGameStateMessage,
   applyUndo,
   addChatMessage,
@@ -49,6 +54,55 @@ export type GameMessageDeps = {
 
 // Track last-seen move count for cheap change detection
 let prevMoveCount = 0;
+
+function reconcilePendingActionFromState(): void {
+  switch (pendingAction.value) {
+    case "pass":
+      if (currentTurnChangedAwayFromPlayer() || !isPlayStage(gameStage.value)) {
+        clearPendingAction("pass");
+      }
+      break;
+    case "resign":
+    case "claim-victory":
+      if (result.value || gameStage.value === GameStage.Completed) {
+        clearPendingAction();
+      }
+      break;
+    case "abort":
+    case "decline-challenge":
+      if (
+        result.value ||
+        gameStage.value === GameStage.Aborted ||
+        gameStage.value === GameStage.Declined
+      ) {
+        clearPendingAction();
+      }
+      break;
+    case "accept-challenge":
+      if (gameStage.value !== GameStage.Challenge) {
+        clearPendingAction();
+      }
+      break;
+    case "join-game":
+      if (playerStone.value !== 0 || gameStage.value !== GameStage.Challenge) {
+        clearPendingAction("join-game");
+      }
+      break;
+    case "accept-territory":
+      if (
+        gameStage.value !== GameStage.TerritoryReview ||
+        (playerStone.value === 1 && territory.value?.black_approved) ||
+        (playerStone.value === -1 && territory.value?.white_approved)
+      ) {
+        clearPendingAction("accept-territory");
+      }
+      break;
+  }
+}
+
+function currentTurnChangedAwayFromPlayer(): boolean {
+  return playerStone.value !== 0 && currentTurn.value !== playerStone.value;
+}
 
 function syncBoardMoves(
   playEffects: boolean,
@@ -145,6 +199,7 @@ export function handleGameMessage(
       if (!isPlayStage(gameStage.value)) {
         pendingMove.clear();
       }
+      reconcilePendingActionFromState();
       break;
     }
     case "chat": {
@@ -159,6 +214,8 @@ export function handleGameMessage(
     }
     case "error": {
       console.warn("Game error:", data.message);
+      clearPendingAction();
+      setGameFlashMessage(data.message);
       break;
     }
     case "undo_accepted":
@@ -169,10 +226,14 @@ export function handleGameMessage(
         syncBoardMoves(false, deps.gobanEl());
       }
       syncClock(clockState, data.clock, () => channel.timeoutFlag());
+      clearPendingAction("respond-undo-accept");
+      clearPendingAction("respond-undo-reject");
+      clearPendingAction("request-undo");
       break;
     }
     case "undo_request_sent": {
       undoRequest.value = "sent";
+      clearPendingAction("request-undo");
       break;
     }
     case "undo_response_needed": {
@@ -217,12 +278,15 @@ export function handleGameMessage(
     }
     case "presentation_started": {
       applyPresentationStarted(data);
+      clearPendingAction("start-presentation");
       deps.onPresentationStarted?.(data.snapshot);
       break;
     }
     case "presentation_ended": {
       const wasPresenter = isPresenter.value;
       clearPresentation();
+      clearPendingAction("end-presentation");
+      clearPendingAction("give-control");
       deps.onPresentationEnded?.(wasPresenter);
       break;
     }
@@ -233,6 +297,11 @@ export function handleGameMessage(
     case "control_changed": {
       presenterId.value = data.presenter_id;
       controlRequest.value = undefined;
+      clearPendingAction("take-control");
+      clearPendingAction("request-control");
+      clearPendingAction("cancel-control-request");
+      clearPendingAction("reject-control-request");
+      clearPendingAction("give-control");
       deps.onControlChanged?.(data.presenter_id);
       break;
     }
@@ -241,10 +310,13 @@ export function handleGameMessage(
         userId: data.user_id,
         displayName: data.display_name,
       };
+      clearPendingAction("request-control");
       break;
     }
     case "control_request_cancelled": {
       controlRequest.value = undefined;
+      clearPendingAction("cancel-control-request");
+      clearPendingAction("reject-control-request");
       break;
     }
     case "ws_reconnected": {
@@ -253,6 +325,7 @@ export function handleGameMessage(
       // Without this, presentation signals from a previous session persist
       // (e.g. "You are presenting" after the presentation ended while offline).
       clearPresentation();
+      clearPendingAction();
       break;
     }
     case "ws_disconnected": {

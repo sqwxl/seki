@@ -28,6 +28,28 @@
   display: block;
 }
 
+.controls button > .icon,
+.controls-menu-dropdown button > .icon,
+.confirm-actions button > .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.controls button > span,
+.controls-menu-dropdown button > span,
+.confirm-actions button > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-spinner svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
 .move-tree-slot {
   flex: 1;
   min-height: 0;

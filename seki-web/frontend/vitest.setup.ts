@@ -20,13 +20,23 @@ globalThis.localStorage = {
 // @ts-expect-error -- partial stub
 globalThis.document = globalThis.document ?? {
   getElementById: () => null,
+  querySelectorAll: () => [],
   title: "",
   hidden: false,
+  documentElement: {
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dataset: {},
+  },
 };
 
 // Stub window.matchMedia used by move-confirm.ts at import time.
 // @ts-expect-error -- partial stub, only what's needed for module init
 globalThis.window = globalThis.window ?? {};
+globalThis.window.addEventListener =
+  globalThis.window.addEventListener ?? (() => {});
+globalThis.window.removeEventListener =
+  globalThis.window.removeEventListener ?? (() => {});
 globalThis.window.matchMedia =
   globalThis.window.matchMedia ??
   (() => ({

@@ -73,6 +73,28 @@ export const nigiri = signal(false);
 export type UndoRequestState = "none" | "sent" | "received" | "rejected";
 export const undoRequest = signal<UndoRequestState>("none");
 export const allowUndo = signal(false);
+export type PendingActionId =
+  | "pass"
+  | "request-undo"
+  | "respond-undo-accept"
+  | "respond-undo-reject"
+  | "resign"
+  | "abort"
+  | "claim-victory"
+  | "accept-territory"
+  | "accept-challenge"
+  | "decline-challenge"
+  | "join-game"
+  | "start-presentation"
+  | "end-presentation"
+  | "give-control"
+  | "take-control"
+  | "request-control"
+  | "cancel-control-request"
+  | "reject-control-request"
+  | "rematch";
+export const pendingAction = signal<PendingActionId | undefined>(undefined);
+export const gameFlashMessage = signal<string | undefined>(undefined);
 export const opponentDisconnected = signal<
   { since: Date; gracePeriodMs?: number; gone: boolean } | undefined
 >(undefined);
@@ -156,6 +178,32 @@ export const presenterDisplayName = computed(() => {
   return user?.display_name ?? "";
 });
 
+export function setPendingAction(id: PendingActionId): boolean {
+  if (pendingAction.value) {
+    return false;
+  }
+  pendingAction.value = id;
+  return true;
+}
+
+export function clearPendingAction(id?: PendingActionId): void {
+  if (id == null || pendingAction.value === id) {
+    pendingAction.value = undefined;
+  }
+}
+
+export function isPendingAction(id: PendingActionId): boolean {
+  return pendingAction.value === id;
+}
+
+export function setGameFlashMessage(message: string | undefined): void {
+  gameFlashMessage.value = message;
+}
+
+export function clearGameFlashMessage(): void {
+  gameFlashMessage.value = undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Action functions — all signal mutations go through these
 // ---------------------------------------------------------------------------
@@ -194,6 +242,8 @@ export function resetGameRuntimeState(): void {
     nigiri.value = false;
     undoRequest.value = "none";
     allowUndo.value = false;
+    pendingAction.value = undefined;
+    gameFlashMessage.value = undefined;
     opponentDisconnected.value = undefined;
     chatMessages.value = [];
     hasUnreadChat.value = false;

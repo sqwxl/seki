@@ -45,6 +45,12 @@ import {
   allowUndo,
   onlineUsers,
   pendingMove,
+  clearPendingAction,
+  clearGameFlashMessage,
+  gameFlashMessage,
+  isPendingAction,
+  setGameFlashMessage,
+  setPendingAction,
 } from "../game/state";
 import { formatResult } from "../utils/format";
 
@@ -91,6 +97,36 @@ function buildControls(
   props: LiveGamePageProps,
 ): ControlsProps {
   const { channel, mc } = props;
+  const pendingUndoRequest = isPendingAction("request-undo");
+  const pendingUndoAccept = isPendingAction("respond-undo-accept");
+  const pendingUndoReject = isPendingAction("respond-undo-reject");
+  const pendingPass = isPendingAction("pass");
+  const pendingResign = isPendingAction("resign");
+  const pendingAbort = isPendingAction("abort");
+  const pendingClaimVictory = isPendingAction("claim-victory");
+  const pendingTerritory = isPendingAction("accept-territory");
+  const pendingAcceptChallenge = isPendingAction("accept-challenge");
+  const pendingDeclineChallenge = isPendingAction("decline-challenge");
+  const pendingJoinGame = isPendingAction("join-game");
+  const pendingStartPresentation = isPendingAction("start-presentation");
+  const pendingEndPresentation = isPendingAction("end-presentation");
+  const pendingGiveControl = isPendingAction("give-control");
+  const pendingTakeControl = isPendingAction("take-control");
+  const pendingRequestControl = isPendingAction("request-control");
+  const pendingCancelControlRequest = isPendingAction("cancel-control-request");
+  const pendingRejectControlRequest = isPendingAction("reject-control-request");
+  const pendingRematch = isPendingAction("rematch");
+
+  function runPendingAction(
+    action: Parameters<typeof setPendingAction>[0],
+    run: () => void,
+  ) {
+    clearGameFlashMessage();
+    if (!setPendingAction(action)) {
+      return;
+    }
+    run();
+  }
 
   const controlsProps: ControlsProps = {
     nav: {
@@ -108,7 +144,8 @@ function buildControls(
       if (caps.confirmPassRequired) {
         controlsProps.confirmPass = {
           message: "Pass your turn?",
-          onConfirm: () => channel.pass(),
+          onConfirm: () => runPendingAction("pass", () => channel.pass()),
+          pending: pendingPass ? "confirm" : undefined,
         };
       }
     }
@@ -117,8 +154,9 @@ function buildControls(
   // --- Undo ---
   if (caps.undoTooltip) {
     controlsProps.requestUndo = {
-      onClick: () => channel.requestUndo(),
+      onClick: () => runPendingAction("request-undo", () => channel.requestUndo()),
       disabled: !caps.canRequestUndo,
+      pending: pendingUndoRequest,
       title: caps.undoTooltip,
     };
   }
@@ -127,13 +165,12 @@ function buildControls(
   if (caps.showUndoResponse) {
     controlsProps.undoResponse = {
       onAccept: () => {
-        undoRequest.value = "none";
-        channel.acceptUndo();
+        runPendingAction("respond-undo-accept", () => channel.acceptUndo());
       },
       onReject: () => {
-        undoRequest.value = "none";
-        channel.rejectUndo();
+        runPendingAction("respond-undo-reject", () => channel.rejectUndo());
       },
+      pending: pendingUndoAccept ? "confirm" : pendingUndoReject ? "cancel" : undefined,
     };
   }
 
@@ -141,8 +178,9 @@ function buildControls(
   if (caps.showResign) {
     controlsProps.resign = {
       message: "Resign this game?",
-      onConfirm: () => channel.resign(),
+      onConfirm: () => runPendingAction("resign", () => channel.resign()),
       disabled: !caps.canResign,
+      pending: pendingResign ? "confirm" : undefined,
     };
   }
 
@@ -150,14 +188,17 @@ function buildControls(
   if (caps.canAbort) {
     controlsProps.abort = {
       message: "Abort this game?",
-      onConfirm: () => channel.abort(),
+      onConfirm: () => runPendingAction("abort", () => channel.abort()),
+      pending: pendingAbort ? "confirm" : undefined,
     };
   }
 
   // --- Territory accept ---
   if (caps.canAcceptTerritory) {
     controlsProps.acceptTerritory = {
-      onClick: () => channel.approveTerritory(),
+      onClick: () =>
+        runPendingAction("accept-territory", () => channel.approveTerritory()),
+      pending: pendingTerritory,
     };
   } else if (caps.canFinalizeTerritory) {
     controlsProps.acceptTerritory = {
@@ -169,7 +210,9 @@ function buildControls(
   if (caps.canClaimVictory) {
     controlsProps.claimVictory = {
       message: "Claim victory? (Opponent left the game)",
-      onConfirm: () => channel.claimVictory(),
+      onConfirm: () =>
+        runPendingAction("claim-victory", () => channel.claimVictory()),
+      pending: pendingClaimVictory ? "confirm" : undefined,
     };
   }
 
@@ -177,6 +220,10 @@ function buildControls(
   if (caps.canRematch) {
     controlsProps.rematch = {
       onConfirm: async (swapColors) => {
+        clearGameFlashMessage();
+        if (!setPendingAction("rematch")) {
+          return;
+        }
         const formData = new FormData();
         formData.set("swap_colors", swapColors ? "true" : "false");
         try {
@@ -188,17 +235,27 @@ function buildControls(
             requestSpaNavigation(result.redirect);
           }
         } catch (err) {
-          window.alert((err as { message: string }).message);
+          clearPendingAction("rematch");
+          setGameFlashMessage((err as { message: string }).message);
         }
       },
+      pending: pendingRematch ? "confirm" : undefined,
     };
   }
 
   // --- Analysis / Presentation toggle (single button) ---
   if (caps.canReturnControl) {
-    controlsProps.analyze = { onClick: props.returnControl, active: true };
+    controlsProps.analyze = {
+      onClick: () => runPendingAction("give-control", props.returnControl),
+      active: true,
+      pending: pendingGiveControl,
+    };
   } else if (caps.canExitPresentation) {
-    controlsProps.analyze = { onClick: props.exitPresentation, active: true };
+    controlsProps.analyze = {
+      onClick: () => runPendingAction("end-presentation", props.exitPresentation),
+      active: true,
+      pending: pendingEndPresentation,
+    };
   } else if (caps.canExitAnalysis) {
     controlsProps.analyze = {
       onClick: props.exitAnalysis,
@@ -210,17 +267,25 @@ function buildControls(
       label: string;
       onClick: () => void;
       disabled?: boolean;
+      pending?: boolean;
     }> = [];
 
     if (caps.canTakeControl) {
       options.push({
         label: "Take control",
-        onClick: () => channel.takeControl(),
+        onClick: () => runPendingAction("take-control", () => channel.takeControl()),
+        pending: pendingTakeControl,
+        disabled: pendingRequestControl || pendingCancelControlRequest || pendingTakeControl,
       });
     } else if (caps.canCancelControlRequest) {
       options.push({
         label: "Cancel request",
-        onClick: () => channel.cancelControlRequest(),
+        onClick: () =>
+          runPendingAction("cancel-control-request", () =>
+            channel.cancelControlRequest(),
+          ),
+        pending: pendingCancelControlRequest,
+        disabled: pendingCancelControlRequest,
       });
     } else if (caps.controlRequestPending) {
       options.push({
@@ -231,7 +296,10 @@ function buildControls(
     } else if (caps.canRequestControl) {
       options.push({
         label: "Request control",
-        onClick: () => channel.requestControl(),
+        onClick: () =>
+          runPendingAction("request-control", () => channel.requestControl()),
+        pending: pendingRequestControl,
+        disabled: pendingRequestControl,
       });
     }
     options.push({
@@ -242,7 +310,11 @@ function buildControls(
     controlsProps.analyzeChoice = { options };
     controlsProps.analyze = { onClick: () => {} };
   } else if (caps.canEnterPresentation) {
-    controlsProps.analyze = { onClick: props.enterPresentation };
+    controlsProps.analyze = {
+      onClick: () =>
+        runPendingAction("start-presentation", props.enterPresentation),
+      pending: pendingStartPresentation,
+    };
   } else if (caps.showAnalysis) {
     controlsProps.analyze = {
       onClick: props.enterAnalysis,
@@ -274,8 +346,19 @@ function buildControls(
   if (caps.showControlRequestResponse && caps.controlRequestUserId != null) {
     controlsProps.controlRequestResponse = {
       displayName: caps.controlRequestDisplayName,
-      onGive: () => channel.giveControl(caps.controlRequestUserId!),
-      onDismiss: () => channel.rejectControlRequest(),
+      onGive: () =>
+        runPendingAction("give-control", () =>
+          channel.giveControl(caps.controlRequestUserId!),
+        ),
+      onDismiss: () =>
+        runPendingAction("reject-control-request", () =>
+          channel.rejectControlRequest(),
+        ),
+      pending: pendingGiveControl
+        ? "confirm"
+        : pendingRejectControlRequest
+          ? "cancel"
+          : undefined,
     };
   }
 
@@ -312,6 +395,15 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
   const status = liveGameStatusState.value;
   const fullStatusText =
     status.statusText + status.presentationStatusSuffix;
+  const pendingLobbyAction = isPendingAction("accept-challenge")
+    ? "accept"
+    : isPendingAction("decline-challenge")
+      ? "decline"
+      : isPendingAction("abort")
+        ? "abort"
+        : isPendingAction("join-game")
+          ? "join"
+          : undefined;
   const finalizedScore =
     boardFinalized.value && boardFinalizedScore.value
       ? boardFinalizedScore.value
@@ -330,6 +422,11 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
 
   return (
     <>
+      {gameFlashMessage.value && (
+        <div class="flash" onClick={() => clearGameFlashMessage()}>
+          {gameFlashMessage.value}
+        </div>
+      )}
       {fullStatusText && (
         <GameStatus text={fullStatusText}>
           <GameInfo
@@ -368,10 +465,33 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
                   : "White"
               : undefined
           }
-          onAccept={() => props.channel.acceptChallenge()}
-          onDecline={() => props.channel.declineChallenge()}
-          onAbort={() => props.channel.abort()}
+          pendingAction={pendingLobbyAction}
+          onAccept={() => {
+            clearGameFlashMessage();
+            if (!setPendingAction("accept-challenge")) {
+              return;
+            }
+            props.channel.acceptChallenge();
+          }}
+          onDecline={() => {
+            clearGameFlashMessage();
+            if (!setPendingAction("decline-challenge")) {
+              return;
+            }
+            props.channel.declineChallenge();
+          }}
+          onAbort={() => {
+            clearGameFlashMessage();
+            if (!setPendingAction("abort")) {
+              return;
+            }
+            props.channel.abort();
+          }}
           onJoin={() => {
+            clearGameFlashMessage();
+            if (!setPendingAction("join-game")) {
+              return;
+            }
             const token = initialProps.value.invite_token;
             const url = `/games/${gameId.value}/join${token ? `?token=${token}` : ""}`;
             void postForm(url, new FormData())
@@ -384,7 +504,8 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
                 }
               })
               .catch((err: { message: string }) => {
-                window.alert(err.message);
+                clearPendingAction("join-game");
+                setGameFlashMessage(err.message);
               });
           }}
           copyInviteLink={
