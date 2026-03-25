@@ -54,6 +54,13 @@ import {
 } from "../game/state";
 import { formatResult } from "../utils/format";
 
+function buildShareGameUrl(): string {
+  const accessToken = initialProps.value.access_token;
+  return initialProps.value.settings.is_private && accessToken
+    ? `${window.location.origin}/games/${gameId.value}?access_token=${accessToken}`
+    : `${window.location.origin}/games/${gameId.value}`;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -442,6 +449,9 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
             territory={territory.value}
             settledTerritory={settledTerritory.value}
             estimateScore={infoEstimateScore}
+            copyInviteLink={() => {
+              navigator.clipboard.writeText(buildShareGameUrl());
+            }}
           />
         </GameStatus>
       )}
@@ -493,8 +503,8 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
             if (!setPendingAction("join-game")) {
               return;
             }
-            const token = initialProps.value.invite_token;
-            const url = `/games/${gameId.value}/join${token ? `?token=${token}` : ""}`;
+            const accessToken = initialProps.value.access_token;
+            const url = `/games/${gameId.value}/join${accessToken ? `?access_token=${accessToken}` : ""}`;
             void postForm(url, new FormData())
               .then((result) => {
                 if (typeof result.redirect === "string") {
@@ -512,9 +522,7 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
           copyInviteLink={
             status.showInviteLink
               ? () => {
-                  const token = initialProps.value.invite_token;
-                  const url = `${window.location.origin}/games/${gameId.value}?token=${token}`;
-                  navigator.clipboard.writeText(url);
+                  navigator.clipboard.writeText(buildShareGameUrl());
                 }
               : undefined
           }

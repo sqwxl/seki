@@ -14,7 +14,7 @@ use crate::models::message::Message;
 use crate::models::turn::TurnRow;
 use crate::models::user::User;
 use crate::services::live::build_live_items;
-use crate::services::{game_actions, game_creator, state_serializer};
+use crate::services::{game_actions, game_creator, game_joiner, state_serializer};
 use crate::session::{ApiUser, OptionalApiUser};
 
 // -- Response types --
@@ -43,7 +43,9 @@ struct GameResponse {
     rows: i32,
     komi: f64,
     handicap: i32,
+    /// Hidden from non-participants unless they have the access token.
     is_private: bool,
+    /// Open seat may only be filled through the invite token.
     invite_only: bool,
     allow_undo: bool,
     result: Option<String>,
@@ -99,14 +101,17 @@ struct CreateGameRequest {
     rows: Option<i32>,
     komi: f64,
     handicap: i32,
+    /// Hide the game from non-participants unless they have the access token.
     #[serde(default)]
     is_private: bool,
     #[serde(default = "default_true")]
     allow_undo: bool,
     color: String,
+    /// Send an invite link by email. If the email matches an account, this becomes a direct challenge.
     #[serde(default)]
     invite_email: Option<String>,
     #[serde(default)]
+    /// Assign the second seat immediately and create a direct challenge.
     invite_username: Option<String>,
     #[serde(default)]
     time_control: Option<crate::models::game::TimeControlType>,
@@ -120,6 +125,11 @@ struct CreateGameRequest {
     byoyomi_periods: Option<i32>,
     #[serde(default)]
     open_to: Option<String>,
+}
+
+#[derive(Deserialize, ToSchema)]
+struct GetGameQuery {
+    access_token: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -159,8 +169,10 @@ struct RematchRequest {
 
 #[derive(Deserialize, ToSchema)]
 struct JoinGameRequest {
-    /// Invite token for private games
-    token: Option<String>,
+    /// Private access token required to access private games through the API.
+    access_token: Option<String>,
+    /// Invite token required to fill an invite-only seat.
+    invite_token: Option<String>,
 }
 
 // -- OpenAPI doc --
@@ -376,6 +388,7 @@ async fn create_game(
 async fn get_game(
     State(state): State<AppState>,
     OptionalApiUser(api_user): OptionalApiUser,
+    axum::extract::Query(query): axum::extract::Query<GetGameQuery>,
     Path(id): Path<i64>,
 ) -> Result<Json<GameResponse>, ApiError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
@@ -383,7 +396,13 @@ async fn get_game(
     // Private game access check
     if gwp.game.is_private {
         let user_id = api_user.as_ref().map(|u| u.id);
-        if !user_id.is_some_and(|uid| gwp.has_player(uid)) {
+        let has_valid_access_token = gwp
+            .game
+            .access_token
+            .as_deref()
+            .zip(query.access_token.as_deref())
+            .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+        if !user_id.is_some_and(|uid| gwp.has_player(uid)) && !has_valid_access_token {
             return Err(AppError::NotFound("Game not found".to_string()).into());
         }
     }
@@ -474,40 +493,34 @@ async fn join_game(
         .into());
     }
 
-    // Private or invite-only games require a valid invite token
-    if gwp.game.is_private || gwp.game.invite_only {
-        let valid_token = gwp.game.invite_token.as_ref();
-        match (&body.token, valid_token) {
-            (Some(provided), Some(expected)) if provided == expected => {
-                // Valid token, allow join
-            }
-            _ => {
-                return Err(AppError::UnprocessableEntity(
-                    "This game requires a valid invite token to join".to_string(),
-                )
-                .into());
-            }
-        }
+    let has_valid_access_token = gwp
+        .game
+        .access_token
+        .as_deref()
+        .zip(body.access_token.as_deref())
+        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+    let has_valid_invite_token = gwp
+        .game
+        .invite_token
+        .as_deref()
+        .zip(body.invite_token.as_deref())
+        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+
+    if gwp.game.requires_access_token_to_join() && !has_valid_access_token {
+        return Err(AppError::UnprocessableEntity(
+            "This game requires a valid access token to join".to_string(),
+        )
+        .into());
     }
 
-    let mut tx = state.db.begin().await?;
-    if gwp.game.black_id.is_none() {
-        Game::set_black(&mut *tx, id, api_user.id).await?;
-    } else if gwp.game.white_id.is_none() {
-        Game::set_white(&mut *tx, id, api_user.id).await?;
-    } else {
-        return Err(AppError::UnprocessableEntity("Game is full".to_string()).into());
+    if gwp.game.requires_invite_token_to_join() && !has_valid_invite_token {
+        return Err(AppError::UnprocessableEntity(
+            "This game requires a valid invite token to join".to_string(),
+        )
+        .into());
     }
-    let started = gwp.game.stage == "unstarted";
-    let start_stage = if gwp.game.handicap >= 2 {
-        "white_to_play"
-    } else {
-        "black_to_play"
-    };
-    if started {
-        Game::set_stage(&mut *tx, id, start_stage).await?;
-    }
-    tx.commit().await?;
+
+    game_joiner::join_open_game(&state.db, &gwp, &api_user).await?;
 
     let gwp = Game::find_with_players(&state.db, id).await?;
     let engine = state

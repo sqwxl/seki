@@ -62,3 +62,13 @@
   margin: 0;
   text-align: left;
 }
+
+.game-info-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75em;
+}
+
+.game-info-copy {
+  min-width: 5.5rem;
+}

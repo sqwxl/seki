@@ -32,6 +32,7 @@ CREATE TABLE games (
     creator_id BIGINT REFERENCES users (id),
     black_id BIGINT REFERENCES users (id),
     white_id BIGINT REFERENCES users (id),
+    access_token TEXT,
     invite_token TEXT,
     cols INTEGER NOT NULL,
     rows INTEGER NOT NULL,
@@ -65,6 +66,7 @@ CREATE TABLE games (
 CREATE INDEX idx_games_creator_id ON games (creator_id);
 CREATE INDEX idx_games_black_id ON games (black_id);
 CREATE INDEX idx_games_white_id ON games (white_id);
+CREATE INDEX idx_games_access_token ON games (access_token);
 CREATE INDEX idx_games_invite_token ON games (invite_token);
 
 -- Turns

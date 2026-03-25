@@ -11,6 +11,7 @@ use crate::routes::wants_json;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
+use crate::services::game_joiner;
 use crate::services::state_serializer;
 use crate::session::CurrentUser;
 
@@ -130,7 +131,8 @@ pub async fn create_game(
 
 #[derive(Deserialize)]
 pub struct ShowGameQuery {
-    pub token: Option<String>,
+    pub access_token: Option<String>,
+    pub invite_token: Option<String>,
 }
 
 // POST /games/:id/join
@@ -152,20 +154,29 @@ pub async fn join_game(
         return Ok(Redirect::to(&url).into_response());
     }
 
-    // For invite-only games, require a valid token
-    if gwp.game.invite_only {
-        let has_valid_token = gwp
-            .game
-            .invite_token
-            .as_deref()
-            .zip(query.token.as_deref())
-            .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+    let has_valid_access_token = gwp
+        .game
+        .access_token
+        .as_deref()
+        .zip(query.access_token.as_deref())
+        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+    let has_valid_invite_token = gwp
+        .game
+        .invite_token
+        .as_deref()
+        .zip(query.invite_token.as_deref())
+        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
 
-        if !has_valid_token {
-            return Err(AppError::UnprocessableEntity(
-                "This game requires an invitation link to join".to_string(),
-            ));
-        }
+    if gwp.game.requires_access_token_to_join() && !has_valid_access_token {
+        return Err(AppError::UnprocessableEntity(
+            "This game requires a valid access token to join".to_string(),
+        ));
+    }
+
+    if gwp.game.requires_invite_token_to_join() && !has_valid_invite_token {
+        return Err(AppError::UnprocessableEntity(
+            "This game requires a valid invite token to join".to_string(),
+        ));
     }
 
     if gwp.game.open_to.as_deref() == Some("registered") && !current_user.is_registered() {
@@ -174,33 +185,7 @@ pub async fn join_game(
         ));
     }
 
-    let mut tx = state.db.begin().await?;
-    if gwp.black.is_none() {
-        Game::set_black(&mut *tx, id, current_user.id).await?;
-    } else if gwp.white.is_none() {
-        Game::set_white(&mut *tx, id, current_user.id).await?;
-    } else {
-        return Err(AppError::UnprocessableEntity("Game is full".to_string()));
-    }
-
-    // Nigiri: randomize colors now that both players are present
-    if gwp.game.nigiri {
-        use rand::RngExt;
-        if rand::rng().random_bool(0.5) {
-            Game::swap_players(&mut *tx, id).await?;
-        }
-    }
-
-    let started = gwp.game.stage == "unstarted";
-    let start_stage = if gwp.game.handicap >= 2 {
-        "white_to_play"
-    } else {
-        "black_to_play"
-    };
-    if started {
-        Game::set_stage(&mut *tx, id, start_stage).await?;
-    }
-    tx.commit().await?;
+    game_joiner::join_open_game(&state.db, &gwp, &current_user.user).await?;
 
     // Notify existing WS clients about the new user
     let game = Game::find_by_id(&state.db, id).await?;
@@ -220,7 +205,11 @@ pub async fn join_game(
 
     crate::services::live::notify_game_created(&state, &gwp);
 
-    let url = format!("/games/{id}");
+    let access_q = query
+        .access_token
+        .as_deref()
+        .map(|token| format!("?access_token={token}"));
+    let url = format!("/games/{id}{}", access_q.unwrap_or_default());
     if json {
         Ok(axum::Json(serde_json::json!({ "redirect": url })).into_response())
     } else {

@@ -400,6 +400,15 @@ impl TestServer {
         self.create_game_with(json!({"is_private": true})).await
     }
 
+    /// Get the access token for a game.
+    pub async fn get_access_token(&self, game_id: i64) -> String {
+        sqlx::query_scalar::<_, String>("SELECT access_token FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap()
+    }
+
     /// Get the invite token for a game.
     pub async fn get_invite_token(&self, game_id: i64) -> String {
         sqlx::query_scalar::<_, String>("SELECT invite_token FROM games WHERE id = $1")
@@ -420,16 +429,16 @@ impl TestServer {
             .unwrap()
     }
 
-    /// Have the spectator user attempt to join a private game with a token.
+    /// Have the spectator user attempt to join a private game with an access token.
     pub async fn join_private_game_as_spectator(
         &self,
         game_id: i64,
-        token: &str,
+        access_token: &str,
     ) -> reqwest::Response {
         self.client_spectator
             .post(format!("http://{}/api/games/{game_id}/join", self.addr))
             .header("Authorization", "Bearer test-spectator-api-token-99999")
-            .json(&json!({"token": token}))
+            .json(&json!({"access_token": access_token}))
             .send()
             .await
             .unwrap()

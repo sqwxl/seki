@@ -19,11 +19,14 @@ async fn private_game_returns_403_without_token() {
 async fn private_game_accessible_with_valid_token() {
     let ts = TestServer::start().await;
     let game_id = ts.create_private_game().await;
-    let token = ts.get_invite_token(game_id).await;
+    let token = ts.get_access_token(game_id).await;
 
     let resp = ts
         .client_spectator
-        .get(format!("http://{}/games/{game_id}?token={token}", ts.addr))
+        .get(format!(
+            "http://{}/games/{game_id}?access_token={token}",
+            ts.addr
+        ))
         .send()
         .await
         .unwrap();
@@ -57,14 +60,15 @@ async fn join_invite_only_game_with_token() {
         .await
         .unwrap();
 
+    let access_token = ts.get_access_token(game_id).await;
     let token = ts.get_invite_token(game_id).await;
 
     // White joins via web POST with token query param → redirect (303)
     let resp = ts
         .client_white
         .post(format!(
-            "http://{}/games/{game_id}/join?token={token}",
-            ts.addr
+            "http://{}/games/{game_id}/join?access_token={}&invite_token={token}",
+            ts.addr, access_token
         ))
         .send()
         .await
@@ -87,7 +91,11 @@ async fn join_invite_only_game_without_token_rejected() {
     // White tries to join without token → 422
     let resp = ts
         .client_white
-        .post(format!("http://{}/games/{game_id}/join", ts.addr))
+        .post(format!(
+            "http://{}/games/{game_id}/join?access_token={}",
+            ts.addr,
+            ts.get_access_token(game_id).await
+        ))
         .send()
         .await
         .unwrap();

@@ -1063,7 +1063,7 @@ describe("move confirm toggle", () => {
 // 13. Lobby / lifecycle
 // ===========================================================================
 describe("lobby / lifecycle", () => {
-  it("showInviteLink when player and invite token and open slot", () => {
+  it("showInviteLink when player has access token", () => {
     batch(() => {
       gameStage.value = GameStage.Challenge;
       black.value = userBlack;
@@ -1073,7 +1073,7 @@ describe("lobby / lifecycle", () => {
       initialProps.value = {
         ...initialProps.value,
         creator_id: 1,
-        invite_token: "abc123",
+        access_token: "abc123",
       };
     });
     expect(caps().showInviteLink).toBe(true);
@@ -1164,7 +1164,7 @@ describe("lobby / lifecycle", () => {
       initialProps.value = {
         ...initialProps.value,
         settings: { ...initialProps.value.settings, is_private: true },
-        has_valid_token: true,
+        has_valid_access_token: true,
       };
     });
     expect(caps().lobbyPopover?.variant).toBe("join");

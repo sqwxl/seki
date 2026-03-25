@@ -338,7 +338,7 @@ export function GameSettingsForm({
         {showPrivate && (
           <div>
             <label for="is_private">
-              <IconPrivate /> Private
+              <IconPrivate /> Private spectators
             </label>
             <input
               type="checkbox"
@@ -348,6 +348,10 @@ export function GameSettingsForm({
               checked={s.isPrivate}
               onChange={(e) => set("isPrivate", e.currentTarget.checked)}
             />
+            <p class="form-help">
+              Hide this game from public lists. Non-participants need the invite
+              link to view it.
+            </p>
           </div>
         )}
       </fieldset>
@@ -535,7 +539,7 @@ export function GameSettingsForm({
                   checked={s.opponentMode === "open"}
                   onChange={() => set("opponentMode", "open")}
                 />{" "}
-                Open
+                Open lobby
               </label>
               <label>
                 <input
@@ -544,7 +548,7 @@ export function GameSettingsForm({
                   checked={s.opponentMode === "challenge"}
                   onChange={() => set("opponentMode", "challenge")}
                 />{" "}
-                Challenge
+                Direct challenge
               </label>
               <label>
                 <input
@@ -553,12 +557,16 @@ export function GameSettingsForm({
                   checked={s.opponentMode === "invite"}
                   onChange={() => set("opponentMode", "invite")}
                 />{" "}
-                Invite
+                Invite link
               </label>
             </div>
 
             {s.opponentMode === "open" && (
               <div class="opponent-open-options">
+                <p class="form-help">
+                  Leave one seat open. Anyone who can access the game can join
+                  under the restrictions below.
+                </p>
                 <label>
                   <input
                     type="radio"
@@ -593,6 +601,10 @@ export function GameSettingsForm({
 
             {s.opponentMode === "challenge" && (
               <div class="opponent-challenge">
+                <p class="form-help">
+                  Assign the opponent now. Both seats are filled immediately,
+                  and they must accept before play starts.
+                </p>
                 {selectedOpponent ? (
                   <span
                     class="selected-opponent"
@@ -649,6 +661,10 @@ export function GameSettingsForm({
 
             {s.opponentMode === "invite" && (
               <div>
+                <p class="form-help">
+                  Leave one seat open and send an invite link. Only someone with
+                  that link can fill the empty seat.
+                </p>
                 <label for="invite_email">Email address</label>
                 <input
                   type="email"

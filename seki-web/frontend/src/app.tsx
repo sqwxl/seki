@@ -35,7 +35,12 @@ declare global {
 type Route =
   | { kind: "games" }
   | { kind: "new-game"; opponent?: string | null; error?: string | null }
-  | { kind: "game"; id: number; token?: string | null }
+  | {
+      kind: "game";
+      id: number;
+      accessToken?: string | null;
+      inviteToken?: string | null;
+    }
   | { kind: "analysis" }
   | { kind: "profile"; username: string; error?: string | null }
   | { kind: "login"; redirect?: string | null; error?: string | null }
@@ -122,7 +127,8 @@ function parseRoute(url: URL): Route {
     return {
       kind: "game",
       id: Number(gameMatch[1]),
-      token: url.searchParams.get("token"),
+      accessToken: url.searchParams.get("access_token"),
+      inviteToken: url.searchParams.get("invite_token"),
     };
   }
   const userMatch = path.match(/^\/users\/([^/]+)$/);
@@ -185,8 +191,16 @@ function getRouteDataUrl(route: Route): string | undefined {
         ? `/api/web/games/new?opponent=${encodeURIComponent(route.opponent)}`
         : "/api/web/games/new";
     case "game":
-      return route.token
-        ? `/api/web/games/${route.id}?token=${encodeURIComponent(route.token)}`
+      const gameParams = [
+        route.accessToken
+          ? `access_token=${encodeURIComponent(route.accessToken)}`
+          : null,
+        route.inviteToken
+          ? `invite_token=${encodeURIComponent(route.inviteToken)}`
+          : null,
+      ].filter(Boolean);
+      return gameParams.length > 0
+        ? `/api/web/games/${route.id}?${gameParams.join("&")}`
         : `/api/web/games/${route.id}`;
     case "analysis":
       return "/api/web/analysis";
@@ -401,7 +415,15 @@ function GamesScreen() {
 }
 
 function GameScreenRoute({ route }: { route: Extract<Route, { kind: "game" }> }) {
-  const params = route.token ? `?token=${encodeURIComponent(route.token)}` : "";
+  const parts = [
+    route.kind === "game" && route.accessToken
+      ? `access_token=${encodeURIComponent(route.accessToken)}`
+      : null,
+    route.kind === "game" && route.inviteToken
+      ? `invite_token=${encodeURIComponent(route.inviteToken)}`
+      : null,
+  ].filter(Boolean);
+  const params = parts.length > 0 ? `?${parts.join("&")}` : "";
   const { data, error } = useRouteData<GamePageData>(
     `/api/web/games/${route.id}${params}`,
   );

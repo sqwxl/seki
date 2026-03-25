@@ -10,6 +10,10 @@ import { clockDisplay } from "./clock";
 import { gamePhase } from "./phase";
 import type { GamePhase } from "./phase";
 import {
+  requiresAccessTokenToJoin,
+  requiresInviteTokenToJoin,
+} from "./access";
+import {
   analysisKomi,
   analysisTerritoryInfo,
   analysisNavState,
@@ -443,10 +447,11 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const canJoinGame =
     !isPlayer &&
     hasOpenSlot &&
-    (!props.settings.is_private || !!props.has_valid_token) &&
-    (!props.settings.invite_only || !!props.has_valid_token);
+    (!requiresAccessTokenToJoin(props.settings) ||
+      !!props.has_valid_access_token) &&
+    !requiresInviteTokenToJoin(props.settings);
 
-  const showInviteLink = !!props.invite_token && hasOpenSlot && isPlayer;
+  const showInviteLink = !!props.access_token && isPlayer;
 
   const isChallengee =
     isChallenge && isPlayer && myId != null && myId !== props.creator_id;
@@ -475,7 +480,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     hasOpenSlot &&
     !isDone &&
     !res &&
-    (canJoinGame || !!props.has_valid_token)
+    (canJoinGame || !!props.has_valid_access_token)
   ) {
     lobbyPopover = {
       variant: "join",
@@ -1048,7 +1053,7 @@ export const liveGameStatusState = computed(
     }
 
     let lobbyPopover: UiCapabilities["lobbyPopover"];
-    const hasValidToken = !!props.has_valid_token;
+    const hasValidAccessToken = !!props.has_valid_access_token;
     const isChallenge = stage === GameStage.Challenge;
     const isCreator = myId != null && myId === props.creator_id;
     const isChallengee =
@@ -1076,9 +1081,8 @@ export const liveGameStatusState = computed(
       hasOpenSlot &&
       !isDone &&
       !res &&
-      ((!props.settings.is_private || hasValidToken) &&
-        (!props.settings.invite_only || hasValidToken) ||
-        hasValidToken)
+      ((!requiresAccessTokenToJoin(props.settings) || hasValidAccessToken) &&
+        !requiresInviteTokenToJoin(props.settings))
     ) {
       lobbyPopover = {
         variant: "join",
@@ -1121,7 +1125,7 @@ export const liveGameStatusState = computed(
       presentationStatusSuffix,
       disconnectCountdown,
       lobbyPopover,
-      showInviteLink: !!props.invite_token && hasOpenSlot && isPlayer,
+      showInviteLink: !!props.access_token && isPlayer,
     };
   },
 );

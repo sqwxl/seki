@@ -92,9 +92,11 @@ pub async fn create_game(
         None
     };
 
-    // Email invite with no matching user: mark invite-only so only the token holder can join
+    // A raw email invite does not assign the second seat yet.
+    // Mark it invite-only so only the token holder can fill that seat.
     let invite_only =
         params.invite_email.as_ref().is_some_and(|e| !e.is_empty()) && friend.is_none();
+    let is_private = params.is_private || invite_only;
 
     let friend_id = friend.as_ref().map(|f| f.id);
 
@@ -106,7 +108,8 @@ pub async fn create_game(
         _ => (Some(creator.id), friend_id),
     };
 
-    let invite_token = generate_invite_token();
+    let access_token = generate_game_token();
+    let invite_token = invite_only.then(generate_game_token);
 
     // Compute initial clock values for timed games
     let tc = TimeControl::from_tc_type(
@@ -127,9 +130,10 @@ pub async fn create_game(
         params.rows,
         params.komi,
         params.handicap,
-        params.is_private,
+        is_private,
         params.allow_undo,
-        &invite_token,
+        &access_token,
+        invite_token.as_deref(),
         params.time_control,
         params.main_time_secs,
         params.increment_secs,
@@ -145,7 +149,8 @@ pub async fn create_game(
     )
     .await?;
 
-    // When both slots are filled at creation (invite game), set stage to "challenge"
+    // When both seats are assigned up front, this is a direct challenge:
+    // the invited player must accept or decline before play starts.
     if friend.is_some() {
         Game::set_stage(pool, game.id, "challenge").await?;
     }
@@ -153,7 +158,7 @@ pub async fn create_game(
     Ok(game)
 }
 
-fn generate_invite_token() -> String {
+fn generate_game_token() -> String {
     let mut rng = rand::rng();
     (0..22)
         .map(|_| {

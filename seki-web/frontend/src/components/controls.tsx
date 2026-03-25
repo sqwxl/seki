@@ -314,18 +314,18 @@ function CopyInviteLinkButton({ onClick }: { onClick: () => void }) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   return (
     <button
-      title="Copy invite link"
+      title="Copy access link"
       onClick={(e) => {
         onClick();
         const btn = e.currentTarget;
         btn.textContent = "Copied!";
         clearTimeout(timer);
         timer = setTimeout(() => {
-          btn.textContent = "Invite";
+          btn.textContent = "Access";
         }, 1500);
       }}
     >
-      Invite
+      Access
     </button>
   );
 }

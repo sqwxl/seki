@@ -31,6 +31,7 @@ pub struct Game {
     pub black_id: Option<i64>,
     pub white_id: Option<i64>,
     pub undo_rejected: bool,
+    pub access_token: Option<String>,
     pub invite_token: Option<String>,
     pub cols: i32,
     pub rows: i32,
@@ -64,6 +65,28 @@ pub struct Game {
 }
 
 impl Game {
+    /// `is_private` controls spectator visibility.
+    /// Non-participants need the access token to view the game at all.
+    pub fn requires_access_token_to_view(&self) -> bool {
+        self.is_private
+    }
+
+    /// Private access is required for API joins because there is no prior page-view step.
+    pub fn requires_access_token_to_join(&self) -> bool {
+        self.is_private
+    }
+
+    /// `invite_only` controls whether an empty seat may be filled without the invite token.
+    pub fn requires_invite_token_to_join(&self) -> bool {
+        self.invite_only
+    }
+
+    /// A challenge is a game with both seats assigned that is waiting for the invited
+    /// player to accept or decline before live play begins.
+    pub fn is_challenge(&self) -> bool {
+        self.stage == "challenge"
+    }
+
     pub async fn list_public(
         executor: impl sqlx::PgExecutor<'_>,
     ) -> Result<Vec<Game>, sqlx::Error> {
@@ -240,7 +263,8 @@ impl Game {
         handicap: i32,
         is_private: bool,
         allow_undo: bool,
-        invite_token: &str,
+        access_token: &str,
+        invite_token: Option<&str>,
         time_control: TimeControlType,
         main_time_secs: Option<i32>,
         increment_secs: Option<i32>,
@@ -256,10 +280,10 @@ impl Game {
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, \
-             is_private, allow_undo, invite_token, time_control, main_time_secs, \
+             is_private, allow_undo, access_token, invite_token, time_control, main_time_secs, \
              increment_secs, byoyomi_time_secs, byoyomi_periods, \
              clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, open_to, invite_only)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
              RETURNING *",
         )
         .bind(creator_id)
@@ -271,6 +295,7 @@ impl Game {
         .bind(handicap)
         .bind(is_private)
         .bind(allow_undo)
+        .bind(access_token)
         .bind(invite_token)
         .bind(time_control)
         .bind(main_time_secs)

@@ -10,7 +10,7 @@ use crate::models::message::Message;
 use crate::models::user::User;
 use crate::services::engine_builder;
 use crate::services::live::{GameSettings, LiveGameItem, build_live_items};
-use crate::services::{presentation_actions, state_serializer};
+use crate::services::{game_joiner, presentation_actions, state_serializer};
 use crate::session::CurrentUser;
 use crate::templates::UserData;
 use crate::templates::games_show::InitialGameProps;
@@ -54,9 +54,16 @@ pub async fn bootstrap_for_location(
                 .trim_start_matches("/games/")
                 .parse::<i64>()
                 .map_err(|_| AppError::NotFound("Game not found".to_string()))?;
-            serde_json::to_value(
-                load_game_show(state, current_user, game_id, query_param(query, "token")).await?,
-            )?
+            let access_token = query_param(query, "access_token");
+            let invite_token = query_param(query, "invite_token");
+            let mut params = Vec::new();
+            if let Some(token) = access_token {
+                params.push(format!("access_token={token}"));
+            }
+            if let Some(token) = invite_token {
+                params.push(format!("invite_token={token}"));
+            }
+            serde_json::to_value(load_game_show(state, current_user, game_id, params).await?)?
         }
         _ if path.starts_with("/users/") => {
             let username = path.trim_start_matches("/users/").to_string();
@@ -88,10 +95,19 @@ fn route_data_url(path: &str, query: Option<&str>) -> Option<String> {
         }
         "/analysis" => Some("/api/web/analysis".to_string()),
         _ if path.starts_with("/games/") => {
-            let token = query_param(query, "token");
-            Some(match token {
-                Some(token) => format!("{path}?token={token}").replacen("/games", "/api/web/games", 1),
-                None => path.replacen("/games", "/api/web/games", 1),
+            let access_token = query_param(query, "access_token");
+            let invite_token = query_param(query, "invite_token");
+            let mut params = Vec::new();
+            if let Some(token) = access_token {
+                params.push(format!("access_token={token}"));
+            }
+            if let Some(token) = invite_token {
+                params.push(format!("invite_token={token}"));
+            }
+            Some(if params.is_empty() {
+                path.replacen("/games", "/api/web/games", 1)
+            } else {
+                format!("{path}?{}", params.join("&")).replacen("/games", "/api/web/games", 1)
             })
         }
         _ if path.starts_with("/users/") => Some(path.replacen("/users", "/api/web/users", 1)),
@@ -166,14 +182,13 @@ async fn new_game(Query(query): Query<NewGameQuery>) -> Json<NewGameData> {
 }
 
 fn load_new_game(opponent: Option<String>) -> NewGameData {
-    NewGameData {
-        opponent,
-    }
+    NewGameData { opponent }
 }
 
 #[derive(Deserialize)]
 struct GameShowToken {
-    token: Option<String>,
+    access_token: Option<String>,
+    invite_token: Option<String>,
 }
 
 async fn game_show(
@@ -182,8 +197,15 @@ async fn game_show(
     Path(id): Path<i64>,
     Query(query): Query<ShowGameQuery>,
 ) -> Result<Json<GamePageData>, AppError> {
+    let mut params = Vec::new();
+    if let Some(token) = query.access_token {
+        params.push(format!("access_token={token}"));
+    }
+    if let Some(token) = query.invite_token {
+        params.push(format!("invite_token={token}"));
+    }
     Ok(Json(
-        load_game_show(&state, &current_user, id, query.token).await?,
+        load_game_show(&state, &current_user, id, params).await?,
     ))
 }
 
@@ -191,22 +213,59 @@ async fn load_game_show(
     state: &AppState,
     current_user: &CurrentUser,
     id: i64,
-    token: Option<String>,
+    query_params: Vec<String>,
 ) -> Result<GamePageData, AppError> {
-    let query = GameShowToken { token };
-    let gwp = Game::find_with_players(&state.db, id).await?;
+    let mut query = GameShowToken {
+        access_token: None,
+        invite_token: None,
+    };
+    for pair in query_params {
+        let mut parts = pair.splitn(2, '=');
+        match (parts.next(), parts.next()) {
+            (Some("access_token"), Some(value)) => query.access_token = Some(value.to_string()),
+            (Some("invite_token"), Some(value)) => query.invite_token = Some(value.to_string()),
+            _ => {}
+        }
+    }
 
-    let is_player = gwp.has_player(current_user.id);
-    let has_valid_token = gwp
+    let mut gwp = Game::find_with_players(&state.db, id).await?;
+    let mut is_player = gwp.has_player(current_user.id);
+    let has_valid_access_token = gwp
+        .game
+        .access_token
+        .as_deref()
+        .zip(query.access_token.as_deref())
+        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+    let has_valid_invite_token = gwp
         .game
         .invite_token
         .as_deref()
-        .zip(query.token.as_deref())
+        .zip(query.invite_token.as_deref())
         .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
 
-    if gwp.game.is_private && !is_player && !has_valid_token {
+    let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
+    if !is_player
+        && has_open_slot
+        && gwp.game.requires_invite_token_to_join()
+        && has_valid_invite_token
+    {
+        game_joiner::join_open_game(&state.db, &gwp, &current_user.user).await?;
+
+        let game = Game::find_by_id(&state.db, id).await?;
+        let engine = engine_builder::build_engine(&state.db, &game).await?;
+        let updated_gwp = Game::find_with_players(&state.db, id).await?;
+        let game_state =
+            state_serializer::serialize_state(&updated_gwp, &engine, false, None, None, None);
+        state.registry.broadcast(id, &game_state.to_string()).await;
+        crate::services::live::notify_game_created(state, &updated_gwp);
+
+        gwp = updated_gwp;
+        is_player = true;
+    }
+
+    if gwp.game.requires_access_token_to_view() && !is_player && !has_valid_access_token {
         return Err(AppError::Forbidden(
-            "This game is private. You need an invite link to view it.".to_string(),
+            "This game is private. You need a valid access token to view it.".to_string(),
         ));
     }
 
@@ -224,7 +283,7 @@ async fn load_game_show(
 
     let is_creator = gwp.game.creator_id == Some(current_user.id);
     let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
-    let game_props = build_game_props(state, current_user, &gwp, has_valid_token).await?;
+    let game_props = build_game_props(state, current_user, &gwp, has_valid_access_token).await?;
 
     let black_name = gwp
         .black
@@ -247,8 +306,8 @@ async fn load_game_show(
     Ok(GamePageData {
         game_id: gwp.game.id,
         game_props: InitialGameProps {
-            invite_token: if is_creator || has_valid_token {
-                game_props.invite_token
+            access_token: if is_creator || is_player || has_valid_access_token {
+                game_props.access_token
             } else {
                 None
             },
@@ -261,7 +320,8 @@ async fn load_game_show(
 }
 #[derive(Deserialize)]
 struct ShowGameQuery {
-    token: Option<String>,
+    access_token: Option<String>,
+    invite_token: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -281,7 +341,6 @@ struct GamePageData {
     og_title: String,
     og_description: String,
 }
-
 
 #[derive(Serialize)]
 struct AnalysisData {}
@@ -356,7 +415,7 @@ async fn build_game_props(
     state: &AppState,
     current_user: &CurrentUser,
     gwp: &GameWithPlayers,
-    has_valid_token: bool,
+    has_valid_access_token: bool,
 ) -> Result<InitialGameProps, AppError> {
     let engine = state
         .registry
@@ -430,9 +489,9 @@ async fn build_game_props(
         settled_territory,
         nigiri: gwp.game.nigiri,
         can_start_presentation: can_start_pres,
-        has_valid_token,
-        invite_token: if is_creator || has_valid_token {
-            gwp.game.invite_token.clone()
+        has_valid_access_token,
+        access_token: if is_creator || gwp.has_player(current_user.id) || has_valid_access_token {
+            gwp.game.access_token.clone()
         } else {
             None
         },

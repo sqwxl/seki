@@ -29,6 +29,7 @@ export type GameInfoProps = {
   territory: TerritoryData | undefined;
   settledTerritory: SettledTerritoryData | undefined;
   estimateScore: ScoreData | undefined;
+  copyInviteLink: () => void;
 };
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -42,8 +43,10 @@ function Row({ label, value }: { label: string; value: string }) {
 
 export function GameInfo(props: GameInfoProps) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const copyTimerRef = useRef<number | undefined>(undefined);
 
   const { settings, komi } = props;
   const size = formatSize(settings.cols, settings.rows);
@@ -100,6 +103,15 @@ export function GameInfo(props: GameInfoProps) {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current != null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    },
+    [],
+  );
+
   return (
     <div class="game-info">
       <button
@@ -142,6 +154,23 @@ export function GameInfo(props: GameInfoProps) {
               <Row label="Result" value={props.result} />
             )}
           </dl>
+          <div class="game-info-actions">
+            <button
+              class="game-info-copy"
+              onClick={() => {
+                props.copyInviteLink();
+                setCopied(true);
+                if (copyTimerRef.current != null) {
+                  window.clearTimeout(copyTimerRef.current);
+                }
+                copyTimerRef.current = window.setTimeout(() => {
+                  setCopied(false);
+                }, 1500);
+              }}
+            >
+              {copied ? "Copied!" : "Access"}
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -44,14 +44,14 @@ async fn private_game_visible_to_player() {
     let server = TestServer::start().await;
 
     let game_id = server.create_private_game().await;
-    let token = server.get_invite_token(game_id).await;
+    let token = server.get_access_token(game_id).await;
 
     // White joins with valid token
     let resp = server
         .client_white
         .post(format!("http://{}/api/games/{game_id}/join", server.addr))
         .header("Authorization", "Bearer test-white-api-token-67890")
-        .json(&json!({"token": token}))
+        .json(&json!({"access_token": token}))
         .send()
         .await
         .unwrap();
@@ -87,7 +87,7 @@ async fn cannot_join_private_game_without_token() {
     let resp = server.join_game_as_spectator(game_id).await;
     assert_eq!(resp.status(), 422);
     let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("invite token"));
+    assert!(body["error"].as_str().unwrap().contains("access token"));
 }
 
 #[tokio::test]
@@ -95,7 +95,7 @@ async fn can_join_private_game_with_valid_token() {
     let server = TestServer::start().await;
 
     let game_id = server.create_private_game().await;
-    let token = server.get_invite_token(game_id).await;
+    let token = server.get_access_token(game_id).await;
 
     // Join with valid token
     let resp = server.join_private_game_as_spectator(game_id, &token).await;
@@ -114,7 +114,7 @@ async fn cannot_join_private_game_with_wrong_token() {
         .await;
     assert_eq!(resp.status(), 422);
     let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("invite token"));
+    assert!(body["error"].as_str().unwrap().contains("access token"));
 }
 
 // -- Abort Access Control --

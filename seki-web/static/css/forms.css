@@ -228,6 +228,13 @@ input[type="radio"] {
   gap: 0.25em;
 }
 
+.form-help {
+  margin: 0 0 0.35rem;
+  color: color-mix(in srgb, var(--fg) 72%, transparent);
+  font-size: 0.92em;
+  line-height: 1.35;
+}
+
 .disabled-option {
   opacity: 0.5;
   cursor: not-allowed;

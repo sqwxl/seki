@@ -2,7 +2,8 @@ import { useState, useEffect } from "preact/hooks";
 import { subscribe } from "../ws";
 import { GameListItem } from "../components/game-description";
 import type { LiveGameItem, GameUpdate } from "../components/game-description";
-import { GameStage, type UserData } from "../game/types";
+import type { UserData } from "../game/types";
+import { isChallengeStage } from "../game/access";
 
 export type InitMessage = {
   kind: "init";
@@ -128,7 +129,7 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
     g.result === "Aborted" || g.result === "Declined";
 
   const isIncomingChallenge = (g: LiveGameItem) =>
-    g.stage === GameStage.Challenge && g.creator_id !== playerId;
+    isChallengeStage(g.stage) && g.creator_id !== playerId;
 
   const challenges = allGames.filter(
     (g) => isMyGame(g) && !isDismissed(g) && isIncomingChallenge(g),

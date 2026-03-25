@@ -1,7 +1,7 @@
 import { GameStage, type UserData, type GameSettings } from "../game/types";
 import { UserLabel } from "./user-label";
-import { IconPrivate } from "./icons";
 import { buildDescriptionParts } from "../utils/format";
+import { gameAccessBadges } from "../game/access";
 
 export type GameUpdate = {
   id: number;
@@ -73,11 +73,15 @@ export function GameListItem({
     >
       <a href={`/games/${game.id}`}>
         <GameDescription {...game} dismissed={dismissed} />
-        {game.settings.is_private && (
-          <span class="private-badge" title="Private">
-            <IconPrivate />
+        {gameAccessBadges(game.settings, game.stage).map((badge) => (
+          <span
+            key={`${game.id}-${badge.label}`}
+            class="game-access-badge"
+            title={badge.title}
+          >
+            {badge.label}
           </span>
-        )}
+        ))}
       </a>
     </li>
   );
