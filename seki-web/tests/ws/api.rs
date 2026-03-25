@@ -2,6 +2,17 @@ use serde_json::{Value, json};
 
 use crate::common::TestServer;
 
+fn assert_api_error(body: &Value, code: &str) -> String {
+    assert_eq!(
+        body["error"]["code"], code,
+        "unexpected API error body: {body}"
+    );
+    body["error"]["message"]
+        .as_str()
+        .unwrap_or_else(|| panic!("missing API error message in body: {body}"))
+        .to_string()
+}
+
 // ============================================================
 // Public Endpoints
 // ============================================================
@@ -93,7 +104,7 @@ async fn get_game_404_for_nonexistent() {
         .unwrap();
     assert_eq!(resp.status(), 404);
     let body: Value = resp.json().await.unwrap();
-    assert!(body["error"].is_string());
+    assert_eq!(assert_api_error(&body, "not_found"), "Record not found");
 }
 
 #[tokio::test]
@@ -185,7 +196,7 @@ async fn get_user_404_for_nonexistent() {
         .unwrap();
     assert_eq!(resp.status(), 404);
     let body: Value = resp.json().await.unwrap();
-    assert!(body["error"].is_string());
+    assert_eq!(assert_api_error(&body, "not_found"), "User not found");
 }
 
 #[tokio::test]
@@ -340,7 +351,7 @@ async fn delete_started_game_fails() {
         .unwrap();
     assert_eq!(resp.status(), 422);
     let body: Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("started"));
+    assert!(assert_api_error(&body, "validation_error").contains("started"));
 }
 
 #[tokio::test]
@@ -727,9 +738,10 @@ async fn missing_auth_returns_401() {
         assert_eq!(resp.status(), 401, "Expected 401 for {method} {url}");
         let body: Value = resp.json().await.unwrap();
         assert!(
-            body["error"].is_string(),
+            body["error"]["message"].is_string(),
             "Expected JSON error body for {method} {url}"
         );
+        assert_eq!(body["error"]["code"], "unauthorized");
     }
 }
 
@@ -746,7 +758,7 @@ async fn invalid_token_returns_401() {
         .unwrap();
     assert_eq!(resp.status(), 401);
     let body: Value = resp.json().await.unwrap();
-    assert!(body["error"].is_string());
+    assert_eq!(assert_api_error(&body, "unauthorized"), "Invalid API token");
 }
 
 #[tokio::test]
@@ -803,7 +815,7 @@ async fn play_on_nonexistent_game_returns_404() {
 }
 
 #[tokio::test]
-async fn json_error_responses_have_error_field() {
+async fn json_error_responses_have_structured_error_envelope() {
     let server = TestServer::start().await;
 
     // 404
@@ -815,9 +827,11 @@ async fn json_error_responses_have_error_field() {
         .unwrap();
     let body: Value = resp.json().await.unwrap();
     assert!(
-        body["error"].is_string(),
-        "404 response should have 'error' field: {body}"
+        body["error"].is_object(),
+        "404 response should have structured error field: {body}"
     );
+    assert_eq!(body["error"]["code"], "not_found");
+    assert!(body["error"]["message"].is_string());
 
     // 401
     let resp = reqwest::Client::new()
@@ -827,17 +841,21 @@ async fn json_error_responses_have_error_field() {
         .unwrap();
     let body: Value = resp.json().await.unwrap();
     assert!(
-        body["error"].is_string(),
-        "401 response should have 'error' field: {body}"
+        body["error"].is_object(),
+        "401 response should have structured error field: {body}"
     );
+    assert_eq!(body["error"]["code"], "unauthorized");
+    assert!(body["error"]["message"].is_string());
 
     // 422
     let resp = server.try_create_game_with(json!({"komi": 0})).await;
     let body: Value = resp.json().await.unwrap();
     assert!(
-        body["error"].is_string(),
-        "422 response should have 'error' field: {body}"
+        body["error"].is_object(),
+        "422 response should have structured error field: {body}"
     );
+    assert_eq!(body["error"]["code"], "validation_error");
+    assert!(body["error"]["message"].is_string());
 }
 
 // ============================================================
@@ -1463,7 +1481,7 @@ async fn toggle_chain_outside_territory_review() {
     );
     let body: Value = resp.json().await.unwrap();
     assert!(
-        body["error"].as_str().unwrap().contains("territory review"),
+        assert_api_error(&body, "validation_error").contains("territory review"),
         "expected territory review error, got: {}",
         body["error"]
     );
@@ -1524,7 +1542,7 @@ async fn approve_territory_twice_returns_error() {
     );
     let body: Value = resp.json().await.unwrap();
     assert!(
-        body["error"].as_str().unwrap().contains("already approved"),
+        assert_api_error(&body, "validation_error").contains("already approved"),
         "expected already approved error, got: {}",
         body["error"]
     );
