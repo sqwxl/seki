@@ -157,8 +157,8 @@ pub async fn login(
         if !redirect.is_empty() {
             pairs.push(("redirect", redirect.as_str()));
         }
-        let query = serde_urlencoded::to_string(pairs)
-            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let query =
+            serde_urlencoded::to_string(pairs).map_err(|e| AppError::Internal(e.to_string()))?;
         Ok(Redirect::to(&format!("/login?{query}")).into_response())
     };
 

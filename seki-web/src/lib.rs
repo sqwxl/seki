@@ -98,14 +98,16 @@ pub async fn build_router_with_registry_and_presence(
             patch(routes::settings::update_preferences),
         )
         .route("/ws", get(ws::live::ws_upgrade))
-        .nest("/api", routes::api::router().merge(routes::web_api::router()))
+        .nest(
+            "/api",
+            routes::api::router().merge(routes::web_api::router()),
+        )
         .route("/up", get(routes::health::health_check))
         .nest_service(
             "/static",
             ServeDir::new(
-                std::env::var("STATIC_DIR").unwrap_or_else(|_| {
-                    concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()
-                }),
+                std::env::var("STATIC_DIR")
+                    .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()),
             ),
         )
         .layer(session_layer)

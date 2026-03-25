@@ -98,7 +98,9 @@ pub async fn update_username(
         }
         let query = serde_urlencoded::to_string([("error", msg)])
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        return Ok(Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response());
+        return Ok(
+            Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response(),
+        );
     }
 
     // No change
@@ -125,7 +127,9 @@ pub async fn update_username(
         }
         let query = serde_urlencoded::to_string([("error", msg)])
             .map_err(|e| AppError::Internal(e.to_string()))?;
-        return Ok(Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response());
+        return Ok(
+            Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response(),
+        );
     }
 
     // Update
