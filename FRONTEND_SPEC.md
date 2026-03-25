@@ -583,6 +583,7 @@ Pre-start color display:
 Rematch behavior:
 
 - rematch submits a form POST to `/games/:id/rematch`
+- when rematch is available, the web UI exposes a rematch action on the game page
 - optional color-swap is included as form data
 - optional game rules adjust
 - successful response navigates to the returned redirect
@@ -890,6 +891,8 @@ Expected behavior:
 - disconnect/reconnect messages update player online indicators (with 3s grace period to avoid flickering)
 - opponent disconnect state records disconnect time, grace period, and whether the opponent is fully gone
 - reconnect clears opponent-disconnect warnings
+- opponent-disconnect state should be presented through the normal game-status/disconnect UI rather than via ad hoc chat messages or unrelated banners
+- disconnect countdown and claim-victory availability should use a consistent visual treatment wherever that state appears on the live game route
 
 #### Clock behavior
 
@@ -965,6 +968,7 @@ Territory-review and estimate interaction semantics:
 - finalizing territory review in analysis on an already-finalized node should create a new finalized node on a variation branch from that node’s parent, using the same move position with a different result
 - if the newly finalized result matches the existing finalized result, no new node should be created
 - in analysis, passing twice should always auto-enter territory review
+- on finished games, move-counter clicks and similar navigation affordances must not trigger a new territory-review flow; they may only perform their normal navigation or analysis-exit behavior
 
 #### Status precedence
 
@@ -1257,6 +1261,9 @@ On WebSocket reconnect:
 - stale local presentation state is cleared before the server re-sends authoritative state
 - the client automatically re-joins the active game room
 - queued outbound messages are flushed after reconnect
+- reconnect after a server restart should follow the same recovery path as any other reconnect
+- stale local pending-action UI must not survive reconnect when it no longer matches authoritative server state
+- live-game UI should recover from authoritative state after reconnect without requiring a manual page refresh
 
 This prevents stale presenter UI from surviving an offline period.
 
