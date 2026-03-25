@@ -254,20 +254,18 @@ a:visited {
   left: 0;
   right: 0;
   z-index: 500;
-  padding: 0.75rem;
   animation: flash-banner-in 250ms ease-out;
 }
 
+.flash-banner.flash-banner-leaving {
+  animation: flash-banner-out 250ms ease-in forwards;
+}
+
 .flash-banner-body {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: min(100%, 70rem);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   padding: 0.75rem 1rem;
   color: #fff;
-  border-radius: 0.5rem;
   box-shadow: var(--shadow-elevated);
 }
 
@@ -290,21 +288,6 @@ a:visited {
   color: #1f1f1f;
 }
 
-.flash-banner-close {
-  flex-shrink: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  color: inherit;
-  font-size: 1.25rem;
-  line-height: 1;
-  padding: 0;
-}
-
-.flash-banner-close:hover {
-  border-color: transparent;
-}
-
 @keyframes flash-banner-in {
   from {
     opacity: 0;
@@ -314,6 +297,18 @@ a:visited {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes flash-banner-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-0.5rem);
   }
 }
 

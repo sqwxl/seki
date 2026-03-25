@@ -293,32 +293,39 @@ function LoadingState() {
 
 function FlashBanner() {
   const flash = activeFlash.value;
+  const [renderedFlash, setRenderedFlash] = useState(flash);
+  const [leaving, setLeaving] = useState(false);
 
-  if (!flash) {
+  useEffect(() => {
+    if (flash) {
+      setRenderedFlash(flash);
+      setLeaving(false);
+      return;
+    }
+    if (!renderedFlash) {
+      return;
+    }
+    setLeaving(true);
+    const timeout = window.setTimeout(() => {
+      setRenderedFlash(undefined);
+      setLeaving(false);
+    }, 250);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [flash, renderedFlash]);
+
+  if (!renderedFlash) {
     return null;
   }
 
   return (
     <div
-      class={`flash-banner flash-banner-${flash.severity}`}
+      class={`flash-banner flash-banner-${renderedFlash.severity} ${leaving ? "flash-banner-leaving" : ""}`}
       role="alert"
       aria-live="assertive"
-      onClick={() => clearFlash()}
     >
-      <div class="flash-banner-body">
-        <span>{flash.message}</span>
-        <button
-          type="button"
-          class="flash-banner-close"
-          aria-label="Dismiss message"
-          onClick={(event) => {
-            event.stopPropagation();
-            clearFlash();
-          }}
-        >
-          ×
-        </button>
-      </div>
+      <div class="flash-banner-body">{renderedFlash.message}</div>
     </div>
   );
 }
@@ -997,9 +1004,16 @@ function App() {
         clearFlash();
       }
     };
+    const onPointerDown = () => {
+      if (activeFlash.value) {
+        clearFlash();
+      }
+    };
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", onPointerDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", onPointerDown);
     };
   }, []);
 
