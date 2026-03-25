@@ -3,11 +3,12 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
+use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
-use crate::routes::{FlashMessage, FlashSeverity, flash_redirect, wants_json};
+use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
@@ -37,6 +38,7 @@ pub struct CreateGameForm {
 // POST /games
 pub async fn create_game(
     State(state): State<AppState>,
+    session: Session,
     current_user: CurrentUser,
     headers: axum::http::HeaderMap,
     Form(form): Form<CreateGameForm>,
@@ -122,14 +124,15 @@ pub async fn create_game(
                 )
                     .into_response());
             }
-            let url = flash_redirect(
-                "/games/new",
+            set_flash(
+                &session,
                 FlashMessage {
                     message: e.to_string(),
                     severity: FlashSeverity::Error,
                 },
-            )?;
-            Ok(Redirect::to(&url).into_response())
+            )
+            .await?;
+            Ok(Redirect::to("/games/new").into_response())
         }
     }
 }

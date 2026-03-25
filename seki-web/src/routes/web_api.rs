@@ -12,7 +12,6 @@ use crate::services::engine_builder;
 use crate::services::live::{GameSettings, LiveGameItem, build_live_items};
 use crate::services::{game_joiner, presentation_actions, state_serializer};
 use crate::routes::FlashMessage;
-use crate::routes::flash_from_query;
 use crate::session::CurrentUser;
 use crate::templates::UserData;
 use crate::templates::games_show::InitialGameProps;
@@ -41,12 +40,11 @@ pub(crate) async fn bootstrap_for_location(
 ) -> Result<BootstrapPayload, AppError> {
     let path = uri.path();
     let query = uri.query();
-    let flash = flash_from_query(query);
     let Some(url) = route_data_url(path, query) else {
         return Ok(BootstrapPayload {
             url: None,
             data: None,
-            flash,
+            flash: None,
         });
     };
 
@@ -78,7 +76,7 @@ pub(crate) async fn bootstrap_for_location(
             return Ok(BootstrapPayload {
                 url: None,
                 data: None,
-                flash,
+                flash: None,
             });
         }
     };
@@ -86,7 +84,7 @@ pub(crate) async fn bootstrap_for_location(
     Ok(BootstrapPayload {
         url: Some(url),
         data: Some(data),
-        flash,
+        flash: None,
     })
 }
 

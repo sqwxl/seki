@@ -4,11 +4,12 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 use serde_json::json;
+use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::user::User;
-use crate::routes::{FlashMessage, FlashSeverity, flash_redirect, wants_json};
+use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::session::CurrentUser;
 
 // GET /settings — redirect to own profile
@@ -65,6 +66,7 @@ pub struct UpdateEmailForm {
 // POST /settings/email
 pub async fn update_email(
     State(state): State<AppState>,
+    session: Session,
     current_user: CurrentUser,
     headers: axum::http::HeaderMap,
     axum::Form(form): axum::Form<UpdateEmailForm>,
@@ -81,14 +83,15 @@ pub async fn update_email(
             )
                 .into_response());
         }
-        let url = flash_redirect(
-            "/settings",
+        set_flash(
+            &session,
             FlashMessage {
                 message: msg.to_string(),
                 severity: FlashSeverity::Error,
             },
-        )?;
-        return Ok(Redirect::to(&url).into_response());
+        )
+        .await?;
+        return Ok(Redirect::to("/settings").into_response());
     }
 
     // Check for duplicates (another user with this email)
@@ -103,14 +106,15 @@ pub async fn update_email(
             )
                 .into_response());
         }
-        let url = flash_redirect(
-            "/settings",
+        set_flash(
+            &session,
             FlashMessage {
                 message: msg.to_string(),
                 severity: FlashSeverity::Error,
             },
-        )?;
-        return Ok(Redirect::to(&url).into_response());
+        )
+        .await?;
+        return Ok(Redirect::to("/settings").into_response());
     }
 
     User::update_email(&state.db, current_user.id, &email).await?;

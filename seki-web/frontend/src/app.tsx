@@ -32,6 +32,7 @@ import {
   stripFlashParams,
   type FlashMessage,
 } from "./utils/flash";
+import { buildGameNavigationRedirect } from "./utils/navigation-errors";
 
 void ensureWasm();
 
@@ -453,7 +454,18 @@ function GamesScreen() {
   return <GamesList initial={data} />;
 }
 
-function GameScreenRoute({ route }: { route: Extract<Route, { kind: "game" }> }) {
+function GameScreenRoute({
+  route,
+  navigate,
+}: {
+  route: Extract<Route, { kind: "game" }>;
+  navigate: (
+    to: string,
+    replace?: boolean,
+    reload?: boolean,
+    preserveFlash?: boolean,
+  ) => void;
+}) {
   const parts = [
     route.kind === "game" && route.accessToken
       ? `access_token=${encodeURIComponent(route.accessToken)}`
@@ -463,11 +475,26 @@ function GameScreenRoute({ route }: { route: Extract<Route, { kind: "game" }> })
       : null,
   ].filter(Boolean);
   const params = parts.length > 0 ? `?${parts.join("&")}` : "";
+  const routePath = `/games/${route.id}${params}`;
   const { data, error } = useRouteData<GamePageData>(
     `/api/web/games/${route.id}${params}`,
   );
 
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    const redirect = buildGameNavigationRedirect(route.id, error, routePath);
+    if (redirect) {
+      setFlash(redirect.flash);
+      navigate(redirect.to, true, false, true);
+    }
+  }, [error, navigate, route.id, routePath]);
+
   if (error) {
+    if (buildGameNavigationRedirect(route.id, error, routePath)) {
+      return <LoadingState />;
+    }
     return <ErrorState message={error.message} />;
   }
   if (!data) {
@@ -481,7 +508,12 @@ function NewGameScreen({
   navigate,
 }: {
   route: Extract<Route, { kind: "new-game" }>;
-  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
+  navigate: (
+    to: string,
+    replace?: boolean,
+    reload?: boolean,
+    preserveFlash?: boolean,
+  ) => void;
 }) {
   const { data } = useRouteData<NewGameData>(
     `/api/web/games/new${route.opponent ? `?opponent=${encodeURIComponent(route.opponent)}` : ""}`,
@@ -538,7 +570,12 @@ function ProfileScreen({
   refreshSession,
 }: {
   username: string;
-  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
+  navigate: (
+    to: string,
+    replace?: boolean,
+    reload?: boolean,
+    preserveFlash?: boolean,
+  ) => void;
   refreshSession: () => Promise<void>;
 }) {
   const { data, error } = useRouteData<ProfileData>(
@@ -714,7 +751,12 @@ function AuthFormScreen({
 }: {
   mode: "login" | "register";
   currentUser: UserData | undefined;
-  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
+  navigate: (
+    to: string,
+    replace?: boolean,
+    reload?: boolean,
+    preserveFlash?: boolean,
+  ) => void;
   refreshSession: () => Promise<void>;
   redirectTarget?: string | null;
 }) {
@@ -814,19 +856,21 @@ function SettingsRedirect({
   navigate,
 }: {
   currentUser: UserData | undefined;
-  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
+  navigate: (
+    to: string,
+    replace?: boolean,
+    reload?: boolean,
+    preserveFlash?: boolean,
+  ) => void;
 }) {
   useEffect(() => {
     if (currentUser?.display_name) {
-      const params = new URLSearchParams();
-      const flash = activeFlash.value;
-      if (flash) {
-        params.set("flash", flash.message);
-        params.set("flash_level", flash.severity);
-      }
-      const query = params.toString();
-      const suffix = query ? `?${query}` : "";
-      navigate(`/users/${encodeURIComponent(currentUser.display_name)}${suffix}`, true);
+      navigate(
+        `/users/${encodeURIComponent(currentUser.display_name)}`,
+        true,
+        false,
+        !!activeFlash.value,
+      );
     }
   }, [currentUser, navigate]);
 
@@ -849,7 +893,12 @@ function Screen({
 }: {
   route: Route;
   currentUser: UserData | undefined;
-  navigate: (to: string, replace?: boolean, reload?: boolean) => void;
+  navigate: (
+    to: string,
+    replace?: boolean,
+    reload?: boolean,
+    preserveFlash?: boolean,
+  ) => void;
   refreshSession: () => Promise<void>;
 }) {
   switch (route.kind) {
@@ -858,7 +907,7 @@ function Screen({
     case "new-game":
       return <NewGameScreen route={route} navigate={navigate} />;
     case "game":
-      return <GameScreenRoute route={route} />;
+      return <GameScreenRoute route={route} navigate={navigate} />;
     case "analysis":
       return <AnalysisScreen />;
     case "profile":
@@ -913,6 +962,7 @@ function App() {
     getBootstrapData()?.flash ?? readFlashFromUrl(currentUrl()),
   );
   const seededInitialFlash = useRef(false);
+  const preserveFlashForNextNavigation = useRef(false);
   const preserveFlashAfterUrlCleanup = useRef(false);
 
   useEffect(() => {
@@ -961,9 +1011,15 @@ function App() {
     setCurrentUser(next);
   }
 
-  const navigate = (to: string, replace = false, reload = false) => {
+  const navigate = (
+    to: string,
+    replace = false,
+    reload = false,
+    preserveFlash = false,
+  ) => {
     const url = new URL(to, window.location.origin);
     const nextKey = `${url.pathname}${url.search}`;
+    preserveFlashForNextNavigation.current = preserveFlash;
     if (reload) {
       const dataUrl = getRouteDataUrl(parseRoute(url));
       if (dataUrl) {
@@ -993,10 +1049,17 @@ function App() {
       ? initialFlash.current ?? readFlashFromUrl(url)
       : readFlashFromUrl(url);
     seededInitialFlash.current = true;
-    if (!(preserveFlashAfterUrlCleanup.current && !nextFlash)) {
+    const preservedFlash =
+      preserveFlashAfterUrlCleanup.current || preserveFlashForNextNavigation.current;
+    if (nextFlash) {
       setFlashState(nextFlash);
+    } else {
+      if (!preservedFlash) {
+        clearFlash();
+      }
     }
     preserveFlashAfterUrlCleanup.current = false;
+    preserveFlashForNextNavigation.current = false;
 
     const strippedKey = stripFlashParams(url);
     if (strippedKey !== `${url.pathname}${url.search}`) {

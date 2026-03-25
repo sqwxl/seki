@@ -12,8 +12,24 @@ use tower_sessions::Session;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::user::User;
-use crate::routes::{FlashMessage, FlashSeverity, flash_redirect, wants_json};
+use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
+
+async fn redirect_with_flash(
+    session: &Session,
+    target: &str,
+    message: &str,
+) -> Result<Response, AppError> {
+    set_flash(
+        session,
+        FlashMessage {
+            message: message.to_string(),
+            severity: FlashSeverity::Error,
+        },
+    )
+    .await?;
+    Ok(Redirect::to(target).into_response())
+}
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
     headers
@@ -54,6 +70,7 @@ pub struct LoginForm {
 // POST /register
 pub async fn register(
     State(state): State<AppState>,
+    session: Session,
     current_user: CurrentUser,
     headers: axum::http::HeaderMap,
     Form(form): Form<RegisterForm>,
@@ -64,16 +81,6 @@ pub async fn register(
 
     let username = form.username.trim().to_string();
     let json = wants_json(&headers);
-    let redirect_error = |msg: &str| -> Result<Response, AppError> {
-        let url = flash_redirect(
-            "/register",
-            FlashMessage {
-                message: msg.to_string(),
-                severity: FlashSeverity::Error,
-            },
-        )?;
-        Ok(Redirect::to(&url).into_response())
-    };
 
     // Validate
     if username.is_empty() || username.len() > 30 {
@@ -85,7 +92,7 @@ pub async fn register(
             )
                 .into_response());
         }
-        return redirect_error(msg);
+        return redirect_with_flash(&session, "/register", msg).await;
     }
     if form.password.len() < 8 {
         let msg = "Password must be at least 8 characters.";
@@ -96,7 +103,7 @@ pub async fn register(
             )
                 .into_response());
         }
-        return redirect_error(msg);
+        return redirect_with_flash(&session, "/register", msg).await;
     }
     if form.password != form.password_confirmation {
         let msg = "Passwords do not match.";
@@ -107,7 +114,7 @@ pub async fn register(
             )
                 .into_response());
         }
-        return redirect_error(msg);
+        return redirect_with_flash(&session, "/register", msg).await;
     }
 
     // Check uniqueness
@@ -123,7 +130,7 @@ pub async fn register(
             )
                 .into_response());
         }
-        return redirect_error(msg);
+        return redirect_with_flash(&session, "/register", msg).await;
     }
 
     // Hash password
@@ -157,22 +164,12 @@ pub async fn login(
 ) -> Result<Response, AppError> {
     let json = wants_json(&headers);
     let redirect = query.redirect.clone();
-    let redirect_error = |msg: &str| -> Result<Response, AppError> {
-        let target = if redirect.is_empty() {
-            "/login".to_string()
-        } else {
-            let query = serde_urlencoded::to_string([("redirect", redirect.as_str())])
-                .map_err(|e| AppError::Internal(e.to_string()))?;
-            format!("/login?{query}")
-        };
-        let url = flash_redirect(
-            &target,
-            FlashMessage {
-                message: msg.to_string(),
-                severity: FlashSeverity::Error,
-            },
-        )?;
-        Ok(Redirect::to(&url).into_response())
+    let login_target = if redirect.is_empty() {
+        "/login".to_string()
+    } else {
+        let query = serde_urlencoded::to_string([("redirect", redirect.as_str())])
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        format!("/login?{query}")
     };
 
     let login_err = "Invalid username or password.";
@@ -187,7 +184,7 @@ pub async fn login(
                 )
                     .into_response());
             }
-            return redirect_error(login_err);
+            return redirect_with_flash(&session, &login_target, login_err).await;
         }
     };
 
@@ -201,7 +198,7 @@ pub async fn login(
                 )
                     .into_response());
             }
-            return redirect_error(login_err);
+            return redirect_with_flash(&session, &login_target, login_err).await;
         }
     };
 
@@ -219,7 +216,7 @@ pub async fn login(
             )
                 .into_response());
         }
-        return redirect_error(login_err);
+        return redirect_with_flash(&session, &login_target, login_err).await;
     }
 
     // Save the current anonymous token in a cookie so we can restore it on logout

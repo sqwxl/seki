@@ -8,6 +8,9 @@ pub mod users;
 pub mod web_api;
 
 use serde::Serialize;
+use tower_sessions::Session;
+
+const FLASH_KEY: &str = "flash";
 
 pub(crate) fn wants_json(headers: &axum::http::HeaderMap) -> bool {
     headers
@@ -22,6 +25,7 @@ pub(crate) fn serialize_user_data(user: &crate::session::CurrentUser) -> String 
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[derive(serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum FlashSeverity {
     Error,
@@ -31,94 +35,50 @@ pub(crate) enum FlashSeverity {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(serde::Deserialize)]
 pub(crate) struct FlashMessage {
     pub message: String,
     pub severity: FlashSeverity,
 }
 
-pub(crate) fn flash_redirect(target: &str, flash: FlashMessage) -> Result<String, crate::error::AppError> {
-    let separator = if target.contains('?') { '&' } else { '?' };
-    let query = serde_urlencoded::to_string([
-        ("flash", flash.message),
-        ("flash_level", flash.severity.as_str().to_string()),
-    ])
-    .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
-    Ok(format!("{target}{separator}{query}"))
+pub(crate) async fn set_flash(
+    session: &Session,
+    flash: FlashMessage,
+) -> Result<(), crate::error::AppError> {
+    session
+        .insert(FLASH_KEY, flash)
+        .await
+        .map_err(|e| crate::error::AppError::Internal(format!("Session insert error: {e}")))?;
+    Ok(())
 }
 
-pub(crate) fn flash_from_query(query: Option<&str>) -> Option<FlashMessage> {
-    let query = query?;
-    let params: std::collections::HashMap<String, String> =
-        serde_urlencoded::from_str(query).ok()?;
-    let message = params.get("flash")?.trim();
-    if message.is_empty() {
-        return None;
+pub(crate) async fn take_flash(
+    session: &Session,
+) -> Result<Option<FlashMessage>, crate::error::AppError> {
+    let flash = session
+        .get::<FlashMessage>(FLASH_KEY)
+        .await
+        .map_err(|e| crate::error::AppError::Internal(format!("Session get error: {e}")))?;
+    if flash.is_some() {
+        session
+            .remove::<FlashMessage>(FLASH_KEY)
+            .await
+            .map_err(|e| crate::error::AppError::Internal(format!("Session remove error: {e}")))?;
     }
-    Some(FlashMessage {
-        message: message.to_string(),
-        severity: match params.get("flash_level").map(|level| level.as_str()) {
-            Some("warning") => FlashSeverity::Warning,
-            Some("success") => FlashSeverity::Success,
-            Some("info") => FlashSeverity::Info,
-            _ => FlashSeverity::Error,
-        },
-    })
-}
-
-impl FlashSeverity {
-    pub(crate) fn as_str(self) -> &'static str {
-        match self {
-            Self::Error => "error",
-            Self::Warning => "warning",
-            Self::Success => "success",
-            Self::Info => "info",
-        }
-    }
+    Ok(flash)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{FlashMessage, FlashSeverity, flash_from_query, flash_redirect};
+    use super::{FlashMessage, FlashSeverity};
 
     #[test]
-    fn flash_redirect_encodes_expected_query_params() {
-        let url = flash_redirect(
-            "/games/new",
-            FlashMessage {
-                message: "Bad request".to_string(),
-                severity: FlashSeverity::Error,
-            },
-        )
-        .expect("flash redirect");
-        assert_eq!(url, "/games/new?flash=Bad+request&flash_level=error");
-    }
-
-    #[test]
-    fn flash_redirect_appends_to_existing_query_string() {
-        let url = flash_redirect(
-            "/login?redirect=%2Fgames",
-            FlashMessage {
-                message: "Please log in".to_string(),
-                severity: FlashSeverity::Warning,
-            },
-        )
-        .expect("flash redirect");
-        assert_eq!(
-            url,
-            "/login?redirect=%2Fgames&flash=Please+log+in&flash_level=warning"
-        );
-    }
-
-    #[test]
-    fn flash_from_query_parses_flash_payload() {
-        let flash = flash_from_query(Some("flash=Joined&flash_level=success"))
-            .expect("flash payload");
-        assert_eq!(
-            flash,
-            FlashMessage {
-                message: "Joined".to_string(),
-                severity: FlashSeverity::Success,
-            }
-        );
+    fn flash_severity_serializes_to_lowercase() {
+        let json = serde_json::to_string(&FlashMessage {
+            message: "Joined".to_string(),
+            severity: FlashSeverity::Success,
+        })
+        .expect("flash json");
+        assert_eq!(json, r#"{"message":"Joined","severity":"success"}"#);
     }
 }
