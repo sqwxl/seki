@@ -42,7 +42,7 @@ cargo run -p seki-web              # http://localhost:3000
 
 ### Gameplay
 
-- [x] Create games (board size, komi, handicap, color choice, nigiri, private/public)
+- [x] Create games (board size, komi, handicap, color choice, nigiri, private/public/invite-only)
 - [x] Negative komi support
 - [x] Join open games
 - [x] Play moves, pass, resign
@@ -56,8 +56,7 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] Challenge players from profile
 - [x] Abort game (before first move)
 - [x] Game clocks (Fischer, byo-yomi, correspondence)
-- [x] Premove support (queue move during opponent's turn)
-- [x] Detect player disconnect, pause clock, offer to abort
+- [x] Detect player disconnect and claim-victory flow
 - [x] Rematch option after game
 - [x] Monte Carlo dead stone detection
 - [ ] Multiple rulesets (Japanese, Chinese, AGA)
@@ -95,9 +94,12 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] Unified WebSocket (`/ws`) for game channels and lobby events
 - [x] In-game chat with move-linked messages
 - [x] Live games list
+- [x] Spectator support for games
+- [ ] Room user list on the game page
 - [ ] Filter games list (unranked, rank range, time, size)
 - [ ] Auto-match system
 - [x] In-app notification system for unread games
+- [x] Notification settings and OS notification toggle
 - [x] Post-game collaborative presentation mode
 - [ ] Game playback (replay game as it happened: actions, clock and chat in real time)
 - [ ] Spectator count/list on games
@@ -109,11 +111,11 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] Registration (username/password)
 - [x] Login/logout with session persistence
 - [x] Settings page with API token management
-- [ ] User profile (avatar, flag, bio, game history, rank history)
+- [x] Basic user profile and game history
 - [ ] User profile customization
-- [ ] Display names
+- [x] Username changes from profile
 - [x] User online status (presence indicators in game, chat, and user search)
-- [ ] Friends list
+- [ ] Friend requests / friends list
 - [ ] Ranking system (ELO, kyu/dan)
   - [ ] Ranked/unranked game option
 
@@ -123,7 +125,7 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] Game CRUD, moves, pass, resign, undo, territory, chat, turns
 - [x] Public endpoints (list/get games, messages, turns) without auth
 - [ ] Versioning
-- [ ] Docs (OpenAPI)
+- [x] Docs (OpenAPI via Scalar)
   - [ ] Generated clients
 - [ ] Rate limiting
 - [ ] Bots
@@ -155,7 +157,7 @@ cargo run -p seki-web              # http://localhost:3000
 
 ### Infrastructure
 
-- [ ] Email support (via SES)
+- [x] Email support (SMTP; Mailpit in local development)
 - [ ] Domain registration and deployment
 - [x] Mobile-responsive design (tabbed layout, hamburger menu)
 
