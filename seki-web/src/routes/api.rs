@@ -8,7 +8,7 @@ use utoipa::{Modify, OpenApi, ToSchema};
 use utoipa_scalar::{Scalar, Servable};
 
 use crate::AppState;
-use crate::error::{ApiError, AppError};
+use crate::error::{ApiError, ApiErrorResponse, AppError};
 use crate::models::game::Game;
 use crate::models::message::Message;
 use crate::models::turn::TurnRow;
@@ -210,7 +210,7 @@ impl Modify for ApiModifier {
 #[openapi(
     info(
         title = "Seki API",
-        description = "API for the Seki Go game server",
+        description = "API for the Seki Go game server. Errors use the envelope `{ \"error\": { \"code\": string, \"message\": string } }`.",
         version = "0.1.0"
     ),
     paths(
@@ -227,7 +227,9 @@ impl Modify for ApiModifier {
         crate::services::live::LiveGameItem,
         crate::services::live::GameSettings,
         crate::models::game::TimeControlType,
-        crate::templates::UserData
+        crate::templates::UserData,
+        crate::error::ApiErrorResponse,
+        crate::error::ApiErrorDetail
     )),
     modifiers(&ApiModifier),
     tags(
@@ -320,8 +322,10 @@ async fn list_games(
     security(("bearer" = [])),
     request_body = CreateGameRequest,
     responses(
-        (status = 200, description = "Created game", body = GameResponse),
-        (status = 401, description = "Unauthorized")
+        (status = 201, description = "Created game", body = GameResponse),
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
+        (status = 422, description = "Validation error", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse)
     )
 )]
 async fn create_game(
@@ -382,7 +386,8 @@ async fn create_game(
     params(("id" = i64, Path, description = "Game ID")),
     responses(
         (status = 200, description = "Game details", body = GameResponse),
-        (status = 404, description = "Game not found")
+        (status = 404, description = "Game not found", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse)
     )
 )]
 async fn get_game(
@@ -423,8 +428,10 @@ async fn get_game(
     params(("id" = i64, Path, description = "Game ID")),
     responses(
         (status = 200, description = "Game deleted", body = Object),
-        (status = 400, description = "Cannot delete"),
-        (status = 401, description = "Unauthorized")
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse),
+        (status = 404, description = "Game not found", body = ApiErrorResponse),
+        (status = 422, description = "Validation error", body = ApiErrorResponse),
+        (status = 500, description = "Internal server error", body = ApiErrorResponse)
     )
 )]
 async fn delete_game(
@@ -1034,7 +1041,7 @@ async fn get_user_games(
     security(("bearer" = [])),
     responses(
         (status = 200, description = "Current authenticated user", body = UserResponse),
-        (status = 401, description = "Unauthorized")
+        (status = 401, description = "Unauthorized", body = ApiErrorResponse)
     )
 )]
 async fn get_me(api_user: ApiUser) -> Json<UserResponse> {

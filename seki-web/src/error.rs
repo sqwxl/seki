@@ -1,7 +1,8 @@
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use serde_json::json;
+use serde::Serialize;
+use utoipa::ToSchema;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -43,6 +44,16 @@ impl AppError {
             }
         }
     }
+
+    fn api_code(&self) -> &'static str {
+        match self {
+            AppError::NotFound(_) => "not_found",
+            AppError::Forbidden(_) => "forbidden",
+            AppError::UnprocessableEntity(_) => "validation_error",
+            AppError::Unauthorized(_) => "unauthorized",
+            AppError::Internal(_) | AppError::Database(_) => "internal_error",
+        }
+    }
 }
 
 impl IntoResponse for AppError {
@@ -74,14 +85,31 @@ impl From<serde_json::Error> for AppError {
 }
 
 /// JSON-returning error type for API routes.
-/// Wraps AppError and returns `{"error": "message"}` responses.
+/// Wraps AppError and returns a structured error envelope.
 #[derive(Debug)]
 pub struct ApiError(pub AppError);
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ApiErrorDetail {
+    pub code: String,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ApiErrorResponse {
+    pub error: ApiErrorDetail,
+}
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, message) = self.0.status_and_message();
-        (status, Json(json!({"error": message}))).into_response()
+        let body = ApiErrorResponse {
+            error: ApiErrorDetail {
+                code: self.0.api_code().to_string(),
+                message,
+            },
+        };
+        (status, Json(body)).into_response()
     }
 }
 
