@@ -8,7 +8,7 @@ use serde_json::json;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::user::User;
-use crate::routes::wants_json;
+use crate::routes::{FlashMessage, FlashSeverity, flash_redirect, wants_json};
 use crate::session::CurrentUser;
 
 // GET /settings — redirect to own profile
@@ -81,9 +81,14 @@ pub async fn update_email(
             )
                 .into_response());
         }
-        let query = serde_urlencoded::to_string([("error", msg)])
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-        return Ok(Redirect::to(&format!("/settings?{query}")).into_response());
+        let url = flash_redirect(
+            "/settings",
+            FlashMessage {
+                message: msg.to_string(),
+                severity: FlashSeverity::Error,
+            },
+        )?;
+        return Ok(Redirect::to(&url).into_response());
     }
 
     // Check for duplicates (another user with this email)
@@ -98,9 +103,14 @@ pub async fn update_email(
             )
                 .into_response());
         }
-        let query = serde_urlencoded::to_string([("error", msg)])
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-        return Ok(Redirect::to(&format!("/settings?{query}")).into_response());
+        let url = flash_redirect(
+            "/settings",
+            FlashMessage {
+                message: msg.to_string(),
+                severity: FlashSeverity::Error,
+            },
+        )?;
+        return Ok(Redirect::to(&url).into_response());
     }
 
     User::update_email(&state.db, current_user.id, &email).await?;

@@ -7,7 +7,7 @@ use serde::Deserialize;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
-use crate::routes::wants_json;
+use crate::routes::{FlashMessage, FlashSeverity, flash_redirect, wants_json};
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_creator::{self, CreateGameParams};
@@ -122,9 +122,14 @@ pub async fn create_game(
                 )
                     .into_response());
             }
-            let query = serde_urlencoded::to_string([("error", e.to_string())])
-                .map_err(|err| AppError::Internal(err.to_string()))?;
-            Ok(Redirect::to(&format!("/games/new?{query}")).into_response())
+            let url = flash_redirect(
+                "/games/new",
+                FlashMessage {
+                    message: e.to_string(),
+                    severity: FlashSeverity::Error,
+                },
+            )?;
+            Ok(Redirect::to(&url).into_response())
         }
     }
 }

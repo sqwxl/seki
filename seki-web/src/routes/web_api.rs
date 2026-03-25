@@ -11,6 +11,8 @@ use crate::models::user::User;
 use crate::services::engine_builder;
 use crate::services::live::{GameSettings, LiveGameItem, build_live_items};
 use crate::services::{game_joiner, presentation_actions, state_serializer};
+use crate::routes::FlashMessage;
+use crate::routes::flash_from_query;
 use crate::session::CurrentUser;
 use crate::templates::UserData;
 use crate::templates::games_show::InitialGameProps;
@@ -26,22 +28,25 @@ pub fn router() -> Router<AppState> {
 }
 
 #[derive(Serialize)]
-pub struct BootstrapPayload {
+pub(crate) struct BootstrapPayload {
     pub url: Option<String>,
     pub data: Option<serde_json::Value>,
+    pub flash: Option<FlashMessage>,
 }
 
-pub async fn bootstrap_for_location(
+pub(crate) async fn bootstrap_for_location(
     state: &AppState,
     current_user: &CurrentUser,
     uri: &Uri,
 ) -> Result<BootstrapPayload, AppError> {
     let path = uri.path();
     let query = uri.query();
+    let flash = flash_from_query(query);
     let Some(url) = route_data_url(path, query) else {
         return Ok(BootstrapPayload {
             url: None,
             data: None,
+            flash,
         });
     };
 
@@ -73,6 +78,7 @@ pub async fn bootstrap_for_location(
             return Ok(BootstrapPayload {
                 url: None,
                 data: None,
+                flash,
             });
         }
     };
@@ -80,6 +86,7 @@ pub async fn bootstrap_for_location(
     Ok(BootstrapPayload {
         url: Some(url),
         data: Some(data),
+        flash,
     })
 }
 

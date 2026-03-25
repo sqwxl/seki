@@ -248,6 +248,81 @@ a:visited {
   z-index: 325;
 }
 
+.flash-banner {
+  position: fixed;
+  top: var(--nav-height, 0px);
+  left: 0;
+  right: 0;
+  z-index: 500;
+  padding: 0.75rem;
+  animation: flash-banner-in 250ms ease-out;
+}
+
+.flash-banner-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: min(100%, 70rem);
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-elevated);
+}
+
+.flash-banner-error .flash-banner-body {
+  background: var(--red);
+}
+
+.flash-banner-warning .flash-banner-body {
+  background: var(--yellow);
+  color: #1f1f1f;
+}
+
+.flash-banner-success .flash-banner-body {
+  background: var(--green);
+  color: #1f1f1f;
+}
+
+.flash-banner-info .flash-banner-body {
+  background: var(--aqua);
+  color: #1f1f1f;
+}
+
+.flash-banner-close {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.flash-banner-close:hover {
+  border-color: transparent;
+}
+
+@keyframes flash-banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-banner {
+    animation: none;
+  }
+}
+
 .nav-dropdown-section {
   display: flex;
   flex-direction: column;

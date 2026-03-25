@@ -23,6 +23,15 @@ import {
   type SpaNavigateDetail,
 } from "./utils/spa-navigation";
 import { postForm } from "./utils/web-client";
+import {
+  activeFlash,
+  clearFlash,
+  readFlashFromUrl,
+  setFlash,
+  setFlashState,
+  stripFlashParams,
+  type FlashMessage,
+} from "./utils/flash";
 
 void ensureWasm();
 
@@ -34,7 +43,7 @@ declare global {
 
 type Route =
   | { kind: "games" }
-  | { kind: "new-game"; opponent?: string | null; error?: string | null }
+  | { kind: "new-game"; opponent?: string | null }
   | {
       kind: "game";
       id: number;
@@ -42,10 +51,10 @@ type Route =
       inviteToken?: string | null;
     }
   | { kind: "analysis" }
-  | { kind: "profile"; username: string; error?: string | null }
-  | { kind: "login"; redirect?: string | null; error?: string | null }
-  | { kind: "register"; error?: string | null }
-  | { kind: "settings"; error?: string | null }
+  | { kind: "profile"; username: string }
+  | { kind: "login"; redirect?: string | null }
+  | { kind: "register" }
+  | { kind: "settings" }
   | { kind: "not-found" };
 
 type FetchError = {
@@ -77,6 +86,7 @@ type ProfileData = {
 type BootstrapPayload = {
   url?: string;
   data?: unknown;
+  flash?: FlashMessage;
 };
 
 type GameSettingsFormProps = {
@@ -103,7 +113,6 @@ function parseRoute(url: URL): Route {
     return {
       kind: "new-game",
       opponent: url.searchParams.get("opponent"),
-      error: url.searchParams.get("error"),
     };
   }
   if (path === "/analysis") {
@@ -113,14 +122,13 @@ function parseRoute(url: URL): Route {
     return {
       kind: "login",
       redirect: url.searchParams.get("redirect"),
-      error: url.searchParams.get("error"),
     };
   }
   if (path === "/register") {
-    return { kind: "register", error: url.searchParams.get("error") };
+    return { kind: "register" };
   }
   if (path === "/settings") {
-    return { kind: "settings", error: url.searchParams.get("error") };
+    return { kind: "settings" };
   }
   const gameMatch = path.match(/^\/games\/(\d+)$/);
   if (gameMatch) {
@@ -136,7 +144,6 @@ function parseRoute(url: URL): Route {
     return {
       kind: "profile",
       username: decodeURIComponent(userMatch[1]),
-      error: url.searchParams.get("error"),
     };
   }
   return { kind: "not-found" };
@@ -281,6 +288,38 @@ function ErrorState({ message }: { message: string }) {
 
 function LoadingState() {
   return <p>Loading...</p>;
+}
+
+function FlashBanner() {
+  const flash = activeFlash.value;
+
+  if (!flash) {
+    return null;
+  }
+
+  return (
+    <div
+      class={`flash-banner flash-banner-${flash.severity}`}
+      role="alert"
+      aria-live="assertive"
+      onClick={() => clearFlash()}
+    >
+      <div class="flash-banner-body">
+        <span>{flash.message}</span>
+        <button
+          type="button"
+          class="flash-banner-close"
+          aria-label="Dismiss message"
+          onClick={(event) => {
+            event.stopPropagation();
+            clearFlash();
+          }}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function useLazyModule<T>(loader: () => Promise<T>) {
@@ -447,7 +486,6 @@ function NewGameScreen({
   const { data } = useRouteData<NewGameData>(
     `/api/web/games/new${route.opponent ? `?opponent=${encodeURIComponent(route.opponent)}` : ""}`,
   );
-  const [error, setError] = useState<string | undefined>();
   const {
     mod: formModule,
     error: formError,
@@ -461,13 +499,9 @@ function NewGameScreen({
     setHead("New Game - Seki", "Play Go (Weiqi/Baduk) online with friends");
   }, []);
 
-  useEffect(() => {
-    setError(route.error ?? undefined);
-  }, [route.error]);
-
   async function onSubmit(e: Event) {
     e.preventDefault();
-    setError(undefined);
+    clearFlash();
     const form = e.currentTarget as HTMLFormElement;
     try {
       const result = await postForm("/games", new FormData(form));
@@ -476,14 +510,17 @@ function NewGameScreen({
         navigate(redirect);
       }
     } catch (err) {
-      setError((err as { message: string }).message);
+      setFlash((err as { message: string }).message);
     }
+  }
+
+  if (formError) {
+    return <ErrorState message={formError} />;
   }
 
   return (
     <>
       <h1>New Game</h1>
-      {(error || formError) && <div class="flash">{error ?? formError}</div>}
       <form id="new-game-form" action="/games" method="post" onSubmit={onSubmit}>
         {FormComponent ? (
           <FormComponent opponent={data?.opponent ?? undefined} />
@@ -497,32 +534,25 @@ function NewGameScreen({
 
 function ProfileScreen({
   username,
-  initialError,
   navigate,
   refreshSession,
 }: {
   username: string;
-  initialError?: string | null;
   navigate: (to: string, replace?: boolean, reload?: boolean) => void;
   refreshSession: () => Promise<void>;
 }) {
   const { data, error } = useRouteData<ProfileData>(
     `/api/web/users/${encodeURIComponent(username)}`,
   );
-  const [message, setMessage] = useState<string | undefined>();
   const [tokenVisible, setTokenVisible] = useState(false);
 
   useEffect(() => {
     setHead(`${username} - Seki`, `${username}'s Go profile on Seki`);
   }, [username]);
 
-  useEffect(() => {
-    setMessage(initialError ?? undefined);
-  }, [initialError]);
-
   async function submitUsername(e: Event) {
     e.preventDefault();
-    setMessage(undefined);
+    clearFlash();
     const form = e.currentTarget as HTMLFormElement;
     try {
       const result = await postForm(form.action, new FormData(form));
@@ -531,13 +561,13 @@ function ProfileScreen({
         navigate(result.redirect);
       }
     } catch (err) {
-      setMessage((err as { message: string }).message);
+      setFlash((err as { message: string }).message);
     }
   }
 
   async function submitEmail(e: Event) {
     e.preventDefault();
-    setMessage(undefined);
+    clearFlash();
     const form = e.currentTarget as HTMLFormElement;
     try {
       const result = await postForm(form.action, new FormData(form));
@@ -546,12 +576,12 @@ function ProfileScreen({
         navigate(result.redirect, true, true);
       }
     } catch (err) {
-      setMessage((err as { message: string }).message);
+      setFlash((err as { message: string }).message);
     }
   }
 
   async function generateToken() {
-    setMessage(undefined);
+    clearFlash();
     try {
       const response = await fetch("/settings/token", {
         method: "POST",
@@ -565,7 +595,7 @@ function ProfileScreen({
         navigate(result.redirect, true, true);
       }
     } catch (err) {
-      setMessage((err as Error).message);
+      setFlash((err as Error).message);
     }
   }
 
@@ -579,7 +609,6 @@ function ProfileScreen({
   return (
     <>
       <h1>{data.profile_username}</h1>
-      {message && <div class="flash">{message}</div>}
       {!data.is_own_profile && (
         <a
           href={`/games/new?opponent=${encodeURIComponent(data.profile_username)}`}
@@ -682,17 +711,13 @@ function AuthFormScreen({
   navigate,
   refreshSession,
   redirectTarget,
-  initialError,
 }: {
   mode: "login" | "register";
   currentUser: UserData | undefined;
   navigate: (to: string, replace?: boolean, reload?: boolean) => void;
   refreshSession: () => Promise<void>;
   redirectTarget?: string | null;
-  initialError?: string | null;
 }) {
-  const [error, setError] = useState<string | undefined>();
-
   useEffect(() => {
     setHead(
       mode === "login" ? "Log in — Seki" : "Register — Seki",
@@ -703,13 +728,9 @@ function AuthFormScreen({
     }
   }, [mode, currentUser, navigate]);
 
-  useEffect(() => {
-    setError(initialError ?? undefined);
-  }, [initialError]);
-
   async function onSubmit(e: Event) {
     e.preventDefault();
-    setError(undefined);
+    clearFlash();
     const form = e.currentTarget as HTMLFormElement;
     const action =
       mode === "login" && redirectTarget
@@ -722,7 +743,7 @@ function AuthFormScreen({
         navigate(result.redirect, true);
       }
     } catch (err) {
-      setError((err as { message: string }).message);
+      setFlash((err as { message: string }).message);
     }
   }
 
@@ -733,7 +754,6 @@ function AuthFormScreen({
   return (
     <>
       <h1>{mode === "login" ? "Log in" : "Register"}</h1>
-      {error && <div class="flash">{error}</div>}
       <form
         action={mode === "login" ? "/login" : "/register"}
         method="post"
@@ -791,19 +811,24 @@ function AuthFormScreen({
 
 function SettingsRedirect({
   currentUser,
-  error,
   navigate,
 }: {
   currentUser: UserData | undefined;
-  error?: string | null;
   navigate: (to: string, replace?: boolean, reload?: boolean) => void;
 }) {
   useEffect(() => {
     if (currentUser?.display_name) {
-      const suffix = error ? `?error=${encodeURIComponent(error)}` : "";
+      const params = new URLSearchParams();
+      const flash = activeFlash.value;
+      if (flash) {
+        params.set("flash", flash.message);
+        params.set("flash_level", flash.severity);
+      }
+      const query = params.toString();
+      const suffix = query ? `?${query}` : "";
       navigate(`/users/${encodeURIComponent(currentUser.display_name)}${suffix}`, true);
     }
-  }, [currentUser, error, navigate]);
+  }, [currentUser, navigate]);
 
   return null;
 }
@@ -840,7 +865,6 @@ function Screen({
       return (
         <ProfileScreen
           username={route.username}
-          initialError={route.error}
           navigate={navigate}
           refreshSession={refreshSession}
         />
@@ -853,7 +877,6 @@ function Screen({
           navigate={navigate}
           refreshSession={refreshSession}
           redirectTarget={route.redirect}
-          initialError={route.error}
         />
       );
     case "register":
@@ -863,14 +886,12 @@ function Screen({
           currentUser={currentUser}
           navigate={navigate}
           refreshSession={refreshSession}
-          initialError={route.error}
         />
       );
     case "settings":
       return (
         <SettingsRedirect
           currentUser={currentUser}
-          error={route.error}
           navigate={navigate}
         />
       );
@@ -880,6 +901,7 @@ function Screen({
 }
 
 function App() {
+  const navRef = useRef<HTMLElement>(null);
   const [locationState, setLocationState] = useState(() => ({
     key: `${window.location.pathname}${window.location.search}`,
     version: 0,
@@ -887,12 +909,48 @@ function App() {
   const [currentUser, setCurrentUser] = useState<UserData | undefined>(() =>
     readUserData(),
   );
+  const initialFlash = useRef<FlashMessage | undefined>(
+    getBootstrapData()?.flash ?? readFlashFromUrl(currentUrl()),
+  );
+  const seededInitialFlash = useRef(false);
+  const preserveFlashAfterUrlCleanup = useRef(false);
 
   useEffect(() => {
     initPreferences();
     initTheme();
     initUnreadTracking();
     ensureConnected();
+  }, []);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) {
+      return;
+    }
+    const setNavHeight = () => {
+      document.documentElement.style.setProperty(
+        "--nav-height",
+        `${nav.offsetHeight}px`,
+      );
+    };
+    setNavHeight();
+    const observer = new ResizeObserver(setNavHeight);
+    observer.observe(nav);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && activeFlash.value) {
+        clearFlash();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, []);
 
   async function refreshSession() {
@@ -929,6 +987,26 @@ function App() {
   };
 
   useEffect(() => {
+    const url = currentUrl();
+    const initial = !seededInitialFlash.current;
+    const nextFlash = initial
+      ? initialFlash.current ?? readFlashFromUrl(url)
+      : readFlashFromUrl(url);
+    seededInitialFlash.current = true;
+    if (!(preserveFlashAfterUrlCleanup.current && !nextFlash)) {
+      setFlashState(nextFlash);
+    }
+    preserveFlashAfterUrlCleanup.current = false;
+
+    const strippedKey = stripFlashParams(url);
+    if (strippedKey !== `${url.pathname}${url.search}`) {
+      preserveFlashAfterUrlCleanup.current = !!nextFlash;
+      window.history.replaceState({}, "", strippedKey);
+      setLocationState((prev) =>
+        prev.key === strippedKey ? prev : { ...prev, key: strippedKey },
+      );
+    }
+
     const onPopState = () => {
       setLocationState((prev) => ({
         key: `${window.location.pathname}${window.location.search}`,
@@ -1025,7 +1103,7 @@ function App() {
 
   return (
     <>
-      <nav>
+      <nav ref={navRef}>
         <div>
           <a href="/games/new" title="New game">
             <svg
@@ -1047,6 +1125,7 @@ function App() {
           <UserMenu onLogout={handleLogout} />
         </div>
       </nav>
+      <FlashBanner />
       <main>
         <Screen
           route={route}

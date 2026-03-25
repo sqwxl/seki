@@ -12,7 +12,7 @@ use tower_sessions::Session;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::user::User;
-use crate::routes::wants_json;
+use crate::routes::{FlashMessage, FlashSeverity, flash_redirect, wants_json};
 use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
@@ -65,9 +65,14 @@ pub async fn register(
     let username = form.username.trim().to_string();
     let json = wants_json(&headers);
     let redirect_error = |msg: &str| -> Result<Response, AppError> {
-        let query = serde_urlencoded::to_string([("error", msg)])
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-        Ok(Redirect::to(&format!("/register?{query}")).into_response())
+        let url = flash_redirect(
+            "/register",
+            FlashMessage {
+                message: msg.to_string(),
+                severity: FlashSeverity::Error,
+            },
+        )?;
+        Ok(Redirect::to(&url).into_response())
     };
 
     // Validate
@@ -153,13 +158,21 @@ pub async fn login(
     let json = wants_json(&headers);
     let redirect = query.redirect.clone();
     let redirect_error = |msg: &str| -> Result<Response, AppError> {
-        let mut pairs = vec![("error", msg)];
-        if !redirect.is_empty() {
-            pairs.push(("redirect", redirect.as_str()));
-        }
-        let query =
-            serde_urlencoded::to_string(pairs).map_err(|e| AppError::Internal(e.to_string()))?;
-        Ok(Redirect::to(&format!("/login?{query}")).into_response())
+        let target = if redirect.is_empty() {
+            "/login".to_string()
+        } else {
+            let query = serde_urlencoded::to_string([("redirect", redirect.as_str())])
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+            format!("/login?{query}")
+        };
+        let url = flash_redirect(
+            &target,
+            FlashMessage {
+                message: msg.to_string(),
+                severity: FlashSeverity::Error,
+            },
+        )?;
+        Ok(Redirect::to(&url).into_response())
     };
 
     let login_err = "Invalid username or password.";

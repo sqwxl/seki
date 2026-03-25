@@ -19,6 +19,11 @@ import type { ChatEntry } from "../components/chat";
 import type { Point } from "../goban/types";
 import { storage, SHOW_MOVE_TREE, SHOW_COORDINATES } from "../utils/storage";
 import { readMoveConfirmation } from "../utils/move-confirm";
+import {
+  activeFlashMessage,
+  clearFlash,
+  setFlash,
+} from "../utils/flash";
 
 // ---------------------------------------------------------------------------
 // Config signals (set once at page load)
@@ -94,7 +99,7 @@ export type PendingActionId =
   | "reject-control-request"
   | "rematch";
 export const pendingAction = signal<PendingActionId | undefined>(undefined);
-export const gameFlashMessage = signal<string | undefined>(undefined);
+export const gameFlashMessage = computed(() => activeFlashMessage.value);
 export const opponentDisconnected = signal<
   { since: Date; gracePeriodMs?: number; gone: boolean } | undefined
 >(undefined);
@@ -197,11 +202,15 @@ export function isPendingAction(id: PendingActionId): boolean {
 }
 
 export function setGameFlashMessage(message: string | undefined): void {
-  gameFlashMessage.value = message;
+  if (message) {
+    setFlash(message);
+  } else {
+    clearFlash();
+  }
 }
 
 export function clearGameFlashMessage(): void {
-  gameFlashMessage.value = undefined;
+  clearFlash();
 }
 
 // ---------------------------------------------------------------------------
@@ -243,7 +252,6 @@ export function resetGameRuntimeState(): void {
     undoRequest.value = "none";
     allowUndo.value = false;
     pendingAction.value = undefined;
-    gameFlashMessage.value = undefined;
     opponentDisconnected.value = undefined;
     chatMessages.value = [];
     hasUnreadChat.value = false;
@@ -269,6 +277,7 @@ export function resetGameRuntimeState(): void {
     boardReviewing.value = false;
     mobileTab.value = "board";
   });
+  clearFlash();
 }
 
 // Track territory approval for chat messages (local to this module)

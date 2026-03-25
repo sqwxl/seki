@@ -8,7 +8,7 @@ use serde_json::json;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::user::User;
-use crate::routes::wants_json;
+use crate::routes::{FlashMessage, FlashSeverity, flash_redirect, wants_json};
 use crate::session::CurrentUser;
 
 #[derive(Deserialize)]
@@ -96,11 +96,14 @@ pub async fn update_username(
             )
                 .into_response());
         }
-        let query = serde_urlencoded::to_string([("error", msg)])
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-        return Ok(
-            Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response(),
-        );
+        let url = flash_redirect(
+            &format!("/users/{}", profile_user.username),
+            FlashMessage {
+                message: msg.to_string(),
+                severity: FlashSeverity::Error,
+            },
+        )?;
+        return Ok(Redirect::to(&url).into_response());
     }
 
     // No change
@@ -125,11 +128,14 @@ pub async fn update_username(
             )
                 .into_response());
         }
-        let query = serde_urlencoded::to_string([("error", msg)])
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-        return Ok(
-            Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response(),
-        );
+        let url = flash_redirect(
+            &format!("/users/{}", profile_user.username),
+            FlashMessage {
+                message: msg.to_string(),
+                severity: FlashSeverity::Error,
+            },
+        )?;
+        return Ok(Redirect::to(&url).into_response());
     }
 
     // Update
@@ -151,9 +157,14 @@ pub async fn update_username(
                 )
                     .into_response());
             }
-            let query = serde_urlencoded::to_string([("error", msg)])
-                .map_err(|e| AppError::Internal(e.to_string()))?;
-            Ok(Redirect::to(&format!("/users/{}?{query}", profile_user.username)).into_response())
+            let url = flash_redirect(
+                &format!("/users/{}", profile_user.username),
+                FlashMessage {
+                    message: msg.to_string(),
+                    severity: FlashSeverity::Error,
+                },
+            )?;
+            Ok(Redirect::to(&url).into_response())
         }
         Err(e) => Err(AppError::Internal(e.to_string())),
     }

@@ -87,12 +87,12 @@ function resetSignals() {
     allowUndo.value = false;
     undoRequest.value = "none";
     pendingAction.value = undefined;
-    gameFlashMessage.value = undefined;
     result.value = null;
     territory.value = undefined;
     black.value = undefined;
     white.value = undefined;
   });
+  clearGameFlashMessage();
 }
 
 beforeEach(() => {

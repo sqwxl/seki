@@ -47,7 +47,6 @@ import {
   pendingMove,
   clearPendingAction,
   clearGameFlashMessage,
-  gameFlashMessage,
   isPendingAction,
   setGameFlashMessage,
   setPendingAction,
@@ -429,11 +428,6 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
 
   return (
     <>
-      {gameFlashMessage.value && (
-        <div class="flash" onClick={() => clearGameFlashMessage()}>
-          {gameFlashMessage.value}
-        </div>
-      )}
       {fullStatusText && (
         <GameStatus text={fullStatusText}>
           <GameInfo
