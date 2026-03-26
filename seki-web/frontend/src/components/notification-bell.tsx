@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { unreadGames, hasUnread, markRead } from "../game/unread";
 import { ToggleButton } from "./toggle-button";
 import { IconBell, IconBellDisabled, IconBellUnread } from "./icons";
+import { readUserData } from "../game/util";
 import {
   osNotificationsEnabled,
   toggleOsNotifications,
@@ -92,16 +93,45 @@ export function NotificationBell() {
   );
 }
 
-function gameLabel(g: {
+export function gameLabel(g: {
   id: number;
+  creator_id?: number;
   stage: string;
-  black?: { display_name: string };
-  white?: { display_name: string };
+  black?: { id: number; display_name: string };
+  white?: { id: number; display_name: string };
 }): string {
   const b = g.black?.display_name ?? "?";
   const w = g.white?.display_name ?? "?";
   if (g.stage === "challenge") {
-    return `Challenge: ${b} vs ${w}`;
+    const creatorName = resolveCreatorName(g);
+    return `Challenge from ${creatorName}`;
   }
   return `Your turn: ${b} vs ${w}`;
+}
+
+function resolveCreatorName(g: {
+  creator_id?: number;
+  black?: { id: number; display_name: string };
+  white?: { id: number; display_name: string };
+}): string {
+  const currentUserId = readUserData()?.id;
+  if (g.creator_id != null) {
+    if (g.black?.id === g.creator_id) {
+      return g.black.display_name;
+    }
+    if (g.white?.id === g.creator_id) {
+      return g.white.display_name;
+    }
+  }
+
+  if (currentUserId != null) {
+    if (g.black?.id === currentUserId && g.white?.display_name) {
+      return g.white.display_name;
+    }
+    if (g.white?.id === currentUserId && g.black?.display_name) {
+      return g.black.display_name;
+    }
+  }
+
+  return g.black?.display_name ?? g.white?.display_name ?? "?";
 }

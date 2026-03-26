@@ -19,6 +19,7 @@ import type { LiveGameItem } from "../components/game-description";
 
 export type UnreadGame = {
   id: number;
+  creator_id?: number;
   stage: string;
   black: UserData | undefined;
   white: UserData | undefined;
@@ -48,6 +49,7 @@ function addUnread(game: UnreadGame): void {
   const next = new Map(unreadGames.value);
   next.set(game.id, {
     id: game.id,
+    creator_id: game.creator_id,
     stage: game.stage,
     black: game.black,
     white: game.white,
@@ -90,6 +92,7 @@ export function initUnreadTracking(): void {
       if ((g as LiveGameItem & { unread?: boolean }).unread) {
         next.set(g.id, {
           id: g.id,
+          creator_id: g.creator_id,
           stage: g.stage,
           black: g.black,
           white: g.white,
