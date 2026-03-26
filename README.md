@@ -74,16 +74,19 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] In-game analysis mode (local exploration without affecting live game)
 - [x] Standalone analysis board (`/analysis`)
 - [x] Analysis persistence (saved to localStorage, restored on refresh)
+- [ ] Server-backed analysis persistence and merge-sync
 - [x] Last move and ko point markers
 - [x] Player labels with capture counts
 - [x] Online presence indicators (player labels and chat)
 - [x] Tab title shows game description, flashes "YOUR MOVE" when it's your turn
 - [x] Move confirmation toggle (click twice to confirm)
 - [ ] Board annotations in analysis
+- [ ] Editable player names on the analysis board
 - [x] Board coordinates (toggleable)
 - [x] Import/export SGF
 - [ ] Zen mode (board only)
 - [ ] Appearance customization (stones, board)
+- [ ] High-contrast mode
 - [x] Dark mode with theme toggle (light/dark/auto)
 - [x] Touch crosshair input for mobile
 - [x] Sound effects (stone placement, pass)
@@ -95,6 +98,7 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] In-game chat with move-linked messages
 - [x] Live games list
 - [x] Spectator support for games
+- [ ] Pre-start spectate flow for open/challenge games
 - [ ] Room user list on the game page
 - [ ] Filter games list (unranked, rank range, time, size)
 - [ ] Auto-match system
@@ -116,6 +120,7 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] Username changes from profile
 - [x] User online status (presence indicators in game, chat, and user search)
 - [ ] Friend requests / friends list
+- [ ] Rich user labels (rank/friend/bot indicators)
 - [ ] Ranking system (ELO, kyu/dan)
   - [ ] Ranked/unranked game option
 
@@ -124,6 +129,7 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] REST API with Bearer token authentication
 - [x] Game CRUD, moves, pass, resign, undo, territory, chat, turns
 - [x] Public endpoints (list/get games, messages, turns) without auth
+- [x] Structured JSON error envelopes with machine-readable error codes
 - [ ] Versioning
 - [x] Docs (OpenAPI via Scalar)
   - [ ] Generated clients
