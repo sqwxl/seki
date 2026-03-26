@@ -194,9 +194,7 @@ function ConfirmModal({
         class={`confirm-popover-backdrop${dismissible ? " dismissible" : ""}`}
         onClick={dismissible ? onDismiss : undefined}
       />
-      <div class="confirm-popover-modal">
-        {children}
-      </div>
+      <div class="confirm-popover-modal">{children}</div>
     </>
   );
 }
@@ -321,11 +319,11 @@ function CopyInviteLinkButton({ onClick }: { onClick: () => void }) {
         btn.textContent = "Copied!";
         clearTimeout(timer);
         timer = setTimeout(() => {
-          btn.textContent = "Access";
+          btn.textContent = "Invite";
         }, 1500);
       }}
     >
-      Access
+      Invite
     </button>
   );
 }
@@ -550,14 +548,19 @@ export function UIControls(
                 disabled={props.analyze.disabled || analyzeChoicePending}
                 onClick={() => setAnalyzeChoiceOpen((value) => !value)}
               >
-                <ButtonContent pending={props.analyze.pending} icon={IconAnalysis} />
+                <ButtonContent
+                  pending={props.analyze.pending}
+                  icon={IconAnalysis}
+                />
               </button>
               {analyzeChoiceOpen && (
                 <div id="analyze-choice" class="controls-menu-dropdown">
                   {props.analyzeChoice.options.map((opt) => (
                     <button
                       key={opt.label}
-                      disabled={opt.disabled || opt.pending || analyzeChoicePending}
+                      disabled={
+                        opt.disabled || opt.pending || analyzeChoicePending
+                      }
                       onClick={() => {
                         opt.onClick();
                       }}
@@ -622,7 +625,10 @@ export function UIControls(
           disabled={props.sgfExport.disabled || props.sgfExport.pending}
           onClick={props.sgfExport.onClick}
         >
-          <ButtonContent pending={props.sgfExport.pending} icon={IconFileExport} />
+          <ButtonContent
+            pending={props.sgfExport.pending}
+            icon={IconFileExport}
+          />
         </button>
       )}
       {props.sizeSelect && (
@@ -794,7 +800,8 @@ export function LobbyPopover({
               <ButtonContent pending={pendingAction === "join"} label="Join" />
             </button>
           )}
-          {(variant === "creator-waiting" || variant === "creator-challenge") && (
+          {(variant === "creator-waiting" ||
+            variant === "creator-challenge") && (
             <>
               {copyInviteLink && (
                 <CopyInviteLinkButton onClick={copyInviteLink} />
@@ -805,7 +812,10 @@ export function LobbyPopover({
                   disabled={disableActions}
                   onClick={onAbort}
                 >
-                  <ButtonContent pending={pendingAction === "abort"} label="Abort" />
+                  <ButtonContent
+                    pending={pendingAction === "abort"}
+                    label="Abort"
+                  />
                 </button>
               )}
             </>

@@ -157,6 +157,7 @@ export function GameInfo(props: GameInfoProps) {
           <div class="game-info-actions">
             <button
               class="game-info-copy"
+              title="Copy access link"
               onClick={() => {
                 props.copyInviteLink();
                 setCopied(true);
@@ -168,7 +169,7 @@ export function GameInfo(props: GameInfoProps) {
                 }, 1500);
               }}
             >
-              {copied ? "Copied!" : "Access"}
+              {copied ? "Copied!" : "Invite"}
             </button>
           </div>
         </div>
