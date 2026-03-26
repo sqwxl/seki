@@ -283,6 +283,10 @@ function setHead(title: string, description?: string): void {
   }
 }
 
+function pageTitle(page: string): string {
+  return `Seki - ${page}`;
+}
+
 function ErrorState({ message }: { message: string }) {
   return <p>{message}</p>;
 }
@@ -423,7 +427,10 @@ function AnalysisScreen() {
   const { mod, error } = useLazyModule(loadAnalysisModule);
 
   useEffect(() => {
-    setHead("Analysis Board - Seki", "Play Go (Weiqi/Baduk) online with friends");
+    setHead(
+      pageTitle("Analysis Board"),
+      "Play Go (Weiqi/Baduk) online with friends",
+    );
   }, []);
 
   useEffect(() => {
@@ -449,7 +456,7 @@ function GamesScreen() {
   const { data, error } = useRouteData<InitMessage>("/api/web/games");
 
   useEffect(() => {
-    setHead("Games - Seki", "Play Go (Weiqi/Baduk) online with friends");
+    setHead(pageTitle("Games"), "Play Go (Weiqi/Baduk) online with friends");
   }, []);
 
   if (error) {
@@ -535,7 +542,7 @@ function NewGameScreen({
     | undefined;
 
   useEffect(() => {
-    setHead("New Game - Seki", "Play Go (Weiqi/Baduk) online with friends");
+    setHead(pageTitle("New Game"), "Play Go (Weiqi/Baduk) online with friends");
   }, []);
 
   async function onSubmit(e: Event) {
@@ -591,7 +598,7 @@ function ProfileScreen({
   const [tokenVisible, setTokenVisible] = useState(false);
 
   useEffect(() => {
-    setHead(`${username} - Seki`, `${username}'s Go profile on Seki`);
+    setHead(pageTitle(username), `${username}'s Go profile on Seki`);
   }, [username]);
 
   async function submitUsername(e: Event) {
@@ -769,7 +776,7 @@ function AuthFormScreen({
 }) {
   useEffect(() => {
     setHead(
-      mode === "login" ? "Log in — Seki" : "Register — Seki",
+      pageTitle(mode === "login" ? "Log in" : "Register"),
       "Play Go (Weiqi/Baduk) online with friends",
     );
     if (currentUser?.is_registered) {
