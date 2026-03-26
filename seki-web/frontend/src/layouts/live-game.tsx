@@ -138,28 +138,54 @@ export function liveGame(
   // --- Analysis persistence helpers ---
   const analysisKey = gameAnalysisKey(gameId);
 
+  type SavedAnalysis = {
+    tree: string;
+    nodeId: number;
+    active?: boolean;
+  };
+
+  function readSavedAnalysis(): SavedAnalysis | undefined {
+    return storage.getJson<SavedAnalysis>(analysisKey);
+  }
+
   function saveAnalysis(active?: boolean) {
     if (!board.value) {
       return;
     }
-    const tree = board.value.engine.tree_json();
-    const nodeId = board.value.engine.current_node_id();
-    storage.setJson(analysisKey, {
-      tree,
-      nodeId,
-      active: active ?? analysisMode.value,
-    });
+    const nextActive = active ?? analysisMode.value;
+    if (analysisMode.value || nextActive) {
+      storage.setJson(analysisKey, {
+        tree: board.value.engine.tree_json(),
+        nodeId: board.value.engine.current_node_id(),
+        active: nextActive,
+      });
+      return;
+    }
+
+    const saved = readSavedAnalysis();
+    if (saved) {
+      storage.setJson(analysisKey, { ...saved, active: nextActive });
+    }
+  }
+
+  function loadSavedAnalysisTree(): SavedAnalysis | undefined {
+    if (!board.value) {
+      return undefined;
+    }
+    const saved = readSavedAnalysis();
+    if (!saved?.tree) {
+      return saved;
+    }
+    board.value.engine.replace_tree(saved.tree);
+    if (moves.value.length > 0) {
+      board.value.engine.merge_base_moves(JSON.stringify(moves.value));
+    }
+    return saved;
   }
 
   /** Navigate to the last saved analysis position (tree is already loaded). */
-  function restoreAnalysisPosition(): void {
-    if (!board.value) {
-      return;
-    }
-    const saved = storage.getJson<{ tree: string; nodeId: number }>(
-      analysisKey,
-    );
-    if (!saved) {
+  function restoreAnalysisPosition(saved = readSavedAnalysis()): void {
+    if (!board.value || !saved) {
       return;
     }
     if (saved.nodeId >= 0) {
@@ -179,8 +205,9 @@ export function liveGame(
     } else {
       toAnalysis();
     }
+    const saved = loadSavedAnalysisTree();
     if (restorePosition) {
-      restoreAnalysisPosition();
+      restoreAnalysisPosition(saved);
     }
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
@@ -478,18 +505,7 @@ export function liveGame(
       board.value.markSettled(settledTerritory.value.dead_stones);
     }
     // Always restore the saved tree so analysis branches persist across refreshes.
-    const saved = storage.getJson<{
-      tree: string;
-      nodeId: number;
-      active?: boolean;
-    }>(analysisKey);
-    if (saved) {
-      // Restore the full tree (with branches) into the engine
-      board.value.engine.replace_tree(saved.tree);
-      if (moves.value.length > 0) {
-        board.value.engine.merge_base_moves(JSON.stringify(moves.value));
-      }
-    }
+    const saved = readSavedAnalysis();
     if (saved?.active) {
       // Page was refreshed while in analysis — restore exact position
       enterAnalysis();
