@@ -22,6 +22,9 @@
 .chat-box p + p {
   margin-top: 0.2em;
 }
+.chat-box .chat-entry-pending {
+  opacity: 0.6;
+}
 .chat form {
   display: flex;
   flex-direction: row;

@@ -261,9 +261,22 @@ pub async fn handle_message(
 
     if let Err(e) = result {
         tracing::error!("Error handling {action}: {e}");
+        let client_message_id = if action == "chat" {
+            data.get("client_message_id")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        } else {
+            None
+        };
         send_to_client(
             tx,
-            &json!({"kind": "error", "game_id": game_id, "message": e.to_string()}).to_string(),
+            &json!({
+                "kind": "error",
+                "game_id": game_id,
+                "message": e.to_string(),
+                "client_message_id": client_message_id,
+            })
+            .to_string(),
         );
     }
 }
@@ -297,7 +310,8 @@ async fn handle_chat(
     data: &serde_json::Value,
 ) -> Result<(), crate::error::AppError> {
     let text = data.get("message").and_then(|v| v.as_str()).unwrap_or("");
-    game_actions::send_chat(state, game_id, player_id, text).await?;
+    let client_message_id = data.get("client_message_id").and_then(|v| v.as_str());
+    game_actions::send_chat(state, game_id, player_id, text, client_message_id).await?;
     Ok(())
 }
 

@@ -167,8 +167,10 @@ export type PresenceStateMessage = {
 
 export type ChatMessage = {
   kind: "chat";
+  id?: number;
   player_id?: number;
   display_name?: string;
+  client_message_id?: string;
   text: string;
   move_number?: number;
   sent_at?: string;
@@ -177,6 +179,7 @@ export type ChatMessage = {
 export type ErrorMessage = {
   kind: "error";
   message: string;
+  client_message_id?: string;
 };
 
 export type UndoAcceptedMessage = {

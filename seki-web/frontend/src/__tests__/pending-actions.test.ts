@@ -4,15 +4,19 @@ import { handleGameMessage } from "../game/messages";
 import type { GameMessageDeps } from "../game/messages";
 import { GameStage, type GameState } from "../game/types";
 import {
+  addPendingChatMessage,
   allowUndo,
   black,
+  chatMessages,
   clearGameFlashMessage,
   clearPendingAction,
+  currentUserId,
   currentTurn,
   gameFlashMessage,
   gameStage,
   pendingAction,
   playerStone,
+  replaceChatMessages,
   result,
   setPendingAction,
   territory,
@@ -83,12 +87,14 @@ function resetSignals() {
   batch(() => {
     gameStage.value = GameStage.Unstarted;
     currentTurn.value = null;
+    currentUserId.value = 0;
     playerStone.value = 0;
     allowUndo.value = false;
     undoRequest.value = "none";
     pendingAction.value = undefined;
     result.value = null;
     territory.value = undefined;
+    chatMessages.value = [];
     black.value = undefined;
     white.value = undefined;
   });
@@ -210,5 +216,93 @@ describe("pending action reconciliation", () => {
     handleGameMessage({ kind: "ws_reconnected", game_id: 7 }, buildDeps());
 
     expect(pendingAction.value).toBeUndefined();
+  });
+
+  it("reconciles a pending local chat message by client_message_id", () => {
+    addPendingChatMessage({
+      client_message_id: "local-1",
+      user_id: 12,
+      display_name: "alice",
+      text: "hello",
+    });
+
+    handleGameMessage(
+      {
+        kind: "chat",
+        id: 99,
+        player_id: 12,
+        display_name: "alice",
+        client_message_id: "local-1",
+        text: "hello",
+        sent_at: "2026-03-25T22:00:00Z",
+      },
+      buildDeps(),
+    );
+
+    expect(chatMessages.value).toEqual([
+      {
+        id: 99,
+        user_id: 12,
+        display_name: "alice",
+        client_message_id: "local-1",
+        text: "hello",
+        move_number: undefined,
+        sent_at: "2026-03-25T22:00:00Z",
+      },
+    ]);
+  });
+
+  it("removes the matching pending local chat message on error", () => {
+    addPendingChatMessage({
+      client_message_id: "local-2",
+      user_id: 12,
+      display_name: "alice",
+      text: "hello",
+    });
+
+    handleGameMessage(
+      {
+        kind: "error",
+        message: "Message too long",
+        client_message_id: "local-2",
+      },
+      buildDeps(),
+    );
+
+    expect(chatMessages.value).toEqual([]);
+    expect(gameFlashMessage.value).toBe("Message too long");
+  });
+
+  it("retries pending local chat messages after websocket reconnect", async () => {
+    const deps = buildDeps();
+    const say = vi.fn();
+    deps.channel.say = say;
+    addPendingChatMessage({
+      client_message_id: "local-3",
+      user_id: 12,
+      display_name: "alice",
+      text: "retry me",
+    });
+
+    handleGameMessage({ kind: "ws_reconnected", game_id: 7 }, deps);
+
+    await Promise.resolve();
+
+    expect(say).toHaveBeenCalledWith("retry me", "local-3");
+  });
+});
+
+describe("chat hydration", () => {
+  it("deduplicates authoritative chat messages by id", () => {
+    replaceChatMessages([
+      { id: 1, text: "one" },
+      { id: 1, text: "one duplicate" },
+      { id: 2, text: "two" },
+    ]);
+
+    expect(chatMessages.value).toEqual([
+      { id: 1, text: "one" },
+      { id: 2, text: "two" },
+    ]);
   });
 });

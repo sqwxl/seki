@@ -10,6 +10,7 @@ import { LobbyControls, LobbyPopover } from "../components/controls";
 import { Controls } from "./controls";
 import { TabBar } from "../components/tab-bar";
 import type { GameChannel } from "../game/channel";
+import { readUserData } from "../game/util";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { GamePageLayout } from "./game-page-layout";
 import { requestSpaNavigation } from "../utils/spa-navigation";
@@ -32,6 +33,7 @@ import {
   territory,
   settledTerritory,
   chatMessages,
+  currentUserId,
   undoRequest,
   estimateMode,
   board,
@@ -44,6 +46,8 @@ import {
   nigiri,
   allowUndo,
   onlineUsers,
+  addPendingChatMessage,
+  hasUnreadChat,
   pendingMove,
   clearPendingAction,
   clearGameFlashMessage,
@@ -550,6 +554,22 @@ function LiveGameTabBar(props: LiveGamePageProps) {
 
 export function LiveGamePage(props: LiveGamePageProps) {
   const { channel, moveTreeEl, gobanRef } = props;
+  const userData = readUserData();
+
+  function handleSendChat(text: string) {
+    const clientMessageId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    addPendingChatMessage({
+      client_message_id: clientMessageId,
+      user_id: currentUserId.value || userData?.id,
+      display_name: userData?.display_name,
+      text,
+    });
+    hasUnreadChat.value = false;
+    channel.say(text, clientMessageId);
+  }
 
   return (
     <GamePageLayout
@@ -566,7 +586,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
             onlineUsers={onlineUsers.value}
             black={black.value}
             white={white.value}
-            onSend={(text) => channel.say(text)}
+            onSend={handleSendChat}
             showPrefix={false}
           />
         </div>

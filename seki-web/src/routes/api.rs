@@ -941,7 +941,7 @@ async fn send_message(
     Path(id): Path<i64>,
     Json(body): Json<ChatRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    let chat = game_actions::send_chat(&state, id, api_user.id, &body.text).await?;
+    let chat = game_actions::send_chat(&state, id, api_user.id, &body.text, None).await?;
 
     Ok(Json(MessageResponse {
         id: chat.message.id,

@@ -509,6 +509,7 @@ pub async fn send_chat(
     game_id: i64,
     player_id: i64,
     text: &str,
+    client_message_id: Option<&str>,
 ) -> Result<ChatSent, AppError> {
     let text = text.trim();
     if text.is_empty() {
@@ -535,7 +536,15 @@ pub async fn send_chat(
 
     let move_number = current_move_number(state, &gwp.game).await;
 
-    let msg = Message::create(&state.db, game_id, Some(player_id), text, move_number).await?;
+    let msg = Message::create(
+        &state.db,
+        game_id,
+        Some(player_id),
+        client_message_id,
+        text,
+        move_number,
+    )
+    .await?;
 
     state
         .registry
@@ -544,8 +553,10 @@ pub async fn send_chat(
             &json!({
                 "kind": "chat",
                 "game_id": game_id,
+                "id": msg.id,
                 "player_id": player_id,
                 "display_name": user.display_name(),
+                "client_message_id": client_message_id,
                 "text": msg.text,
                 "move_number": msg.move_number,
                 "sent_at": msg.created_at
@@ -758,6 +769,7 @@ pub(super) async fn broadcast_system_chat(
     let saved = Message::create_system(&state.db, game_id, text, move_number)
         .await
         .ok();
+    let id = saved.as_ref().map(|m| m.id);
     let sent_at = saved.as_ref().map(|m| m.created_at);
 
     state
@@ -767,6 +779,7 @@ pub(super) async fn broadcast_system_chat(
             &json!({
                 "kind": "chat",
                 "game_id": game_id,
+                "id": id,
                 "text": text,
                 "move_number": move_number,
                 "sent_at": sent_at

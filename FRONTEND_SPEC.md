@@ -271,7 +271,6 @@ Live-game route restore rules:
 
 - active mobile tab should be restored
 - pending move confirmation should be forgotten
-- unsent chat draft should be restored
 - pending undo confirmation UI should be restored
 - pending resign confirmation UI should be forgotten
 - pending presentation-request UI should be restored
@@ -826,6 +825,9 @@ Chat semantics:
 
 - chat ordering should follow the client-visible timestamp of the received/confirmed message
 - optimistic/pending local messages should be reordered if needed when the authoritative server-confirmed message arrives
+- optimistic/pending local messages are page-local only and should not be restored across navigation or reload
+- pending local chat messages may be retried after websocket reconnect only while the user remains on the same live-game page
+- pending local chat messages should be discarded on navigation or reload if they were never confirmed
 - chat supports system messages
 - chat does not support message editing
 - chat does not support message deletion
@@ -1560,6 +1562,8 @@ General rules:
 Expected behavior by action:
 
 - sending chat: the new message should appear in chat immediately in a muted/pending style, then resolve to normal appearance when the server confirms it
+- sending chat: pending local chat messages should not survive navigation or reload
+- sending chat: a transport reconnect may retry the pending local message while the user remains on the same page
 - requesting undo: the confirm/cancel UI should show a spinner, and both controls should be disabled until server confirmation; then the dialog should dismiss
 - accepting undo: the undo-response UI should show a spinner, and both accept/reject controls should be disabled until server confirmation; then the dialog should dismiss
 - rejecting undo: the undo-response UI should show a spinner, and both reject/accept controls should be disabled until server confirmation; then the dialog should dismiss
@@ -1576,6 +1580,7 @@ Pending-action failure recovery:
 - dialogs associated with the failed action should remain open after the failure
 - pending-action failures should surface through flash messaging
 - recoverable failures should allow immediate retry
+- failed chat sends should remove their pending local entry rather than converting into a restored draft
 - some failures may transition the UI into a different valid state instead of showing a simple error, for example a failed join due to a race resolving into spectating
 
 ### Confirmation dialogs and popovers

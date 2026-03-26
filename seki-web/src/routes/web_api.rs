@@ -278,6 +278,7 @@ async fn load_game_show(
     let chat_log = messages
         .into_iter()
         .map(|msg| GameChatEntry {
+            id: msg.id,
             user_id: msg.user_id,
             display_name: msg.display_name,
             text: msg.text,
@@ -331,6 +332,7 @@ struct ShowGameQuery {
 
 #[derive(Serialize)]
 struct GameChatEntry {
+    id: i64,
     user_id: Option<i64>,
     display_name: Option<String>,
     text: String,

@@ -7,6 +7,7 @@ pub struct Message {
     pub id: i64,
     pub game_id: i64,
     pub user_id: Option<i64>,
+    pub client_message_id: Option<String>,
     pub text: String,
     pub move_number: Option<i32>,
     pub created_at: DateTime<Utc>,
@@ -16,6 +17,7 @@ pub struct Message {
 /// Message with the sender's display name resolved via JOIN.
 #[derive(Debug, Clone, FromRow)]
 pub struct MessageWithSender {
+    pub id: i64,
     pub user_id: Option<i64>,
     pub display_name: Option<String>,
     pub text: String,
@@ -41,7 +43,7 @@ impl Message {
         game_id: i64,
     ) -> Result<Vec<MessageWithSender>, sqlx::Error> {
         sqlx::query_as::<_, MessageWithSender>(
-            "SELECT m.user_id, u.username AS display_name, m.text, m.move_number, m.created_at \
+            "SELECT m.id, m.user_id, u.username AS display_name, m.text, m.move_number, m.created_at \
              FROM messages m LEFT JOIN users u ON m.user_id = u.id \
              WHERE m.game_id = $1 ORDER BY m.created_at ASC",
         )
@@ -54,14 +56,20 @@ impl Message {
         executor: impl sqlx::PgExecutor<'_>,
         game_id: i64,
         user_id: Option<i64>,
+        client_message_id: Option<&str>,
         text: &str,
         move_number: Option<i32>,
     ) -> Result<Message, sqlx::Error> {
         sqlx::query_as::<_, Message>(
-            "INSERT INTO messages (game_id, user_id, text, move_number) VALUES ($1, $2, $3, $4) RETURNING *",
+            "INSERT INTO messages (game_id, user_id, client_message_id, text, move_number) \
+             VALUES ($1, $2, $3, $4, $5) \
+             ON CONFLICT (game_id, user_id, client_message_id) DO UPDATE \
+             SET updated_at = messages.updated_at \
+             RETURNING *",
         )
         .bind(game_id)
         .bind(user_id)
+        .bind(client_message_id)
         .bind(text)
         .bind(move_number)
         .fetch_one(executor)
@@ -74,6 +82,6 @@ impl Message {
         text: &str,
         move_number: Option<i32>,
     ) -> Result<Message, sqlx::Error> {
-        Self::create(executor, game_id, None, text, move_number).await
+        Self::create(executor, game_id, None, None, text, move_number).await
     }
 }

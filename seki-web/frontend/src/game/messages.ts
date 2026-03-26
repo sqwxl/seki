@@ -32,6 +32,8 @@ import {
   applyGameStateMessage,
   applyUndo,
   addChatMessage,
+  removePendingChatMessage,
+  retryPendingChatMessages,
   setPresence,
   isPresenter,
   applyPresentationStarted,
@@ -204,8 +206,10 @@ export function handleGameMessage(
     }
     case "chat": {
       addChatMessage({
+        id: data.id,
         user_id: data.player_id,
         display_name: data.display_name,
+        client_message_id: data.client_message_id,
         text: data.text,
         move_number: data.move_number,
         sent_at: data.sent_at,
@@ -214,6 +218,9 @@ export function handleGameMessage(
     }
     case "error": {
       console.warn("Game error:", data.message);
+      if (data.client_message_id) {
+        removePendingChatMessage(data.client_message_id);
+      }
       clearPendingAction();
       setGameFlashMessage(data.message);
       break;
@@ -326,6 +333,11 @@ export function handleGameMessage(
       // (e.g. "You are presenting" after the presentation ended while offline).
       clearPresentation();
       clearPendingAction();
+      queueMicrotask(() => {
+        retryPendingChatMessages((text, clientMessageId) => {
+          deps.channel.say(text, clientMessageId);
+        });
+      });
       break;
     }
     case "ws_disconnected": {

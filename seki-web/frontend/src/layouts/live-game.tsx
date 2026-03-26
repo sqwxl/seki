@@ -38,6 +38,7 @@ import {
   territory,
   settledTerritory,
   chatMessages,
+  replaceChatMessages,
   analysisMode,
   estimateMode,
   opponentDisconnected,
@@ -359,7 +360,7 @@ export function liveGame(
   }
 
   // --- Parse initial chat history ---
-  chatMessages.value = initialChatLog;
+  replaceChatMessages(initialChatLog);
 
   // Initial render (before board loads)
   render(

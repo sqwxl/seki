@@ -290,6 +290,26 @@ export function resetGameRuntimeState(): void {
 let _prevBlackApproved = false;
 let _prevWhiteApproved = false;
 
+function upsertChatMessages(nextEntry: ChatEntry): void {
+  let replaced = false;
+  const next = chatMessages.value.map((entry) => {
+    if (nextEntry.id != null && entry.id === nextEntry.id) {
+      replaced = true;
+      return nextEntry;
+    }
+    if (
+      !replaced &&
+      nextEntry.client_message_id &&
+      entry.client_message_id === nextEntry.client_message_id
+    ) {
+      replaced = true;
+      return nextEntry;
+    }
+    return entry;
+  });
+  chatMessages.value = replaced ? next : [...next, nextEntry];
+}
+
 /** Called from WS "state" message handler. Uses batch() for atomic update. */
 export function applyGameStateMessage(data: StateMessage): void {
   const approvalMessages: ChatEntry[] = [];
@@ -365,9 +385,49 @@ export function applyUndo(
 
 /** Append a chat entry (immutable). */
 export function addChatMessage(entry: ChatEntry): void {
-  chatMessages.value = [...chatMessages.value, entry];
-  if (entry.user_id != null && mobileTab.value !== "chat") {
+  upsertChatMessages(entry);
+  if (
+    entry.status !== "pending" &&
+    entry.user_id != null &&
+    entry.user_id !== currentUserId.value &&
+    mobileTab.value !== "chat"
+  ) {
     hasUnreadChat.value = true;
+  }
+}
+
+export function replaceChatMessages(entries: ChatEntry[]): void {
+  const seenIds = new Set<number>();
+  const deduped: ChatEntry[] = [];
+  for (const entry of entries) {
+    if (entry.id != null) {
+      if (seenIds.has(entry.id)) {
+        continue;
+      }
+      seenIds.add(entry.id);
+    }
+    deduped.push(entry);
+  }
+  chatMessages.value = deduped;
+}
+
+export function addPendingChatMessage(entry: ChatEntry): void {
+  chatMessages.value = [...chatMessages.value, { ...entry, status: "pending" }];
+}
+
+export function removePendingChatMessage(clientMessageId: string): void {
+  chatMessages.value = chatMessages.value.filter(
+    (entry) => entry.client_message_id !== clientMessageId,
+  );
+}
+
+export function retryPendingChatMessages(
+  send: (text: string, clientMessageId: string) => void,
+): void {
+  for (const entry of chatMessages.value) {
+    if (entry.status === "pending" && entry.client_message_id) {
+      send(entry.text, entry.client_message_id);
+    }
   }
 }
 

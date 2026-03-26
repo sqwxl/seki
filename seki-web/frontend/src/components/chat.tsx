@@ -4,11 +4,14 @@ import { IconSend } from "./icons";
 import { UserLabel } from "./user-label";
 
 export type ChatEntry = {
+  id?: number;
   user_id?: number | null;
   display_name?: string | null;
+  client_message_id?: string;
   text: string;
   move_number?: number;
   sent_at?: string;
+  status?: "pending";
 };
 
 export type ChatProps = {
@@ -117,7 +120,10 @@ export function Chat({
           const isOnline =
             entry.user_id != null && onlineUsers.has(entry.user_id);
           return (
-            <p key={i}>
+            <p
+              key={entry.id ?? entry.client_message_id ?? `${entry.text}-${i}`}
+              class={entry.status === "pending" ? "chat-entry-pending" : ""}
+            >
               {showPrefix && formatPrefix(entry)}
               <strong>
                 <SenderLabel

@@ -5,7 +5,7 @@ export type GameChannel = {
   pass(): void;
   resign(): void;
   toggleChain(col: number, row: number): void;
-  say(message: string): void;
+  say(message: string, clientMessageId?: string): void;
   requestUndo(): void;
   acceptUndo(): void;
   rejectUndo(): void;
@@ -57,8 +57,12 @@ export function createGameChannel(
     toggleChain(col, row) {
       gameSend({ action: "toggle_chain", col, row });
     },
-    say(message) {
-      gameSend({ action: "chat", message });
+    say(message, clientMessageId) {
+      gameSend({
+        action: "chat",
+        message,
+        client_message_id: clientMessageId,
+      });
     },
     requestUndo() {
       gameSend({ action: "request_undo" });
