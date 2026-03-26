@@ -17,7 +17,12 @@ import { GameStage as GS, isPlayStage } from "./types";
 import type { Board } from "../goban/create-board";
 import type { ChatEntry } from "../components/chat";
 import type { Point } from "../goban/types";
-import { storage, SHOW_MOVE_TREE, SHOW_COORDINATES } from "../utils/storage";
+import {
+  storage,
+  SHOW_MOVE_TREE,
+  SHOW_COORDINATES,
+  SOUND_ENABLED,
+} from "../utils/storage";
 import { readMoveConfirmation } from "../utils/move-confirm";
 import {
   activeFlashMessage,
@@ -153,6 +158,7 @@ export const boardFinalizedScore = signal<ScoreData | undefined>(undefined);
 export const boardReviewing = signal(false);
 export const showMoveTree = signal(storage.get(SHOW_MOVE_TREE) === "true");
 export const showCoordinates = signal(storage.get(SHOW_COORDINATES) === "true");
+export const soundEnabled = signal(storage.get(SOUND_ENABLED) !== "false");
 export const moveConfirmEnabled = signal(readMoveConfirmation());
 
 // ---------------------------------------------------------------------------

@@ -6,11 +6,13 @@ import {
   SHOW_COORDINATES,
   SHOW_MOVE_TREE,
   MOVE_CONFIRMATION,
+  SOUND_ENABLED,
 } from "../utils/storage";
 import {
   showCoordinates,
   showMoveTree,
   moveConfirmEnabled,
+  soundEnabled,
   board,
 } from "../game/state";
 import { analysisBoard } from "../layouts/analysis-state";
@@ -57,6 +59,12 @@ function handleMoveTreeToggle() {
   savePref("show_move_tree", next);
   board.value?.render();
   analysisBoard.value?.render();
+}
+
+function handleSoundToggle() {
+  const next = !soundEnabled.value;
+  soundEnabled.value = next;
+  storage.set(SOUND_ENABLED, String(next));
 }
 
 export function UserMenu({
@@ -120,6 +128,11 @@ export function UserMenu({
               on={showMoveTree.value}
               label="Move tree"
               onToggle={handleMoveTreeToggle}
+            />
+            <ToggleButton
+              on={soundEnabled.value}
+              label="Sound"
+              onToggle={handleSoundToggle}
             />
           </div>
           <div class="nav-dropdown-section">

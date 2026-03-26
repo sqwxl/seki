@@ -1,3 +1,5 @@
+import { soundEnabled } from "./state";
+
 let audioCtx: AudioContext | undefined;
 
 const buffers: Record<string, AudioBuffer | undefined> = {};
@@ -28,6 +30,9 @@ async function loadBuffer(
 }
 
 export function playStoneSound(): void {
+  if (!soundEnabled.value) {
+    return;
+  }
   const ctx = ensureContext();
   loadBuffer(ctx, "/static/sounds/clicks.webm").then((buf) => {
     const src = ctx.createBufferSource();
@@ -38,6 +43,9 @@ export function playStoneSound(): void {
 }
 
 export function playPassSound(): void {
+  if (!soundEnabled.value) {
+    return;
+  }
   const ctx = ensureContext();
   loadBuffer(ctx, "/static/sounds/ding.mp3").then((buf) => {
     const src = ctx.createBufferSource();
