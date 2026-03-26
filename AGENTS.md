@@ -1,13 +1,36 @@
-# CLAUDE.md
+# General Guidelines
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Grug Brain Development
+
+Always apply the grug brain philosophy to software development: fight complexity, prefer simplicity, and build maintainable code that future developers can understand.
+
+## Collaborative Behavior
+
+- Always start with a short plan before editing.
+- Ask before large refactors or new dependencies.
+- After changes, run relevant tests if available.
+- Explain what changed in plain language.
+- Be concise and act like a collaborative pair programmer.
+
+## Patterns and Conventions
+
+- Prefer functional, stateless functions for most things; avoid side-effects and globally shared mutating variables
+- Prefer declarative interfaces and imperative implementation
+- Prefer minimal diffs.
+- In general, don't test log output
+- When a function starts taking too many parameters (>4), consider passing an object instead.
+- Conventional commit messages, single-line unless verbose explanation warranted
+- Avoid pulling in outside dependencies for trivial features
+- When considering adding a new dependency, always consider that library's own dependency tree. Prefer libraries with less dependencies.
+
+# This Codebase
 
 ## Build & Test Commands
 
 ```bash
 # Rust (workspace root)
 cargo build                          # build all crates
-cargo test --all                     # run all tests (166 tests, mostly in go-engine)
+cargo test --all                     # run the Rust test suite
 cargo test -p go-engine              # engine tests only
 cargo test -p go-engine -- ko        # run tests matching "ko"
 cargo check --all                    # type-check without building
@@ -17,13 +40,14 @@ wasm-pack build go-engine-wasm --target web --out-dir seki-web/static/wasm
 
 # Frontend (seki-web/frontend/)
 pnpm install                         # install deps
-pnpm run build                       # esbuild: src/go.tsx → ../static/dist/bundle.js
+pnpm run build                       # esbuild: src/index.ts → ../static/dist/bundle.js
 pnpm run build:wasm                  # build WASM engine
 pnpm run dev                         # watch mode
 pnpm run typecheck                   # tsc --noEmit
+pnpm test                            # run Vitest tests
 
 # Docker
-docker-compose up                    # postgres + web service on :3000
+docker compose up                    # postgres + web service on :3000
 ```
 
 ## Architecture
@@ -31,36 +55,60 @@ docker-compose up                    # postgres + web service on :3000
 Cargo workspace with three crates:
 
 ### go-engine
+
 Pure game logic library. No IO, no async. Clone-on-write board state — `Goban::play()`/`pass()` return a new `Goban` rather than mutating. Key types: `Engine`, `Goban`, `Stone` (Black=1, White=-1), `Turn`, `Stage`. Also includes an SGF parser/serializer (`go_engine::sgf`), game tree, replay navigation, and territory scoring.
 
 ### go-engine-wasm
+
 Thin wasm-bindgen shell over `go-engine`. Only handles WASM-boundary concerns (js_sys types, JSON serialization, primitive conversions). All real logic belongs in `go-engine` so it's testable without WASM and reusable server-side.
 
 ### seki-web
-Axum 0.8 web app. Modules follow a clean separation: `models/` (sqlx queries), `services/` (engine building, game creation, state serialization), `routes/` (HTTP handlers), `ws/` (WebSocket game channels), `templates/` (Askama template structs).
 
-**Request flow:** Axum router → route handler → service layer → model (sqlx) → DB. Templates render server-side HTML. The game board UI is a Preact app (`seki-web/frontend/`) bundled with esbuild, loaded on the game show page.
+Axum 0.8 web app. Modules follow a clean separation:
 
-**Frontend modules** (`seki-web/frontend/src/`): `index.ts` is the entry point. Code is organized into five directories:
-- `game/` — Live game session state: `context.ts` (GameCtx), `messages.ts` (WS message handler), `channel.ts` (WS action wrappers), `clock.ts` (clock formatting/sync), `ui.ts` (title, turn flash, score), `sound.ts`, `notifications.ts`, `util.ts` (user data helpers)
-- `goban/` — Board rendering + WASM bridge: Preact Goban component, `create-board.tsx` (board factory with navigation, territory review, localStorage persistence), `types.ts`
-- `components/` — Reusable Preact UI: `controls.tsx`, `chat.tsx`, `player-panel.tsx`, `move-tree.tsx`, `icons.tsx`, `nav-status.tsx`, `game-description.tsx`, `user-label.tsx`
-- `layouts/` — Page-level orchestrators: `live-game.tsx`, `analysis.tsx`, `games-list.tsx`, `user-games.tsx`, `game-settings-form.tsx`, `game-page-layout.tsx`
-- `utils/` — Stateless helpers: `format.ts`, `sgf.ts`, `premove.ts`, `coord-toggle.ts`, `shared-controls.ts`
+- `models/` = sqlx-backed database access and row types
+- `services/` = business logic, engine building, clocks, lobby data, game creation/join flows, move/chat/undo/territory actions
+- `routes/` = HTTP handlers for API, auth, settings, users, and SPA shell delivery
+- `ws/` = live websocket endpoint, room registry, per-game channels, presence tracking
+- `templates/` = small Askama layer for the SPA shell and shared serialized user data
 
-**Real-time:** A single WebSocket endpoint (`/ws`) handles all real-time communication. Clients subscribe to game rooms via `join_game`/`leave_game` messages, and receive lobby events (game list updates) via a broadcast channel. `GameRegistry` manages per-game rooms; on join, server sends full game state, and subsequent moves are broadcast to all connected players.
+**Request flow:** Axum router → route handler → service layer → model → DB. The HTML layer is intentionally thin: most page routes serve a single Askama SPA shell, then the Preact frontend bootstraps from `window.__sekiBootstrap` and `/api/web/*` JSON endpoints.
 
-**Auth (web):** tower-sessions with PostgreSQL store. `CurrentUser` extractor auto-creates anonymous users (random session token) if no session exists. Registration adds email/username/password (Argon2).
+**Frontend modules** (`seki-web/frontend/src/`): `index.ts` mounts `app.tsx`. Current directories are:
+
+- `game/` — live game state, websocket message handling, access/capability checks, clocks, notifications, unread tracking, UI helpers
+- `goban/` — board rendering and WASM bridge, including `create-board.tsx`
+- `components/` — reusable Preact UI such as chat, controls, player panels, menus, game info, notification settings
+- `layouts/` — page-level screens and orchestration for games list, live game, analysis, game settings, user pages
+- `utils/` — stateless browser helpers for formatting, SPA navigation, flash messages, preferences, theme, storage, SGF, etc.
+- `__tests__/` — Vitest coverage for frontend utilities and state logic
+
+**Routing model:** browser routes like `/games`, `/games/:id`, `/analysis`, `/users/:username`, `/login`, `/register`, and `/settings` all serve the SPA shell. Route-specific JSON lives under `/api/web/*`. Programmatic API routes live under `/api/*`.
+
+**Real-time:** A single WebSocket endpoint (`/ws`) handles all real-time communication. Clients subscribe to game rooms and receive lobby updates through a broadcast channel. `GameRegistry` manages per-game engine/channel state. Presence is tracked separately through `presence.rs` and `presence_subscriptions.rs`.
+
+**Auth (web):** tower-sessions with PostgreSQL-backed session storage. `CurrentUser` auto-creates an anonymous user when no session token exists, then upgrades that user in place on registration.
 
 **Auth (API):** Bearer token authentication. `ApiUser` extractor reads `Authorization: Bearer <token>` header, looks up by `api_token` column, requires a registered account, returns 401 JSON on failure. Tokens are managed from the `/settings` web page.
 
-**API routes** (`/api/*`): JSON endpoints for programmatic access. Authenticated endpoints use `ApiUser`; public endpoints (list games, get game, get messages, get turns) are unauthenticated. Session-based auth concepts (login, register, logout) are not part of the API — those are web-only routes.
+**API routes**:
+
+- `/api/*` = public/programmatic JSON API plus authenticated game actions
+- `/api/web/*` = SPA bootstrap/data endpoints for first-party web screens
+- session-based auth routes (`/login`, `/register`, `/logout`) are web-only, not bearer-token API flows
 
 ## Database
 
 PostgreSQL via sqlx 0.8. Migrations live in `seki-web/migrations/` as numbered files (001, 002, …). **Never modify existing migration files** — always create new numbered migrations. Migrations run at app startup.
 
-Tables: `users`, `games`, `turns`, `messages`, `territory_reviews`. Clock state is stored directly on the `games` table (`clock_black_ms`, `clock_white_ms`, `clock_black_periods`, `clock_white_periods`, `clock_active_stone`, `clock_last_move_at`, `clock_expires_at`).
+Core tables: `users`, `games`, `turns`, `messages`, `territory_reviews`, plus the session store tables managed by `tower-sessions-sqlx-store`.
+
+Important persisted fields beyond the obvious basics:
+
+- `games` stores clock state directly (`clock_black_ms`, `clock_white_ms`, `clock_black_periods`, `clock_white_periods`, `clock_active_stone`, `clock_last_move_at`, `clock_expires_at`)
+- `games` also stores challenge/privacy/lobby state (`access_token`, `invite_token`, `is_private`, `invite_only`, `open_to`, `nigiri`, `territory_review_expires_at`)
+- `turns` stores optional clock snapshots per move
+- `users.preferences` is JSON and drives frontend settings like theme/notifications
 
 ## Environment Variables
 
@@ -68,6 +116,8 @@ Tables: `users`, `games`, `turns`, `messages`, `territory_reviews`. Clock state 
 - `PORT` — HTTP port (default: 3000)
 - `ENVIRONMENT` — set to `production` for secure cookies
 - `STATIC_DIR` — static file path (Docker sets `/app/static`)
+- `BASE_URL` — base origin used in invitation links
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` — optional mailer configuration for invite emails
 
 ## Key Dependency Versions
 
@@ -76,12 +126,13 @@ axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-s
 ## Naming: User vs Player
 
 - **User** = account/identity (`User` model in `models/user.rs`, `users` DB table, `CurrentUser`/`ApiUser` extractors, `UserData` template type)
-- **Player** = game participant (`GameWithPlayers`, `has_player()`, `player_stone()`, `turn_player()`, `player_id` in game actions/channels)
+- **Player** = game participant (`GameWithPlayers`, `has_player()`, `player_stone()`, `player_id` in services and websocket/game actions)
 
-## Conventions
+## App Conventions
 
-- Conventional commit messages, single-line unless verbose explanation warranted
 - Minimum handicap = 2 stones
 - `Engine::is_legal(point, stone)` takes `Stone` directly, not `Option<Stone>`
 - GameState serialization: `{"board": [i8], "cols": u8, "rows": u8, "captures": {"black": n, "white": n}, "ko": {"pos": [i8,i8], "illegal": i8}}`
 - TypeScript: prefer `type` over `interface`, never use `as unknown as`
+- Keep new logic in `go-engine` or Rust services when possible; keep `go-engine-wasm` thin
+- Do not add server-rendered page-specific templates unless there is a strong reason; the current app shape is SPA shell + JSON bootstrap
