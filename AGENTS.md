@@ -19,11 +19,22 @@ Always apply the grug brain philosophy to software development: fight complexity
 - Prefer minimal diffs.
 - In general, don't test log output
 - When a function starts taking too many parameters (>4), consider passing an object instead.
-- Conventional commit messages, single-line unless verbose explanation warranted
 - Avoid pulling in outside dependencies for trivial features
 - When considering adding a new dependency, always consider that library's own dependency tree. Prefer libraries with less dependencies.
+- When completing a feature, update any associated documentation (README checklist, closing github issues, etc)
+- Conventional commit messages, single-line unless verbose explanation warranted
+- Always commit directly to main, no need for feature branches and PRs
 
 # This Codebase
+
+## Specifications
+
+The following sources outline the target state of the application:
+
+- README.md: includes a high-level feature checklist. Checked items have already been implemented.
+- FRONTEND_SPEC.md: defines the expected behavior of the frontend application
+- API_SPEC.md: defines the expected behavior of the web/ws API
+- GitHub issues: should broadly align with unimplemented spec items, readme features or outstanding bugs.
 
 ## Build & Test Commands
 
