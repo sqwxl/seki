@@ -1,6 +1,6 @@
 # Implementation Plans
 
-## 1. Lag Compensation (Lichess Quota System)
+## 1. Lag Compensation (Lichess Quota System) — DONE
 
 ### Overview
 
@@ -65,7 +65,7 @@ For a 1-minute game (~40s estimated): `quota_gain = min(100, 31) = 31cs`.
 
 ---
 
-## 2. Clock Keeps Running + Claim Victory Flow
+## 2. Clock Keeps Running + Claim Victory Flow — DONE
 
 ### Overview
 
@@ -135,7 +135,7 @@ Implementation: add a `bye` WS message type. The client sends it on `beforeunloa
 
 ---
 
-## 3. Clock Display Improvements
+## 3. Clock Display Improvements — DONE
 
 ### Overview
 
@@ -265,6 +265,6 @@ Prevent stalling during territory review by using KataGo to evaluate the positio
 
 1. ~~**Clock Display Improvements** (plan 3)~~ — **DONE**: `Xh Ym` for ≥1h, `SD` for last byoyomi period, scaled low-time threshold
 2. ~~**Lag Compensation** (plan 1)~~ — **DONE**: LagTracker quota system, server_now_ms transit compensation, client_move_time_ms, flag grace
-3. **Clock Keeps Running + Claim Victory** (plan 2) — Requires careful migration from current pause behavior
-4. **Disconnection Abuse Mitigation** (plan 4) — Builds on plan 2's grace period system
+3. ~~**Clock Keeps Running + Claim Victory** (plan 2)~~ — **DONE**: disconnect grace timer, `bye`, `player_disconnected`/`player_gone`/`player_reconnected`, claim-victory flow
+4. **Disconnection Abuse Mitigation** (plan 4) — Builds on the existing grace period system
 5. **KataGo Anti-Stalling** (plan 5) — Independent feature, requires external dependency

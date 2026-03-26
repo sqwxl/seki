@@ -1,4 +1,4 @@
-use crate::common::TestServer;
+use crate::common::{TestServer, api_error_message};
 
 // -- Resign Guards --
 
@@ -174,6 +174,5 @@ async fn cannot_join_game_that_is_full() {
     // Spectator tries to join a full game
     let resp = server.join_game_as_spectator(game_id).await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("full"));
+    assert!(api_error_message(resp).await.contains("full"));
 }

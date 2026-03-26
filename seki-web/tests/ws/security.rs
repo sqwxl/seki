@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::common::TestServer;
+use crate::common::{TestServer, api_error_message};
 
 // -- Private Game Visibility --
 
@@ -86,8 +86,7 @@ async fn cannot_join_private_game_without_token() {
     // Try to join without token
     let resp = server.join_game_as_spectator(game_id).await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("access token"));
+    assert!(api_error_message(resp).await.contains("access token"));
 }
 
 #[tokio::test]
@@ -113,8 +112,7 @@ async fn cannot_join_private_game_with_wrong_token() {
         .join_private_game_as_spectator(game_id, "wrong-token-12345")
         .await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("access token"));
+    assert!(api_error_message(resp).await.contains("access token"));
 }
 
 // -- Abort Access Control --
@@ -178,8 +176,7 @@ async fn non_participant_cannot_chat_in_private_game() {
         .unwrap();
 
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("private game"));
+    assert!(api_error_message(resp).await.contains("private game"));
 }
 
 #[tokio::test]
@@ -224,8 +221,7 @@ async fn cannot_join_aborted_game() {
     // Spectator tries to join aborted game
     let resp = server.join_game_as_spectator(game_id).await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("finished"));
+    assert!(api_error_message(resp).await.contains("finished"));
 }
 
 #[tokio::test]
@@ -252,6 +248,5 @@ async fn cannot_join_completed_game() {
     // Spectator tries to join completed game
     let resp = server.join_game_as_spectator(game_id).await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("finished"));
+    assert!(api_error_message(resp).await.contains("finished"));
 }

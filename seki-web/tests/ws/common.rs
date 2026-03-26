@@ -418,6 +418,16 @@ impl TestServer {
             .unwrap()
     }
 
+    /// Mark an existing game invite-only and assign the provided invite token.
+    pub async fn make_game_invite_only(&self, game_id: i64, invite_token: &str) {
+        sqlx::query("UPDATE games SET invite_only = true, invite_token = $2 WHERE id = $1")
+            .bind(game_id)
+            .bind(invite_token)
+            .execute(&self.pool)
+            .await
+            .unwrap();
+    }
+
     /// Have the spectator user attempt to join an existing game via the API.
     pub async fn join_game_as_spectator(&self, game_id: i64) -> reqwest::Response {
         self.client_spectator
@@ -728,4 +738,9 @@ impl WsClient {
         let mut sink = self.sink;
         let _ = sink.close().await;
     }
+}
+
+pub async fn api_error_message(resp: reqwest::Response) -> String {
+    let body: Value = resp.json().await.unwrap();
+    body["error"]["message"].as_str().unwrap().to_string()
 }

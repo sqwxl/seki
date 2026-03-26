@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::common::TestServer;
+use crate::common::{TestServer, api_error_message};
 
 // -- Board Size Validation --
 
@@ -12,15 +12,13 @@ async fn reject_board_size_below_minimum() {
         .try_create_game_with(json!({"cols": 1, "rows": 9}))
         .await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("width"));
+    assert!(api_error_message(resp).await.contains("width"));
 
     let resp = server
         .try_create_game_with(json!({"cols": 9, "rows": 1}))
         .await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("height"));
+    assert!(api_error_message(resp).await.contains("height"));
 }
 
 #[tokio::test]
@@ -31,15 +29,13 @@ async fn reject_board_size_above_maximum() {
         .try_create_game_with(json!({"cols": 42, "rows": 19}))
         .await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("width"));
+    assert!(api_error_message(resp).await.contains("width"));
 
     let resp = server
         .try_create_game_with(json!({"cols": 19, "rows": 50}))
         .await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("height"));
+    assert!(api_error_message(resp).await.contains("height"));
 }
 
 #[tokio::test]
@@ -109,8 +105,7 @@ async fn reject_negative_handicap() {
 
     let resp = server.try_create_game_with(json!({"handicap": -1})).await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("negative"));
+    assert!(api_error_message(resp).await.contains("negative"));
 }
 
 #[tokio::test]
@@ -133,8 +128,7 @@ async fn reject_handicap_exceeds_max_for_board_size() {
         .try_create_game_with(json!({"cols": 9, "rows": 9, "handicap": 6}))
         .await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("Maximum handicap"));
+    assert!(api_error_message(resp).await.contains("Maximum handicap"));
 
     // 19x19 max handicap is 9
     let resp = server
@@ -152,8 +146,7 @@ async fn reject_handicap_on_unsupported_board() {
         .try_create_game_with(json!({"cols": 8, "rows": 8, "handicap": 2}))
         .await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("not supported"));
+    assert!(api_error_message(resp).await.contains("not supported"));
 
     // Non-square board doesn't support handicap
     let resp = server
@@ -205,8 +198,7 @@ async fn reject_integer_komi_zero() {
 
     let resp = server.try_create_game_with(json!({"komi": 0})).await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("half-integer"));
+    assert!(api_error_message(resp).await.contains("half-integer"));
 }
 
 #[tokio::test]
@@ -215,8 +207,7 @@ async fn reject_integer_komi_positive() {
 
     let resp = server.try_create_game_with(json!({"komi": 7})).await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("half-integer"));
+    assert!(api_error_message(resp).await.contains("half-integer"));
 }
 
 #[tokio::test]
@@ -225,8 +216,7 @@ async fn reject_integer_komi_negative() {
 
     let resp = server.try_create_game_with(json!({"komi": -5})).await;
     assert_eq!(resp.status(), 422);
-    let body: serde_json::Value = resp.json().await.unwrap();
-    assert!(body["error"].as_str().unwrap().contains("half-integer"));
+    assert!(api_error_message(resp).await.contains("half-integer"));
 }
 
 #[tokio::test]
