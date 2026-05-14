@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
+use sqlx::{QueryBuilder, Sqlite};
 
 /// Clock state to snapshot alongside a turn.
 pub struct ClockSnapshot {
@@ -32,7 +33,7 @@ pub struct TurnRow {
 
 impl TurnRow {
     pub async fn find_by_game_id(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<Vec<TurnRow>, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
@@ -45,7 +46,7 @@ impl TurnRow {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn create(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         user_id: i64,
         turn_number: i32,
@@ -77,7 +78,7 @@ impl TurnRow {
     }
 
     pub async fn delete_last(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
@@ -92,7 +93,7 @@ impl TurnRow {
     }
 
     pub async fn delete_last_returning(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<Option<TurnRow>, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(
@@ -107,7 +108,7 @@ impl TurnRow {
 
     /// Return the move count for a single game.
     pub async fn count_by_game_id(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar("SELECT COUNT(*) FROM turns WHERE game_id = $1")
@@ -118,23 +119,25 @@ impl TurnRow {
 
     /// Return move counts for multiple games in one query.
     pub async fn count_by_game_ids(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_ids: &[i64],
     ) -> Result<HashMap<i64, i64>, sqlx::Error> {
         if game_ids.is_empty() {
             return Ok(HashMap::new());
         }
-        let rows: Vec<(i64, i64)> = sqlx::query_as(
-            "SELECT game_id, COUNT(*) FROM turns WHERE game_id = ANY($1) GROUP BY game_id",
-        )
-        .bind(game_ids)
-        .fetch_all(executor)
-        .await?;
+        let mut query =
+            QueryBuilder::<Sqlite>::new("SELECT game_id, COUNT(*) FROM turns WHERE game_id IN (");
+        let mut separated = query.separated(", ");
+        for game_id in game_ids {
+            separated.push_bind(game_id);
+        }
+        separated.push_unseparated(") GROUP BY game_id");
+        let rows: Vec<(i64, i64)> = query.build_query_as().fetch_all(executor).await?;
         Ok(rows.into_iter().collect())
     }
 
     pub async fn last_turn(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<Option<TurnRow>, sqlx::Error> {
         sqlx::query_as::<_, TurnRow>(

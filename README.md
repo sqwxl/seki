@@ -7,7 +7,7 @@ A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
 - **Backend:** Rust (Axum 0.8, sqlx 0.8, Askama templates, tower-sessions)
 - **Frontend:** Preact 10, TypeScript, esbuild
 - **Game engine:** Pure Rust library (`go-engine`) with WASM bridge (`go-engine-wasm`) for client-side logic
-- **Database:** PostgreSQL
+- **Database:** SQLite
 - **Real-time:** WebSocket (single `/ws` endpoint for game channels and lobby events)
 
 ## Architecture
@@ -23,10 +23,7 @@ Cargo workspace with three crates:
 ## Getting Started
 
 ```bash
-# Prerequisites: Rust, Node 24+, pnpm, Docker (for PostgreSQL)
-
-# Start the database
-docker-compose up -d postgres
+# Prerequisites: Rust, Node 24+, pnpm
 
 # Build WASM engine
 wasm-pack build go-engine-wasm --target web --out-dir seki-web/static/wasm
@@ -58,7 +55,7 @@ What this flow does:
 - installs each deploy into `~/seki-app/releases/<timestamp>`
 - updates `~/seki-app/current` and restarts the `seki` user service
 
-Required on the Pi: `tar`, PostgreSQL, and a running user systemd session.
+Required on the Pi: `tar` and a running user systemd session.
 Required on your local machine: `ssh`, `scp`, Rust, `pnpm`, and `wasm-pack`.
 If the service should stay up after logout, enable lingering for the deploy user with `sudo loginctl enable-linger nilueps`.
 

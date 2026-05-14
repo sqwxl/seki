@@ -4,3 +4,7 @@ vim.api.nvim_create_autocmd({ "BufEnter" }, {
 		vim.bo.filetype = "htmldjango"
 	end,
 })
+
+require("conform").formatters.sqlfluff.args = { "format", "--dialect=sqlite", "-" }
+
+require("lint").linters.sqlfluff.args = { "lint", "--format=json", "--dialect=sqlite", "-" }

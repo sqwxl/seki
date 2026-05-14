@@ -1,18 +1,5 @@
 ---
 services:
-  db:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: seki
-      POSTGRES_PASSWORD: seki
-      POSTGRES_DB: seki
-    ports: ['${PGPORT:-5432}:5432']
-    volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck:
-      test: [CMD-SHELL, pg_isready -U seki -d seki]
-      interval: 5s
-      timeout: 5s
-      retries: 5
   mailpit:
     image: axllent/mailpit
     ports:
@@ -22,16 +9,16 @@ services:
     build: .
     ports: ['${PORT:-3000}:${PORT:-3000}']
     environment:
-      DATABASE_URL: postgres://seki:seki@db:5432/seki
+      DATABASE_URL: sqlite:///data/seki.db
       STATIC_DIR: /app/static
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
       SMTP_FROM: noreply@seki.local
       BASE_URL: http://localhost:${PORT:-3000}
+    volumes:
+      - sqlite-data:/data
     depends_on:
-      db:
-        condition: service_healthy
       mailpit:
         condition: service_started
 volumes:
-  pgdata:
+  sqlite-data:

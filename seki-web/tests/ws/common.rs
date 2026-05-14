@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, LazyLock};
-use std::time::Duration;
 
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
@@ -10,147 +10,66 @@ use argon2::{Argon2, PasswordHasher};
 use futures_util::{SinkExt, StreamExt};
 use reqwest::cookie::{CookieStore, Jar};
 use serde_json::{Value, json};
-use sqlx::PgPool;
-use testcontainers::runners::AsyncRunner;
-use testcontainers_modules::postgres::Postgres;
+use sqlx::SqlitePool;
 use tokio::net::TcpListener;
-use tokio::sync::OnceCell;
 use tokio_tungstenite::tungstenite;
 
-// ---------------------------------------------------------------------------
-// Shared Postgres container (one per test binary)
-// ---------------------------------------------------------------------------
-
-static SHARED_PG: LazyLock<SharedPostgres> = LazyLock::new(SharedPostgres::new);
 static DB_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-struct SharedPostgres {
-    container: OnceCell<(testcontainers::ContainerAsync<Postgres>, String, u16)>,
-    template_ready: OnceCell<()>,
+fn test_db_path() -> PathBuf {
+    let id = DB_COUNTER.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("seki-test-{}-{id}.db", std::process::id()))
 }
 
-impl SharedPostgres {
-    fn new() -> Self {
-        Self {
-            container: OnceCell::new(),
-            template_ready: OnceCell::new(),
-        }
+async fn create_test_db() -> SqlitePool {
+    let path = test_db_path();
+    let db_url = format!("sqlite://{}", path.display());
+    let pool = seki_web::db::create_pool(&db_url).await.unwrap();
+    seki_web::db::run_migrations(&pool).await.unwrap();
+
+    let salt = SaltString::generate(&mut OsRng);
+    let password_hash = Argon2::default()
+        .hash_password(b"testpassword", &salt)
+        .unwrap()
+        .to_string();
+
+    for (token, username, api_token) in [
+        (
+            "black-session-token",
+            "test-black",
+            "test-black-api-token-12345",
+        ),
+        (
+            "white-session-token",
+            "test-white",
+            "test-white-api-token-67890",
+        ),
+        (
+            "spectator-session-token",
+            "test-spectator",
+            "test-spectator-api-token-99999",
+        ),
+    ] {
+        sqlx::query(
+            "INSERT INTO users (session_token, username, password_hash, api_token) \
+             VALUES ($1, $2, $3, $4)",
+        )
+        .bind(token)
+        .bind(username)
+        .bind(&password_hash)
+        .bind(api_token)
+        .execute(&pool)
+        .await
+        .unwrap();
     }
 
-    /// Returns (host, port) of the shared container, starting it on first call.
-    async fn get_container(&self) -> (&str, u16) {
-        let (_, host, port) = self
-            .container
-            .get_or_init(|| async {
-                let mut attempts = 0;
-                loop {
-                    let c = Postgres::default().start().await.unwrap();
-                    match (c.get_host().await, c.get_host_port_ipv4(5432).await) {
-                        (Ok(host), Ok(port)) => break (c, host.to_string(), port),
-                        _ => {
-                            attempts += 1;
-                            if attempts >= 3 {
-                                panic!("Failed to get container port after {attempts} attempts");
-                            }
-                            tokio::time::sleep(Duration::from_millis(500)).await;
-                        }
-                    }
-                }
-            })
-            .await;
-        (host.as_str(), *port)
-    }
-
-    /// Ensure the template database exists (migrations + test users). Idempotent.
-    async fn ensure_template(&self, host: &str, port: u16) {
-        self.template_ready
-            .get_or_init(|| async {
-                let admin_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
-                let admin_pool = PgPool::connect(&admin_url).await.unwrap();
-
-                // Create the template database
-                sqlx::query("CREATE DATABASE template_seki")
-                    .execute(&admin_pool)
-                    .await
-                    .unwrap();
-                admin_pool.close().await;
-
-                // Run migrations on the template
-                let tpl_url = format!("postgres://postgres:postgres@{host}:{port}/template_seki");
-                let tpl_pool = PgPool::connect(&tpl_url).await.unwrap();
-                seki_web::db::run_migrations(&tpl_pool).await.unwrap();
-
-                // Hash a test password once (Argon2 is expensive)
-                let salt = SaltString::generate(&mut OsRng);
-                let password_hash = Argon2::default()
-                    .hash_password(b"testpassword", &salt)
-                    .unwrap()
-                    .to_string();
-
-                // Insert the three test users
-                for (token, username, api_token) in [
-                    (
-                        "black-session-token",
-                        "test-black",
-                        "test-black-api-token-12345",
-                    ),
-                    (
-                        "white-session-token",
-                        "test-white",
-                        "test-white-api-token-67890",
-                    ),
-                    (
-                        "spectator-session-token",
-                        "test-spectator",
-                        "test-spectator-api-token-99999",
-                    ),
-                ] {
-                    sqlx::query(
-                        "INSERT INTO users (session_token, username, password_hash, api_token) \
-                         VALUES ($1, $2, $3, $4)",
-                    )
-                    .bind(token)
-                    .bind(username)
-                    .bind(&password_hash)
-                    .bind(api_token)
-                    .execute(&tpl_pool)
-                    .await
-                    .unwrap();
-                }
-
-                tpl_pool.close().await;
-            })
-            .await;
-    }
-
-    /// Create a fresh database cloned from the template. Returns a pool connected to it.
-    async fn create_test_db(&self) -> PgPool {
-        let (host, port) = self.get_container().await;
-        self.ensure_template(host, port).await;
-
-        let db_name = format!("test_{}", DB_COUNTER.fetch_add(1, Ordering::Relaxed));
-        let admin_url = format!("postgres://postgres:postgres@{host}:{port}/postgres");
-        let admin_pool = PgPool::connect(&admin_url).await.unwrap();
-
-        sqlx::query(&format!("CREATE DATABASE {db_name} TEMPLATE template_seki"))
-            .execute(&admin_pool)
-            .await
-            .unwrap();
-        admin_pool.close().await;
-
-        let db_url = format!("postgres://postgres:postgres@{host}:{port}/{db_name}");
-        PgPool::connect(&db_url).await.unwrap()
-    }
+    pool
 }
-
-// ---------------------------------------------------------------------------
-// TestServer
-// ---------------------------------------------------------------------------
 
 /// A running test server with three pre-authenticated users.
 pub struct TestServer {
     pub addr: String,
-    pub pool: PgPool,
+    pub pool: SqlitePool,
     pub black_id: i64,
     pub white_id: i64,
     pub spectator_id: i64,
@@ -164,9 +83,8 @@ pub struct TestServer {
 
 impl TestServer {
     pub async fn start() -> Self {
-        let pool = SHARED_PG.create_test_db().await;
+        let pool = create_test_db().await;
 
-        // Fetch user IDs from the cloned template
         let black_id: i64 =
             sqlx::query_scalar("SELECT id FROM users WHERE username = 'test-black'")
                 .fetch_one(&pool)
@@ -183,9 +101,9 @@ impl TestServer {
                 .await
                 .unwrap();
 
-        // Build and spawn the server (zero grace period for instant disconnect in tests)
-        let presence =
-            seki_web::ws::presence::UserPresence::with_grace_period(Duration::from_millis(0));
+        let presence = seki_web::ws::presence::UserPresence::with_grace_period(
+            std::time::Duration::from_millis(0),
+        );
         let (router, _state) = seki_web::build_router_with_registry_and_presence(
             pool.clone(),
             false,
@@ -210,7 +128,6 @@ impl TestServer {
             .unwrap();
         });
 
-        // Build reqwest clients with cookie stores and log them in
         let jar_black = Arc::new(Jar::default());
         let client_black = reqwest::Client::builder()
             .cookie_provider(jar_black.clone())
@@ -234,14 +151,11 @@ impl TestServer {
 
         let base = format!("http://{addr}");
 
-        // Log in black user:
-        // 1. GET /login to create an anonymous session and get the session cookie
         client_black
             .get(format!("{base}/login"))
             .send()
             .await
             .unwrap();
-        // 2. POST /login with credentials to switch session to the registered user
         client_black
             .post(format!("{base}/login"))
             .form(&[("username", "test-black"), ("password", "testpassword")])
@@ -249,7 +163,6 @@ impl TestServer {
             .await
             .unwrap();
 
-        // Log in white user
         client_white
             .get(format!("{base}/login"))
             .send()
@@ -262,7 +175,6 @@ impl TestServer {
             .await
             .unwrap();
 
-        // Log in spectator user
         client_spectator
             .get(format!("{base}/login"))
             .send()
@@ -290,7 +202,6 @@ impl TestServer {
         }
     }
 
-    /// Create a 9x9 game via the API (black is creator, plays black).
     pub async fn create_game(&self) -> i64 {
         let resp = self
             .client_black
@@ -314,7 +225,6 @@ impl TestServer {
         body["id"].as_i64().expect("game id missing from response")
     }
 
-    /// Have the white user join an existing game via the API.
     pub async fn join_game(&self, game_id: i64) -> Value {
         let resp = self
             .client_white
@@ -332,7 +242,6 @@ impl TestServer {
         resp.json().await.unwrap()
     }
 
-    /// Create a game with custom settings via the API.
     pub async fn create_game_with(&self, opts: Value) -> i64 {
         let mut body = json!({
             "cols": 9, "komi": 6.5, "handicap": 0, "color": "black",
@@ -359,48 +268,39 @@ impl TestServer {
         body["id"].as_i64().expect("game id missing from response")
     }
 
-    /// Create a game and have white join it. Returns the game id.
     pub async fn create_and_join(&self) -> i64 {
         let game_id = self.create_game().await;
         self.join_game(game_id).await;
         game_id
     }
 
-    /// Create a game with custom settings and have white join. Returns game id.
     pub async fn create_and_join_with(&self, opts: Value) -> i64 {
         let game_id = self.create_game_with(opts).await;
         self.join_game(game_id).await;
         game_id
     }
 
-    /// Create a challenge game (black invites white). Returns the game id.
-    /// The game starts in "challenge" stage — white must accept or decline.
     pub async fn create_challenge(&self) -> i64 {
         self.create_game_with(json!({"invite_username": "test-white"}))
             .await
     }
 
-    /// Open a WebSocket connection authenticated as the black user.
     pub async fn ws_black(&self) -> WsClient {
         self.ws_connect(&self.jar_black).await
     }
 
-    /// Open a WebSocket connection authenticated as the white user.
     pub async fn ws_white(&self) -> WsClient {
         self.ws_connect(&self.jar_white).await
     }
 
-    /// Open a WebSocket connection authenticated as the spectator user.
     pub async fn ws_spectator(&self) -> WsClient {
         self.ws_connect(&self.jar_spectator).await
     }
 
-    /// Create a private 9x9 game via the API (black is creator, plays black).
     pub async fn create_private_game(&self) -> i64 {
         self.create_game_with(json!({"is_private": true})).await
     }
 
-    /// Get the access token for a game.
     pub async fn get_access_token(&self, game_id: i64) -> String {
         sqlx::query_scalar::<_, String>("SELECT access_token FROM games WHERE id = $1")
             .bind(game_id)
@@ -409,7 +309,6 @@ impl TestServer {
             .unwrap()
     }
 
-    /// Get the invite token for a game.
     pub async fn get_invite_token(&self, game_id: i64) -> String {
         sqlx::query_scalar::<_, String>("SELECT invite_token FROM games WHERE id = $1")
             .bind(game_id)
@@ -418,7 +317,6 @@ impl TestServer {
             .unwrap()
     }
 
-    /// Mark an existing game invite-only and assign the provided invite token.
     pub async fn make_game_invite_only(&self, game_id: i64, invite_token: &str) {
         sqlx::query("UPDATE games SET invite_only = true, invite_token = $2 WHERE id = $1")
             .bind(game_id)
@@ -428,7 +326,6 @@ impl TestServer {
             .unwrap();
     }
 
-    /// Have the spectator user attempt to join an existing game via the API.
     pub async fn join_game_as_spectator(&self, game_id: i64) -> reqwest::Response {
         self.client_spectator
             .post(format!("http://{}/api/games/{game_id}/join", self.addr))
@@ -439,7 +336,6 @@ impl TestServer {
             .unwrap()
     }
 
-    /// Have the spectator user attempt to join a private game with an access token.
     pub async fn join_private_game_as_spectator(
         &self,
         game_id: i64,
@@ -454,7 +350,6 @@ impl TestServer {
             .unwrap()
     }
 
-    /// Have the spectator user attempt to get a game via the API.
     pub async fn get_game_as_spectator(&self, game_id: i64) -> reqwest::Response {
         self.client_spectator
             .get(format!("http://{}/api/games/{game_id}", self.addr))
@@ -464,7 +359,6 @@ impl TestServer {
             .unwrap()
     }
 
-    /// Create a game via the API expecting an error.
     pub async fn try_create_game_with(&self, opts: Value) -> reqwest::Response {
         let mut body = json!({
             "cols": 9, "komi": 6.5, "handicap": 0, "color": "black",
@@ -483,12 +377,9 @@ impl TestServer {
             .unwrap()
     }
 
-    /// Create a game, have white join, then both pass to enter territory review.
-    /// Returns the game id.
     pub async fn enter_territory_review(&self) -> i64 {
         let game_id = self.create_and_join().await;
 
-        // Black passes
         let resp = self
             .client_black
             .post(format!("http://{}/api/games/{game_id}/pass", self.addr))
@@ -502,7 +393,6 @@ impl TestServer {
             resp.status()
         );
 
-        // White passes — triggers territory review
         let resp = self
             .client_white
             .post(format!("http://{}/api/games/{game_id}/pass", self.addr))
@@ -521,17 +411,9 @@ impl TestServer {
 
     async fn ws_connect(&self, jar: &Arc<Jar>) -> WsClient {
         let url = format!("ws://{}/ws", self.addr);
-        let req_url = reqwest::Url::parse(&format!("http://{}", self.addr)).unwrap();
-
-        // Extract cookies from the jar for this domain
-        let cookie_header = jar
-            .cookies(&req_url)
-            .map(|c| c.to_str().unwrap().to_string())
-            .unwrap_or_default();
-
         let request = tungstenite::http::Request::builder()
             .uri(&url)
-            .header("Cookie", cookie_header)
+            .header("Cookie", cookies_for(jar, &format!("http://{}", self.addr)))
             .header("Host", &self.addr)
             .header("Connection", "Upgrade")
             .header("Upgrade", "websocket")
@@ -543,16 +425,19 @@ impl TestServer {
             .body(())
             .unwrap();
 
-        let (stream, _response) = tokio_tungstenite::connect_async(request)
-            .await
-            .expect("WebSocket connect failed");
-
+        let (stream, _) = tokio_tungstenite::connect_async(request).await.unwrap();
         let (sink, stream) = stream.split();
         WsClient { sink, stream }
     }
 }
 
-/// A WebSocket client wrapping a split tokio-tungstenite connection.
+fn cookies_for(jar: &Jar, url: &str) -> String {
+    let url = reqwest::Url::parse(url).unwrap();
+    jar.cookies(&url)
+        .and_then(|v| v.to_str().ok().map(ToOwned::to_owned))
+        .unwrap_or_default()
+}
+
 pub struct WsClient {
     sink: futures_util::stream::SplitSink<
         tokio_tungstenite::WebSocketStream<
@@ -568,7 +453,6 @@ pub struct WsClient {
 }
 
 impl WsClient {
-    /// Create a WsClient from pre-split sink and stream (for custom auth scenarios).
     pub fn from_parts(
         sink: futures_util::stream::SplitSink<
             tokio_tungstenite::WebSocketStream<
@@ -582,24 +466,21 @@ impl WsClient {
             >,
         >,
     ) -> Self {
-        WsClient { sink, stream }
+        Self { sink, stream }
     }
 
-    /// Send a JSON message.
-    pub async fn send(&mut self, msg: Value) {
+    pub async fn send(&mut self, value: serde_json::Value) {
         self.sink
-            .send(tungstenite::Message::Text(msg.to_string().into()))
+            .send(tungstenite::Message::Text(value.to_string().into()))
             .await
-            .expect("WS send failed");
+            .unwrap();
     }
 
-    /// Receive the next text message as JSON (5s timeout).
-    pub async fn recv(&mut self) -> Value {
-        self.recv_timeout(Duration::from_secs(5)).await
+    pub async fn recv(&mut self) -> serde_json::Value {
+        self.recv_timeout(std::time::Duration::from_secs(5)).await
     }
 
-    /// Receive with a custom timeout.
-    pub async fn recv_timeout(&mut self, timeout: Duration) -> Value {
+    pub async fn recv_timeout(&mut self, timeout: std::time::Duration) -> serde_json::Value {
         let msg = tokio::time::timeout(timeout, self.stream.next())
             .await
             .expect("WS recv timed out")
@@ -607,16 +488,13 @@ impl WsClient {
             .expect("WS recv error");
 
         match msg {
-            tungstenite::Message::Text(text) => {
-                serde_json::from_str(&text).expect("WS message not valid JSON")
-            }
+            tungstenite::Message::Text(text) => serde_json::from_str(&text).unwrap(),
             other => panic!("Expected text WS message, got: {other:?}"),
         }
     }
 
-    /// Skip messages until one has a matching `kind` field. Returns that message.
-    pub async fn recv_kind(&mut self, kind: &str) -> Value {
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    pub async fn recv_kind(&mut self, kind: &str) -> serde_json::Value {
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
         loop {
             let remaining = deadline - tokio::time::Instant::now();
             let msg = self.recv_timeout(remaining).await;
@@ -626,13 +504,7 @@ impl WsClient {
         }
     }
 
-    // -- Game action helpers --
-    // These only SEND the message. Tests must recv and assert responses themselves,
-    // since different actions produce different message kinds, and the other player
-    // also needs to consume their own broadcasts.
-
-    /// Send join_game and wait for the initial `state_sync` response.
-    pub async fn join_game(&mut self, game_id: i64) -> Value {
+    pub async fn join_game(&mut self, game_id: i64) -> serde_json::Value {
         self.send(json!({"action": "join_game", "game_id": game_id}))
             .await;
         self.recv_kind("state_sync").await
@@ -733,7 +605,6 @@ impl WsClient {
             .await;
     }
 
-    /// Close the WebSocket connection (simulates browser close / disconnect).
     pub async fn close(self) {
         let mut sink = self.sink;
         let _ = sink.close().await;

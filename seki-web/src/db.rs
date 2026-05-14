@@ -1,15 +1,27 @@
-use sqlx::postgres::{PgPool, PgPoolOptions};
+use std::str::FromStr;
 
-pub type DbPool = PgPool;
+use sqlx::sqlite::{
+    SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions, SqliteSynchronous,
+};
+
+pub type DbPool = SqlitePool;
+
+const SQLITE_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations_sqlite");
 
 pub async fn create_pool(database_url: &str) -> Result<DbPool, sqlx::Error> {
-    let pool = PgPoolOptions::new()
+    let options = SqliteConnectOptions::from_str(database_url)?
+        .create_if_missing(true)
+        .foreign_keys(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .synchronous(SqliteSynchronous::Normal);
+
+    let pool = SqlitePoolOptions::new()
         .max_connections(5)
-        .connect(database_url)
+        .connect_with(options)
         .await?;
     Ok(pool)
 }
 
 pub async fn run_migrations(pool: &DbPool) -> Result<(), sqlx::migrate::MigrateError> {
-    sqlx::migrate!("./migrations").run(pool).await
+    SQLITE_MIGRATOR.run(pool).await
 }

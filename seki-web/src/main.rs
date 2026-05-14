@@ -11,8 +11,8 @@ async fn main() {
         )
         .init();
 
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://seki:seki@localhost:5432/seki".to_string());
+    let database_url =
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://seki.db".to_string());
     let pool = seki_web::db::create_pool(&database_url)
         .await
         .expect("Failed to create database pool");

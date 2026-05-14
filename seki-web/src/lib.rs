@@ -4,7 +4,7 @@ use tokio::sync::broadcast;
 use tower_http::services::ServeDir;
 use tower_sessions::cookie::time::Duration;
 use tower_sessions::{Expiry, SessionManagerLayer};
-use tower_sessions_sqlx_store::PostgresStore;
+use tower_sessions_sqlx_store::SqliteStore;
 
 pub mod db;
 pub mod error;
@@ -52,7 +52,7 @@ pub async fn build_router_with_registry_and_presence(
     registry: ws::registry::GameRegistry,
     presence: ws::presence::UserPresence,
 ) -> (Router, AppState) {
-    let session_store = PostgresStore::new(pool.clone());
+    let session_store = SqliteStore::new(pool.clone());
     session_store
         .migrate()
         .await

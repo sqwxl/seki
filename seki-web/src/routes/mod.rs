@@ -24,8 +24,7 @@ pub(crate) fn serialize_user_data(user: &crate::session::CurrentUser) -> String 
         .unwrap_or_else(|_| "{}".to_string())
 }
 
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
-#[derive(serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum FlashSeverity {
     Error,
@@ -34,8 +33,7 @@ pub(crate) enum FlashSeverity {
     Info,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-#[derive(serde::Deserialize)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq, serde::Deserialize)]
 pub(crate) struct FlashMessage {
     pub message: String,
     pub severity: FlashSeverity,

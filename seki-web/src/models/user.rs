@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use rand::RngExt;
 use sqlx::FromRow;
+use sqlx::QueryBuilder;
+use sqlx::Sqlite;
 
 use crate::db::DbPool;
 
@@ -39,7 +41,7 @@ pub struct User {
 
 impl User {
     pub async fn find_by_id(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         id: i64,
     ) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
@@ -49,18 +51,25 @@ impl User {
     }
 
     pub async fn find_by_ids(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         ids: &[i64],
     ) -> Result<Vec<User>, sqlx::Error> {
-        // Use ANY($1) with a slice parameter for Postgres
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = ANY($1)")
-            .bind(ids)
-            .fetch_all(executor)
-            .await
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut query = QueryBuilder::<Sqlite>::new("SELECT * FROM users WHERE id IN (");
+        let mut separated = query.separated(", ");
+        for id in ids {
+            separated.push_bind(id);
+        }
+        separated.push_unseparated(")");
+
+        query.build_query_as::<User>().fetch_all(executor).await
     }
 
     pub async fn find_by_session_token(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         token: &str,
     ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE session_token = $1")
@@ -70,7 +79,7 @@ impl User {
     }
 
     pub async fn find_by_email(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         email: &str,
     ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
@@ -121,7 +130,7 @@ impl User {
     }
 
     pub async fn find_by_username(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         username: &str,
     ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
@@ -131,13 +140,13 @@ impl User {
     }
 
     pub async fn set_credentials(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,
         username: &str,
         password_hash: &str,
     ) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "UPDATE users SET username = $1, password_hash = $2, updated_at = NOW() WHERE id = $3 RETURNING *",
+            "UPDATE users SET username = $1, password_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *",
         )
         .bind(username)
         .bind(password_hash)
@@ -147,12 +156,12 @@ impl User {
     }
 
     pub async fn update_username(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,
         username: &str,
     ) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "UPDATE users SET username = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+            "UPDATE users SET username = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
         )
         .bind(username)
         .bind(user_id)
@@ -161,7 +170,7 @@ impl User {
     }
 
     pub async fn find_by_api_token(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         token: &str,
     ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE api_token = $1")
@@ -171,16 +180,19 @@ impl User {
     }
 
     pub async fn update_preferences(
-        executor: impl sqlx::PgExecutor<'_>,
+        pool: &DbPool,
         user_id: i64,
         preferences: &serde_json::Value,
     ) -> Result<User, sqlx::Error> {
+        let mut user = Self::find_by_id(pool, user_id).await?;
+        merge_json(&mut user.preferences, preferences);
+
         sqlx::query_as::<_, User>(
-            "UPDATE users SET preferences = preferences || $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+            "UPDATE users SET preferences = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
         )
-        .bind(preferences)
+        .bind(&user.preferences)
         .bind(user_id)
-        .fetch_one(executor)
+        .fetch_one(pool)
         .await
     }
 
@@ -203,7 +215,7 @@ impl User {
                  AND black_id IS NOT NULL AND white_id IS NOT NULL \
                  GROUP BY opponent_id \
              ) g ON u.id = g.opponent_id \
-             WHERE u.id != $1 AND u.username ILIKE $2 \
+             WHERE u.id != $1 AND u.username LIKE $2 COLLATE NOCASE \
              ORDER BY (g.opponent_id IS NOT NULL) DESC, \
                       COALESCE(g.last_played, u.updated_at) DESC \
              LIMIT $3",
@@ -244,12 +256,12 @@ impl User {
     }
 
     pub async fn update_email(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,
         email: &str,
     ) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+            "UPDATE users SET email = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
         )
         .bind(email)
         .bind(user_id)
@@ -258,12 +270,12 @@ impl User {
     }
 
     pub async fn generate_api_token(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,
     ) -> Result<User, sqlx::Error> {
         let token = generate_token();
         sqlx::query_as::<_, User>(
-            "UPDATE users SET api_token = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
+            "UPDATE users SET api_token = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
         )
         .bind(&token)
         .bind(user_id)
@@ -301,4 +313,20 @@ fn generate_token() -> String {
             b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[idx] as char
         })
         .collect()
+}
+
+fn merge_json(target: &mut serde_json::Value, patch: &serde_json::Value) {
+    match (target, patch) {
+        (serde_json::Value::Object(target_map), serde_json::Value::Object(patch_map)) => {
+            for (key, value) in patch_map {
+                match target_map.get_mut(key) {
+                    Some(existing) => merge_json(existing, value),
+                    None => {
+                        target_map.insert(key.clone(), value.clone());
+                    }
+                }
+            }
+        }
+        (target_value, patch_value) => *target_value = patch_value.clone(),
+    }
 }

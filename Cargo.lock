@@ -1481,6 +1481,7 @@ version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e99fb7a497b1e3339bc746195567ed8d3e24945ecd636e3619d20b9de9e9149"
 dependencies = [
+ "cc",
  "pkg-config",
  "vcpkg",
 ]
@@ -2345,7 +2346,6 @@ dependencies = [
  "serde_urlencoded",
  "sqlx",
  "testcontainers",
- "testcontainers-modules",
  "tokio",
  "tokio-tungstenite 0.26.2",
  "tower",
@@ -2928,15 +2928,6 @@ dependencies = [
  "tokio-tar",
  "tokio-util",
  "url",
-]
-
-[[package]]
-name = "testcontainers-modules"
-version = "0.11.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d43ed4e8f58424c3a2c6c56dbea6643c3c23e8666a34df13c54f0a184e6c707"
-dependencies = [
- "testcontainers",
 ]
 
 [[package]]

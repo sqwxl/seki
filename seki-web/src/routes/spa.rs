@@ -6,8 +6,8 @@ use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
-use crate::routes::{FlashMessage, FlashSeverity, serialize_user_data, set_flash, take_flash};
 use crate::routes::web_api::bootstrap_for_location;
+use crate::routes::{FlashMessage, FlashSeverity, serialize_user_data, set_flash, take_flash};
 use crate::session::CurrentUser;
 use crate::templates::shell::SpaShellTemplate;
 
@@ -20,7 +20,9 @@ pub async fn shell(
     let bootstrap = match bootstrap_for_location(&state, &current_user, &uri).await {
         Ok(payload) => payload,
         Err(error) => {
-            if let Some(target) = redirect_target_for_navigation_error(&session, &uri, &error).await? {
+            if let Some(target) =
+                redirect_target_for_navigation_error(&session, &uri, &error).await?
+            {
                 return Ok(Redirect::to(&target).into_response());
             }
             return Err(error);

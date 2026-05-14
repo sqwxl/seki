@@ -847,7 +847,7 @@ where
 }
 
 pub(super) async fn persist_stage(
-    executor: impl sqlx::PgExecutor<'_>,
+    executor: impl sqlx::SqliteExecutor<'_>,
     game_id: i64,
     engine: &Engine,
 ) -> Result<(), AppError> {
@@ -882,7 +882,7 @@ struct ClockMoveParams {
 /// Process clock after a play or pass move.
 async fn process_clock_after_move(
     state: &AppState,
-    executor: impl sqlx::PgExecutor<'_>,
+    executor: impl sqlx::SqliteExecutor<'_>,
     game_id: i64,
     game: &Game,
     params: ClockMoveParams,
@@ -937,7 +937,7 @@ async fn process_clock_after_move(
 /// Pause the clock (territory review, game end).
 pub(super) async fn pause_clock(
     state: &AppState,
-    executor: impl sqlx::PgExecutor<'_>,
+    executor: impl sqlx::SqliteExecutor<'_>,
     game_id: i64,
     game: &Game,
 ) -> Result<(), AppError> {
@@ -977,7 +977,7 @@ async fn load_or_init_clock(
 /// DB is written first so a failure doesn't leave the in-memory cache ahead of DB.
 pub(super) async fn persist_clock(
     state: &AppState,
-    executor: impl sqlx::PgExecutor<'_>,
+    executor: impl sqlx::SqliteExecutor<'_>,
     game_id: i64,
     clock: &ClockState,
     tc: &TimeControl,

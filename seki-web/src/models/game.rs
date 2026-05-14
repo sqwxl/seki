@@ -12,7 +12,7 @@ use crate::models::user::User;
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, sqlx::Type, Serialize, Deserialize, utoipa::ToSchema,
 )]
-#[sqlx(type_name = "time_control_type", rename_all = "lowercase")]
+#[sqlx(type_name = "TEXT", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 #[derive(Default)]
 pub enum TimeControlType {
@@ -88,13 +88,13 @@ impl Game {
     }
 
     pub async fn list_public(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
     ) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games WHERE is_private = false \
-             AND result IS DISTINCT FROM 'Aborted' \
-             AND result IS DISTINCT FROM 'Declined' \
-             AND (result IS NULL OR updated_at >= now() - interval '5 minutes') \
+             AND COALESCE(result, '') != 'Aborted' \
+             AND COALESCE(result, '') != 'Declined' \
+             AND (result IS NULL OR updated_at >= datetime('now', '-5 minutes')) \
              ORDER BY updated_at DESC",
         )
         .fetch_all(executor)
@@ -120,9 +120,9 @@ impl Game {
     ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
         let games = sqlx::query_as::<_, Game>(
             "SELECT * FROM games WHERE (black_id = $1 OR white_id = $1) \
-             AND result IS DISTINCT FROM 'Aborted' \
-             AND result IS DISTINCT FROM 'Declined' \
-             AND (result IS NULL OR updated_at >= now() - interval '5 minutes') \
+             AND COALESCE(result, '') != 'Aborted' \
+             AND COALESCE(result, '') != 'Declined' \
+             AND (result IS NULL OR updated_at >= datetime('now', '-5 minutes')) \
              ORDER BY updated_at DESC",
         )
         .bind(user_id)
@@ -203,7 +203,7 @@ impl Game {
     }
 
     pub async fn delete(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query("DELETE FROM games WHERE id = $1")
@@ -214,7 +214,7 @@ impl Game {
     }
 
     pub async fn find_by_id(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         id: i64,
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>("SELECT * FROM games WHERE id = $1")
@@ -253,7 +253,7 @@ impl Game {
 
     #[allow(clippy::too_many_arguments)]
     pub async fn create(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         creator_id: i64,
         black_id: Option<i64>,
         white_id: Option<i64>,
@@ -314,11 +314,11 @@ impl Game {
     }
 
     pub async fn set_black(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         user_id: i64,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE games SET black_id = $1, updated_at = NOW() WHERE id = $2")
+        sqlx::query("UPDATE games SET black_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2")
             .bind(user_id)
             .bind(game_id)
             .execute(executor)
@@ -327,11 +327,11 @@ impl Game {
     }
 
     pub async fn set_white(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         user_id: i64,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE games SET white_id = $1, updated_at = NOW() WHERE id = $2")
+        sqlx::query("UPDATE games SET white_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2")
             .bind(user_id)
             .bind(game_id)
             .execute(executor)
@@ -340,11 +340,11 @@ impl Game {
     }
 
     pub async fn swap_players(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "UPDATE games SET black_id = white_id, white_id = black_id, updated_at = NOW() WHERE id = $1",
+            "UPDATE games SET black_id = white_id, white_id = black_id, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
         )
         .bind(game_id)
         .execute(executor)
@@ -353,24 +353,26 @@ impl Game {
     }
 
     pub async fn set_undo_rejected(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         rejected: bool,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE games SET undo_rejected = $1, updated_at = NOW() WHERE id = $2")
-            .bind(rejected)
-            .bind(game_id)
-            .execute(executor)
-            .await?;
+        sqlx::query(
+            "UPDATE games SET undo_rejected = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+        )
+        .bind(rejected)
+        .bind(game_id)
+        .execute(executor)
+        .await?;
         Ok(())
     }
 
     pub async fn set_started(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "UPDATE games SET started_at = NOW(), updated_at = NOW() WHERE id = $1 AND started_at IS NULL",
+            "UPDATE games SET started_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND started_at IS NULL",
         )
         .bind(game_id)
         .execute(executor)
@@ -379,11 +381,11 @@ impl Game {
     }
 
     pub async fn set_stage(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         stage: &str,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE games SET stage = $1, updated_at = NOW() WHERE id = $2")
+        sqlx::query("UPDATE games SET stage = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2")
             .bind(stage)
             .bind(game_id)
             .execute(executor)
@@ -395,13 +397,13 @@ impl Game {
     /// (i.e. the game hadn't already ended). Callers should skip post-actions
     /// when this returns `false` to avoid duplicate broadcasts.
     pub async fn set_ended(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         result: &str,
         stage: &str,
     ) -> Result<bool, sqlx::Error> {
         let res = sqlx::query(
-            "UPDATE games SET ended_at = NOW(), result = $1, stage = $2, updated_at = NOW() \
+            "UPDATE games SET ended_at = CURRENT_TIMESTAMP, result = $1, stage = $2, updated_at = CURRENT_TIMESTAMP \
              WHERE id = $3 AND result IS NULL",
         )
         .bind(result)
@@ -413,11 +415,11 @@ impl Game {
     }
 
     pub async fn update_cached_engine_state(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         state: &str,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE games SET cached_engine_state = $1, updated_at = NOW() WHERE id = $2")
+        sqlx::query("UPDATE games SET cached_engine_state = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2")
             .bind(state)
             .bind(game_id)
             .execute(executor)
@@ -426,7 +428,7 @@ impl Game {
     }
 
     pub async fn update_clock(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         update: &crate::services::clock::ClockUpdate,
     ) -> Result<(), sqlx::Error> {
@@ -435,7 +437,7 @@ impl Game {
              clock_black_ms = $2, clock_white_ms = $3, \
              clock_black_periods = $4, clock_white_periods = $5, \
              clock_active_stone = $6, clock_last_move_at = $7, \
-             clock_expires_at = $8, updated_at = NOW() \
+             clock_expires_at = $8, updated_at = CURRENT_TIMESTAMP \
              WHERE id = $1",
         )
         .bind(game_id)
@@ -453,7 +455,7 @@ impl Game {
 
     /// Load settled territory data (dead stones + scores) for a finished game.
     pub async fn load_settled_territory(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<Option<(Option<serde_json::Value>, i32, i32, i32, i32)>, sqlx::Error> {
         sqlx::query_as::<_, (Option<serde_json::Value>, i32, i32, i32, i32)>(
@@ -469,25 +471,25 @@ impl Game {
     }
 
     pub async fn find_expired_clocks(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
     ) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games \
              WHERE result IS NULL \
              AND clock_expires_at IS NOT NULL \
-             AND clock_expires_at < NOW()",
+             AND clock_expires_at < CURRENT_TIMESTAMP",
         )
         .fetch_all(executor)
         .await
     }
 
     pub async fn set_territory_review_deadline(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         expires_at: DateTime<Utc>,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "UPDATE games SET territory_review_expires_at = $1, updated_at = NOW() WHERE id = $2",
+            "UPDATE games SET territory_review_expires_at = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
         )
         .bind(expires_at)
         .bind(game_id)
@@ -497,11 +499,11 @@ impl Game {
     }
 
     pub async fn clear_territory_review_deadline(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "UPDATE games SET territory_review_expires_at = NULL, updated_at = NOW() WHERE id = $1",
+            "UPDATE games SET territory_review_expires_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
         )
         .bind(game_id)
         .execute(executor)
@@ -510,13 +512,13 @@ impl Game {
     }
 
     pub async fn find_expired_territory_reviews(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
     ) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games \
              WHERE result IS NULL \
              AND territory_review_expires_at IS NOT NULL \
-             AND territory_review_expires_at < NOW()",
+             AND territory_review_expires_at < CURRENT_TIMESTAMP",
         )
         .fetch_all(executor)
         .await

@@ -46,7 +46,7 @@ pub async fn build_engine(pool: &DbPool, game: &Game) -> Result<Engine, sqlx::Er
 }
 
 pub async fn cache_engine_state(
-    executor: impl sqlx::PgExecutor<'_>,
+    executor: impl sqlx::SqliteExecutor<'_>,
     game_id: i64,
     engine: &Engine,
     turn_count: i64,

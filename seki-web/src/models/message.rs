@@ -27,7 +27,7 @@ pub struct MessageWithSender {
 
 impl Message {
     pub async fn find_by_game_id(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<Vec<Message>, sqlx::Error> {
         sqlx::query_as::<_, Message>(
@@ -39,7 +39,7 @@ impl Message {
     }
 
     pub async fn find_by_game_id_with_sender(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
     ) -> Result<Vec<MessageWithSender>, sqlx::Error> {
         sqlx::query_as::<_, MessageWithSender>(
@@ -53,7 +53,7 @@ impl Message {
     }
 
     pub async fn create(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         user_id: Option<i64>,
         client_message_id: Option<&str>,
@@ -77,7 +77,7 @@ impl Message {
     }
 
     pub async fn create_system(
-        executor: impl sqlx::PgExecutor<'_>,
+        executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
         text: &str,
         move_number: Option<i32>,
