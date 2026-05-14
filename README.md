@@ -63,6 +63,8 @@ Notes:
 
 - `./scripts/deploy-prebuilt.sh` builds locally, then uploads the release to `nilueps@pi.local` by default.
 - Override `DEPLOY_HOST` if you need a different SSH target, or `APP_DIR` if you want a different remote install path.
+- For Tailscale Funnel, set `BASE_URL=https://pi.basilisk-aeolian.ts.net` and `ENVIRONMENT=production` in `~/.config/seki/seki.env`.
+- `BASE_URL` is used for generated invite email links; it is not used for routing.
 - The deploy build always targets the Pi's `aarch64-unknown-linux-gnu` architecture.
 - The Rust release build always runs inside the `seki-build` Ubuntu 24.04 toolbox, and the script will create it if needed.
 - The script provisions `crossbuild-essential-arm64` and `pkg-config` inside the toolbox automatically and runs `rustup target add aarch64-unknown-linux-gnu` there.
@@ -158,12 +160,12 @@ Notes:
 
 - [x] REST API with Bearer token authentication
 - [x] Game CRUD, moves, pass, resign, undo, territory, chat, turns
-- [x] Public endpoints (list/get games, messages, turns) without auth
+- [x] Public endpoints for public game data (list/get games, messages, turns) without auth
 - [x] Structured JSON error envelopes with machine-readable error codes
 - [ ] Versioning
 - [x] Docs (OpenAPI via Scalar)
   - [ ] Generated clients
-- [ ] Rate limiting
+- [x] Rate limiting
 - [ ] Bots
 
 ### Social

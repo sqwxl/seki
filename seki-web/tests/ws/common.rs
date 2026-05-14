@@ -116,13 +116,14 @@ impl TestServer {
 
         tokio::spawn(async move {
             use axum::extract::Request;
+            use std::net::SocketAddr;
             use tower::Layer as _;
             use tower_http::normalize_path::NormalizePathLayer;
 
             let app = NormalizePathLayer::trim_trailing_slash().layer(router);
             axum::serve(
                 listener,
-                axum::ServiceExt::<Request>::into_make_service(app),
+                axum::ServiceExt::<Request>::into_make_service_with_connect_info::<SocketAddr>(app),
             )
             .await
             .unwrap();

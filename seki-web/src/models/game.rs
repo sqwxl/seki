@@ -92,6 +92,7 @@ impl Game {
     ) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games WHERE is_private = false \
+             AND invite_only = false \
              AND COALESCE(result, '') != 'Aborted' \
              AND COALESCE(result, '') != 'Declined' \
              AND (result IS NULL OR updated_at >= datetime('now', '-5 minutes')) \

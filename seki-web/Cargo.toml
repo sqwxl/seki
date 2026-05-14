@@ -16,6 +16,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "normalize-path", "set-header"] }
+tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
 tracing = "0.1"
 tower-livereload = "0.10"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

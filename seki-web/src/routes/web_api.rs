@@ -235,12 +235,11 @@ async fn load_game_show(
 
     let mut gwp = Game::find_with_players(&state.db, id).await?;
     let mut is_player = gwp.has_player(current_user.id);
-    let has_valid_access_token = gwp
-        .game
-        .access_token
-        .as_deref()
-        .zip(query.access_token.as_deref())
-        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+    let tokens = crate::services::game_access::GameViewTokens {
+        access_token: query.access_token.as_deref(),
+        invite_token: query.invite_token.as_deref(),
+    };
+    let has_valid_access_token = crate::services::game_access::has_valid_token(&gwp, tokens);
     let has_valid_invite_token = gwp
         .game
         .invite_token
@@ -268,9 +267,9 @@ async fn load_game_show(
         is_player = true;
     }
 
-    if gwp.game.requires_access_token_to_view() && !is_player && !has_valid_access_token {
+    if !crate::services::game_access::can_view_game(&gwp, Some(current_user.id), tokens) {
         return Err(AppError::Forbidden(
-            "This game is private. You need a valid access token to view it.".to_string(),
+            "This game is protected. You need a valid token to view it.".to_string(),
         ));
     }
 
@@ -391,9 +390,16 @@ async fn load_user_profile(
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-    let games = Game::list_all_for_player(&state.db, profile_user.id)
+    let mut games = Game::list_all_for_player(&state.db, profile_user.id)
         .await
         .unwrap_or_default();
+    games.retain(|gwp| {
+        crate::services::game_access::can_view_game(
+            gwp,
+            Some(current_user.id),
+            crate::services::game_access::GameViewTokens::default(),
+        )
+    });
     let items = build_live_items(&state.db, &games).await;
     let is_own_profile = current_user.id == profile_user.id;
 

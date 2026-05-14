@@ -54,7 +54,7 @@ function connect() {
     }
     // Re-join any game rooms after reconnect
     for (const gameId of gameHandlers.keys()) {
-      ws!.send(JSON.stringify({ action: "join_game", game_id: gameId }));
+      ws!.send(JSON.stringify(joinGameMessage(gameId)));
     }
     // Flush pending sends
     for (const msg of pendingSends) {
@@ -118,6 +118,16 @@ function connect() {
   };
 }
 
+function joinGameMessage(gameId: number): Record<string, unknown> {
+  const search = new URLSearchParams(location.search);
+  return {
+    action: "join_game",
+    game_id: gameId,
+    access_token: search.get("access_token") ?? undefined,
+    invite_token: search.get("invite_token") ?? undefined,
+  };
+}
+
 /**
  * Send a JSON message to the server.
  * If the socket isn't ready yet, the message is queued.
@@ -171,7 +181,7 @@ function joinGame(gameId: number, handler: Handler): () => void {
   // Only send immediately if the socket is already open.
   // Otherwise, onopen will re-join all games from gameHandlers.
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ action: "join_game", game_id: gameId }));
+    ws.send(JSON.stringify(joinGameMessage(gameId)));
   } else {
     ensureConnected();
   }

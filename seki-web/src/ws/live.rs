@@ -101,6 +101,13 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
         match msg {
             Message::Text(text) => {
                 let text_str: &str = &text;
+                if text_str.len() > 16 * 1024 {
+                    let _ = tx.send(Arc::new(
+                        json!({"kind": "error", "message": "WebSocket message too large"})
+                            .to_string(),
+                    ));
+                    continue;
+                }
                 if let Ok(data) = serde_json::from_str::<serde_json::Value>(text_str) {
                     let action = data.get("action").and_then(|v| v.as_str()).unwrap_or("");
 
@@ -110,13 +117,36 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                         }
                         "join_game" => {
                             if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64()) {
-                                // Verify game exists
-                                if Game::find_by_id(&state.db, game_id).await.is_ok() {
+                                if let Ok(gwp) = Game::find_with_players(&state.db, game_id).await {
+                                    let tokens = crate::services::game_access::GameViewTokens {
+                                        access_token: data
+                                            .get("access_token")
+                                            .and_then(|v| v.as_str()),
+                                        invite_token: data
+                                            .get("invite_token")
+                                            .and_then(|v| v.as_str()),
+                                    };
+                                    if !crate::services::game_access::can_view_game(
+                                        &gwp,
+                                        Some(user_id),
+                                        tokens,
+                                    ) {
+                                        let _ = tx.send(Arc::new(
+                                            json!({
+                                                "kind": "error",
+                                                "game_id": game_id,
+                                                "message": "Not authorized",
+                                            })
+                                            .to_string(),
+                                        ));
+                                        continue;
+                                    }
+
                                     state.registry.join(game_id, user_id, tx.clone()).await;
                                     subscribed_games.insert(game_id);
 
                                     if let Err(e) = game_channel::send_initial_state(
-                                        &state, game_id, user_id, &tx,
+                                        &state, game_id, user_id, tokens, &tx,
                                     )
                                     .await
                                     {
@@ -126,23 +156,19 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                     }
 
                                     // Auto-subscribe to both players' presence
-                                    if let Ok(gwp) =
-                                        Game::find_with_players(&state.db, game_id).await
-                                    {
-                                        for user in [&gwp.black, &gwp.white].into_iter().flatten() {
-                                            state
-                                                .presence_subs
-                                                .subscribe(user.id, tx.clone())
-                                                .await;
-                                        }
-                                        let mut statuses = Vec::new();
-                                        for user in [&gwp.black, &gwp.white].into_iter().flatten() {
-                                            let online = state.presence.is_connected(user.id).await;
-                                            statuses.push((user.id, online));
-                                        }
-                                        let msg = crate::ws::presence_subscriptions::build_presence_state_msg(&statuses);
-                                        let _ = tx.send(std::sync::Arc::new(msg));
+                                    for user in [&gwp.black, &gwp.white].into_iter().flatten() {
+                                        state.presence_subs.subscribe(user.id, tx.clone()).await;
                                     }
+                                    let mut statuses = Vec::new();
+                                    for user in [&gwp.black, &gwp.white].into_iter().flatten() {
+                                        let online = state.presence.is_connected(user.id).await;
+                                        statuses.push((user.id, online));
+                                    }
+                                    let msg =
+                                        crate::ws::presence_subscriptions::build_presence_state_msg(
+                                            &statuses,
+                                        );
+                                    let _ = tx.send(std::sync::Arc::new(msg));
 
                                     // Mark game as read at current move count
                                     let mc = TurnRow::count_by_game_ids(&state.db, &[game_id])

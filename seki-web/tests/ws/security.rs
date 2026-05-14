@@ -204,6 +204,130 @@ async fn participant_can_chat_in_private_game() {
     );
 }
 
+#[tokio::test]
+async fn private_game_messages_hidden_from_non_participant() {
+    let server = TestServer::start().await;
+    let game_id = server.create_private_game().await;
+
+    let resp = server
+        .client_spectator
+        .get(format!(
+            "http://{}/api/games/{game_id}/messages",
+            server.addr
+        ))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 404);
+}
+
+#[tokio::test]
+async fn private_game_messages_visible_with_valid_token() {
+    let server = TestServer::start().await;
+    let game_id = server.create_private_game().await;
+    let token = server.get_access_token(game_id).await;
+
+    let resp = server
+        .client_spectator
+        .get(format!(
+            "http://{}/api/games/{game_id}/messages?access_token={token}",
+            server.addr
+        ))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+}
+
+#[tokio::test]
+async fn private_game_turns_hidden_from_non_participant() {
+    let server = TestServer::start().await;
+    let game_id = server.create_private_game().await;
+
+    let resp = server
+        .client_spectator
+        .get(format!("http://{}/api/games/{game_id}/turns", server.addr))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 404);
+}
+
+#[tokio::test]
+async fn private_games_hidden_from_public_user_history() {
+    let server = TestServer::start().await;
+    server.create_private_game().await;
+
+    let resp = server
+        .client_spectator
+        .get(format!("http://{}/api/users/test-black/games", server.addr))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+    let body: Vec<serde_json::Value> = resp.json().await.unwrap();
+    assert!(body.is_empty());
+}
+
+#[tokio::test]
+async fn private_game_ws_join_rejected_before_subscription() {
+    let server = TestServer::start().await;
+    let game_id = server.create_private_game().await;
+
+    let mut spectator = server.ws_spectator().await;
+    spectator
+        .send(json!({"action": "join_game", "game_id": game_id}))
+        .await;
+    let msg = spectator.recv_kind("error").await;
+    assert_eq!(msg["game_id"], game_id);
+    assert_eq!(msg["message"], "Not authorized");
+}
+
+#[tokio::test]
+async fn login_rate_limit_returns_429() {
+    let server = TestServer::start().await;
+    let mut saw_rate_limit = false;
+
+    for _ in 0..16 {
+        let resp = server
+            .client_spectator
+            .post(format!("http://{}/login", server.addr))
+            .form(&[("username", "test-spectator"), ("password", "wrong")])
+            .send()
+            .await
+            .unwrap();
+        if resp.status() == 429 {
+            saw_rate_limit = true;
+            assert!(resp.headers().contains_key("retry-after"));
+            break;
+        }
+    }
+
+    assert!(saw_rate_limit);
+}
+
+#[tokio::test]
+async fn responses_include_security_headers() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .client_black
+        .get(format!("http://{}/up", server.addr))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.headers()["referrer-policy"], "same-origin");
+    assert_eq!(resp.headers()["x-content-type-options"], "nosniff");
+    assert_eq!(resp.headers()["x-frame-options"], "DENY");
+    assert!(resp.headers().contains_key("content-security-policy"));
+    assert!(resp.headers().contains_key("permissions-policy"));
+}
+
 // -- Join Finished Game --
 
 #[tokio::test]

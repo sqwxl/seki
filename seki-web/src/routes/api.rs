@@ -3,6 +3,8 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use tower_governor::GovernorLayer;
+use tower_governor::governor::GovernorConfigBuilder;
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi, ToSchema};
 use utoipa_scalar::{Scalar, Servable};
@@ -130,6 +132,7 @@ struct CreateGameRequest {
 #[derive(Deserialize, ToSchema)]
 struct GetGameQuery {
     access_token: Option<String>,
+    invite_token: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -271,7 +274,18 @@ pub fn router() -> Router<AppState> {
         )
         .merge(Scalar::with_url("/docs", spec).custom_html(SCALAR_HTML))
         // Games
-        .route("/games", get(list_games).post(create_game))
+        .route("/games", get(list_games))
+        .route(
+            "/games",
+            post(create_game).layer(GovernorLayer::new(
+                GovernorConfigBuilder::default()
+                    .per_second(1)
+                    .burst_size(30)
+                    .use_headers()
+                    .finish()
+                    .expect("valid rate limit config"),
+            )),
+        )
         .route("/games/{id}", get(get_game).delete(delete_game))
         .route("/games/{id}/join", post(join_game))
         // Game actions
@@ -398,18 +412,15 @@ async fn get_game(
 ) -> Result<Json<GameResponse>, ApiError> {
     let gwp = Game::find_with_players(&state.db, id).await?;
 
-    // Private game access check
-    if gwp.game.is_private {
-        let user_id = api_user.as_ref().map(|u| u.id);
-        let has_valid_access_token = gwp
-            .game
-            .access_token
-            .as_deref()
-            .zip(query.access_token.as_deref())
-            .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
-        if !user_id.is_some_and(|uid| gwp.has_player(uid)) && !has_valid_access_token {
-            return Err(AppError::NotFound("Game not found".to_string()).into());
-        }
+    if !crate::services::game_access::can_view_game(
+        &gwp,
+        api_user.as_ref().map(|u| u.id),
+        crate::services::game_access::GameViewTokens {
+            access_token: query.access_token.as_deref(),
+            invite_token: query.invite_token.as_deref(),
+        },
+    ) {
+        return Err(AppError::NotFound("Game not found".to_string()).into());
     }
 
     let engine = state
@@ -903,9 +914,22 @@ async fn rematch_game(
 )]
 async fn get_messages(
     State(state): State<AppState>,
+    OptionalApiUser(api_user): OptionalApiUser,
+    axum::extract::Query(query): axum::extract::Query<GetGameQuery>,
     Path(id): Path<i64>,
 ) -> Result<Json<Vec<MessageResponse>>, ApiError> {
-    Game::find_by_id(&state.db, id).await?;
+    let gwp = Game::find_with_players(&state.db, id).await?;
+    if !crate::services::game_access::can_view_game(
+        &gwp,
+        api_user.as_ref().map(|u| u.id),
+        crate::services::game_access::GameViewTokens {
+            access_token: query.access_token.as_deref(),
+            invite_token: query.invite_token.as_deref(),
+        },
+    ) {
+        return Err(AppError::NotFound("Game not found".to_string()).into());
+    }
+
     let messages = Message::find_by_game_id(&state.db, id).await?;
 
     let items: Vec<MessageResponse> = messages
@@ -966,9 +990,22 @@ async fn send_message(
 )]
 async fn get_turns(
     State(state): State<AppState>,
+    OptionalApiUser(api_user): OptionalApiUser,
+    axum::extract::Query(query): axum::extract::Query<GetGameQuery>,
     Path(id): Path<i64>,
 ) -> Result<Json<Vec<TurnResponse>>, ApiError> {
-    Game::find_by_id(&state.db, id).await?;
+    let gwp = Game::find_with_players(&state.db, id).await?;
+    if !crate::services::game_access::can_view_game(
+        &gwp,
+        api_user.as_ref().map(|u| u.id),
+        crate::services::game_access::GameViewTokens {
+            access_token: query.access_token.as_deref(),
+            invite_token: query.invite_token.as_deref(),
+        },
+    ) {
+        return Err(AppError::NotFound("Game not found".to_string()).into());
+    }
+
     let turns = TurnRow::find_by_game_id(&state.db, id).await?;
 
     let items: Vec<TurnResponse> = turns
@@ -1022,12 +1059,20 @@ async fn get_user(
 )]
 async fn get_user_games(
     State(state): State<AppState>,
+    OptionalApiUser(api_user): OptionalApiUser,
     Path(username): Path<String>,
 ) -> Result<Json<Vec<crate::services::live::LiveGameItem>>, ApiError> {
     let user = User::find_by_username(&state.db, &username)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
-    let games = Game::list_all_for_player(&state.db, user.id).await?;
+    let mut games = Game::list_all_for_player(&state.db, user.id).await?;
+    games.retain(|gwp| {
+        crate::services::game_access::can_view_game(
+            gwp,
+            api_user.as_ref().map(|u| u.id),
+            crate::services::game_access::GameViewTokens::default(),
+        )
+    });
     let items = build_live_items(&state.db, &games).await;
     Ok(Json(items))
 }

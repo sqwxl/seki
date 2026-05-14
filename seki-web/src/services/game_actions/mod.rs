@@ -517,9 +517,9 @@ pub async fn send_chat(
             "Message cannot be empty".to_string(),
         ));
     }
-    if text.len() > 1000 {
+    if text.len() > 160 {
         return Err(AppError::UnprocessableEntity(
-            "Message too long (max 1000 characters)".to_string(),
+            "Message too long (max 160 characters)".to_string(),
         ));
     }
 

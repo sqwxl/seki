@@ -20,12 +20,13 @@ pub async fn send_initial_state(
     state: &AppState,
     game_id: i64,
     player_id: i64,
+    tokens: crate::services::game_access::GameViewTokens<'_>,
     tx: &WsSender,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let gwp = Game::find_with_players(&state.db, game_id).await?;
 
-    // Authorization: private games only allow users
-    if gwp.game.is_private && !gwp.has_player(player_id) {
+    // Defense in depth: join_game authorizes before room subscription.
+    if !crate::services::game_access::can_view_game(&gwp, Some(player_id), tokens) {
         send_to_client(
             tx,
             &json!({"kind": "error", "game_id": game_id, "message": "Not authorized"}).to_string(),

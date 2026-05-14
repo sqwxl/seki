@@ -34,8 +34,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
     cat >"$ENV_FILE" <<EOF
 DATABASE_URL=sqlite://$DATA_DIR/seki.db
 PORT=3000
-BASE_URL=http://localhost:3000
-# ENVIRONMENT=production
+BASE_URL=https://pi.basilisk-aeolian.ts.net
+ENVIRONMENT=production
 EOF
 fi
 

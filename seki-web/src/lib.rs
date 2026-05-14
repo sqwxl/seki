@@ -1,7 +1,12 @@
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
+use axum::http::{HeaderName, HeaderValue, header};
 use axum::routing::{get, patch, post};
 use tokio::sync::broadcast;
+use tower_governor::GovernorLayer;
+use tower_governor::governor::GovernorConfigBuilder;
 use tower_http::services::ServeDir;
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_sessions::cookie::time::Duration;
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
@@ -72,13 +77,22 @@ pub async fn build_router_with_registry_and_presence(
         live_tx,
         mailer,
     };
-
     let app = Router::new()
         .route("/analysis", get(routes::spa::shell))
         .route("/", get(routes::spa::shell))
         .route("/games", get(routes::spa::shell))
         .route("/games/new", get(routes::spa::shell))
-        .route("/games", post(routes::games::create_game))
+        .route(
+            "/games",
+            post(routes::games::create_game).layer(GovernorLayer::new(
+                GovernorConfigBuilder::default()
+                    .per_second(1)
+                    .burst_size(30)
+                    .use_headers()
+                    .finish()
+                    .expect("valid rate limit config"),
+            )),
+        )
         .route("/games/{id}", get(routes::spa::shell))
         .route("/games/{id}/join", post(routes::games::join_game))
         .route("/games/{id}/rematch", post(routes::games::rematch_game))
@@ -86,9 +100,29 @@ pub async fn build_router_with_registry_and_presence(
         .route("/users/{username}", get(routes::spa::shell))
         .route("/users/{username}", post(routes::users::update_username))
         .route("/register", get(routes::spa::shell))
-        .route("/register", post(routes::auth::register))
+        .route(
+            "/register",
+            post(routes::auth::register).layer(GovernorLayer::new(
+                GovernorConfigBuilder::default()
+                    .per_second(4)
+                    .burst_size(8)
+                    .use_headers()
+                    .finish()
+                    .expect("valid rate limit config"),
+            )),
+        )
         .route("/login", get(routes::spa::shell))
-        .route("/login", post(routes::auth::login))
+        .route(
+            "/login",
+            post(routes::auth::login).layer(GovernorLayer::new(
+                GovernorConfigBuilder::default()
+                    .per_second(4)
+                    .burst_size(8)
+                    .use_headers()
+                    .finish()
+                    .expect("valid rate limit config"),
+            )),
+        )
         .route("/logout", post(routes::auth::logout))
         .route("/settings", get(routes::spa::shell))
         .route("/settings/token", post(routes::settings::generate_token))
@@ -97,10 +131,29 @@ pub async fn build_router_with_registry_and_presence(
             "/settings/preferences",
             patch(routes::settings::update_preferences),
         )
-        .route("/ws", get(ws::live::ws_upgrade))
+        .route(
+            "/ws",
+            get(ws::live::ws_upgrade).layer(GovernorLayer::new(
+                GovernorConfigBuilder::default()
+                    .per_second(1)
+                    .burst_size(60)
+                    .use_headers()
+                    .finish()
+                    .expect("valid rate limit config"),
+            )),
+        )
         .nest(
             "/api",
-            routes::api::router().merge(routes::web_api::router()),
+            routes::api::router()
+                .merge(routes::web_api::router())
+                .layer(GovernorLayer::new(
+                    GovernorConfigBuilder::default()
+                        .per_second(5)
+                        .burst_size(300)
+                        .use_headers()
+                        .finish()
+                        .expect("valid rate limit config"),
+                )),
         )
         .route("/up", get(routes::health::health_check))
         .nest_service(
@@ -110,6 +163,29 @@ pub async fn build_router_with_registry_and_presence(
                     .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()),
             ),
         )
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::REFERRER_POLICY,
+            HeaderValue::from_static("same-origin"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("content-security-policy"),
+            HeaderValue::from_static(
+                "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' ws: wss:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
+            ),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            HeaderName::from_static("permissions-policy"),
+            HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
+        ))
+        .layer(SetResponseHeaderLayer::if_not_present(
+            header::X_FRAME_OPTIONS,
+            HeaderValue::from_static("DENY"),
+        ))
+        .layer(DefaultBodyLimit::max(256 * 1024))
         .layer(session_layer)
         .with_state(state.clone());
 
