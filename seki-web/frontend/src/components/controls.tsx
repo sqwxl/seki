@@ -714,13 +714,21 @@ export function LobbyPopover({
   yourColor,
   pendingAction,
   showAbort = false,
+  isSpectating = false,
   onAccept,
   onDecline,
   onAbort,
   onJoin,
+  onSpectate,
+  onCancelSpectate,
   copyInviteLink,
 }: {
-  variant: "creator-waiting" | "creator-challenge" | "challengee" | "join";
+  variant:
+    | "creator-waiting"
+    | "creator-challenge"
+    | "challengee"
+    | "visitor-open"
+    | "visitor-challenge";
   title: string;
   settings: GameSettings;
   komi: number;
@@ -729,10 +737,13 @@ export function LobbyPopover({
   yourColor?: "Black" | "White" | "Random";
   pendingAction?: "accept" | "decline" | "abort" | "join";
   showAbort?: boolean;
+  isSpectating?: boolean;
   onAccept?: () => void;
   onDecline?: () => void;
   onAbort?: () => void;
   onJoin?: () => void;
+  onSpectate?: () => void;
+  onCancelSpectate?: () => void;
   copyInviteLink?: () => void;
 }) {
   const size = formatSize(settings.cols, settings.rows);
@@ -791,15 +802,39 @@ export function LobbyPopover({
               </button>
             </>
           )}
-          {variant === "join" && (
-            <button
-              class="btn-success"
-              disabled={disableActions}
-              onClick={onJoin}
-            >
-              <ButtonContent pending={pendingAction === "join"} label="Join" />
-            </button>
-          )}
+          {(variant === "visitor-open" || variant === "visitor-challenge") &&
+            !isSpectating && (
+              <>
+                {variant === "visitor-open" && (
+                  <button
+                    class="btn-success"
+                    disabled={disableActions}
+                    onClick={onJoin}
+                  >
+                    <ButtonContent
+                      pending={pendingAction === "join"}
+                      label="Join"
+                    />
+                  </button>
+                )}
+                <button disabled={disableActions} onClick={onSpectate}>
+                  <ButtonContent label="Spectate" />
+                </button>
+              </>
+            )}
+          {(variant === "visitor-open" || variant === "visitor-challenge") &&
+            isSpectating && (
+              <>
+                <p>You are spectating</p>
+                <button
+                  class="btn-warn"
+                  disabled={disableActions}
+                  onClick={onCancelSpectate}
+                >
+                  <ButtonContent label="Cancel" />
+                </button>
+              </>
+            )}
           {(variant === "creator-waiting" ||
             variant === "creator-challenge") && (
             <>

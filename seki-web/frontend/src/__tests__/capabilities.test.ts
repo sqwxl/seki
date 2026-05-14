@@ -1128,7 +1128,7 @@ describe("lobby / lifecycle", () => {
     expect(caps().lobbyPopover?.title).toBe("Waiting for opponent");
   });
 
-  it("join popover for non-player on public game with open slot", () => {
+  it("visitor-open popover for non-player on public game with open slot", () => {
     batch(() => {
       gameStage.value = GameStage.Unstarted;
       black.value = userBlack;
@@ -1136,7 +1136,7 @@ describe("lobby / lifecycle", () => {
       playerStone.value = 0;
       currentUserId.value = 999;
     });
-    expect(caps().lobbyPopover?.variant).toBe("join");
+    expect(caps().lobbyPopover?.variant).toBe("visitor-open");
   });
 
   it("status popover uses current user id for spectator on white-created open game", () => {
@@ -1151,10 +1151,10 @@ describe("lobby / lifecycle", () => {
         creator_id: 34,
       };
     });
-    expect(statusCaps().lobbyPopover?.variant).toBe("join");
+    expect(statusCaps().lobbyPopover?.variant).toBe("visitor-open");
   });
 
-  it("join popover for token holder on private game with open slot", () => {
+  it("visitor-open popover for token holder on private game with open slot", () => {
     batch(() => {
       gameStage.value = GameStage.Unstarted;
       black.value = userBlack;
@@ -1167,7 +1167,19 @@ describe("lobby / lifecycle", () => {
         has_valid_access_token: true,
       };
     });
-    expect(caps().lobbyPopover?.variant).toBe("join");
+    expect(caps().lobbyPopover?.variant).toBe("visitor-open");
+  });
+
+  it("visitor-challenge popover for non-recipient challenge spectator", () => {
+    batch(() => {
+      gameStage.value = GameStage.Challenge;
+      black.value = userBlack;
+      white.value = userWhite;
+      playerStone.value = 0;
+      currentUserId.value = 999;
+      initialProps.value = { ...initialProps.value, creator_id: 1 };
+    });
+    expect(caps().lobbyPopover?.variant).toBe("visitor-challenge");
   });
 
   it("no lobby popover for spectator when game is full", () => {

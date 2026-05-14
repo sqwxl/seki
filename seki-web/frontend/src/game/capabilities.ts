@@ -72,7 +72,12 @@ export type UiCapabilities = {
   canJoinGame: boolean;
   showInviteLink: boolean;
   lobbyPopover?: {
-    variant: "creator-waiting" | "creator-challenge" | "challengee" | "join";
+    variant:
+      | "creator-waiting"
+      | "creator-challenge"
+      | "challengee"
+      | "visitor-open"
+      | "visitor-challenge";
     title: string;
   };
   canClaimVictory: boolean;
@@ -477,14 +482,16 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     };
   } else if (
     !isPlayer &&
-    hasOpenSlot &&
     !isDone &&
     !res &&
-    (canJoinGame || !!props.has_valid_access_token)
+    (isChallenge || hasOpenSlot) &&
+    ((isChallenge && !requiresAccessTokenToJoin(props.settings)) ||
+      canJoinGame ||
+      !!props.has_valid_access_token)
   ) {
     lobbyPopover = {
-      variant: "join",
-      title: "Join this game",
+      variant: isChallenge ? "visitor-challenge" : "visitor-open",
+      title: `Waiting for ${opponentName ?? "opponent"}`,
     };
   }
 
@@ -1078,15 +1085,16 @@ export const liveGameStatusState = computed(
       };
     } else if (
       !isPlayer &&
-      hasOpenSlot &&
       !isDone &&
       !res &&
-      ((!requiresAccessTokenToJoin(props.settings) || hasValidAccessToken) &&
-        !requiresInviteTokenToJoin(props.settings))
+      (isChallenge || hasOpenSlot) &&
+      ((isChallenge && !requiresAccessTokenToJoin(props.settings)) ||
+        ((!requiresAccessTokenToJoin(props.settings) || hasValidAccessToken) &&
+          !requiresInviteTokenToJoin(props.settings)))
     ) {
       lobbyPopover = {
-        variant: "join",
-        title: "Join this game",
+        variant: isChallenge ? "visitor-challenge" : "visitor-open",
+        title: `Waiting for ${opponentName ?? "opponent"}`,
       };
     }
 

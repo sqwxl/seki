@@ -1,4 +1,5 @@
 /target
+dist/deploy/
 seki-web/static/dist/
 seki-web/frontend/node_modules/
 .env

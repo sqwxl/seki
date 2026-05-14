@@ -1,3 +1,4 @@
+import { useEffect, useState } from "preact/hooks";
 import type { Point } from "../goban/types";
 import type { NavAction, TerritoryOverlay } from "../goban/create-board";
 import { GameStage } from "../game/types";
@@ -14,9 +15,10 @@ import { readUserData } from "../game/util";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { GamePageLayout } from "./game-page-layout";
 import { requestSpaNavigation } from "../utils/spa-navigation";
-import { postForm } from "../utils/web-client";
+import { postForm, type WebRequestError } from "../utils/web-client";
 import {
   type LiveGameControlsState,
+  type LiveGameStatusState,
   liveGameControlsState,
   liveGameMoveTreeState,
   liveGamePanelState,
@@ -56,6 +58,16 @@ import {
   setPendingAction,
 } from "../game/state";
 import { formatResult } from "../utils/format";
+
+function supportsPopoverSpectating(
+  variant: NonNullable<LiveGameStatusState["lobbyPopover"]>["variant"],
+): boolean {
+  return variant === "visitor-open" || variant === "visitor-challenge";
+}
+
+export function shouldFallbackJoinToSpectating(err: WebRequestError): boolean {
+  return err.status === 422 && err.message === "Game is full";
+}
 
 function buildShareGameUrl(): string {
   const accessToken = initialProps.value.access_token;
@@ -401,7 +413,13 @@ function LiveGameControls(props: LiveGamePageProps) {
   return <Controls {...buildControls(liveGameControlsState.value, props)} />;
 }
 
-function LiveGameStatusSlot(props: LiveGamePageProps) {
+function LiveGameStatusSlot(
+  props: LiveGamePageProps & {
+    isSpectatingPopover: boolean;
+    onSpectate: () => void;
+    onCancelSpectate: () => void;
+  },
+) {
   const status = liveGameStatusState.value;
   const fullStatusText =
     status.statusText + status.presentationStatusSuffix;
@@ -475,6 +493,10 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
           }
           pendingAction={pendingLobbyAction}
           showAbort={liveGameControlsState.value.canAbort}
+          isSpectating={
+            props.isSpectatingPopover &&
+            supportsPopoverSpectating(status.lobbyPopover.variant)
+          }
           onAccept={() => {
             clearGameFlashMessage();
             if (!setPendingAction("accept-challenge")) {
@@ -512,11 +534,18 @@ function LiveGameStatusSlot(props: LiveGamePageProps) {
                   });
                 }
               })
-              .catch((err: { message: string }) => {
+              .catch((err: WebRequestError) => {
+                if (shouldFallbackJoinToSpectating(err)) {
+                  clearPendingAction("join-game");
+                  props.onSpectate();
+                  return;
+                }
                 clearPendingAction("join-game");
                 setGameFlashMessage(err.message);
               });
           }}
+          onSpectate={props.onSpectate}
+          onCancelSpectate={props.onCancelSpectate}
           copyInviteLink={
             status.showInviteLink
               ? () => {
@@ -555,6 +584,14 @@ function LiveGameTabBar(props: LiveGamePageProps) {
 export function LiveGamePage(props: LiveGamePageProps) {
   const { channel, moveTreeEl, gobanRef } = props;
   const userData = readUserData();
+  const [isSpectatingPopover, setIsSpectatingPopover] = useState(false);
+
+  useEffect(() => {
+    const popover = liveGameStatusState.value.lobbyPopover;
+    if (!popover || !supportsPopoverSpectating(popover.variant)) {
+      setIsSpectatingPopover(false);
+    }
+  });
 
   function handleSendChat(text: string) {
     const clientMessageId =
@@ -578,7 +615,14 @@ export function LiveGamePage(props: LiveGamePageProps) {
       playerTop={<LiveGameTopPanel />}
       playerBottom={<LiveGameBottomPanel />}
       controls={<LiveGameControls {...props} />}
-      status={<LiveGameStatusSlot {...props} />}
+      status={
+        <LiveGameStatusSlot
+          {...props}
+          isSpectatingPopover={isSpectatingPopover}
+          onSpectate={() => setIsSpectatingPopover(true)}
+          onCancelSpectate={() => setIsSpectatingPopover(false)}
+        />
+      }
       chat={
         <div class="chat">
           <Chat

@@ -38,6 +38,35 @@ cd seki-web/frontend && pnpm install && pnpm run build && cd ../..
 cargo run -p seki-web              # http://localhost:3000
 ```
 
+## Prebuilt Deploy
+
+If you do not want Rust, Node, `pnpm`, or `wasm-pack` on the Pi, build locally and ship a release tarball over SSH.
+
+```bash
+# First deploy from your local machine
+./scripts/deploy-prebuilt.sh
+
+# Then adjust runtime config on the Pi if needed
+ssh nilueps@pi.local '$EDITOR ~/.config/seki/seki.env && systemctl --user restart seki'
+```
+
+What this flow does:
+
+- installs `~/.config/systemd/user/seki.service`
+- builds WASM, frontend assets, and the release `seki-web` binary locally
+- uploads a tarball plus helper scripts to the Pi over SSH
+- installs each deploy into `~/seki-app/releases/<timestamp>`
+- updates `~/seki-app/current` and restarts the `seki` user service
+
+Required on the Pi: `tar`, PostgreSQL, and a running user systemd session.
+Required on your local machine: `ssh`, `scp`, Rust, `pnpm`, and `wasm-pack`.
+If the service should stay up after logout, enable lingering for the deploy user with `sudo loginctl enable-linger nilueps`.
+
+Notes:
+
+- `./scripts/deploy-prebuilt.sh` uses the `pi` git remote by default to infer `nilueps@pi.local`.
+- If you are cross-compiling for the Pi, set `TARGET=<rust-target-triple>` when running the deploy script.
+
 ## Features
 
 ### Gameplay
@@ -105,7 +134,6 @@ cargo run -p seki-web              # http://localhost:3000
 - [x] In-app notification system for unread games
 - [x] Notification settings and OS notification toggle
 - [x] Post-game collaborative presentation mode
-- [ ] Game playback (replay game as it happened: actions, clock and chat in real time)
 - [ ] Spectator count/list on games
 - [ ] Tournament support (brackets, pairings, scheduling)
 
