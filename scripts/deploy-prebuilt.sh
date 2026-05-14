@@ -2,31 +2,24 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REMOTE_NAME="${REMOTE_NAME:-pi}"
 APP_DIR="${APP_DIR:-}"
 SERVICE_NAME="${SERVICE_NAME:-seki}"
 REMOTE_TMP_DIR="${REMOTE_TMP_DIR:-seki-deploy}"
+DEPLOY_HOST="${DEPLOY_HOST:-nilueps@pi.local}"
+PACKAGE_OUTPUT_FILE="$(mktemp)"
+trap 'rm -f "$PACKAGE_OUTPUT_FILE"' EXIT
 
-resolve_deploy_host() {
-    local remote_url
-    remote_url="$(git -C "$ROOT_DIR" remote get-url "$REMOTE_NAME")"
+if ! "$ROOT_DIR/scripts/package-release.sh" >"$PACKAGE_OUTPUT_FILE"; then
+    echo "Release packaging failed" >&2
+    exit 1
+fi
 
-    case "$remote_url" in
-        ssh://*)
-            printf '%s\n' "$remote_url" | sed -E 's#ssh://([^/]+)/.*#\1#'
-            ;;
-        *:*)
-            printf '%s\n' "${remote_url%%:*}"
-            ;;
-        *)
-            echo "Unsupported remote URL: $remote_url" >&2
-            exit 1
-            ;;
-    esac
-}
-
-DEPLOY_HOST="${DEPLOY_HOST:-$(resolve_deploy_host)}"
-ARCHIVE_PATH="$("$ROOT_DIR/scripts/package-release.sh")"
+mapfile -t PACKAGE_OUTPUT <"$PACKAGE_OUTPUT_FILE"
+ARCHIVE_PATH="${PACKAGE_OUTPUT[-1]:-}"
+if [[ -z "$ARCHIVE_PATH" || ! -f "$ARCHIVE_PATH" ]]; then
+    echo "Failed to resolve release archive path from package-release.sh output" >&2
+    exit 1
+fi
 ARCHIVE_NAME="$(basename "$ARCHIVE_PATH")"
 RELEASE_ID="${RELEASE_ID:-$(date +%Y%m%d%H%M%S)}"
 REMOTE_ARCHIVE_PATH="$REMOTE_TMP_DIR/$ARCHIVE_NAME"

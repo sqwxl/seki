@@ -52,8 +52,8 @@ What this flow does:
 - installs `~/.config/systemd/user/seki.service`
 - builds WASM, frontend assets, and the release `seki-web` binary locally
 - uploads a tarball plus helper scripts to the Pi over SSH
-- installs each deploy into `~/seki-app/releases/<timestamp>`
-- updates `~/seki-app/current` and restarts the `seki` user service
+- installs each deploy into `~/seki/releases/<timestamp>`
+- updates `~/seki/current` and restarts the `seki` user service
 
 Required on the Pi: `tar` and a running user systemd session.
 Required on your local machine: `ssh`, `scp`, Rust, `pnpm`, and `wasm-pack`.
@@ -61,8 +61,13 @@ If the service should stay up after logout, enable lingering for the deploy user
 
 Notes:
 
-- `./scripts/deploy-prebuilt.sh` uses the `pi` git remote by default to infer `nilueps@pi.local`.
-- If you are cross-compiling for the Pi, set `TARGET=<rust-target-triple>` when running the deploy script.
+- `./scripts/deploy-prebuilt.sh` builds locally, then uploads the release to `nilueps@pi.local` by default.
+- Override `DEPLOY_HOST` if you need a different SSH target, or `APP_DIR` if you want a different remote install path.
+- The deploy build always targets the Pi's `aarch64-unknown-linux-gnu` architecture.
+- The Rust release build always runs inside the `seki-build` Ubuntu 24.04 toolbox, and the script will create it if needed.
+- The script provisions `crossbuild-essential-arm64` and `pkg-config` inside the toolbox automatically and runs `rustup target add aarch64-unknown-linux-gnu` there.
+- The frontend, WASM, and tarball packaging steps still run on the host, so your host still needs `pnpm` and `wasm-pack`.
+- On Bluefin, the intended deploy command is now just: `./scripts/deploy-prebuilt.sh`
 
 ## Features
 

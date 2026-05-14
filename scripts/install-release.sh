@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ARCHIVE_PATH="${1:?usage: install-release.sh /path/to/archive.tar.gz}"
-APP_DIR="${APP_DIR:-$HOME/seki-app}"
+APP_DIR="${APP_DIR:-$HOME/seki}"
 SERVICE_NAME="${SERVICE_NAME:-seki}"
 RELEASE_ID="${RELEASE_ID:-$(date +%Y%m%d%H%M%S)}"
 RELEASE_DIR="$APP_DIR/releases/$RELEASE_ID"

@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-$HOME/seki-app}"
+APP_DIR="${APP_DIR:-$HOME/seki}"
 SERVICE_NAME="${SERVICE_NAME:-seki}"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
 SERVICE_FILE="$SYSTEMD_DIR/$SERVICE_NAME.service"
 ENV_DIR="$HOME/.config/$SERVICE_NAME"
 ENV_FILE="$ENV_DIR/$SERVICE_NAME.env"
+DATA_DIR="$APP_DIR/data"
 
-mkdir -p "$SYSTEMD_DIR" "$ENV_DIR" "$APP_DIR/releases"
+mkdir -p "$SYSTEMD_DIR" "$ENV_DIR" "$APP_DIR/releases" "$DATA_DIR"
 
 cat >"$SERVICE_FILE" <<EOF
 [Unit]
@@ -30,10 +31,10 @@ WantedBy=default.target
 EOF
 
 if [[ ! -f "$ENV_FILE" ]]; then
-    cat >"$ENV_FILE" <<'EOF'
-DATABASE_URL=postgres://seki:seki@localhost:5432/seki
+    cat >"$ENV_FILE" <<EOF
+DATABASE_URL=sqlite://$DATA_DIR/seki.db
 PORT=3000
-BASE_URL=http://pi.local:3000
+BASE_URL=http://localhost:3000
 # ENVIRONMENT=production
 EOF
 fi

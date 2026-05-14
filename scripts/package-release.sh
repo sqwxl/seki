@@ -4,39 +4,57 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/seki-web/frontend"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-$ROOT_DIR/dist/deploy}"
-BUILD_TARGET="${TARGET:-}"
+BUILD_TARGET="aarch64-unknown-linux-gnu"
+TOOLBOX_CONTAINER="seki-build"
 GIT_SHA="$(git -C "$ROOT_DIR" rev-parse --short HEAD)"
-TARGET_SUFFIX=""
+TARGET_SUFFIX="-$BUILD_TARGET"
+
+toolbox_build_release_binary() {
+    if ! toolbox run --container "$TOOLBOX_CONTAINER" true >/dev/null 2>&1; then
+        echo "Creating toolbox container $TOOLBOX_CONTAINER (ubuntu 24.04)" >&2
+        toolbox create --distro ubuntu --release 24.04 "$TOOLBOX_CONTAINER" >&2
+    fi
+
+    if ! toolbox run --container "$TOOLBOX_CONTAINER" bash -lc \
+        'dpkg -s crossbuild-essential-arm64 pkg-config >/dev/null 2>&1'; then
+        echo "Installing cross-build packages in toolbox $TOOLBOX_CONTAINER" >&2
+        toolbox run --container "$TOOLBOX_CONTAINER" bash -lc \
+            'sudo apt-get update && sudo apt-get install -y crossbuild-essential-arm64 pkg-config' >&2
+    fi
+
+    echo "Ensuring Rust target $BUILD_TARGET exists in toolbox $TOOLBOX_CONTAINER" >&2
+    toolbox run --container "$TOOLBOX_CONTAINER" rustup target add "$BUILD_TARGET" >&2
+
+    echo "Building release server binary in toolbox $TOOLBOX_CONTAINER" >&2
+    toolbox run --container "$TOOLBOX_CONTAINER" env \
+        CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER:-aarch64-linux-gnu-gcc}" \
+        bash -lc "cd '$ROOT_DIR' && cargo build --release -p seki-web --target '$BUILD_TARGET'"
+}
 
 cd "$ROOT_DIR"
 
-if [[ -n "$BUILD_TARGET" ]]; then
-    TARGET_SUFFIX="-$BUILD_TARGET"
+if ! command -v toolbox >/dev/null 2>&1; then
+    echo "toolbox is required for Pi deploy builds, but it is not installed or not on PATH" >&2
+    exit 1
 fi
 
 ARCHIVE_BASENAME="seki-$GIT_SHA$TARGET_SUFFIX"
 STAGE_DIR="$(mktemp -d)"
 trap 'rm -rf "$STAGE_DIR"' EXIT
 
-echo "Installing frontend dependencies"
+echo "Installing frontend dependencies" >&2
 pnpm --dir "$FRONTEND_DIR" install --frozen-lockfile
 
-echo "Building WASM bundle"
+echo "Building WASM bundle" >&2
 rm -rf "$ROOT_DIR/seki-web/static/wasm"
 wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm
 
-echo "Building frontend bundle"
+echo "Building frontend bundle" >&2
 rm -rf "$ROOT_DIR/seki-web/static/dist"
 pnpm --dir "$FRONTEND_DIR" run build
 
-echo "Building release server binary"
-if [[ -n "$BUILD_TARGET" ]]; then
-    cargo build --release -p seki-web --target "$BUILD_TARGET"
-    BIN_PATH="$ROOT_DIR/target/$BUILD_TARGET/release/seki-web"
-else
-    cargo build --release -p seki-web
-    BIN_PATH="$ROOT_DIR/target/release/seki-web"
-fi
+toolbox_build_release_binary
+BIN_PATH="$ROOT_DIR/target/$BUILD_TARGET/release/seki-web"
 
 mkdir -p "$ARTIFACTS_DIR" "$STAGE_DIR/bin"
 cp "$BIN_PATH" "$STAGE_DIR/bin/seki-web"
