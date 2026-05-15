@@ -1,8 +1,11 @@
-set shell := ["fish", "-c"]
+set shell := ["bash", "-cu"]
 
 run-hot: hot-setup hot
 
 run: build services serve
+
+deploy:
+    bash scripts/deploy-prebuilt.sh
 
 services:
     docker compose up -d mailpit
@@ -14,10 +17,10 @@ frontend-hot:
     pnpm --dir seki-web/frontend run dev
 
 serve-hot:
-    watchexec -r -i .claude -i target -i node_modules -i seki-web/static/wasm -- env DATABASE_URL=sqlite://seki.db cargo run -p seki-web
+    watchexec -r -i .claude -i target -i node_modules -i seki-web/static/wasm -- env DATABASE_URL=sqlite://seki.db cargo run -p seki-web --bin seki-web
 
 serve:
-    env DATABASE_URL=sqlite://seki.db cargo run -p seki-web
+    env DATABASE_URL=sqlite://seki.db cargo run -p seki-web --bin seki-web
 
 build: deps build-rs build-wasm build-js
 
@@ -39,7 +42,4 @@ hot-setup: deps services
 hot: wasm-hot serve-hot frontend-hot
 
 openapi:
-    env DATABASE_URL=sqlite://seki.db cargo run -p seki-web --bin gen-openapi > seki-web/frontend/openapi.json
-
-generate-api-client: openapi
-    pnpm --dir seki-web/frontend run generate-api-client
+    cargo run -p seki-web --bin gen-openapi > seki-web/static/openapi.json

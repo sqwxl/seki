@@ -1,6 +1,8 @@
 /target
 dist/deploy/
 seki-web/static/dist/
+seki-web/static/openapi.json
+seki-web/frontend/openapi.json
 seki-web/frontend/node_modules/
 .env
 seki.db

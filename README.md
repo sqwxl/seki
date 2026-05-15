@@ -32,7 +32,7 @@ wasm-pack build go-engine-wasm --target web --out-dir seki-web/static/wasm
 cd seki-web/frontend && pnpm install && pnpm run build && cd ../..
 
 # Run the server
-cargo run -p seki-web              # http://localhost:3000
+cargo run -p seki-web --bin seki-web  # http://localhost:3000
 ```
 
 ## Prebuilt Deploy
