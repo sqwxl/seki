@@ -204,6 +204,9 @@ export function GameSettingsForm({
           next.handicap = newMax;
         }
       }
+      if (key === "handicap" && (value as number) > 0) {
+        next.komi = 0.5;
+      }
       return next;
     });
   }
@@ -245,23 +248,6 @@ export function GameSettingsForm({
           />
         </div>
         <div>
-          <label for="komi">
-            <IconKomi /> Komi
-          </label>
-          <input
-            type="number"
-            name="komi"
-            id="komi"
-            min={-100.5}
-            max={100.5}
-            step={1}
-            value={s.komi}
-            onChange={(e) =>
-              set("komi", parseFloat(e.currentTarget.value) || 0)
-            }
-          />
-        </div>
-        <div>
           <label for="handicap">
             <IconHandicap /> Handicap
           </label>
@@ -283,6 +269,23 @@ export function GameSettingsForm({
               );
             })}
           </select>
+        </div>
+        <div>
+          <label for="komi">
+            <IconKomi /> Komi
+          </label>
+          <input
+            type="number"
+            name="komi"
+            id="komi"
+            min={-100.5}
+            max={100.5}
+            step={1}
+            value={s.komi}
+            onChange={(e) =>
+              set("komi", parseFloat(e.currentTarget.value) || 0)
+            }
+          />
         </div>
         <div>
           <label>Your color</label>
