@@ -24,7 +24,7 @@ Add a server-enforced ranked-game and player rating system to `seki-web` using G
 
 **Performance Goals**: Rating label and game-list DTO generation should remain within existing page-load expectations; game-list filtering by rated status and rank range must return within 1 second for typical lobby sizes.
 
-**Constraints**: Rating and ranked-game validation must be enforced server-side; no `go-engine` or `go-engine-wasm` changes; do not persist kyu/dan labels as rating state; private and invite-protected games must not leak rating metadata; first version uses immediate per-game Glicko-2 updates, not batch rating periods.
+**Constraints**: Rating and ranked-game validation must be enforced server-side; no `go-engine` or `go-engine-wasm` changes; do not persist kyu/dan labels as rating state; private and invite-protected games must not leak rating metadata; first version uses immediate per-game Glicko-2 updates, not batch rating periods; source modules should remain around 500 lines or less unless cohesive and explicitly justified.
 
 **Scale/Scope**: First version covers two-player games, current/profile rating display, ranked game creation/join/result flows, durable rating history, and game-list filtering. Bot calibration of the rating-to-rank policy is expected later and is out of scope.
 
@@ -36,6 +36,7 @@ Add a server-enforced ranked-game and player rating system to `seki-web` using G
 - **Layer ownership**: Pass. Rating calculations, eligibility, ranked settings, and DTO helpers belong in `seki-web/src/services`; persistence belongs in `seki-web/src/models` and migrations; HTTP/API behavior belongs in `routes`; realtime DTO propagation belongs in `ws`; frontend display belongs in existing Preact modules. `go-engine` and `go-engine-wasm` remain unchanged.
 - **Server enforcement**: Pass. Ranked eligibility, private-game rejection, manual handicap/komi rejection, idempotent result application, and protected rating-history visibility are all enforced in backend services/routes.
 - **SPA and JSON contracts**: Pass. Browser routes continue to serve the SPA shell. New route data is exposed through existing `/api/web/*`, `/api/*`, and websocket DTOs.
+- **File and module size**: Pass. Rating work is planned as focused modules: `models/rating.rs` for persistence, `services/rating.rs` for orchestration/DTOs, and smaller concern modules if either approaches 500 lines during implementation. Frontend rating formatting belongs in `utils/rating.ts` so existing UI files do not absorb formatting policy.
 - **Tests and documentation**: Pass. Verification will include focused Rust service/model tests, frontend utility/component tests or typecheck, and updates to `README.md`, `FRONTEND_SPEC.md`, and `API_SPEC.md` when implementation is complete.
 
 ## Project Structure
@@ -51,7 +52,7 @@ specs/001-player-rating-system/
 ├── contracts/
 │   ├── rating-api-contract.md
 │   └── rating-web-contract.md
-└── tasks.md              # Created by /speckit-tasks, not by /speckit-plan
+└── tasks.md
 ```
 
 ### Source Code (repository root)
@@ -61,19 +62,22 @@ seki-web/
 ├── Cargo.toml            # Add skillratings with default features only
 ├── migrations/           # Add new rating/ranked-game migration
 ├── src/
-│   ├── models/           # rating profile, snapshots, adjustment queries
-│   ├── services/         # rating service, eligibility, Glicko-2, calibration, DTO helpers
-│   ├── routes/           # web/API game creation, join, profile, settings data
-│   └── ws/               # lobby/game updates containing rating fields
+│   ├── models/
+│   │   └── rating.rs     # Rating profile, snapshot, adjustment queries
+│   ├── services/
+│   │   └── rating.rs     # Rating service, eligibility, Glicko-2, calibration, DTO helpers
+│   ├── routes/           # Web/API game creation, join, profile, settings data
+│   └── ws/               # Lobby/game updates containing rating fields
 └── frontend/src/
-    ├── components/       # user labels, player panels, game info controls
-    ├── layouts/          # games list, game creation/settings, profiles
-    ├── game/             # live game DTO handling
-    ├── utils/            # rating formatting, display preference parsing
-    └── __tests__/        # focused rating formatting/state tests
+    ├── components/       # User labels, player panels, game info controls
+    ├── layouts/          # Games list, game creation/settings, profiles
+    ├── game/             # Live game DTO handling
+    ├── utils/
+    │   └── rating.ts     # Rating formatting and display preference helpers
+    └── __tests__/        # Focused rating formatting/state tests
 ```
 
-**Structure Decision**: Keep all rating behavior in `seki-web`. The feature is web-domain state around game outcomes and user presentation, not Go engine logic.
+**Structure Decision**: Keep all rating behavior in `seki-web`. The feature is web-domain state around game outcomes and user presentation, not Go engine logic. If `services/rating.rs` grows beyond roughly 500 lines, split it by concern into modules such as eligibility, calculation, calibration, and DTO assembly under `seki-web/src/services/rating/`. If `models/rating.rs` grows beyond roughly 500 lines, split query groups by profile, snapshot, and adjustment persistence under `seki-web/src/models/rating/`.
 
 ## Complexity Tracking
 
@@ -106,4 +110,5 @@ Completed artifacts:
 - **Layer ownership**: Pass. Data model and contracts keep rating in `seki-web`; no engine/WASM changes are required.
 - **Server enforcement**: Pass. Contracts require backend rejection/enforcement for ranked constraints and protected visibility.
 - **SPA and JSON contracts**: Pass. Contracts extend existing SPA JSON/API/websocket shapes.
+- **File and module size**: Pass. Design artifacts isolate rating persistence, service logic, and frontend formatting into purpose-specific files and identify splits if implementation files grow past the 500-line guideline.
 - **Tests and documentation**: Pass. Quickstart names Rust and frontend verification commands plus product-spec documentation updates.
