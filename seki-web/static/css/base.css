@@ -65,9 +65,14 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  min-height: 100%;
+}
+
 body {
   background-color: var(--bg);
   color: var(--fg);
+  min-height: 100dvh;
 }
 
 code {
