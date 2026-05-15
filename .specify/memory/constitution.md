@@ -1,17 +1,18 @@
 <!--
 Sync Impact Report
-Version change: 1.1.0 -> 1.2.0
+Version change: 1.2.0 -> 1.3.0
 Modified principles:
 - None
 Added sections:
-- None
+- Core Principle VI: Manageable File and Module Size
 Removed sections:
 - None
 Templates requiring updates:
 - updated: .specify/templates/plan-template.md
-- updated: .specify/templates/spec-template.md
-- n/a: .specify/templates/tasks-template.md
+- checked: .specify/templates/spec-template.md
+- updated: .specify/templates/tasks-template.md
 - n/a: .specify/templates/commands/*.md (directory not present)
+- updated: AGENTS.md
 Follow-up TODOs:
 - None
 -->
@@ -76,6 +77,17 @@ the `README.md` checklist and any affected behavior in `FRONTEND_SPEC.md` or
 Rationale: Manual product specs are the long-lived contract, while Speckit
 feature folders are implementation packets.
 
+### VI. Manageable File and Module Size
+Source code files MUST NOT grow disproportionately as features are added. Plans
+and implementation reviews SHOULD keep source files at 500 lines or less. Files
+that exceed 500 lines, or are expected to exceed that size during a feature,
+MUST justify why they remain cohesive or split logic into smaller modules
+organized by purpose, concern, or layer. New modules MUST follow the existing
+directory conventions and use names that make their responsibility clear.
+
+Rationale: Large mixed-concern files make game rules, realtime behavior,
+persistence, and UI flows harder to review, test, and safely change.
+
 ## Codebase Boundaries
 
 - `README.md` is the high-level feature checklist; checked items are treated as
@@ -106,6 +118,8 @@ feature folders are implementation packets.
   required behavior.
 - When a function starts taking more than four parameters, consider replacing
   the parameter list with an object or domain type.
+- Keep source files near 500 lines or less when practical. Split larger files
+  by purpose or concern before adding unrelated behavior.
 - Use conventional single-line commit messages unless extra explanation is
   warranted.
 - All development MUST happen directly on `main` unless the user explicitly
@@ -127,10 +141,12 @@ Compliance expectations:
 - `spec.md` files MUST identify source references from the root product specs
   when adapting manually created requirements.
 - `plan.md` files MUST include a Constitution Check covering simplicity,
-  layering, server enforcement, SPA/JSON contracts, tests, and documentation.
+  layering, server enforcement, SPA/JSON contracts, file/module size, tests,
+  and documentation.
 - `tasks.md` files MUST include verification and documentation tasks when the
-  feature changes behavior.
+  feature changes behavior, and SHOULD include refactoring tasks when planned
+  changes would push source files beyond manageable size.
 - Review findings and implementation summaries SHOULD cite the relevant file or
   spec section when a constitution principle is at stake.
 
-**Version**: 1.2.0 | **Ratified**: 2026-05-15 | **Last Amended**: 2026-05-15
+**Version**: 1.3.0 | **Ratified**: 2026-05-15 | **Last Amended**: 2026-05-15

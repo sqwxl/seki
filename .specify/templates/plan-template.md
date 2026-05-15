@@ -49,6 +49,9 @@
   realtime behavior, confirm enforcement happens server-side]
 - **SPA and JSON contracts**: [Confirm browser routes keep using the SPA shell
   and route data stays under `/api/web/*` unless justified]
+- **File and module size**: [Identify source files likely to exceed 500 lines
+  or grow disproportionately, and either justify cohesion or plan splits by
+  purpose/concern]
 - **Tests and documentation**: [List focused verification commands and affected
   docs/checklists: `README.md`, `FRONTEND_SPEC.md`, `API_SPEC.md`]
 
@@ -99,7 +102,8 @@ seki-web/
 ```
 
 **Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+directories captured above. Note any planned module splits needed to keep
+source files near 500 lines or organized by clear concern.]
 
 ## Complexity Tracking
 

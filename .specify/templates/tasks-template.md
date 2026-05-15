@@ -14,6 +14,10 @@ constitution. Use focused Rust tests for engine/service/API changes, Vitest or
 typecheck tasks for frontend state and utilities, and documented manual checks
 only when automated coverage is not practical.
 
+**File size**: Include module-splitting or refactoring tasks when a planned
+change would push a source file beyond roughly 500 lines or mix unrelated
+concerns.
+
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
 ## Format: `[ID] [P?] [Story] Description`
@@ -157,6 +161,7 @@ Examples of foundational tasks (adjust based on your project):
 
 - [ ] TXXX [P] Update `README.md`, `FRONTEND_SPEC.md`, or `API_SPEC.md` if behavior changed
 - [ ] TXXX Code cleanup and refactoring
+- [ ] TXXX Split oversized or mixed-concern source files into focused modules
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional focused tests in the relevant crate or frontend test directory
 - [ ] TXXX Security hardening
@@ -255,3 +260,5 @@ With multiple developers:
 - Commit logical groups directly to `main` when the user requests commits
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
+- Avoid: growing source files beyond roughly 500 lines without a clear cohesion
+  justification and module-splitting plan

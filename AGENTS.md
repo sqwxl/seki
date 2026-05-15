@@ -19,6 +19,7 @@ Always apply the grug brain philosophy to software development: fight complexity
 - Prefer minimal diffs.
 - In general, don't test log output
 - When a function starts taking too many parameters (>4), consider passing an object instead.
+- Keep source files manageable; prefer 500 lines or less. If a file grows larger, justify why it remains cohesive or split it into modules organized by purpose/concern.
 - Avoid pulling in outside dependencies for trivial features
 - When considering adding a new dependency, always consider that library's own dependency tree. Prefer libraries with less dependencies.
 - When completing a feature, update any associated documentation (README checklist, closing github issues, etc)
