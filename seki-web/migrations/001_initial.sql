@@ -1,123 +1,129 @@
--- Enums
-
-CREATE TYPE time_control_type AS ENUM (
-    'none',
-    'fischer',
-    'byoyomi',
-    'correspondence'
+create table users (
+    id integer primary key autoincrement,
+    session_token text,
+    email text,
+    username text not null default 'anonymous',
+    password_hash text,
+    api_token text,
+    preferences text not null default '{}',
+    created_at text not null default current_timestamp,
+    updated_at text not null default current_timestamp
 );
 
--- Users
+create unique index idx_users_session_token on users (session_token);
+create unique index idx_users_email on users (email);
+create unique index idx_users_username on users (username);
+create unique index idx_users_api_token on users (api_token);
 
-CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY,
-    session_token TEXT,
-    email TEXT,
-    username TEXT NOT NULL DEFAULT 'anonymous',
-    password_hash TEXT,
-    api_token TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+create table games (
+    id integer primary key autoincrement,
+    creator_id integer references users (id),
+    black_id integer references users (id),
+    white_id integer references users (id),
+    access_token text,
+    invite_token text,
+    cols integer not null,
+    "rows" integer not null,
+    komi real not null,
+    handicap integer not null,
+    is_private integer not null default 0,
+    allow_undo integer not null default 0,
+    stage text not null default 'unstarted',
+    undo_rejected integer not null default 0,
+    started_at text,
+    ended_at text,
+    result text,
+    cached_engine_state text,
+    time_control text not null default 'none'
+    check (time_control in ('none', 'fischer', 'byoyomi', 'correspondence')),
+    main_time_secs integer,
+    increment_secs integer,
+    byoyomi_time_secs integer,
+    byoyomi_periods integer,
+    clock_black_ms integer,
+    clock_white_ms integer,
+    clock_black_periods integer default 0,
+    clock_white_periods integer default 0,
+    clock_active_stone integer,
+    clock_last_move_at text,
+    clock_expires_at text,
+    territory_review_expires_at text,
+    nigiri integer not null default 0,
+    open_to text,
+    invite_only integer not null default 0,
+    created_at text not null default current_timestamp,
+    updated_at text not null default current_timestamp
 );
 
-CREATE UNIQUE INDEX idx_users_session_token ON users (session_token);
-CREATE UNIQUE INDEX idx_users_email ON users (email);
-CREATE UNIQUE INDEX idx_users_username ON users (username);
-CREATE UNIQUE INDEX idx_users_api_token ON users (api_token);
+create index idx_games_creator_id on games (creator_id);
+create index idx_games_black_id on games (black_id);
+create index idx_games_white_id on games (white_id);
+create index idx_games_access_token on games (access_token);
+create index idx_games_invite_token on games (invite_token);
+create index idx_games_clock_expires_at on games (clock_expires_at)
+where result is null and clock_expires_at is not null;
+create index idx_games_public_updated on games (updated_at desc)
+where is_private = 0;
+create index idx_games_territory_review_expires_at
+on games (territory_review_expires_at)
+where territory_review_expires_at is not null and result is null;
 
--- Games
-
-CREATE TABLE games (
-    id BIGSERIAL PRIMARY KEY,
-    creator_id BIGINT REFERENCES users (id),
-    black_id BIGINT REFERENCES users (id),
-    white_id BIGINT REFERENCES users (id),
-    access_token TEXT,
-    invite_token TEXT,
-    cols INTEGER NOT NULL,
-    rows INTEGER NOT NULL,
-    komi DOUBLE PRECISION NOT NULL,
-    handicap INTEGER NOT NULL,
-    is_private BOOLEAN NOT NULL DEFAULT FALSE,
-    is_handicap BOOLEAN NOT NULL DEFAULT FALSE,
-    allow_undo BOOLEAN NOT NULL DEFAULT FALSE,
-    stage TEXT NOT NULL DEFAULT 'unstarted',
-    undo_rejected BOOLEAN NOT NULL DEFAULT FALSE,
-    started_at TIMESTAMPTZ,
-    ended_at TIMESTAMPTZ,
-    result TEXT,
-    cached_engine_state TEXT,
-    time_control time_control_type NOT NULL DEFAULT 'none',
-    main_time_secs INTEGER,
-    increment_secs INTEGER,
-    byoyomi_time_secs INTEGER,
-    byoyomi_periods INTEGER,
-    clock_black_ms BIGINT,
-    clock_white_ms BIGINT,
-    clock_black_periods INTEGER DEFAULT 0,
-    clock_white_periods INTEGER DEFAULT 0,
-    clock_active_stone INTEGER,
-    clock_last_move_at TIMESTAMPTZ,
-    clock_expires_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+create table turns (
+    id integer primary key autoincrement,
+    game_id integer not null references games (id),
+    user_id integer not null references users (id),
+    turn_number integer not null,
+    kind text not null,
+    stone integer not null,
+    col integer,
+    "row" integer,
+    clock_black_ms integer,
+    clock_white_ms integer,
+    clock_black_periods integer,
+    clock_white_periods integer,
+    created_at text not null default current_timestamp,
+    updated_at text not null default current_timestamp
 );
 
-CREATE INDEX idx_games_creator_id ON games (creator_id);
-CREATE INDEX idx_games_black_id ON games (black_id);
-CREATE INDEX idx_games_white_id ON games (white_id);
-CREATE INDEX idx_games_access_token ON games (access_token);
-CREATE INDEX idx_games_invite_token ON games (invite_token);
+create index idx_turns_game_id on turns (game_id);
+create index idx_turns_user_id on turns (user_id);
+create index idx_turns_game_turn_number on turns (game_id, turn_number);
 
--- Turns
-
-CREATE TABLE turns (
-    id BIGSERIAL PRIMARY KEY,
-    game_id BIGINT NOT NULL REFERENCES games (id),
-    user_id BIGINT NOT NULL REFERENCES users (id),
-    turn_number INTEGER NOT NULL,
-    kind TEXT NOT NULL,
-    stone INTEGER NOT NULL,
-    col INTEGER,
-    "row" INTEGER,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+create table messages (
+    id integer primary key autoincrement,
+    game_id integer not null references games (id),
+    user_id integer references users (id),
+    "text" text not null,
+    move_number integer,
+    client_message_id text,
+    created_at text not null default current_timestamp,
+    updated_at text not null default current_timestamp,
+    unique (game_id, user_id, client_message_id)
 );
 
-CREATE INDEX idx_turns_game_id ON turns (game_id);
-CREATE INDEX idx_turns_user_id ON turns (user_id);
-CREATE INDEX idx_turns_game_turn_number ON turns (game_id, turn_number);
+create index idx_messages_game_id on messages (game_id);
+create index idx_messages_game_created on messages (game_id, created_at);
 
--- Messages
-
-CREATE TABLE messages (
-    id BIGSERIAL PRIMARY KEY,
-    game_id BIGINT NOT NULL REFERENCES games (id),
-    user_id BIGINT REFERENCES users (id),
-    text TEXT NOT NULL,
-    move_number INTEGER,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+create table territory_reviews (
+    id integer primary key autoincrement,
+    game_id integer not null references games (id),
+    black_approved integer not null default 0,
+    white_approved integer not null default 0,
+    settled integer not null default 0,
+    dead_stones text,
+    black_territory integer,
+    black_captures integer,
+    white_territory integer,
+    white_captures integer,
+    created_at text not null default current_timestamp,
+    updated_at text not null default current_timestamp
 );
 
-CREATE INDEX idx_messages_game_id ON messages (game_id);
-CREATE INDEX idx_messages_game_created ON messages (game_id, created_at);
+create index idx_territory_reviews_game_id on territory_reviews (game_id);
 
--- Territory reviews
-
-CREATE TABLE territory_reviews (
-    id BIGSERIAL PRIMARY KEY,
-    game_id BIGINT NOT NULL REFERENCES games (id),
-    black_approved BOOLEAN NOT NULL DEFAULT FALSE,
-    white_approved BOOLEAN NOT NULL DEFAULT FALSE,
-    settled BOOLEAN NOT NULL DEFAULT FALSE,
-    dead_stones JSONB,
-    black_territory INTEGER,
-    black_captures INTEGER,
-    white_territory INTEGER,
-    white_captures INTEGER,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+create table game_reads (
+    user_id integer not null references users (id),
+    game_id integer not null references games (id) on delete cascade,
+    last_seen_move_count integer not null default 0,
+    primary key (user_id, game_id)
 );
-
-CREATE INDEX idx_territory_reviews_game_id ON territory_reviews (game_id);

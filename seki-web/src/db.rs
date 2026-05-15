@@ -6,7 +6,7 @@ use sqlx::sqlite::{
 
 pub type DbPool = SqlitePool;
 
-const SQLITE_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations_sqlite");
+const SQLITE_MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 pub async fn create_pool(database_url: &str) -> Result<DbPool, sqlx::Error> {
     let options = SqliteConnectOptions::from_str(database_url)?

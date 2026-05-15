@@ -23,7 +23,7 @@ Always apply the grug brain philosophy to software development: fight complexity
 - When considering adding a new dependency, always consider that library's own dependency tree. Prefer libraries with less dependencies.
 - When completing a feature, update any associated documentation (README checklist, closing github issues, etc)
 - Conventional commit messages, single-line unless verbose explanation warranted
-- Always commit directly to main, no need for feature branches and PRs
+- All development happens directly on `main` unless explicitly requested otherwise; no feature branches or PRs by default
 
 # This Codebase
 
@@ -58,7 +58,7 @@ pnpm run typecheck                   # tsc --noEmit
 pnpm test                            # run Vitest tests
 
 # Docker
-docker compose up                    # postgres + web service on :3000
+docker compose up                    # sqlite-backed web service on :3000
 ```
 
 ## Architecture
@@ -98,7 +98,7 @@ Axum 0.8 web app. Modules follow a clean separation:
 
 **Real-time:** A single WebSocket endpoint (`/ws`) handles all real-time communication. Clients subscribe to game rooms and receive lobby updates through a broadcast channel. `GameRegistry` manages per-game engine/channel state. Presence is tracked separately through `presence.rs` and `presence_subscriptions.rs`.
 
-**Auth (web):** tower-sessions with PostgreSQL-backed session storage. `CurrentUser` auto-creates an anonymous user when no session token exists, then upgrades that user in place on registration.
+**Auth (web):** tower-sessions with SQLite-backed session storage. `CurrentUser` auto-creates an anonymous user when no session token exists, then upgrades that user in place on registration.
 
 **Auth (API):** Bearer token authentication. `ApiUser` extractor reads `Authorization: Bearer <token>` header, looks up by `api_token` column, requires a registered account, returns 401 JSON on failure. Tokens are managed from the `/settings` web page.
 
@@ -110,7 +110,7 @@ Axum 0.8 web app. Modules follow a clean separation:
 
 ## Database
 
-PostgreSQL via sqlx 0.8. Migrations live in `seki-web/migrations/` as numbered files (001, 002, …). **Never modify existing migration files** — always create new numbered migrations. Migrations run at app startup.
+SQLite via sqlx 0.8. Migrations live in `seki-web/migrations/` as numbered files (001, 002, …). **Never modify existing migration files** — always create new numbered migrations. Migrations run at app startup.
 
 Core tables: `users`, `games`, `turns`, `messages`, `territory_reviews`, plus the session store tables managed by `tower-sessions-sqlx-store`.
 
@@ -123,7 +123,7 @@ Important persisted fields beyond the obvious basics:
 
 ## Environment Variables
 
-- `DATABASE_URL` — postgres connection string (default: `postgres://seki:seki@localhost:5432/seki`)
+- `DATABASE_URL` — SQLite connection string (default: `sqlite://seki.db`)
 - `PORT` — HTTP port (default: 3000)
 - `ENVIRONMENT` — set to `production` for secure cookies
 - `STATIC_DIR` — static file path (Docker sets `/app/static`)
@@ -132,7 +132,7 @@ Important persisted fields beyond the obvious basics:
 
 ## Key Dependency Versions
 
-axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-sessions-sqlx-store 0.15, sqlx 0.8 (postgres), askama 0.15, Rust edition 2024, Node 24, pnpm, Preact 10, esbuild 0.24, wasm-bindgen 0.2, js-sys 0.3.
+axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-sessions-sqlx-store 0.15, sqlx 0.8 (sqlite), askama 0.15, Rust edition 2024, Node 24, pnpm, Preact 10, esbuild 0.24, wasm-bindgen 0.2, js-sys 0.3.
 
 ## Naming: User vs Player
 
@@ -147,3 +147,8 @@ axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-s
 - TypeScript: prefer `type` over `interface`, never use `as unknown as`
 - Keep new logic in `go-engine` or Rust services when possible; keep `go-engine-wasm` thin
 - Do not add server-rendered page-specific templates unless there is a strong reason; the current app shape is SPA shell + JSON bootstrap
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->

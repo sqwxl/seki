@@ -1,1 +1,0 @@
-ALTER TABLE games ADD COLUMN open_to VARCHAR;
