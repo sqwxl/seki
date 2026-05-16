@@ -1,4 +1,8 @@
 target/
 .git/
+node_modules/
+seki-web/frontend/node_modules/
+coverage/
+*.log*
 *.md
 .env*

@@ -151,6 +151,5 @@ axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-s
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan:
-`specs/001-player-rating-system/plan.md`
+shell commands, and other important information, read the current plan
 <!-- SPECKIT END -->
