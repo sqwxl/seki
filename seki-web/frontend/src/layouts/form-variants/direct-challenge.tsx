@@ -49,7 +49,7 @@ type Props = {
   showPrivate?: boolean;
 };
 
-function rankedSettingsFromGap(
+export function rankedSettingsFromGap(
   blackRating: number,
   whiteRating: number,
 ): { handicap: number; komi: number; color: string } {
@@ -62,6 +62,16 @@ function rankedSettingsFromGap(
     return { handicap, komi, color: "nigiri" };
   }
   return { handicap, komi, color: blackRating < whiteRating ? "black" : "white" };
+}
+
+export function inferSettingsFromRanks(
+  currentUserRank: RankData | undefined | null,
+  opponentRank: RankData | undefined | null,
+): { handicap: number; komi: number; color: string } | null {
+  if (currentUserRank?.rating == null || opponentRank?.rating == null) {
+    return null;
+  }
+  return rankedSettingsFromGap(currentUserRank.rating, opponentRank.rating);
 }
 
 export function DirectChallengeForm({
@@ -93,6 +103,7 @@ export function DirectChallengeForm({
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const inferredSettingsKeyRef = useRef<string | null>(null);
 
   const currentRatingText = fullRankText(currentUserRank);
 
@@ -107,12 +118,26 @@ export function DirectChallengeForm({
       (opponentCannotRank ? "Opponent is not participating in ranking." : undefined));
   const rankedDisabled = Boolean(rankedBlockedReason) || opponentCannotRank;
 
-  const derived = (() => {
-    if (!currentUserRank?.rating || !selected?.rank?.rating) return null;
-    const myRating = currentUserRank.rating;
-    const oppRating = selected.rank.rating;
-    return rankedSettingsFromGap(myRating, oppRating);
-  })();
+  const derived = inferSettingsFromRanks(currentUserRank, selected?.rank);
+
+  function inferenceKey(r: SearchResult): string | null {
+    if (currentUserRank?.rating == null || r.rank?.rating == null) {
+      return null;
+    }
+    return `${r.username}:${currentUserRank.rating}:${r.rank.rating}`;
+  }
+
+  function applyInferredSettings(r: SearchResult) {
+    const inferred = inferSettingsFromRanks(currentUserRank, r.rank);
+    const key = inferenceKey(r);
+    if (!inferred || !key) {
+      return;
+    }
+    set("handicap", inferred.handicap);
+    set("komi", inferred.komi);
+    set("color", inferred.color);
+    inferredSettingsKeyRef.current = key;
+  }
 
   useEffect(() => {
     if (!recentsFetched) {
@@ -123,6 +148,35 @@ export function DirectChallengeForm({
         .catch(() => {});
     }
   }, [recentsFetched]);
+
+  useEffect(() => {
+    if (!s.selectedOpponent || !opponentRank) {
+      return;
+    }
+    setSelected((prev) => {
+      if (prev?.username === s.selectedOpponent && prev.rank === opponentRank) {
+        return prev;
+      }
+      return {
+        username: s.selectedOpponent,
+        is_registered:
+          opponentRank.status === "ranked" || opponentRank.status === "unranked",
+        is_online: prev?.username === s.selectedOpponent ? prev.is_online : false,
+        is_recent: prev?.username === s.selectedOpponent ? prev.is_recent : false,
+        rank: opponentRank,
+      };
+    });
+  }, [s.selectedOpponent, opponentRank]);
+
+  useEffect(() => {
+    if (!selected) {
+      return;
+    }
+    const key = inferenceKey(selected);
+    if (key && inferredSettingsKeyRef.current !== key) {
+      applyInferredSettings(selected);
+    }
+  }, [selected, currentUserRank?.rating]);
 
   function doSearch(query: string) {
     if (abortRef.current) abortRef.current.abort();
@@ -144,12 +198,14 @@ export function DirectChallengeForm({
   function selectOpponent(r: SearchResult) {
     setSelected(r);
     set("selectedOpponent", r.username);
+    applyInferredSettings(r);
     setSearchQuery(r.username);
     setSearchResults([]);
   }
 
   function clearOpponent() {
     setSelected(null);
+    inferredSettingsKeyRef.current = null;
     set("selectedOpponent", "");
     setSearchQuery("");
     setSearchResults([]);

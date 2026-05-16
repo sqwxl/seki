@@ -4,7 +4,6 @@ import { GameListItem } from "../components/game-description";
 import type { LiveGameItem, GameUpdate } from "../components/game-description";
 import type { UserData } from "../game/types";
 import { isChallengeStage } from "../game/access";
-import { GAME_LIST_FILTERS, storage } from "../utils/storage";
 
 export type InitMessage = {
   kind: "init";
@@ -27,20 +26,6 @@ export type GameRemovedMessage = {
   kind: "game_removed";
   game_id: number;
 };
-
-type RatedFilter = "all" | "ranked" | "unranked";
-
-type GameListFilters = {
-  rated: RatedFilter;
-};
-
-function loadFilters(): GameListFilters {
-  return storage.getJson<GameListFilters>(GAME_LIST_FILTERS) ?? { rated: "all" };
-}
-
-function saveFilters(f: GameListFilters) {
-  storage.setJson(GAME_LIST_FILTERS, f);
-}
 
 function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
   const map = new Map<number, LiveGameItem>();
@@ -90,7 +75,6 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
   const [playerId, setPlayerId] = useState<number | undefined>(
     initial?.player_id,
   );
-  const [filters, setFilters] = useState<GameListFilters>(loadFilters);
 
   useEffect(() => {
     const unsubs = [
@@ -135,12 +119,6 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
     };
   }, []);
 
-  const updateRatedFilter = (rated: RatedFilter) => {
-    const next = { rated };
-    setFilters(next);
-    saveFilters(next);
-  };
-
   const allGames = [...games.values()];
 
   const isMyGame = (g: LiveGameItem) =>
@@ -152,11 +130,6 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
 
   const isIncomingChallenge = (g: LiveGameItem) =>
     isChallengeStage(g.stage) && g.creator_id !== playerId;
-
-  const matchesRatedFilter = (g: LiveGameItem) =>
-    filters.rated === "all" ||
-    (filters.rated === "ranked" && g.settings.ranked) ||
-    (filters.rated === "unranked" && !g.settings.ranked);
 
   const challenges = allGames.filter(
     (g) => isMyGame(g) && !isDismissed(g) && isIncomingChallenge(g),
@@ -170,8 +143,7 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
       !g.settings.is_private &&
       !g.settings.invite_only &&
       !isDismissed(g) &&
-      (!g.black || !g.white) &&
-      matchesRatedFilter(g),
+      (!g.black || !g.white),
   );
   const publicGames = allGames.filter(
     (g) =>
@@ -179,8 +151,7 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
       !g.settings.is_private &&
       !isDismissed(g) &&
       g.black &&
-      g.white &&
-      matchesRatedFilter(g),
+      g.white,
   );
 
   return (
@@ -191,10 +162,6 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
         games={userGames}
         playerId={playerId}
         emptyText="No games yet."
-      />
-      <FilterControls
-        filters={filters}
-        onChangeRated={updateRatedFilter}
       />
       <GameSection
         title="Open games"
@@ -209,49 +176,5 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
         emptyText="No public games."
       />
     </>
-  );
-}
-
-function FilterControls({
-  filters,
-  onChangeRated,
-}: {
-  filters: GameListFilters;
-  onChangeRated: (rated: RatedFilter) => void;
-}) {
-  return (
-    <fieldset class="game-list-filters">
-      <legend>Filter</legend>
-      <label>
-        <input
-          type="radio"
-          name="rated_filter"
-          value="all"
-          checked={filters.rated === "all"}
-          onChange={() => onChangeRated("all")}
-        />
-        {" All"}
-      </label>
-      <label>
-        <input
-          type="radio"
-          name="rated_filter"
-          value="ranked"
-          checked={filters.rated === "ranked"}
-          onChange={() => onChangeRated("ranked")}
-        />
-        {" Ranked"}
-      </label>
-      <label>
-        <input
-          type="radio"
-          name="rated_filter"
-          value="unranked"
-          checked={filters.rated === "unranked"}
-          onChange={() => onChangeRated("unranked")}
-        />
-        {" Unranked"}
-      </label>
-    </fieldset>
   );
 }

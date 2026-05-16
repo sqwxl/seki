@@ -20,9 +20,6 @@ export function gameAnalysisKey(gameId: number): string {
 // Game settings form
 export const GAME_SETTINGS = "seki:game_settings";
 
-// Game list filters
-export const GAME_LIST_FILTERS = "seki:game_list_filters";
-
 // Preferences
 export const MOVE_CONFIRMATION = "seki:move_confirmation";
 export const NOTIFICATIONS = "seki:notifications";

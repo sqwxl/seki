@@ -200,39 +200,41 @@ export function GameSettingsForm({
 
   return (
     <div ref={rootRef}>
-      <fieldset>
-        <legend>Game type</legend>
-        <div class="opponent-mode-radios">
-          <label>
-            <input
-              type="radio"
-              name="_variant"
-              checked={variant === "open"}
-              onChange={() => setVariant("open")}
-            />{" "}
-            Open game
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="_variant"
-              checked={variant === "challenge"}
-              onChange={() => setVariant("challenge")}
-            />{" "}
-            Direct challenge
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="_variant"
-              checked={variant === "email"}
-              onChange={() => setVariant("email")}
-            />{" "}
-            Email invite
-          </label>
-        </div>
-        <input type="hidden" name="variant" value={variant} />
-      </fieldset>
+      {!opponent && (
+        <fieldset>
+          <legend>Game type</legend>
+          <div class="opponent-mode-radios">
+            <label>
+              <input
+                type="radio"
+                name="_variant"
+                checked={variant === "open"}
+                onChange={() => setVariant("open")}
+              />{" "}
+              Open game
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="_variant"
+                checked={variant === "challenge"}
+                onChange={() => setVariant("challenge")}
+              />{" "}
+              Direct challenge
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="_variant"
+                checked={variant === "email"}
+                onChange={() => setVariant("email")}
+              />{" "}
+              Email invite
+            </label>
+          </div>
+        </fieldset>
+      )}
+      <input type="hidden" name="variant" value={variant} />
 
       {variant === "open" && (
         <OpenGameForm
