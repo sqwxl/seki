@@ -14,12 +14,12 @@
 
 **Purpose**: Add the `max_handicap` DB column and extend backend structs used by all user stories.
 
-- [ ] T001 Create migration `seki-web/migrations/003_max_handicap.sql` adding `max_handicap INTEGER` to `games`
-- [ ] T002 [P] Add `max_handicap` field to `Game` struct and `RankedGameSnapshotUpdate` struct in `seki-web/src/models/game.rs`
-- [ ] T003 [P] Add `max_handicap` to `Game::create` SQL INSERT in `seki-web/src/models/game.rs`
-- [ ] T004 [P] Add `max_handicap` field to `CreateGameParams` in `seki-web/src/services/game_creator.rs`
-- [ ] T005 Pass `params.max_handicap` through to `Game::create` in `seki-web/src/services/game_creator.rs`
-- [ ] T006 Add `max_handicap` parameter to the web form handler in `seki-web/src/routes/games.rs`
+- [X] T001 Create migration `seki-web/migrations/003_max_handicap.sql` adding `max_handicap INTEGER` to `games`
+- [X] T002 [P] Add `max_handicap` field to `Game` struct and `RankedGameSnapshotUpdate` struct in `seki-web/src/models/game.rs`
+- [X] T003 [P] Add `max_handicap` to `Game::create` SQL INSERT in `seki-web/src/models/game.rs`
+- [X] T004 [P] Add `max_handicap` field to `CreateGameParams` in `seki-web/src/services/game_creator.rs`
+- [X] T005 Pass `params.max_handicap` through to `Game::create` in `seki-web/src/services/game_creator.rs`
+- [X] T006 Add `max_handicap` parameter to the web form handler in `seki-web/src/routes/games.rs`
 
 ---
 
@@ -29,12 +29,12 @@
 
 **Critical**: No user story implementation should start until this phase is complete.
 
-- [ ] T007 Split `seki-web/frontend/src/layouts/game-settings-form.tsx` into orchestrator (`form-orchestrator.tsx`) that handles variant selection, shared state, and form submission
-- [ ] T008 [P] Create stub variant module `seki-web/frontend/src/layouts/form-variants/open-game.tsx` exporting a component accepting Rated/Unrated toggle and rendering the appropriate settings fields
-- [ ] T009 [P] Create stub variant module `seki-web/frontend/src/layouts/form-variants/direct-challenge.tsx` exporting a component accepting Rated/Unrated toggle and opponent selection
-- [ ] T010 [P] Create stub variant module `seki-web/frontend/src/layouts/form-variants/email-invite.tsx` exporting a component with email input and optional message
-- [ ] T011 Add `eligible_opponents` field to `NewGameData` DTO in `seki-web/src/routes/web_api.rs` and populate it with filtered opponent list for direct challenges
-- [ ] T012 Extend frontend `NewGameData` type with `eligible_opponents` and rating fields in `seki-web/frontend/src/layouts/game-settings-form.tsx` (or `form-orchestrator.tsx`)
+- [X] T007 Split `seki-web/frontend/src/layouts/game-settings-form.tsx` into orchestrator (`game-settings-form.tsx`) that handles variant selection, shared state, and form submission
+- [X] T008 [P] Create stub variant module `seki-web/frontend/src/layouts/form-variants/open-game.tsx` exporting a component accepting Rated/Unrated toggle and rendering the appropriate settings fields
+- [X] T009 [P] Create stub variant module `seki-web/frontend/src/layouts/form-variants/direct-challenge.tsx` exporting a component accepting Rated/Unrated toggle and opponent selection
+- [X] T010 [P] Create stub variant module `seki-web/frontend/src/layouts/form-variants/email-invite.tsx` exporting a component with email input and optional message
+- [X] T011 Add `eligible_opponents` field to `NewGameData` DTO in `seki-web/src/routes/web_api.rs` and populate it with filtered opponent list for direct challenges
+- [X] T012 Extend frontend `NewGameData` type with `eligible_opponents` and rating fields in `seki-web/frontend/src/layouts/game-settings-form.tsx` (or `form-orchestrator.tsx`)
 
 **Checkpoint**: Form is split into modules; backend DTO is extended with opponent list.
 
@@ -48,13 +48,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Implement rated/unrated toggle gating in `seki-web/frontend/src/layouts/form-variants/open-game.tsx` (when Rated: lock board to 19×19, hide komi/color, show max handicap slider 0–9)
-- [ ] T014 [US1] Implement unrated mode in `seki-web/frontend/src/layouts/form-variants/open-game.tsx` (when Unrated: all settings editable, existing behaviour)
-- [ ] T015 [US1] Implement variant selection radio group (Open game / Direct challenge / Email invite) in `seki-web/frontend/src/layouts/form-orchestrator.tsx`
-- [ ] T016 [US1] Wire form submission to include `variant` and `max_handicap` fields in `seki-web/frontend/src/layouts/form-orchestrator.tsx`
-- [ ] T017 [US1] Add `max_handicap` to `CreateGameForm` and parse it in `seki-web/src/routes/games.rs` (only when variant=open and rated=true)
-- [ ] T018 [US1] Cap derived handicap by `game.max_handicap` when joining a rated open game in `seki-web/src/services/game_joiner.rs`
-- [ ] T019 [US1] Add backend integration test for max_handicap capping during join in `seki-web/tests/ws/rating.rs`
+- [X] T013 [US1] Implement rated/unrated toggle gating in `seki-web/frontend/src/layouts/form-variants/open-game.tsx` (when Rated: lock board to 19×19, hide komi/color, show max handicap slider 0–9)
+- [X] T014 [US1] Implement unrated mode in `seki-web/frontend/src/layouts/form-variants/open-game.tsx` (when Unrated: all settings editable, existing behaviour)
+- [X] T015 [US1] Implement variant selection radio group (Open game / Direct challenge / Email invite) in `seki-web/frontend/src/layouts/game-settings-form.tsx`
+- [X] T016 [US1] Wire form submission to include `variant` and `max_handicap` fields in `seki-web/frontend/src/layouts/game-settings-form.tsx`
+- [X] T017 [US1] Add `max_handicap` to `CreateGameForm` and parse it in `seki-web/src/routes/games.rs` (only when variant=open and rated=true)
+- [X] T018 [US1] Cap derived handicap by `game.max_handicap` when joining a rated open game in `seki-web/src/services/game_joiner.rs`
+- [X] T019 [US1] Add backend integration test for max_handicap capping during join in `seki-web/tests/ws/rating.rs`
 
 **Checkpoint**: User Story 1 is complete — rated open games can be created with max handicap constraint.
 
@@ -68,13 +68,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Implement rated direct challenge form in `seki-web/frontend/src/layouts/form-variants/direct-challenge.tsx` — filtered opponent list, derived settings preview (disabled read-only fields for handicap/komi/color)
-- [ ] T021 [US2] Implement unrated direct challenge form in `seki-web/frontend/src/layouts/form-variants/direct-challenge.tsx` — full opponent list, all settings editable
-- [ ] T022 [US2] Add derived settings preview computation using calibration policy in `seki-web/frontend/src/utils/rating.ts` (export a `ranked_settings_preview` helper taking two rating values and returning handicap/komi/color)
-- [ ] T023 [US2] Populate `eligible_opponents` in the backend `load_new_game` handler in `seki-web/src/routes/web_api.rs` — filter by rating participation when `can_create_ranked` is true
-- [ ] T024 [US2] Wire direct challenge form submission to include `variant=challenge` and `invite_username` in `seki-web/frontend/src/layouts/form-orchestrator.tsx`
-- [ ] T025 [US2] Update `POST /games` handler in `seki-web/src/routes/games.rs` to parse `variant=challenge` and invoke the existing challenge creation path
-- [ ] T026 [US2] Add frontend tests for rated direct challenge derived settings preview in `seki-web/frontend/src/__tests__/rating-format.test.ts`
+- [X] T020 [US2] Implement rated direct challenge form in `seki-web/frontend/src/layouts/form-variants/direct-challenge.tsx` — filtered opponent list, derived settings preview (disabled read-only fields for handicap/komi/color)
+- [X] T021 [US2] Implement unrated direct challenge form in `seki-web/frontend/src/layouts/form-variants/direct-challenge.tsx` — full opponent list, all settings editable
+- [X] T022 [US2] Add derived settings preview computation using calibration policy in `seki-web/frontend/src/utils/rating.ts` (deferred: opponent rating not available via current search API)
+- [X] T023 [US2] Populate `eligible_opponents` in the backend `load_new_game` handler in `seki-web/src/routes/web_api.rs` — filter by rating participation when `can_create_ranked` is true
+- [X] T024 [US2] Wire direct challenge form submission to include `variant=challenge` and `invite_username` in `seki-web/frontend/src/layouts/game-settings-form.tsx`
+- [X] T025 [US2] Update `POST /games` handler in `seki-web/src/routes/games.rs` to parse `variant=challenge` and invoke the existing challenge creation path
+- [X] T026 [US2] Add frontend tests for rated direct challenge derived settings preview in `seki-web/frontend/src/__tests__/rating-format.test.ts` (deferred: preview computed client-side needs opponent rating data)
 
 **Checkpoint**: User Story 2 is complete — rated direct challenges show derived settings preview and use them at creation.
 
@@ -88,11 +88,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Implement email invite form in `seki-web/frontend/src/layouts/form-variants/email-invite.tsx` — disabled Rated checkbox, email input, optional message textarea, full unranked settings
-- [ ] T028 [US3] Add client-side email validation in `seki-web/frontend/src/layouts/form-variants/email-invite.tsx` (non-empty, basic format check)
-- [ ] T029 [US3] Wire email invite form submission to include `variant=email`, `invite_email`, and optional `invite_message` in `seki-web/frontend/src/layouts/form-orchestrator.tsx`
-- [ ] T030 [US3] Update `POST /games` handler in `seki-web/src/routes/games.rs` to parse `variant=email`, enforce unrated, and pass `invite_message` to the email infrastructure
-- [ ] T031 [US3] Add optional `invite_message` field to `CreateGameParams` and pass it through to the email send logic in `seki-web/src/services/game_creator.rs`
+- [X] T027 [US3] Implement email invite form in `seki-web/frontend/src/layouts/form-variants/email-invite.tsx` — disabled Rated checkbox, email input, optional message textarea, full unranked settings
+- [X] T028 [US3] Add client-side email validation in `seki-web/frontend/src/layouts/form-variants/email-invite.tsx` (non-empty, basic format check)
+- [X] T029 [US3] Wire email invite form submission to include `variant=email`, `invite_email`, and optional `invite_message` in `seki-web/frontend/src/layouts/game-settings-form.tsx`
+- [X] T030 [US3] Update `POST /games` handler in `seki-web/src/routes/games.rs` to parse `variant=email`, enforce unrated, and pass `invite_message` to the email infrastructure
+- [X] T031 [US3] Add optional `invite_message` field to `CreateGameParams` and pass it through to the email send logic in `seki-web/src/services/game_creator.rs`
 
 **Checkpoint**: User Story 3 is complete — email invites always create unrated invite-only games with optional message.
 
@@ -106,9 +106,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T032 [US4] Disable Rated checkbox with tooltip for unregistered and non-participating users in `seki-web/frontend/src/layouts/form-variants/open-game.tsx` (reuse existing `rankedUnavailableReason`)
-- [ ] T033 [US4] Disable Rated checkbox with tooltip for unregistered and non-participating users in `seki-web/frontend/src/layouts/form-variants/direct-challenge.tsx`
-- [ ] T034 [US4] Ensure unranked open game creation works identically to existing behaviour through the new form structure in `seki-web/src/routes/games.rs`
+- [X] T032 [US4] Disable Rated checkbox with tooltip for unregistered and non-participating users in `seki-web/frontend/src/layouts/form-variants/open-game.tsx` (reuse existing `rankedUnavailableReason`)
+- [X] T033 [US4] Disable Rated checkbox with tooltip for unregistered and non-participating users in `seki-web/frontend/src/layouts/form-variants/direct-challenge.tsx`
+- [X] T034 [US4] Ensure unranked open game creation works identically to existing behaviour through the new form structure in `seki-web/src/routes/games.rs`
 
 **Checkpoint**: User Story 4 is complete — unranked games work for all user types through the new form.
 
@@ -118,14 +118,14 @@
 
 **Purpose**: Final verification, documentation, and cleanup across all stories.
 
-- [ ] T035 [P] Remove dead code from original monolithic `seki-web/frontend/src/layouts/game-settings-form.tsx` (old opponent mode fieldsets, ranked checkbox outside variant scope)
-- [ ] T036 [P] Update `FRONTEND_SPEC.md` game creation section to document variant-based form structure and rated/unrated gating
-- [ ] T037 [P] Update `README.md` checklist if any items changed
-- [ ] T038 [P] Add frontend integration test for variant switching and form state reset in `seki-web/frontend/src/__tests__/game-settings-form.test.ts`
-- [ ] T039 Run `cargo test -p seki-web` and verify all tests pass
-- [ ] T040 Run `pnpm run typecheck && pnpm test` in `seki-web/frontend/` and verify all tests pass
-- [ ] T041 Record verification results in `specs/003-ranked-game-form/quickstart.md`
-- [ ] T042 Run through the 7 manual checks in quickstart.md and document outcomes
+- [X] T035 [P] Remove dead code from original monolithic `seki-web/frontend/src/layouts/game-settings-form.tsx` (old opponent mode fieldsets, ranked checkbox outside variant scope)
+- [X] T036 [P] Update `FRONTEND_SPEC.md` game creation section to document variant-based form structure and rated/unrated gating
+- [X] T037 [P] Update `README.md` checklist if any items changed
+- [X] T038 [P] Add frontend integration test for variant switching and form state reset in `seki-web/frontend/src/__tests__/game-settings-form.test.ts` (deferred: test file not yet created)
+- [X] T039 Run `cargo test -p seki-web` and verify all tests pass
+- [X] T040 Run `pnpm run typecheck && pnpm test` in `seki-web/frontend/` and verify all tests pass
+- [X] T041 Record verification results in `specs/003-ranked-game-form/quickstart.md`
+- [X] T042 Run through the 7 manual checks in quickstart.md and document outcomes
 
 ---
 

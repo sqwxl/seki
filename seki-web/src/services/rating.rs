@@ -194,6 +194,7 @@ pub async fn capture_ranked_snapshot(
     game_id: i64,
     black_id: i64,
     white_id: i64,
+    max_handicap: Option<i32>,
 ) -> Result<(), AppError> {
     let (black_profile, white_profile) = tokio::try_join!(
         RatingProfile::get_or_create(pool, black_id),
@@ -201,7 +202,10 @@ pub async fn capture_ranked_snapshot(
     )?;
 
     let policy = RatingCalibrationPolicy::default();
-    let settings = policy.ranked_settings(black_profile.rating, white_profile.rating);
+    let mut settings = policy.ranked_settings(black_profile.rating, white_profile.rating);
+    if let Some(max) = max_handicap {
+        settings.handicap = settings.handicap.min(max);
+    }
 
     let snapshot = RankedGameSnapshotUpdate {
         ranked: true,
@@ -215,6 +219,7 @@ pub async fn capture_ranked_snapshot(
         derived_komi: Some(settings.komi),
         derived_color_reason: Some(settings.color_reason),
         calibration_policy_version: Some(settings.calibration_policy_version),
+        max_handicap,
     };
 
     Game::set_ranked_snapshot(pool, game_id, &snapshot).await?;

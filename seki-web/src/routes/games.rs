@@ -34,6 +34,8 @@ pub struct CreateGameForm {
     pub correspondence_days: Option<i32>,
     pub open_to: Option<String>,
     pub ranked: Option<String>,
+    pub max_handicap: Option<i32>,
+    pub variant: Option<String>,
 }
 
 // POST /games
@@ -74,15 +76,19 @@ pub async fn create_game(
         TimeControlType::None => (None, None, None, None),
     };
     let invite_email = form.invite_email.clone();
+    let variant = form.variant.as_deref().unwrap_or("open");
+    let is_ranked = form.ranked.as_deref() == Some("true");
+    let is_email = variant == "email";
+    let email_to_send = if is_email { form.invite_email.clone() } else { invite_email.clone() };
     let params = CreateGameParams {
         cols,
-        rows: cols, // TODO: support non-square boards?
+        rows: cols,
         komi: form.komi,
         handicap: form.handicap,
         is_private: form.is_private.as_deref() == Some("true"),
         allow_undo: form.allow_undo.as_deref() == Some("true"),
         color: form.color.unwrap_or_else(|| "black".to_string()),
-        invite_email: form.invite_email,
+        invite_email: email_to_send,
         invite_username: form.invite_username,
         time_control,
         main_time_secs,
@@ -90,7 +96,8 @@ pub async fn create_game(
         byoyomi_time_secs,
         byoyomi_periods,
         open_to: form.open_to,
-        ranked: form.ranked.as_deref() == Some("true"),
+        ranked: is_ranked && !is_email,
+        max_handicap: if is_ranked && variant == "open" { form.max_handicap.filter(|&h| h >= 0 && h <= 9) } else { None },
     };
 
     match game_creator::create_game(&state.db, &current_user, params).await {
@@ -284,6 +291,7 @@ pub async fn rematch_game(
         byoyomi_periods: gwp.game.byoyomi_periods,
         open_to: None,
         ranked: false,
+        max_handicap: None,
     };
 
     let game = game_creator::create_game(&state.db, &current_user, params).await?;

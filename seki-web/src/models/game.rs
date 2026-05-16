@@ -74,6 +74,7 @@ pub struct Game {
     pub derived_color_reason: Option<String>,
     pub calibration_policy_version: Option<String>,
     pub rating_result: Option<String>,
+    pub max_handicap: Option<i32>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -356,13 +357,14 @@ impl Game {
         open_to: Option<&str>,
         invite_only: bool,
         ranked: bool,
+        max_handicap: Option<i32>,
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, \
              is_private, allow_undo, access_token, invite_token, time_control, main_time_secs, \
              increment_secs, byoyomi_time_secs, byoyomi_periods, \
-             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, open_to, invite_only, ranked)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, open_to, invite_only, ranked, max_handicap)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
              RETURNING *",
         )
         .bind(creator_id)
@@ -389,6 +391,7 @@ impl Game {
         .bind(open_to)
         .bind(invite_only)
         .bind(ranked)
+        .bind(max_handicap)
         .fetch_one(executor)
         .await
     }
@@ -664,6 +667,7 @@ pub struct RankedGameSnapshotUpdate {
     pub derived_komi: Option<f64>,
     pub derived_color_reason: Option<String>,
     pub calibration_policy_version: Option<String>,
+    pub max_handicap: Option<i32>,
 }
 
 impl Game {

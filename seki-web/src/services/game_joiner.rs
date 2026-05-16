@@ -106,7 +106,7 @@ pub async fn join_open_game(
 
     if gwp.game.ranked {
         if let (Some(b_id), Some(w_id)) = (black_after_join, white_after_join) {
-            if let Err(e) = rating::capture_ranked_snapshot(pool, gwp.game.id, b_id, w_id).await {
+            if let Err(e) = rating::capture_ranked_snapshot(pool, gwp.game.id, b_id, w_id, gwp.game.max_handicap).await {
                 tracing::warn!(
                     game_id = gwp.game.id,
                     error = %e,

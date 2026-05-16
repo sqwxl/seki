@@ -367,6 +367,7 @@ async fn create_game(
         byoyomi_periods: body.byoyomi_periods,
         open_to: body.open_to,
         ranked: body.ranked,
+        max_handicap: None,
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;
@@ -874,6 +875,7 @@ async fn rematch_game(
         byoyomi_periods: gwp.game.byoyomi_periods,
         open_to: None,
         ranked: false,
+        max_handicap: None,
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;

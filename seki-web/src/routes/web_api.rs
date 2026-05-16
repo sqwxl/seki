@@ -15,6 +15,7 @@ use crate::services::engine_builder;
 use crate::services::live::{LiveGameItem, build_live_items};
 use crate::services::rating::{
     ProfileRatingDto, RankDto, can_participate_in_ranking, profile_rating_summary, rank_for_profile,
+    rank_for_user,
 };
 use crate::services::{game_joiner, live, presentation_actions, state_serializer};
 use crate::session::CurrentUser;
@@ -58,6 +59,12 @@ pub(crate) async fn bootstrap_for_location(
         "/games/new" => serde_json::to_value(
             load_new_game(state, current_user, query_param(query, "opponent")).await?,
         )?,
+        _ if path.starts_with("/games/challenge/") => {
+            let username = path.trim_start_matches("/games/challenge/").to_string();
+            serde_json::to_value(
+                load_new_game(state, current_user, Some(username)).await?,
+            )?
+        }
         "/analysis" => serde_json::to_value(AnalysisData {})?,
         _ if path.starts_with("/games/") => {
             let game_id = path
@@ -106,6 +113,13 @@ fn route_data_url(path: &str, query: Option<&str>) -> Option<String> {
             })
         }
         "/analysis" => Some("/api/web/analysis".to_string()),
+        _ if path.starts_with("/games/challenge/") => {
+            let username = path.trim_start_matches("/games/challenge/");
+            Some(format!(
+                "/api/web/games/new?opponent={}",
+                username
+            ))
+        }
         _ if path.starts_with("/games/") => {
             let access_token = query_param(query, "access_token");
             let invite_token = query_param(query, "invite_token");
@@ -224,6 +238,15 @@ struct NewGameData {
     opponent: Option<String>,
     user_is_registered: bool,
     rating: NewGameRatingData,
+    eligible_opponents: Vec<EligibleOpponent>,
+    opponent_rank: Option<RankDto>,
+}
+
+#[derive(Serialize)]
+struct EligibleOpponent {
+    id: i64,
+    username: String,
+    rank: Option<RankDto>,
 }
 
 #[derive(Serialize)]
@@ -266,6 +289,37 @@ async fn load_new_game(
         None
     };
 
+    let mut eligible_opponents = Vec::new();
+    if user_is_registered {
+        let users = User::list_eligible_opponents(
+            &state.db,
+            current_user.id,
+            ranked_unavailable_reason.is_none(),
+        )
+        .await
+        .unwrap_or_default();
+        for user in users {
+            let profile = RatingProfile::find(&state.db, user.id).await?;
+            eligible_opponents.push(EligibleOpponent {
+                id: user.id,
+                username: user.username.clone(),
+                rank: Some(rank_for_user(&user, profile.as_ref())),
+            });
+        }
+    }
+
+    let opponent_rank = match opponent.as_deref() {
+        Some(username) => {
+            if let Some(opp_user) = User::find_by_username(&state.db, username).await? {
+                let prof = RatingProfile::find(&state.db, opp_user.id).await?;
+                Some(rank_for_user(&opp_user, prof.as_ref()))
+            } else {
+                None
+            }
+        }
+        None => None,
+    };
+
     Ok(NewGameData {
         opponent,
         user_is_registered,
@@ -274,6 +328,8 @@ async fn load_new_game(
             current_user_rank,
             ranked_unavailable_reason,
         },
+        eligible_opponents,
+        opponent_rank,
     })
 }
 

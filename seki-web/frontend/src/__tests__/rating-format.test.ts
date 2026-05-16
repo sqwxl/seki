@@ -7,7 +7,7 @@ import {
   type RankData,
   type RatingDisplayMode,
 } from "../utils/rating";
-import { UserLabel } from "../components/user-label";
+import { UserRank } from "../components/user-rank";
 
 describe("rating formatting", () => {
   it("accepts the default display mode", () => {
@@ -55,7 +55,7 @@ describe("rating formatting", () => {
     expect(primaryRankText({ status: "anonymous", uncertain: false })).toBe("");
   });
 
-  it("renders user-label rank primary text and alternate title", () => {
+  it("renders rank primary text and alternate title with UserRank", () => {
     const rank: RankData = {
       qualifier: "3k",
       status: "ranked",
@@ -65,23 +65,15 @@ describe("rating formatting", () => {
       uncertain: false,
     };
 
-    const view = UserLabel({
-      name: "honinbo",
-      rank,
-      ratingDisplay: "kyu_dan",
-    }) as any;
-    const rankNode = view.props.children.find(
-      (child: any) => child?.props?.class === "player-rank",
-    );
-
-    expect(rankNode.props.children).toBe("(3k)");
-    expect(rankNode.props.title).toBe("1560");
-    expect(rankNode.props["aria-label"]).toBe("(3k) 1560");
+    const view = UserRank({ rank, displayMode: "kyu_dan" }) as any;
+    expect(view.props.class).toBe("player-rank");
+    expect(view.props.children).toBe("(3k)");
+    expect(view.props.title).toBe("1560");
+    expect(view.props["aria-label"]).toBe("(3k) 1560");
   });
 
-  it("renders numeric rating as the user-label primary display when selected", () => {
-    const view = UserLabel({
-      name: "honinbo",
+  it("renders numeric rating as the primary display when mode=rating", () => {
+    const view = UserRank({
       rank: {
         qualifier: "3k",
         status: "ranked",
@@ -90,16 +82,29 @@ describe("rating formatting", () => {
         volatility: 0.06,
         uncertain: true,
       },
-      ratingDisplay: "rating",
+      displayMode: "rating",
     }) as any;
-    const rankNode = view.props.children.find(
-      (child: any) => child?.props?.class === "player-rank",
-    );
 
-    expect(rankNode.props.children).toBe("(1560?)");
-    expect(rankNode.props.title).toBe("3k?");
+    expect(view.props.children).toBe("(1560?)");
+    expect(view.props.title).toBe("3k?");
   });
 
+  it("renders both formats when showBoth is set", () => {
+    const view = UserRank({
+      rank: {
+        qualifier: "3k",
+        status: "ranked",
+        rating: 1560,
+        deviation: 80,
+        volatility: 0.06,
+        uncertain: false,
+      },
+      showBoth: true,
+    }) as any;
+
+    expect(view.props.class).toBe("player-rank");
+    expect(view.props.children).toBe("1560 (3k)");
+  });
   it("formats (unrated) in game descriptions when ranked is false", () => {
     const parts = (() => {
       // Simulate the buildDescriptionParts logic inline to test the (unrated) addition

@@ -8,8 +8,10 @@ use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
+use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
+use crate::services::rating::{RankDto, rank_for_user};
 use crate::session::CurrentUser;
 
 #[derive(Deserialize)]
@@ -23,6 +25,8 @@ pub struct SearchResult {
     pub is_registered: bool,
     pub is_online: bool,
     pub is_recent: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rank: Option<RankDto>,
 }
 
 // GET /users/search?q=<optional>
@@ -41,8 +45,44 @@ pub async fn search_users(
     let user_ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
     let online_ids = state.presence.connected_ids(&user_ids).await;
 
-    // DB already sorts: recent opponents first, then last active.
-    // Stable re-sort to bubble online users up within each group.
+    let rank_map = if user_ids.is_empty() {
+        std::collections::HashMap::new()
+    } else {
+        let ids_json = serde_json::to_string(&user_ids).unwrap_or_default();
+        let users: std::collections::HashMap<i64, User> =
+            User::find_by_ids(&state.db, &user_ids).await?
+                .into_iter()
+                .map(|u| (u.id, u))
+                .collect();
+        let profiles: Vec<(i64, f64, f64, f64, bool)> = sqlx::query_as(
+            "SELECT user_id, rating, deviation, volatility, participating FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))",
+        )
+        .bind(&ids_json)
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default()
+        .into_iter()
+        .map(|(uid, r, d, v, p): (i64, f64, f64, f64, bool)| (uid, r, d, v, p))
+        .collect();
+        let mut map = std::collections::HashMap::new();
+        for &id in &user_ids {
+            if let Some(user) = users.get(&id) {
+                let profile = profiles.iter().find(|(uid, ..)| *uid == id).map(|(_, r, d, v, p)| RatingProfile {
+                    user_id: id,
+                    rating: *r,
+                    deviation: *d,
+                    volatility: *v,
+                    participating: *p,
+                    rated_games: 0,
+                    created_at: chrono::Utc::now(),
+                    updated_at: chrono::Utc::now(),
+                });
+                map.insert(id, rank_for_user(user, profile.as_ref()));
+            }
+        }
+        map
+    };
+
     let mut results: Vec<SearchResult> = rows
         .into_iter()
         .map(|r| SearchResult {
@@ -50,6 +90,7 @@ pub async fn search_users(
             is_registered: r.is_registered(),
             is_online: online_ids.contains(&r.id),
             is_recent: r.is_recent,
+            rank: rank_map.get(&r.id).cloned(),
         })
         .collect();
 

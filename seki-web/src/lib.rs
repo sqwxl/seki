@@ -82,6 +82,7 @@ pub async fn build_router_with_registry_and_presence(
         .route("/", get(routes::spa::shell))
         .route("/games", get(routes::spa::shell))
         .route("/games/new", get(routes::spa::shell))
+        .route("/games/challenge/{username}", get(routes::spa::shell))
         .route(
             "/games",
             post(routes::games::create_game).layer(GovernorLayer::new(

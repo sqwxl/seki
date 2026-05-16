@@ -16,7 +16,8 @@ import { ensureConnected } from "./ws";
 import { initUnreadTracking } from "./game/unread";
 import { initTheme } from "./utils/theme";
 import { initPreferences, readRatingDisplayPreference } from "./utils/preferences";
-import { formatNumericRating, primaryRankText } from "./utils/rating";
+import { formatNumericRating } from "./utils/rating";
+import { UserRank } from "./components/user-rank";
 import { type InitialGameProps, type RankData, type UserData } from "./game/types";
 import { readUserData, writeUserData } from "./game/util";
 import {
@@ -45,7 +46,8 @@ declare global {
 
 type Route =
   | { kind: "games" }
-  | { kind: "new-game"; opponent?: string | null }
+  | { kind: "new-game" }
+  | { kind: "challenge"; username: string }
   | {
       kind: "game";
       id: number;
@@ -80,6 +82,7 @@ type NewGameData = {
     current_user_rank?: RankData | null;
     ranked_unavailable_reason?: string | null;
   };
+  opponent_rank?: RankData | null;
 };
 
 type ProfileData = {
@@ -124,6 +127,7 @@ type BootstrapPayload = {
 
 type GameSettingsFormProps = {
   opponent?: string;
+  opponentRank?: RankData | null;
   isRegistered?: boolean;
   currentUserRank?: RankData | null;
   rankedUnavailableReason?: string | null;
@@ -146,10 +150,11 @@ function parseRoute(url: URL): Route {
     return { kind: "games" };
   }
   if (path === "/games/new") {
-    return {
-      kind: "new-game",
-      opponent: url.searchParams.get("opponent"),
-    };
+    return { kind: "new-game" };
+  }
+  const challengeMatch = path.match(/^\/games\/challenge\/([^/]+)$/);
+  if (challengeMatch) {
+    return { kind: "challenge", username: decodeURIComponent(challengeMatch[1]) };
   }
   if (path === "/analysis") {
     return { kind: "analysis" };
@@ -230,9 +235,9 @@ function getRouteDataUrl(route: Route): string | undefined {
     case "games":
       return "/api/web/games";
     case "new-game":
-      return route.opponent
-        ? `/api/web/games/new?opponent=${encodeURIComponent(route.opponent)}`
-        : "/api/web/games/new";
+      return "/api/web/games/new";
+    case "challenge":
+      return `/api/web/games/new?opponent=${encodeURIComponent(route.username)}`;
     case "game":
       const gameParams = [
         route.accessToken
@@ -553,10 +558,8 @@ function GameScreenRoute({
 }
 
 function NewGameScreen({
-  route,
   navigate,
 }: {
-  route: Extract<Route, { kind: "new-game" }>;
   navigate: (
     to: string,
     replace?: boolean,
@@ -564,9 +567,7 @@ function NewGameScreen({
     preserveFlash?: boolean,
   ) => void;
 }) {
-  const { data } = useRouteData<NewGameData>(
-    `/api/web/games/new${route.opponent ? `?opponent=${encodeURIComponent(route.opponent)}` : ""}`,
-  );
+  const { data } = useRouteData<NewGameData>("/api/web/games/new");
   const {
     mod: formModule,
     error: formError,
@@ -605,7 +606,78 @@ function NewGameScreen({
       <form id="new-game-form" action="/games" method="post" onSubmit={onSubmit}>
         {FormComponent ? (
           <FormComponent
-            opponent={data?.opponent ?? undefined}
+            isRegistered={data?.user_is_registered}
+            currentUserRank={data?.rating?.current_user_rank}
+            rankedUnavailableReason={data?.rating?.ranked_unavailable_reason}
+          />
+        ) : (
+          <LoadingState />
+        )}
+      </form>
+    </>
+  );
+}
+
+function ChallengeScreen({
+  username,
+  navigate,
+}: {
+  username: string;
+  navigate: (
+    to: string,
+    replace?: boolean,
+    reload?: boolean,
+    preserveFlash?: boolean,
+  ) => void;
+}) {
+  const { data } = useRouteData<NewGameData>(
+    `/api/web/games/new?opponent=${encodeURIComponent(username)}`,
+  );
+  const {
+    mod: formModule,
+    error: formError,
+  } = useLazyModule(loadGameSettingsFormModule);
+
+  const FormComponent = formModule?.GameSettingsForm as
+    | ComponentType<GameSettingsFormProps>
+    | undefined;
+
+  const oppRank = data?.opponent_rank;
+  const oppLabel = oppRank?.qualifier
+    ? `${username} (${oppRank.qualifier})`
+    : username;
+
+  useEffect(() => {
+    setHead(pageTitle(`Challenge ${oppLabel}`));
+  }, [oppLabel]);
+
+  async function onSubmit(e: Event) {
+    e.preventDefault();
+    clearFlash();
+    const form = e.currentTarget as HTMLFormElement;
+    try {
+      const result = await postForm("/games", new FormData(form));
+      const redirect = result.redirect;
+      if (typeof redirect === "string") {
+        navigate(redirect);
+      }
+    } catch (err) {
+      setFlash((err as { message: string }).message);
+    }
+  }
+
+  if (formError) {
+    return <ErrorState message={formError} />;
+  }
+
+  return (
+    <>
+      <h1>Challenge {oppLabel}</h1>
+      <form id="new-game-form" action="/games" method="post" onSubmit={onSubmit}>
+        {FormComponent ? (
+          <FormComponent
+            opponent={data?.opponent ?? username}
+            opponentRank={oppRank}
             isRegistered={data?.user_is_registered}
             currentUserRank={data?.rating?.current_user_rank}
             rankedUnavailableReason={data?.rating?.ranked_unavailable_reason}
@@ -620,15 +692,13 @@ function NewGameScreen({
 
 function RatingProfileSummary({ rating }: { rating: ProfileRatingData }) {
   const mode = readRatingDisplayPreference();
-  const rankText = primaryRankText(rating.rank, mode);
   const latest = rating.history[rating.history.length - 1];
 
   return (
     <section>
       <h2>Rating</h2>
       <p>
-        {rankText ? `${rankText} ` : ""}
-        {formatNumericRating(rating.rating)}
+        <UserRank rank={rating.rank} displayMode={mode} showBoth bare />
         {rating.participating ? "" : " (-)"}
         {` · ${rating.rated_games} rated games`}
       </p>
@@ -749,7 +819,7 @@ function ProfileScreen({
       <h1>{data.profile_username}</h1>
       {!data.is_own_profile && (
         <a
-          href={`/games/new?opponent=${encodeURIComponent(data.profile_username)}`}
+          href={`/games/challenge/${encodeURIComponent(data.profile_username)}`}
           class="btn"
           style={{ fontSize: "0.85em" }}
         >
@@ -1012,7 +1082,11 @@ function Screen({
     case "games":
       return <GamesScreen />;
     case "new-game":
-      return <NewGameScreen route={route} navigate={navigate} />;
+      return <NewGameScreen navigate={navigate} />;
+    case "challenge":
+      return (
+        <ChallengeScreen username={route.username} navigate={navigate} />
+      );
     case "game":
       return <GameScreenRoute route={route} navigate={navigate} />;
     case "analysis":

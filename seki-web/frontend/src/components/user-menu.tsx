@@ -25,7 +25,7 @@ import {
 import { IconLogin, IconLogout, IconRegister, IconUser } from "./icons";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
 import { readRatingDisplayPreference, savePref } from "../utils/preferences";
-import { primaryRankText } from "../utils/rating";
+import { UserRank } from "./user-rank";
 import type { RatingDisplayMode } from "../utils/rating";
 
 function ThemeButton() {
@@ -86,7 +86,6 @@ export function UserMenu({
   const [ratingDisplay, setRatingDisplay] = useState<RatingDisplayMode>(() =>
     readRatingDisplayPreference(),
   );
-  const rankText = primaryRankText(userData?.rank, ratingDisplay);
 
   function handleRatingDisplayToggle() {
     const next = nextRatingDisplay(ratingDisplay);
@@ -114,10 +113,8 @@ export function UserMenu({
         class="user-menu-trigger"
         onClick={() => setOpen(!open)}
       >
-        {username}
-        {rankText && (
-          <span class="player-rank">{rankText}</span>
-        )}
+        {username}{" "}
+        <UserRank rank={userData?.rank} displayMode={ratingDisplay} />
       </button>
       {open && (
         <div class="nav-dropdown">

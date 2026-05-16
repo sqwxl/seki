@@ -277,6 +277,33 @@ impl User {
         .await
     }
 
+    pub async fn list_eligible_opponents(
+        pool: &crate::db::DbPool,
+        current_user_id: i64,
+        rated_only: bool,
+    ) -> Result<Vec<User>, sqlx::Error> {
+        if rated_only {
+            sqlx::query_as::<_, User>(
+                "SELECT u.* FROM users u \
+                 JOIN rating_profiles rp ON u.id = rp.user_id \
+                 WHERE u.id != $1 \
+                 AND rp.participating = 1 \
+                 ORDER BY u.updated_at DESC \
+                 LIMIT 50",
+            )
+            .bind(current_user_id)
+            .fetch_all(pool)
+            .await
+        } else {
+            sqlx::query_as::<_, User>(
+                "SELECT * FROM users WHERE id != $1 ORDER BY updated_at DESC LIMIT 50",
+            )
+            .bind(current_user_id)
+            .fetch_all(pool)
+            .await
+        }
+    }
+
     pub async fn update_email(
         executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,

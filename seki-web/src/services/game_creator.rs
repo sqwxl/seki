@@ -25,6 +25,7 @@ pub struct CreateGameParams {
     pub byoyomi_periods: Option<i32>,
     pub open_to: Option<String>,
     pub ranked: bool,
+    pub max_handicap: Option<i32>,
 }
 
 pub async fn create_game(
@@ -170,12 +171,13 @@ pub async fn create_game(
         params.open_to.as_deref(),
         invite_only,
         params.ranked,
+        params.max_handicap,
     )
     .await?;
 
     if params.ranked && black_id.is_some() && white_id.is_some() {
         if let Err(e) =
-            rating::capture_ranked_snapshot(pool, game.id, black_id.unwrap(), white_id.unwrap())
+            rating::capture_ranked_snapshot(pool, game.id, black_id.unwrap(), white_id.unwrap(), None)
                 .await
         {
             tracing::warn!(

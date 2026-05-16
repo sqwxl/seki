@@ -902,3 +902,51 @@ async fn game_list_filters_by_rating_range() {
     assert!(!no_match_ids.contains(&ranked_game));
     assert!(no_match_ids.contains(&unranked_game));
 }
+
+#[tokio::test]
+async fn ranked_open_game_caps_handicap_by_max_handicap() {
+    let server = common::TestServer::start().await;
+
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) \
+         VALUES ($1, 1200.0, 80.0, 0.06, 5) \
+         ON CONFLICT (user_id) DO UPDATE SET rating = 1200.0, deviation = 80.0, volatility = 0.06",
+    )
+    .bind(server.black_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) \
+         VALUES ($1, 2000.0, 80.0, 0.06, 5) \
+         ON CONFLICT (user_id) DO UPDATE SET rating = 2000.0, deviation = 80.0, volatility = 0.06",
+    )
+    .bind(server.white_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+
+    let game_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+    sqlx::query("UPDATE games SET max_handicap = 3 WHERE id = $1")
+        .bind(game_id)
+        .execute(&server.pool)
+        .await
+        .unwrap();
+
+    server.join_game(game_id).await;
+
+    let handicap: i32 = sqlx::query_scalar(
+        "SELECT COALESCE(derived_handicap, handicap) FROM games WHERE id = $1",
+    )
+    .bind(game_id)
+    .fetch_one(&server.pool)
+    .await
+    .unwrap();
+
+    assert!(
+        handicap <= 3,
+        "handicap {handicap} should be capped at max_handicap 3"
+    );
+}
