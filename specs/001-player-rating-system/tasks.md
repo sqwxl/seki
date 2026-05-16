@@ -54,9 +54,9 @@
 ### Tests for User Story 1
 
 - [X] T020 [P] [US1] Add integration tests for ranked game creation, private-game rejection, invite-only rejection, and manual handicap/komi rejection in `seki-web/tests/ws/rating.rs`
-- [ ] T021 [P] [US1] Add integration tests for ranked open-game join snapshot capture and automatic color/handicap/komi derivation in `seki-web/tests/ws/rating.rs`
-- [ ] T022 [P] [US1] Add integration tests for resignation-triggered Glicko-2 update and idempotent repeated finalization in `seki-web/tests/ws/rating.rs`
-- [ ] T023 [P] [US1] Add integration tests for exact-rating random color assignment and lower-rating Black assignment in `seki-web/tests/ws/rating.rs`
+- [X] T021 [P] [US1] Add integration tests for ranked open-game join snapshot capture and automatic color/handicap/komi derivation in `seki-web/tests/ws/rating.rs`
+- [X] T022 [P] [US1] Add integration tests for resignation-triggered Glicko-2 update and idempotent repeated finalization in `seki-web/tests/ws/rating.rs`
+- [X] T023 [P] [US1] Add integration tests for exact-rating random color assignment and lower-rating Black assignment in `seki-web/tests/ws/rating.rs`
 
 ### Implementation for User Story 1
 

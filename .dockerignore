@@ -1,5 +1,7 @@
 target/
 .git/
+Dockerfile*
+.dockerignore
 node_modules/
 seki-web/frontend/node_modules/
 coverage/

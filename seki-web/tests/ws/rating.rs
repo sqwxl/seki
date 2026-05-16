@@ -1,4 +1,5 @@
 use super::common;
+use seki_web::models::game::Game;
 use serde_json::json;
 
 #[test]
@@ -49,32 +50,192 @@ async fn ranked_api_create_persists_ranked_status_and_profile() {
 #[tokio::test]
 async fn ranked_resign_updates_ratings_idempotently() {
     let server = common::TestServer::start().await;
-    let game_id: i64 = sqlx::query_scalar(
-        "INSERT INTO games (creator_id,black_id,white_id,cols,rows,komi,handicap,stage,access_token,ranked,rating_applied)
-         VALUES ($1,$2,$3,9,9,6.5,0,'completed','t',1,0) RETURNING id",
+    let game_id = server
+        .create_and_join_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+
+    let mut black = server.ws_black().await;
+    let mut white = server.ws_white().await;
+
+    let _ = black.join_game(game_id).await;
+    let _ = white.join_game(game_id).await;
+
+    black.play(game_id, 0, 0).await;
+    let _ = black.recv_kind("state").await;
+    let _ = white.recv_kind("state").await;
+
+    white.resign(game_id).await;
+    let state_b = black.recv_kind("state").await;
+    let state_w = white.recv_kind("state").await;
+    assert_eq!(state_b["result"], "B+R");
+    assert_eq!(state_w["result"], "B+R");
+
+    let adjustment_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM rating_adjustments WHERE game_id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    let rating_applied: bool = sqlx::query_scalar("SELECT rating_applied FROM games WHERE id = $1")
+        .bind(game_id)
+        .fetch_one(&server.pool)
+        .await
+        .unwrap();
+    let black_rated_games: i32 =
+        sqlx::query_scalar("SELECT rated_games FROM rating_profiles WHERE user_id = $1")
+            .bind(server.black_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    let white_rated_games: i32 =
+        sqlx::query_scalar("SELECT rated_games FROM rating_profiles WHERE user_id = $1")
+            .bind(server.white_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+
+    assert_eq!(adjustment_count, 2);
+    assert!(rating_applied);
+    assert_eq!(black_rated_games, 1);
+    assert_eq!(white_rated_games, 1);
+
+    let game = Game::find_by_id(&server.pool, game_id).await.unwrap();
+    let applied_again = seki_web::services::rating::finalize_rating(
+        &server.pool,
+        &game,
+        "B+R",
+        server.black_id,
+        server.white_id,
+    )
+    .await
+    .unwrap();
+    let adjustment_count_after: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM rating_adjustments WHERE game_id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+
+    assert!(!applied_again);
+    assert_eq!(adjustment_count_after, 2);
+}
+
+#[tokio::test]
+async fn ranked_open_join_captures_snapshots_and_derived_settings() {
+    let server = common::TestServer::start().await;
+    let game_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+
+    sqlx::query(
+        "UPDATE rating_profiles SET rating = 1300.0, deviation = 90.0, volatility = 0.06, rated_games = 5 WHERE user_id = $1",
     )
     .bind(server.black_id)
-    .bind(server.black_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) VALUES ($1, 1600.0, 80.0, 0.06, 8)",
+    )
     .bind(server.white_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+
+    server.join_game(game_id).await;
+
+    let row: (f64, f64, f64, f64, i32, f64, String, String) = sqlx::query_as(
+        "SELECT black_rating_before, white_rating_before, black_deviation_before, white_deviation_before, derived_handicap, derived_komi, derived_color_reason, calibration_policy_version FROM games WHERE id = $1",
+    )
+    .bind(game_id)
     .fetch_one(&server.pool)
     .await
     .unwrap();
 
-    // Use model directly for idempotency of adjustment insert
-    let adj: crate::models::rating::NewRatingAdjustment = crate::models::rating::NewRatingAdjustment {
-        user_id: server.black_id,
-        game_id,
-        opponent_id: server.white_id,
-        result: "B+R",
-        rating_before: 1500.0,
-        rating_after: 1516.0,
-        deviation_before: 90.0,
-        deviation_after: 85.0,
-        volatility_before: 0.06,
-        volatility_after: 0.06,
-        opponent_rating_before: 1500.0,
-    };
+    assert_eq!(row.0, 1300.0);
+    assert_eq!(row.1, 1600.0);
+    assert_eq!(row.2, 90.0);
+    assert_eq!(row.3, 80.0);
+    assert_eq!(row.4, 3);
+    assert_eq!(row.5, 0.5);
+    assert_eq!(row.6, "lower_rating_black");
+    assert_eq!(row.7, "provisional-v1");
+}
 
+#[tokio::test]
+async fn ranked_open_join_assigns_lower_rating_to_black() {
+    let server = common::TestServer::start().await;
+    let game_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+
+    sqlx::query(
+        "UPDATE rating_profiles SET rating = 1600.0, deviation = 80.0, volatility = 0.06, rated_games = 8 WHERE user_id = $1",
+    )
+    .bind(server.black_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) VALUES ($1, 1300.0, 90.0, 0.06, 5)",
+    )
+    .bind(server.white_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+
+    server.join_game(game_id).await;
+
+    let row: (i64, i64, f64, f64, i32, String, String) = sqlx::query_as(
+        "SELECT black_id, white_id, black_rating_before, white_rating_before, handicap, stage, derived_color_reason FROM games WHERE id = $1",
+    )
+    .bind(game_id)
+    .fetch_one(&server.pool)
+    .await
+    .unwrap();
+
+    assert_eq!(row.0, server.white_id);
+    assert_eq!(row.1, server.black_id);
+    assert_eq!(row.2, 1300.0);
+    assert_eq!(row.3, 1600.0);
+    assert_eq!(row.4, 3);
+    assert_eq!(row.5, "white_to_play");
+    assert_eq!(row.6, "lower_rating_black");
+}
+
+#[tokio::test]
+async fn ranked_open_join_marks_exact_rating_color_as_random() {
+    let server = common::TestServer::start().await;
+    let game_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+
+    sqlx::query(
+        "UPDATE rating_profiles SET rating = 1500.0, deviation = 80.0, volatility = 0.06, rated_games = 8 WHERE user_id = $1",
+    )
+    .bind(server.black_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) VALUES ($1, 1500.0, 90.0, 0.06, 5)",
+    )
+    .bind(server.white_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+
+    server.join_game(game_id).await;
+
+    let row: (String, i64, i64) =
+        sqlx::query_as("SELECT derived_color_reason, black_id, white_id FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+
+    assert_eq!(row.0, "exact_rating_random");
+    assert_ne!(row.1, row.2);
 }
 
 #[tokio::test]
