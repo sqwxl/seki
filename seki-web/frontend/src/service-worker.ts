@@ -1,5 +1,5 @@
 // @ts-nocheck -- ServiceWorkerGlobalScope types
-const CACHE_NAME = "seki-v1";
+const CACHE_NAME = "seki-v2";
 const STATIC_PATHS = [
   "/static/dist/",
   "/static/css/",
@@ -8,14 +8,8 @@ const STATIC_PATHS = [
   "/static/sounds/",
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.add("/").catch(() => {
-        // Shell page may not be cacheable on first load; ok
-      });
-    }),
-  );
+self.addEventListener("install", () => {
+  // The SPA shell embeds user-specific bootstrap data, so do not precache it.
   self.skipWaiting();
 });
 
