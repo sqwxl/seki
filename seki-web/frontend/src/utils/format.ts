@@ -157,6 +157,10 @@ export function buildDescriptionParts(g: DescriptionInput): string[] {
     parts.push(tc);
   }
 
+  if (g.settings.ranked === false) {
+    parts.push("(unrated)");
+  }
+
   if (g.result) {
     parts.push(g.result);
   } else if (

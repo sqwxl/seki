@@ -1,9 +1,11 @@
 use serde::Serialize;
 use serde_json::json;
+use std::collections::HashMap;
 
 use crate::AppState;
 use crate::db::DbPool;
 use crate::models::game::{Game, GameWithPlayers, TimeControlType};
+use crate::models::rating::RatingProfile;
 use crate::models::turn::TurnRow;
 use crate::models::user::User;
 use crate::services::engine_builder;
@@ -55,7 +57,11 @@ pub struct LiveGameItem {
 }
 
 impl LiveGameItem {
-    pub fn from_gwp(gwp: &GameWithPlayers, move_count: Option<usize>) -> Self {
+    pub fn from_gwp(
+        gwp: &GameWithPlayers,
+        move_count: Option<usize>,
+        profiles: &HashMap<i64, RatingProfile>,
+    ) -> Self {
         Self {
             id: gwp.game.id,
             creator_id: gwp.game.creator_id,
@@ -64,11 +70,11 @@ impl LiveGameItem {
             black: gwp
                 .black
                 .as_ref()
-                .map(|user| user_data_for_game_player(user, &gwp.game, true)),
+                .map(|user| user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))),
             white: gwp
                 .white
                 .as_ref()
-                .map(|user| user_data_for_game_player(user, &gwp.game, false)),
+                .map(|user| user_data_for_game_player(user, &gwp.game, false, profiles.get(&user.id))),
             settings: game_settings_for_game(&gwp.game),
             move_count,
             ranked: gwp.game.ranked,
@@ -79,17 +85,38 @@ impl LiveGameItem {
     }
 }
 
-/// Build `LiveGameItem`s from a batch of games, fetching move counts in one query.
+/// Build `LiveGameItem`s from a batch of games, fetching move counts and rating profiles in one query each.
 pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<LiveGameItem> {
     let game_ids: Vec<i64> = games.iter().map(|g| g.game.id).collect();
     let counts = TurnRow::count_by_game_ids(pool, &game_ids)
         .await
         .unwrap_or_default();
+    let mut user_ids = std::collections::HashSet::new();
+    for gwp in games {
+        if let Some(ref u) = gwp.black {
+            user_ids.insert(u.id);
+        }
+        if let Some(ref u) = gwp.white {
+            user_ids.insert(u.id);
+        }
+    }
+    let profiles: HashMap<i64, RatingProfile> = if user_ids.is_empty() {
+        HashMap::new()
+    } else {
+        let ids: Vec<i64> = user_ids.into_iter().collect();
+        let rows: Vec<RatingProfile> =
+            sqlx::query_as("SELECT * FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))")
+                .bind(serde_json::to_string(&ids).unwrap_or_default())
+                .fetch_all(pool)
+                .await
+                .unwrap_or_default();
+        rows.into_iter().map(|p| (p.user_id, p)).collect()
+    };
     games
         .iter()
         .map(|gwp| {
             let mc = counts.get(&gwp.game.id).copied().map(|n| n as usize);
-            LiveGameItem::from_gwp(gwp, mc)
+            LiveGameItem::from_gwp(gwp, mc, &profiles)
         })
         .collect()
 }
@@ -110,7 +137,8 @@ struct GameUpdate {
 
 /// Notify live clients that a new game appeared (created or joined).
 pub fn notify_game_created(state: &AppState, gwp: &GameWithPlayers) {
-    let item = LiveGameItem::from_gwp(gwp, None);
+    let profiles: HashMap<i64, RatingProfile> = HashMap::new();
+    let item = LiveGameItem::from_gwp(gwp, None, &profiles);
     let msg = json!({
         "kind": "game_created",
         "game": item,
@@ -130,6 +158,7 @@ pub fn notify_game_updated(
     move_count: Option<usize>,
     stage: &str,
 ) {
+    let profiles: HashMap<i64, RatingProfile> = HashMap::new();
     let update = GameUpdate {
         id: gwp.game.id,
         stage: stage.to_string(),
@@ -137,11 +166,11 @@ pub fn notify_game_updated(
         black: gwp
             .black
             .as_ref()
-            .map(|user| user_data_for_game_player(user, &gwp.game, true)),
+            .map(|user| user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))),
         white: gwp
             .white
             .as_ref()
-            .map(|user| user_data_for_game_player(user, &gwp.game, false)),
+            .map(|user| user_data_for_game_player(user, &gwp.game, false, profiles.get(&user.id))),
         move_count,
         ranked: gwp.game.ranked,
         settings: game_settings_for_game(&gwp.game),
@@ -174,9 +203,16 @@ pub fn game_settings_for_game(game: &Game) -> GameSettings {
     }
 }
 
-pub fn user_data_for_game_player(user: &User, game: &Game, is_black: bool) -> UserData {
-    let mut data = UserData::from(user);
-    data.rank = rank_from_game_snapshot(game, is_black);
+pub fn user_data_for_game_player(
+    user: &User,
+    game: &Game,
+    is_black: bool,
+    profile: Option<&RatingProfile>,
+) -> UserData {
+    let mut data = UserData::from_user_with_rank(user, profile);
+    if let Some(snapshot_rank) = rank_from_game_snapshot(game, is_black) {
+        data.rank = Some(snapshot_rank);
+    }
     data
 }
 

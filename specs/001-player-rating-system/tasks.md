@@ -170,16 +170,16 @@
 
 ### Tests for User Story 5
 
-- [ ] T073 [P] [US5] Add backend tests for rated/unrated and rank-range game list filtering in `seki-web/tests/ws/rating.rs`
-- [ ] T074 [P] [US5] Add frontend tests for rating filter state and display behavior in `seki-web/frontend/src/__tests__/rating-format.test.ts`
+- [X] T073 [P] [US5] Add backend tests for rated/unrated and rank-range game list filtering in `seki-web/tests/ws/rating.rs`
+- [X] T074 [P] [US5] Add frontend tests for rating filter state and display behavior in `seki-web/frontend/src/__tests__/rating-format.test.ts`
 
 ### Implementation for User Story 5
 
-- [ ] T075 [US5] Extend game list query parameters and filtering by ranked status and rating/rank range in `seki-web/src/models/game_read.rs`
-- [ ] T076 [US5] Add rated-status and rank-range parsing to games web API route in `seki-web/src/routes/web_api.rs`
-- [ ] T077 [US5] Include ranked status, rank labels, and `(unrated)` display data in game list DTOs in `seki-web/src/services/live.rs`
-- [ ] T078 [US5] Add rated/unrated and rank-range filter controls in `seki-web/frontend/src/layouts/games-list.tsx`
-- [ ] T079 [US5] Persist game-list rating filter state in `seki-web/frontend/src/utils/storage.ts`
+- [X] T075 [US5] Extend game list query parameters and filtering by ranked status and rating/rank range in `seki-web/src/models/game_read.rs`
+- [X] T076 [US5] Add rated-status and rank-range parsing to games web API route in `seki-web/src/routes/web_api.rs`
+- [X] T077 [US5] Include ranked status, rank labels, and `(unrated)` display data in game list DTOs in `seki-web/src/services/live.rs`
+- [X] T078 [US5] Add rated/unrated and rank-range filter controls in `seki-web/frontend/src/layouts/games-list.tsx`
+- [X] T079 [US5] Persist game-list rating filter state in `seki-web/frontend/src/utils/storage.ts`
 
 **Checkpoint**: User Story 5 works independently on top of existing game-list data.
 
@@ -189,15 +189,15 @@
 
 **Purpose**: Final verification, documentation, and cleanup across all stories.
 
-- [ ] T080 [P] Update rating-system implementation notes and checklist items in `README.md`
-- [ ] T081 [P] Update frontend behavior contract for rating labels, display preference, and ranked game UI in `FRONTEND_SPEC.md`
-- [ ] T082 [P] Update API behavior contract for ranked game validation and rating response fields in `API_SPEC.md`
-- [ ] T083 Run Rust verification commands and record results in `specs/001-player-rating-system/quickstart.md`
-- [ ] T084 Run frontend typecheck/tests and record results in `specs/001-player-rating-system/quickstart.md`
-- [ ] T085 Review rating service and route changes for protected game metadata leaks in `seki-web/src/services/rating.rs`
-- [ ] T086 Review generated OpenAPI output for rating fields and API errors in `seki-web/src/bin/gen-openapi.rs`
-- [ ] T087 Split `seki-web/src/services/rating.rs` into focused modules if it grows beyond roughly 500 lines in `seki-web/src/services/rating.rs`
-- [ ] T088 Split `seki-web/src/models/rating.rs` into focused modules if it grows beyond roughly 500 lines in `seki-web/src/models/rating.rs`
+- [X] T080 [P] Update rating-system implementation notes and checklist items in `README.md`
+- [X] T081 [P] Update frontend behavior contract for rating labels, display preference, and ranked game UI in `FRONTEND_SPEC.md`
+- [X] T082 [P] Update API behavior contract for ranked game validation and rating response fields in `API_SPEC.md`
+- [X] T083 Run Rust verification commands and record results in `specs/001-player-rating-system/quickstart.md`
+- [X] T084 Run frontend typecheck/tests and record results in `specs/001-player-rating-system/quickstart.md`
+- [X] T085 Review rating service and route changes for protected game metadata leaks in `seki-web/src/services/rating.rs`
+- [X] T086 Review generated OpenAPI output for rating fields and API errors in `seki-web/src/bin/gen-openapi.rs`
+- [X] T087 Split `seki-web/src/services/rating.rs` into focused modules if it grows beyond roughly 500 lines in `seki-web/src/services/rating.rs`
+- [X] T088 Split `seki-web/src/models/rating.rs` into focused modules if it grows beyond roughly 500 lines in `seki-web/src/models/rating.rs`
 
 ---
 

@@ -778,3 +778,127 @@ async fn profile_rating_history_filters_protected_games() {
         private_game_id
     );
 }
+
+#[tokio::test]
+async fn game_list_filters_by_rated_status() {
+    let server = common::TestServer::start().await;
+    let ranked_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+    let unranked_id = server
+        .create_game_with(json!({"ranked": false, "open_to": "registered"}))
+        .await;
+
+    let ranked_resp = server
+        .client_spectator
+        .get(format!(
+            "http://{}/api/web/games?rated_status=ranked",
+            server.addr
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert!(ranked_resp.status().is_success());
+    let ranked_body = ranked_resp.json::<serde_json::Value>().await.unwrap();
+    let public_ids: Vec<i64> = ranked_body["public_games"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g["id"].as_i64().unwrap())
+        .collect();
+    assert!(public_ids.contains(&ranked_id));
+    assert!(!public_ids.contains(&unranked_id));
+
+    let unranked_resp = server
+        .client_spectator
+        .get(format!(
+            "http://{}/api/web/games?rated_status=unranked",
+            server.addr
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert!(unranked_resp.status().is_success());
+    let unranked_body = unranked_resp.json::<serde_json::Value>().await.unwrap();
+    let unranked_public_ids: Vec<i64> = unranked_body["public_games"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g["id"].as_i64().unwrap())
+        .collect();
+    assert!(!unranked_public_ids.contains(&ranked_id));
+    assert!(unranked_public_ids.contains(&unranked_id));
+}
+
+#[tokio::test]
+async fn game_list_filters_by_rating_range() {
+    let server = common::TestServer::start().await;
+
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) \
+         VALUES ($1, 1200.0, 80.0, 0.06, 5) \
+         ON CONFLICT (user_id) DO UPDATE SET rating = 1200.0, deviation = 80.0, volatility = 0.06",
+    )
+    .bind(server.black_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) \
+         VALUES ($1, 1800.0, 80.0, 0.06, 5) \
+         ON CONFLICT (user_id) DO UPDATE SET rating = 1800.0, deviation = 80.0, volatility = 0.06",
+    )
+    .bind(server.white_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+
+    let ranked_game = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+    server.join_game(ranked_game).await;
+
+    let unranked_game = server
+        .create_game_with(json!({"ranked": false, "open_to": "registered"}))
+        .await;
+
+    let low_range_resp = server
+        .client_spectator
+        .get(format!(
+            "http://{}/api/web/games?min_rating=1100&max_rating=1300",
+            server.addr
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert!(low_range_resp.status().is_success());
+    let low_body = low_range_resp.json::<serde_json::Value>().await.unwrap();
+    let low_ids: Vec<i64> = low_body["public_games"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g["id"].as_i64().unwrap())
+        .collect();
+    assert!(low_ids.contains(&ranked_game));
+    assert!(low_ids.contains(&unranked_game));
+
+    let no_match_resp = server
+        .client_spectator
+        .get(format!(
+            "http://{}/api/web/games?min_rating=1301&max_rating=1799",
+            server.addr
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert!(no_match_resp.status().is_success());
+    let no_match_body = no_match_resp.json::<serde_json::Value>().await.unwrap();
+    let no_match_ids: Vec<i64> = no_match_body["public_games"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g["id"].as_i64().unwrap())
+        .collect();
+    assert!(!no_match_ids.contains(&ranked_game));
+    assert!(no_match_ids.contains(&unranked_game));
+}

@@ -133,7 +133,8 @@ Notes:
 - [x] Spectator support for games
 - [ ] Pre-start spectate flow for open/challenge games
 - [ ] Room user list on the game page
-- [ ] Filter games list (unranked, rank range, time, size)
+- [x] Filter games list (unranked, rank range)
+- [ ] Filter games list (time, size)
 - [ ] Auto-match system
 - [x] In-app notification system for unread games
 - [x] Notification settings and OS notification toggle
@@ -153,8 +154,8 @@ Notes:
 - [x] User online status (presence indicators in game, chat, and user search)
 - [ ] Friend requests / friends list
 - [ ] Rich user labels (rank/friend/bot indicators)
-- [ ] Ranking system (ELO, kyu/dan)
-  - [ ] Ranked/unranked game option
+- [x] Ranking system (Glicko-2 rating with kyu/dan labels)
+  - [x] Ranked/unranked game option
 
 ### API
 

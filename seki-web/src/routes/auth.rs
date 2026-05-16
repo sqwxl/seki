@@ -142,6 +142,9 @@ pub async fn register(
 
     User::set_credentials(&state.db, current_user.id, &username, &password_hash).await?;
 
+    // Ensure rating profile exists for the newly registered user
+    crate::models::rating::RatingProfile::get_or_create(&state.db, current_user.id).await?;
+
     if json {
         return Ok(axum::Json(json!({"redirect": "/"})).into_response());
     }

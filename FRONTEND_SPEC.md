@@ -619,6 +619,7 @@ Expected filtering:
 - games with at least one empty seat and not private/invite-only appear in `Open games`
 - public started games appear in `Public games`
 - aborted and declined games are excluded from lobby-facing sections except where explicitly retained elsewhere
+- `Open games` and `Public games` support a rated/unrated filter toggle (All / Ranked / Unranked), persisted in `localStorage`
 
 Expected item behavior:
 

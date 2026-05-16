@@ -19,9 +19,23 @@ pub(crate) fn wants_json(headers: &axum::http::HeaderMap) -> bool {
         .is_some_and(|s| s.contains("application/json"))
 }
 
-pub(crate) fn serialize_user_data(user: &crate::session::CurrentUser) -> String {
-    serde_json::to_string(&crate::templates::UserData::from(&user.user))
-        .unwrap_or_else(|_| "{}".to_string())
+pub(crate) async fn serialize_user_data(
+    pool: &crate::db::DbPool,
+    user: &crate::session::CurrentUser,
+) -> String {
+    let profile = if user.is_registered() {
+        crate::models::rating::RatingProfile::find(pool, user.id)
+            .await
+            .ok()
+            .flatten()
+    } else {
+        None
+    };
+    serde_json::to_string(&crate::templates::UserData::from_user_with_rank(
+        &user.user,
+        profile.as_ref(),
+    ))
+    .unwrap_or_else(|_| "{}".to_string())
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq, serde::Deserialize)]

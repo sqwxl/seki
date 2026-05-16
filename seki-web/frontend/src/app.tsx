@@ -1123,6 +1123,7 @@ function App() {
     initPreferences();
     initTheme();
     setCurrentUser(next);
+    routeDataCache.clear();
   }
 
   const navigate = (

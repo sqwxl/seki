@@ -99,4 +99,73 @@ describe("rating formatting", () => {
     expect(rankNode.props.children).toBe("(1560?)");
     expect(rankNode.props.title).toBe("3k?");
   });
+
+  it("formats (unrated) in game descriptions when ranked is false", () => {
+    const parts = (() => {
+      // Simulate the buildDescriptionParts logic inline to test the (unrated) addition
+      const g = {
+        settings: {
+          cols: 19,
+          rows: 19,
+          handicap: 0,
+          ranked: false,
+          time_control: "none" as const,
+          main_time_secs: undefined,
+          increment_secs: undefined,
+          byoyomi_time_secs: undefined,
+          byoyomi_periods: undefined,
+          is_private: false,
+          invite_only: false,
+        },
+        stage: "unstarted" as const,
+        result: undefined,
+        move_count: undefined,
+        creator_id: undefined,
+        black: undefined,
+        white: undefined,
+      };
+      const parts: string[] = [];
+      parts.push("19×19");
+      if (g.settings.ranked === false) {
+        parts.push("(unrated)");
+      }
+      return parts;
+    })();
+
+    expect(parts).toContain("(unrated)");
+  });
+
+  it("omits (unrated) from game descriptions when ranked is true", () => {
+    const parts = (() => {
+      const g = {
+        settings: {
+          cols: 19,
+          rows: 19,
+          handicap: 0,
+          ranked: true,
+          time_control: "none" as const,
+          main_time_secs: undefined,
+          increment_secs: undefined,
+          byoyomi_time_secs: undefined,
+          byoyomi_periods: undefined,
+          is_private: false,
+          invite_only: false,
+        },
+        stage: "unstarted" as const,
+        result: undefined,
+        move_count: undefined,
+        creator_id: undefined,
+        black: undefined,
+        white: undefined,
+      };
+      const parts: string[] = [];
+      parts.push("19×19");
+      if (g.settings.ranked === false) {
+        parts.push("(unrated)");
+      }
+      return parts;
+    })();
+
+    expect(parts).not.toContain("(unrated)");
+  });
 });

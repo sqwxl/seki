@@ -7,6 +7,7 @@ use sqlx::FromRow;
 use go_engine::Stone;
 
 use crate::db::DbPool;
+use crate::models::game_read::GameListRatingFilters;
 use crate::models::user::User;
 
 #[derive(
@@ -123,6 +124,69 @@ impl Game {
 
         if let Some(id) = exclude_id {
             games.retain(|g| g.black_id != Some(id) && g.white_id != Some(id))
+        }
+
+        Self::batch_with_players(pool, games).await
+    }
+
+    pub async fn list_public_filtered(
+        pool: &DbPool,
+        filters: GameListRatingFilters,
+    ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
+        let mut games = Self::list_public(pool).await?;
+
+        if let Some(status) = filters.rated_status {
+            match status {
+                crate::models::game_read::RatedStatusFilter::Ranked => {
+                    games.retain(|g| g.ranked)
+                }
+                crate::models::game_read::RatedStatusFilter::Unranked => {
+                    games.retain(|g| !g.ranked)
+                }
+            }
+        }
+
+        let need_rating_filter =
+            filters.min_rating.is_some() || filters.max_rating.is_some();
+        if need_rating_filter {
+            let user_ids: Vec<i64> = {
+                let mut ids = std::collections::HashSet::new();
+                for g in &games {
+                    if let Some(id) = g.black_id {
+                        ids.insert(id);
+                    }
+                    if let Some(id) = g.white_id {
+                        ids.insert(id);
+                    }
+                }
+                ids.into_iter().collect()
+            };
+
+            let rating_map = if user_ids.is_empty() {
+                HashMap::new()
+            } else {
+                let ratings: Vec<(i64, f64)> = sqlx::query_as(
+                    "SELECT user_id, rating FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))",
+                )
+                .bind(serde_json::to_string(&user_ids).unwrap_or_default())
+                .fetch_all(pool)
+                .await?;
+                ratings.into_iter().collect()
+            };
+
+            let min = filters.min_rating.map(|r| r as f64).unwrap_or(f64::MIN);
+            let max = filters.max_rating.map(|r| r as f64).unwrap_or(f64::MAX);
+
+            games.retain(|g| {
+                if !g.ranked {
+                    return true;
+                }
+                let in_range = |id: Option<i64>| -> bool {
+                    id.and_then(|uid| rating_map.get(&uid))
+                        .is_some_and(|&rating| rating >= min && rating <= max)
+                };
+                in_range(g.black_id) || in_range(g.white_id)
+            });
         }
 
         Self::batch_with_players(pool, games).await

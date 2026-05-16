@@ -60,3 +60,23 @@ Expected behavior:
 - JSON error responses use a consistent envelope shape
 - machine-readable error codes are included for client handling
 - human-readable error messages may be included, but are not the only structured error signal
+
+## Ranked Games and Rating
+
+The server enforces ranked-game constraints on all game creation, join, and result paths.
+
+Expected behavior:
+
+- ranked games must be open or direct challenges (not private or invite-only)
+- ranked games are restricted to registered users who participate in ranking
+- submitted manual handicap and komi values are rejected or ignored for ranked games; the server derives these from rating context
+- rated results are applied via Glicko-2 exactly once per game (idempotent finalization)
+- rating adjustments are stored as durable audit rows with before/after values
+- current rating state (rating, deviation, volatility) is maintained per user in a separate rating profile
+
+Rating response fields:
+
+- API responses that include user data may include a `rank` object with `qualifier`, `status`, `rating`, `deviation`, `volatility`, and `uncertain` fields
+- game data responses include `ranked` status and derived ranked settings when applicable
+- rating history is exposed through user profile endpoints with protected-game visibility filtering
+- `/api/web/games` accepts optional `rated_status` (ranked/unranked), `min_rating`, and `max_rating` query parameters for server-side filtering

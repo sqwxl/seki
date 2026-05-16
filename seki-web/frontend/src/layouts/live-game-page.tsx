@@ -482,6 +482,7 @@ function LiveGameStatusSlot(
           settings={initialProps.value.settings}
           komi={initialProps.value.komi}
           allowUndo={allowUndo.value}
+          rated={initialProps.value.settings.ranked}
           yourColor={
             status.lobbyPopover.variant === "challengee"
               ? nigiri.value

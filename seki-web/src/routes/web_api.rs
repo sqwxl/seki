@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
+use crate::models::game_read::GameListRatingFilters;
 use crate::models::message::Message;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
@@ -53,7 +54,7 @@ pub(crate) async fn bootstrap_for_location(
     };
 
     let data = match path {
-        "/" | "/games" => serde_json::to_value(load_games_index(state, current_user).await?)?,
+        "/" | "/games" => serde_json::to_value(load_games_index(state, current_user, GameListRatingFilters::default()).await?)?,
         "/games/new" => serde_json::to_value(
             load_new_game(state, current_user, query_param(query, "opponent")).await?,
         )?,
@@ -137,8 +138,19 @@ fn query_param(query: Option<&str>, key: &str) -> Option<String> {
     })
 }
 
-async fn session_me(current_user: CurrentUser) -> Json<UserData> {
-    Json(UserData::from(&current_user.user))
+async fn session_me(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+) -> Result<Json<UserData>, AppError> {
+    let rating_profile = if current_user.is_registered() {
+        RatingProfile::find(&state.db, current_user.id).await?
+    } else {
+        None
+    };
+    Ok(Json(UserData::from_user_with_rank(
+        &current_user.user,
+        rating_profile.as_ref(),
+    )))
 }
 
 #[derive(Serialize)]
@@ -148,20 +160,44 @@ struct GamesIndexData {
     public_games: Vec<LiveGameItem>,
 }
 
+#[derive(Deserialize)]
+struct GamesIndexQuery {
+    rated_status: Option<String>,
+    min_rating: Option<i32>,
+    max_rating: Option<i32>,
+}
+
+fn parse_rating_filters(query: &GamesIndexQuery) -> GameListRatingFilters {
+    use crate::models::game_read::RatedStatusFilter;
+    GameListRatingFilters {
+        rated_status: match query.rated_status.as_deref() {
+            Some("ranked") => Some(RatedStatusFilter::Ranked),
+            Some("unranked") => Some(RatedStatusFilter::Unranked),
+            _ => None,
+        },
+        min_rating: query.min_rating,
+        max_rating: query.max_rating,
+    }
+}
+
 async fn games_index(
     State(state): State<AppState>,
     current_user: CurrentUser,
+    Query(query): Query<GamesIndexQuery>,
 ) -> Result<Json<GamesIndexData>, AppError> {
-    Ok(Json(load_games_index(&state, &current_user).await?))
+    Ok(Json(
+        load_games_index(&state, &current_user, parse_rating_filters(&query)).await?,
+    ))
 }
 
 async fn load_games_index(
     state: &AppState,
     current_user: &CurrentUser,
+    rating_filters: GameListRatingFilters,
 ) -> Result<GamesIndexData, AppError> {
     let (player_games, public_games) = tokio::join!(
         Game::list_for_player(&state.db, current_user.id),
-        Game::list_public_with_players(&state.db, Some(current_user.id)),
+        Game::list_public_filtered(&state.db, rating_filters),
     );
 
     let player_games = player_games.unwrap_or_default();
@@ -492,6 +528,15 @@ async fn build_game_props(
         .get_or_init_engine(&state.db, &gwp.game)
         .await?;
 
+    let black_profile = match gwp.black.as_ref() {
+        Some(u) => RatingProfile::find(&state.db, u.id).await?,
+        None => None,
+    };
+    let white_profile = match gwp.white.as_ref() {
+        Some(u) => RatingProfile::find(&state.db, u.id).await?,
+        None => None,
+    };
+
     let stage = if gwp.game.result.is_some() {
         gwp.game.stage.clone()
     } else if gwp.game.stage == "unstarted" {
@@ -540,11 +585,11 @@ async fn build_game_props(
         black: gwp
             .black
             .as_ref()
-            .map(|user| live::user_data_for_game_player(user, &gwp.game, true)),
+            .map(|user| live::user_data_for_game_player(user, &gwp.game, true, black_profile.as_ref())),
         white: gwp
             .white
             .as_ref()
-            .map(|user| live::user_data_for_game_player(user, &gwp.game, false)),
+            .map(|user| live::user_data_for_game_player(user, &gwp.game, false, white_profile.as_ref())),
         komi: gwp.game.komi,
         stage,
         settings: live::game_settings_for_game(&gwp.game),

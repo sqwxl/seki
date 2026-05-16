@@ -31,6 +31,17 @@ pnpm run typecheck
 pnpm test
 ```
 
+## Last Verification (2026-05-16)
+
+```text
+Rust: 217 tests passed, 0 failed
+  cargo test --all: ok. 217 passed; 0 failed
+
+Frontend: 168 tests passed, 0 failed
+  pnpm run typecheck: no errors
+  pnpm test: 10 test files, 168 tests passed
+```
+
 ## Manual Checks
 
 1. Register two users, create a ranked open game, join it, resign after at least one move, and confirm both profiles show changed current rating plus rating/deviation/volatility history rows.

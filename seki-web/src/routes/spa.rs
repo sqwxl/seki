@@ -32,7 +32,7 @@ pub async fn shell(
     bootstrap.flash = take_flash(&session).await?;
     let bootstrap_json = serde_json::to_string(&bootstrap)?;
     let tmpl = SpaShellTemplate {
-        user_data: serialize_user_data(&current_user),
+        user_data: serialize_user_data(&state.db, &current_user).await,
         bootstrap_json,
     };
     Ok(Html(tmpl.render()?).into_response())
