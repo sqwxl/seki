@@ -44,4 +44,4 @@ hot-setup: deps services
 hot: wasm-hot serve-hot frontend-hot
 
 openapi:
-    cargo run -p seki-web --bin gen-openapi > seki-web/static/openapi.json
+    cargo run -p seki-web --bin gen-openapi

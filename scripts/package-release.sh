@@ -62,9 +62,6 @@ echo "Building frontend bundle" >&2
 rm -rf "$ROOT_DIR/seki-web/static/dist"
 pnpm --dir "$FRONTEND_DIR" run build
 
-echo "Generating OpenAPI spec" >&2
-cargo run -p seki-web --bin gen-openapi > "$ROOT_DIR/seki-web/static/openapi.json"
-
 toolbox_build_release_binary
 BIN_PATH="$ROOT_DIR/target/$BUILD_TARGET/release/seki-web"
 

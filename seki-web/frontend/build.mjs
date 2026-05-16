@@ -20,7 +20,7 @@ const appConfig = {
 const swConfig = {
   entryPoints: ["src/service-worker.ts"],
   bundle: true,
-  outfile: "../static/sw.js",
+  outfile: "../static/dist/sw.js",
   format: "esm",
   minify: !watch,
   logLevel: "info",

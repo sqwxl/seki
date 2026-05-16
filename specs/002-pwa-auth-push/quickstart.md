@@ -138,7 +138,7 @@ ngrok http 3000
 - [ ] `cargo test -p seki-web` passes
 - [ ] `pnpm run typecheck` passes
 - [ ] `pnpm test` passes
-- [ ] `pnpm run build` produces `static/dist/bundle.js` and `static/sw.js`
+- [ ] `pnpm run build` produces `static/dist/bundle.js` and `static/dist/sw.js`
 - [ ] Manifest loads in browser DevTools
 - [ ] Service worker registers without errors
 - [ ] `seki:app_credential` is stored in `localStorage` on login/first visit

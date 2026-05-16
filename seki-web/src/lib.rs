@@ -176,7 +176,7 @@ pub async fn build_router_with_registry_and_presence(
         .nest_service("/static", ServeDir::new(static_dir.clone()))
         .route_service(
             "/sw.js",
-            ServeFile::new(PathBuf::from(&static_dir).join("sw.js")),
+            ServeFile::new(PathBuf::from(&static_dir).join("dist/sw.js")),
         )
         .route_service(
             "/manifest.json",

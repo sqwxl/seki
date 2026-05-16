@@ -9,8 +9,6 @@ dist/deploy/
 dist/
 build/
 seki-web/static/dist/
-seki-web/static/openapi.json
-seki-web/frontend/openapi.json
 seki-web/frontend/node_modules/
 .env
 .env*
