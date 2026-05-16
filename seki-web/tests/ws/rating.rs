@@ -176,6 +176,38 @@ async fn ranked_open_join_captures_snapshots_and_derived_settings() {
     assert_eq!(row.5, 0.5);
     assert_eq!(row.6, "lower_rating_black");
     assert_eq!(row.7, "provisional-v1");
+
+    let mut black = server.ws_black().await;
+    let init = black.recv_kind("init").await;
+    let lobby_game = init["player_games"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|game| game["id"].as_i64() == Some(game_id))
+        .expect("ranked game missing from lobby init");
+    assert_eq!(lobby_game["settings"]["ranked"], true);
+    assert_eq!(lobby_game["settings"]["rating_status"], "ranked");
+    assert_eq!(lobby_game["settings"]["color_reason"], "lower_rating_black");
+    assert_eq!(lobby_game["black"]["rank"]["status"], "ranked");
+    assert_eq!(
+        lobby_game["black"]["rank"]["rating"].as_f64().unwrap(),
+        1300.0
+    );
+
+    let state = black.join_game(game_id).await;
+    assert_eq!(state["settings"]["ranked"], true);
+    assert_eq!(state["settings"]["rating_status"], "ranked");
+    assert_eq!(state["settings"]["handicap"], 3);
+    assert_eq!(state["komi"].as_f64().unwrap(), 0.5);
+    assert_eq!(state["settings"]["color_reason"], "lower_rating_black");
+    assert_eq!(
+        state["settings"]["rating_snapshots"]["black"]["rating"]
+            .as_f64()
+            .unwrap(),
+        1300.0
+    );
+    assert_eq!(state["black"]["rank"]["status"], "ranked");
+    assert_eq!(state["black"]["rank"]["qualifier"], "10k");
 }
 
 #[tokio::test]

@@ -72,11 +72,11 @@
 - [X] T033 [US1] Call rating finalization from resignation result flow in `seki-web/src/services/game_actions/mod.rs`
 - [X] T034 [US1] Call rating finalization from territory/agreed-score result flow in `seki-web/src/services/game_actions/territory.rs`
 - [X] T035 [US1] Call rating finalization from timeout/disconnect victory flow in `seki-web/src/services/game_actions/disconnect.rs`
-- [ ] T036 [US1] Add ranked status, rating snapshots, and derived settings to serialized game state in `seki-web/src/services/state_serializer.rs`
-- [ ] T037 [US1] Include ranked settings and rank fields in live game websocket messages in `seki-web/src/ws/live.rs`
-- [ ] T038 [US1] Render ranked choice, unavailable reasons, and numeric pre-game ratings in `seki-web/frontend/src/layouts/game-settings-form.tsx`
-- [ ] T039 [US1] Render ranked settings and rating fields in live game panels in `seki-web/frontend/src/components/player-panel.tsx`
-- [ ] T040 [US1] Render ranked status and automatic settings in game info UI in `seki-web/frontend/src/components/game-info.tsx`
+- [X] T036 [US1] Add ranked status, rating snapshots, and derived settings to serialized game state in `seki-web/src/services/state_serializer.rs`
+- [X] T037 [US1] Include ranked settings and rank fields in live game websocket messages in `seki-web/src/ws/live.rs`
+- [X] T038 [US1] Render ranked choice, unavailable reasons, and numeric pre-game ratings in `seki-web/frontend/src/layouts/game-settings-form.tsx`
+- [X] T039 [US1] Render ranked settings and rating fields in live game panels in `seki-web/frontend/src/components/player-panel.tsx`
+- [X] T040 [US1] Render ranked status and automatic settings in game info UI in `seki-web/frontend/src/components/game-info.tsx`
 
 **Checkpoint**: User Story 1 is complete and independently testable as the MVP.
 

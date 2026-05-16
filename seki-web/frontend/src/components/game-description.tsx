@@ -9,6 +9,7 @@ export type GameUpdate = {
   result: string | undefined;
   black: UserData | undefined;
   white: UserData | undefined;
+  settings?: GameSettings;
   move_count: number | undefined;
 };
 

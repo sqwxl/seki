@@ -321,6 +321,7 @@ export function derivePlayerPanel(opts: {
     clockLowTime: cd.blackLow,
     profileUrl: bUrl,
     isOnline: bOnline,
+    rank: blackUser?.rank,
   };
   const whitePanel: PlayerPanelProps = {
     ...panels.white,
@@ -330,6 +331,7 @@ export function derivePlayerPanel(opts: {
     clockLowTime: cd.whiteLow,
     profileUrl: wUrl,
     isOnline: wOnline,
+    rank: whiteUser?.rank,
   };
 
   const isWhitePlayer = stone === -1;

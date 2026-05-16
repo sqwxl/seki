@@ -14,6 +14,8 @@ import {
   StoneWhite,
 } from "../components/icons";
 import { UserLabel } from "../components/user-label";
+import type { RankData } from "../game/types";
+import { formatNumericRating } from "../utils/rating";
 
 type TimeControl = "none" | "fischer" | "byoyomi" | "correspondence";
 type OpponentMode = "open" | "challenge" | "invite";
@@ -26,6 +28,7 @@ type Settings = {
   color: string;
   allowUndo: boolean;
   isPrivate: boolean;
+  ranked: boolean;
   timeControl: TimeControl;
   mainTimeMinutes: number;
   incrementSecs: number;
@@ -53,6 +56,7 @@ const DEFAULTS: Settings = {
   color: "black",
   allowUndo: false,
   isPrivate: false,
+  ranked: false,
   timeControl: "none",
   mainTimeMinutes: 10,
   incrementSecs: 5,
@@ -89,6 +93,9 @@ type Props = {
   showPrivate?: boolean;
   submitLabel?: string;
   opponent?: string;
+  isRegistered?: boolean;
+  currentUserRank?: RankData | null;
+  rankedUnavailableReason?: string | null;
 };
 
 export function GameSettingsForm({
@@ -96,6 +103,9 @@ export function GameSettingsForm({
   showPrivate = true,
   submitLabel = "Create Game",
   opponent,
+  isRegistered,
+  currentUserRank,
+  rankedUnavailableReason,
 }: Props) {
   const [s, setS] = useState(loadSettings);
   const settingsRef = useRef(s);
@@ -207,6 +217,16 @@ export function GameSettingsForm({
       if (key === "handicap" && (value as number) > 0) {
         next.komi = 0.5;
       }
+      if (key === "ranked" && value) {
+        next.handicap = 0;
+        next.komi = 6.5;
+      }
+      if (
+        (key === "isPrivate" && value) ||
+        (key === "opponentMode" && value === "invite")
+      ) {
+        next.ranked = false;
+      }
       return next;
     });
   }
@@ -214,6 +234,20 @@ export function GameSettingsForm({
   const tcActive = (tc: string) => s.timeControl === tc;
 
   const displayResults = searchQuery ? searchResults : recentOpponents;
+  const rankedBlockedReason =
+    !isRegistered
+      ? (rankedUnavailableReason ?? "Register or sign in to create ranked games.")
+      : rankedUnavailableReason ??
+    (s.isPrivate
+      ? "Ranked games must be public."
+      : s.opponentMode === "invite"
+        ? "Ranked games need an open seat or a direct challenge."
+        : undefined);
+  const rankedDisabled = Boolean(rankedBlockedReason);
+  const currentRatingText =
+    currentUserRank?.rating == null
+      ? undefined
+      : formatNumericRating(currentUserRank.rating);
 
   const submitText =
     s.opponentMode === "challenge" && selectedOpponent
@@ -255,6 +289,7 @@ export function GameSettingsForm({
             name="handicap"
             id="handicap"
             value={s.handicap}
+            disabled={s.ranked}
             onChange={(e) =>
               set("handicap", parseInt(e.currentTarget.value, 10))
             }
@@ -269,6 +304,7 @@ export function GameSettingsForm({
               );
             })}
           </select>
+          {s.ranked && <input type="hidden" name="handicap" value={0} />}
         </div>
         <div>
           <label for="komi">
@@ -282,10 +318,12 @@ export function GameSettingsForm({
             max={100.5}
             step={1}
             value={s.komi}
+            disabled={s.ranked}
             onChange={(e) =>
               set("komi", parseFloat(e.currentTarget.value) || 0)
             }
           />
+          {s.ranked && <input type="hidden" name="komi" value={6.5} />}
         </div>
         <div>
           <label>Your color</label>
@@ -357,6 +395,27 @@ export function GameSettingsForm({
             </p>
           </div>
         )}
+        <div>
+          <label for="ranked">
+            <IconBell /> Ranked game
+          </label>
+          <input
+            type="checkbox"
+            name="ranked"
+            id="ranked"
+            value="true"
+            checked={s.ranked}
+            onChange={(e) => set("ranked", e.currentTarget.checked)}
+            disabled={!isRegistered || rankedDisabled}
+          />
+          <p class="form-help">
+            {rankedDisabled
+              ? rankedBlockedReason
+              : currentRatingText
+                ? `Your current rating is ${currentRatingText}.`
+                : "Your first ranked game starts from a provisional rating."}
+          </p>
+        </div>
       </fieldset>
 
       <fieldset>

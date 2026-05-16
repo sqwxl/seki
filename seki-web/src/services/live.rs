@@ -3,9 +3,13 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::db::DbPool;
-use crate::models::game::{GameWithPlayers, TimeControlType};
+use crate::models::game::{Game, GameWithPlayers, TimeControlType};
 use crate::models::turn::TurnRow;
+use crate::models::user::User;
 use crate::services::engine_builder;
+use crate::services::rating::{
+    PROVISIONAL_DEVIATION_THRESHOLD, RankDto, RankStatus, RatingCalibrationPolicy,
+};
 use crate::templates::UserData;
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -22,6 +26,11 @@ pub struct GameSettings {
     pub invite_only: bool,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub ranked: bool,
+    pub rating_status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub calibration_policy_version: Option<String>,
 }
 
 /// Full game item sent in lobby `init` and `game_created` messages.
@@ -52,21 +61,15 @@ impl LiveGameItem {
             creator_id: gwp.game.creator_id,
             stage: gwp.game.stage.clone(),
             result: gwp.game.result.clone(),
-            black: gwp.black.as_ref().map(UserData::from),
-            white: gwp.white.as_ref().map(UserData::from),
-            settings: GameSettings {
-                cols: gwp.game.cols,
-                rows: gwp.game.rows,
-                handicap: engine_builder::game_handicap(&gwp.game) as i32,
-                time_control: gwp.game.time_control,
-                main_time_secs: gwp.game.main_time_secs,
-                increment_secs: gwp.game.increment_secs,
-                byoyomi_time_secs: gwp.game.byoyomi_time_secs,
-                byoyomi_periods: gwp.game.byoyomi_periods,
-                is_private: gwp.game.is_private,
-                invite_only: gwp.game.invite_only,
-                ranked: gwp.game.ranked,
-            },
+            black: gwp
+                .black
+                .as_ref()
+                .map(|user| user_data_for_game_player(user, &gwp.game, true)),
+            white: gwp
+                .white
+                .as_ref()
+                .map(|user| user_data_for_game_player(user, &gwp.game, false)),
+            settings: game_settings_for_game(&gwp.game),
             move_count,
             ranked: gwp.game.ranked,
             derived_handicap: gwp.game.derived_handicap,
@@ -102,6 +105,7 @@ struct GameUpdate {
     move_count: Option<usize>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     ranked: bool,
+    settings: GameSettings,
 }
 
 /// Notify live clients that a new game appeared (created or joined).
@@ -130,10 +134,17 @@ pub fn notify_game_updated(
         id: gwp.game.id,
         stage: stage.to_string(),
         result: gwp.game.result.clone(),
-        black: gwp.black.as_ref().map(UserData::from),
-        white: gwp.white.as_ref().map(UserData::from),
+        black: gwp
+            .black
+            .as_ref()
+            .map(|user| user_data_for_game_player(user, &gwp.game, true)),
+        white: gwp
+            .white
+            .as_ref()
+            .map(|user| user_data_for_game_player(user, &gwp.game, false)),
         move_count,
         ranked: gwp.game.ranked,
+        settings: game_settings_for_game(&gwp.game),
     };
     let msg = json!({
         "kind": "game_updated",
@@ -142,6 +153,60 @@ pub fn notify_game_updated(
     .to_string();
 
     let _ = state.live_tx.send(msg);
+}
+
+pub fn game_settings_for_game(game: &Game) -> GameSettings {
+    GameSettings {
+        cols: game.cols,
+        rows: game.rows,
+        handicap: engine_builder::game_handicap(game) as i32,
+        time_control: game.time_control,
+        main_time_secs: game.main_time_secs,
+        increment_secs: game.increment_secs,
+        byoyomi_time_secs: game.byoyomi_time_secs,
+        byoyomi_periods: game.byoyomi_periods,
+        is_private: game.is_private,
+        invite_only: game.invite_only,
+        ranked: game.ranked,
+        rating_status: if game.ranked { "ranked" } else { "unranked" }.to_string(),
+        color_reason: game.derived_color_reason.clone(),
+        calibration_policy_version: game.calibration_policy_version.clone(),
+    }
+}
+
+pub fn user_data_for_game_player(user: &User, game: &Game, is_black: bool) -> UserData {
+    let mut data = UserData::from(user);
+    data.rank = rank_from_game_snapshot(game, is_black);
+    data
+}
+
+fn rank_from_game_snapshot(game: &Game, is_black: bool) -> Option<RankDto> {
+    if !game.ranked {
+        return None;
+    }
+
+    let (rating, deviation, volatility) = if is_black {
+        (
+            game.black_rating_before?,
+            game.black_deviation_before?,
+            game.black_volatility_before?,
+        )
+    } else {
+        (
+            game.white_rating_before?,
+            game.white_deviation_before?,
+            game.white_volatility_before?,
+        )
+    };
+
+    Some(RankDto {
+        qualifier: Some(RatingCalibrationPolicy::default().rank_label(rating)),
+        status: RankStatus::Ranked,
+        rating: Some(rating),
+        deviation: Some(deviation),
+        volatility: Some(volatility),
+        uncertain: deviation > PROVISIONAL_DEVIATION_THRESHOLD,
+    })
 }
 
 /// Notify live clients that a game was removed (aborted/deleted).

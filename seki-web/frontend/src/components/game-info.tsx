@@ -15,6 +15,8 @@ import {
   blackSymbol,
   whiteSymbol,
 } from "../utils/format";
+import { readUserData } from "../game/util";
+import { parseRatingDisplayMode, primaryRankText } from "../utils/rating";
 
 export type GameInfoProps = {
   settings: GameSettings;
@@ -51,9 +53,17 @@ export function GameInfo(props: GameInfoProps) {
   const { settings, komi } = props;
   const size = formatSize(settings.cols, settings.rows);
   const tc = formatTimeControl(settings);
+  const ratingMode = parseRatingDisplayMode(
+    readUserData()?.preferences.rating_display,
+  );
+  const blackRank = primaryRankText(props.black?.rank, ratingMode);
+  const whiteRank = primaryRankText(props.white?.rank, ratingMode);
 
   // Compact bar parts
   const parts = [size];
+  if (settings.ranked) {
+    parts.push("Ranked");
+  }
   if (settings.handicap >= 2) {
     parts.push(`H${settings.handicap}`);
   }
@@ -81,6 +91,8 @@ export function GameInfo(props: GameInfoProps) {
 
   const bName = props.black?.display_name ?? "?";
   const wName = props.white?.display_name ?? "?";
+  const bLabel = blackRank ? `${bName} ${blackRank}` : bName;
+  const wLabel = whiteRank ? `${wName} ${whiteRank}` : wName;
 
   const isDone =
     props.stage === GameStage.Completed || props.stage === GameStage.Aborted;
@@ -130,18 +142,34 @@ export function GameInfo(props: GameInfoProps) {
           <dl class="game-info-details">
             {statusText && <Row label="Status" value={statusText} />}
             <Row label="Board" value={size} />
+            <Row
+              label="Rating"
+              value={settings.ranked ? "Ranked" : "Unrated"}
+            />
             <Row label="Komi" value={String(komi)} />
             {settings.handicap >= 2 && (
               <Row label="Handicap" value={String(settings.handicap)} />
             )}
+            {settings.color_reason && (
+              <Row
+                label="Auto settings"
+                value={
+                  settings.color_reason === "lower_rating_black"
+                    ? "Lower rating plays Black"
+                    : settings.color_reason === "exact_rating_random"
+                      ? "Equal rating random color"
+                      : settings.color_reason
+                }
+              />
+            )}
             {tcDetail && <Row label="Time" value={tcDetail} />}
             <Row
               label="Black"
-              value={`${bName} ${blackSymbol()} ${props.capturesBlack} caps`}
+              value={`${bLabel} ${blackSymbol()} ${props.capturesBlack} caps`}
             />
             <Row
               label="White"
-              value={`${wName} ${whiteSymbol()} ${props.capturesWhite} caps`}
+              value={`${wLabel} ${whiteSymbol()} ${props.capturesWhite} caps`}
             />
             <Row label="Moves" value={String(props.moveCount)} />
             {score && (

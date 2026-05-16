@@ -6,7 +6,7 @@ use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
 use crate::services::clock::{self, ClockState, TimeControl};
-use crate::templates::UserData;
+use crate::services::live;
 
 pub struct TerritoryData {
     pub ownership: Vec<i8>,
@@ -126,6 +126,22 @@ pub fn serialize_state(
         .collect();
 
     let game_state = serde_json::to_value(engine.game_state()).unwrap_or_default();
+    let mut settings =
+        serde_json::to_value(live::game_settings_for_game(&gwp.game)).unwrap_or_else(|_| json!({}));
+    if gwp.game.ranked {
+        settings["rating_snapshots"] = json!({
+            "black": {
+                "rating": gwp.game.black_rating_before,
+                "deviation": gwp.game.black_deviation_before,
+                "volatility": gwp.game.black_volatility_before,
+            },
+            "white": {
+                "rating": gwp.game.white_rating_before,
+                "deviation": gwp.game.white_deviation_before,
+                "volatility": gwp.game.white_volatility_before,
+            }
+        });
+    }
 
     let mut val = json!({
         "kind": "state",
@@ -135,19 +151,14 @@ pub fn serialize_state(
         "negotiations": negotiations,
         "current_turn_stone": current_turn_stone,
         "moves": moves,
-        "black": gwp.black.as_ref().map(UserData::from),
-        "white": gwp.white.as_ref().map(UserData::from),
+        "black": gwp.black.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, true)),
+        "white": gwp.white.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, false)),
+        "komi": gwp.game.komi,
         "result": gwp.game.result,
         "undo_rejected": gwp.game.undo_rejected,
         "allow_undo": gwp.game.allow_undo,
         "nigiri": gwp.game.nigiri,
-        "settings": {
-            "ranked": gwp.game.ranked,
-            "derived_handicap": gwp.game.derived_handicap,
-            "derived_komi": gwp.game.derived_komi,
-            "derived_color_reason": gwp.game.derived_color_reason,
-            "calibration_policy_version": gwp.game.calibration_policy_version,
-        }
+        "settings": settings,
     });
 
     if let Some(t) = territory {

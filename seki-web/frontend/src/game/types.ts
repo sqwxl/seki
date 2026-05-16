@@ -114,6 +114,18 @@ export type GameSettings = {
   rating_status?: "ranked" | "unranked";
   color_reason?: string;
   calibration_policy_version?: string;
+  rating_snapshots?: {
+    black?: {
+      rating?: number | null;
+      deviation?: number | null;
+      volatility?: number | null;
+    };
+    white?: {
+      rating?: number | null;
+      deviation?: number | null;
+      volatility?: number | null;
+    };
+  };
   time_control: "none" | "fischer" | "byoyomi" | "correspondence";
   main_time_secs: number | undefined;
   increment_secs: number | undefined;
@@ -159,10 +171,12 @@ export type StateMessage = {
   moves: TurnData[];
   black: UserData | null;
   white: UserData | null;
+  komi?: number;
   result: string | null;
   undo_rejected: boolean;
   allow_undo?: boolean;
   nigiri?: boolean;
+  settings?: GameSettings;
   territory?: TerritoryData;
   settled_territory?: SettledTerritoryData;
   clock?: ClockData;

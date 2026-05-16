@@ -7,11 +7,13 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
 use crate::models::message::Message;
+use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::routes::FlashMessage;
 use crate::services::engine_builder;
-use crate::services::live::{GameSettings, LiveGameItem, build_live_items};
-use crate::services::{game_joiner, presentation_actions, state_serializer};
+use crate::services::live::{LiveGameItem, build_live_items};
+use crate::services::rating::{RankDto, rank_for_profile};
+use crate::services::{game_joiner, live, presentation_actions, state_serializer};
 use crate::session::CurrentUser;
 use crate::templates::UserData;
 use crate::templates::games_show::InitialGameProps;
@@ -50,7 +52,12 @@ pub(crate) async fn bootstrap_for_location(
 
     let data = match path {
         "/" | "/games" => serde_json::to_value(load_games_index(state, current_user).await?)?,
-        "/games/new" => serde_json::to_value(load_new_game(query_param(query, "opponent")))?,
+        "/games/new" => serde_json::to_value(load_new_game(
+            state,
+            current_user,
+            query_param(query, "opponent"),
+        )
+        .await?)?,
         "/analysis" => serde_json::to_value(AnalysisData {})?,
         _ if path.starts_with("/games/") => {
             let game_id = path
@@ -180,14 +187,54 @@ struct NewGameQuery {
 #[derive(Serialize)]
 struct NewGameData {
     opponent: Option<String>,
+    user_is_registered: bool,
+    rating: NewGameRatingData,
 }
 
-async fn new_game(Query(query): Query<NewGameQuery>) -> Json<NewGameData> {
-    Json(load_new_game(query.opponent))
+#[derive(Serialize)]
+struct NewGameRatingData {
+    can_create_ranked: bool,
+    current_user_rank: Option<RankDto>,
+    ranked_unavailable_reason: Option<String>,
 }
 
-fn load_new_game(opponent: Option<String>) -> NewGameData {
-    NewGameData { opponent }
+async fn new_game(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Query(query): Query<NewGameQuery>,
+) -> Result<Json<NewGameData>, AppError> {
+    Ok(Json(load_new_game(&state, &current_user, query.opponent).await?))
+}
+
+async fn load_new_game(
+    state: &AppState,
+    current_user: &CurrentUser,
+    opponent: Option<String>,
+) -> Result<NewGameData, AppError> {
+    let user_is_registered = current_user.is_registered();
+    let current_user_rank = if user_is_registered {
+        Some(rank_for_profile(Some(
+            &RatingProfile::get_or_create(&state.db, current_user.id).await?,
+        )))
+    } else {
+        None
+    };
+
+    let ranked_unavailable_reason = if user_is_registered {
+        None
+    } else {
+        Some("Register or sign in to create ranked games".to_string())
+    };
+
+    Ok(NewGameData {
+        opponent,
+        user_is_registered,
+        rating: NewGameRatingData {
+            can_create_ranked: user_is_registered,
+            current_user_rank,
+            ranked_unavailable_reason,
+        },
+    })
 }
 
 #[derive(Deserialize)]
@@ -480,23 +527,17 @@ async fn build_game_props(
     Ok(InitialGameProps {
         state: engine.game_state(),
         creator_id: gwp.game.creator_id,
-        black: gwp.black.as_ref().map(UserData::from),
-        white: gwp.white.as_ref().map(UserData::from),
+        black: gwp
+            .black
+            .as_ref()
+            .map(|user| live::user_data_for_game_player(user, &gwp.game, true)),
+        white: gwp
+            .white
+            .as_ref()
+            .map(|user| live::user_data_for_game_player(user, &gwp.game, false)),
         komi: gwp.game.komi,
         stage,
-        settings: GameSettings {
-            cols: gwp.game.cols,
-            rows: gwp.game.rows,
-            handicap: engine_builder::game_handicap(&gwp.game) as i32,
-            time_control: gwp.game.time_control,
-            main_time_secs: gwp.game.main_time_secs,
-            increment_secs: gwp.game.increment_secs,
-            byoyomi_time_secs: gwp.game.byoyomi_time_secs,
-            byoyomi_periods: gwp.game.byoyomi_periods,
-            is_private: gwp.game.is_private,
-            invite_only: gwp.game.invite_only,
-            ranked: gwp.game.ranked,
-        },
+        settings: live::game_settings_for_game(&gwp.game),
         moves: engine.moves().to_vec(),
         current_turn_stone: engine.current_turn_stone().to_int() as i32,
         result: gwp.game.result.clone(),

@@ -342,6 +342,13 @@ export function applyGameStateMessage(data: StateMessage): void {
     if (data.nigiri !== undefined) {
       nigiri.value = data.nigiri;
     }
+    if (data.settings || data.komi != null) {
+      initialProps.value = {
+        ...initialProps.value,
+        settings: data.settings ?? initialProps.value.settings,
+        komi: data.komi ?? initialProps.value.komi,
+      };
+    }
     result.value = data.result;
     territory.value = data.territory;
     settledTerritory.value = data.settled_territory;

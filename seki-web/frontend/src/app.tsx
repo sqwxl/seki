@@ -16,7 +16,7 @@ import { ensureConnected } from "./ws";
 import { initUnreadTracking } from "./game/unread";
 import { initTheme } from "./utils/theme";
 import { initPreferences } from "./utils/preferences";
-import { type InitialGameProps, type UserData } from "./game/types";
+import { type InitialGameProps, type RankData, type UserData } from "./game/types";
 import { readUserData, writeUserData } from "./game/util";
 import {
   SPA_NAVIGATE_EVENT,
@@ -73,6 +73,12 @@ type GamePageData = {
 
 type NewGameData = {
   opponent?: string | null;
+  user_is_registered: boolean;
+  rating?: {
+    can_create_ranked: boolean;
+    current_user_rank?: RankData | null;
+    ranked_unavailable_reason?: string | null;
+  };
 };
 
 type ProfileData = {
@@ -92,6 +98,9 @@ type BootstrapPayload = {
 
 type GameSettingsFormProps = {
   opponent?: string;
+  isRegistered?: boolean;
+  currentUserRank?: RankData | null;
+  rankedUnavailableReason?: string | null;
 };
 
 const loadLiveGameModule = () => import("./layouts/live-game");
@@ -569,7 +578,12 @@ function NewGameScreen({
       <h1>New Game</h1>
       <form id="new-game-form" action="/games" method="post" onSubmit={onSubmit}>
         {FormComponent ? (
-          <FormComponent opponent={data?.opponent ?? undefined} />
+          <FormComponent
+            opponent={data?.opponent ?? undefined}
+            isRegistered={data?.user_is_registered}
+            currentUserRank={data?.rating?.current_user_rank}
+            rankedUnavailableReason={data?.rating?.ranked_unavailable_reason}
+          />
         ) : (
           <LoadingState />
         )}
