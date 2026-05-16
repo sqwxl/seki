@@ -1,5 +1,5 @@
-import { IconOffline } from "./icons";
 import { localDisconnected } from "../ws";
+import { IconOffline } from "./icons";
 
 export function ConnectionStatus() {
   if (!localDisconnected.value) {

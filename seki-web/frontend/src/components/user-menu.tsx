@@ -1,36 +1,35 @@
-import { useState, useEffect, useRef } from "preact/hooks";
-import { ToggleButton } from "./toggle-button";
-import { readUserData } from "../game/util";
+import { useEffect,useRef,useState } from "preact/hooks";
 import {
-  storage,
-  SHOW_COORDINATES,
-  SHOW_MOVE_TREE,
-  MOVE_CONFIRMATION,
-  SOUND_ENABLED,
-} from "../utils/storage";
-import {
-  showCoordinates,
-  showMoveTree,
-  moveConfirmEnabled,
-  soundEnabled,
-  board,
+board,
+moveConfirmEnabled,
+showCoordinates,
+showMoveTree,
+soundEnabled,
 } from "../game/state";
+import { readUserData } from "../game/util";
 import { analysisBoard } from "../layouts/analysis-state";
-import {
-  themeMode,
-  cycleTheme,
-  getThemeLabel,
-  getThemeIcon,
-} from "../utils/theme";
-import { IconLogin, IconLogout, IconRegister, IconUser } from "./icons";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
 import {
-  ratingDisplayPreference,
-  readRatingDisplayPreference,
-  savePref,
+ratingDisplayPreference,
+readRatingDisplayPreference,
+savePref,
 } from "../utils/preferences";
-import { UserLabel } from "./user-label";
 import type { RatingDisplayMode } from "../utils/rating";
+import {
+MOVE_CONFIRMATION,
+SHOW_MOVE_TREE,
+SOUND_ENABLED,
+storage
+} from "../utils/storage";
+import {
+cycleTheme,
+getThemeIcon,
+getThemeLabel,
+themeMode,
+} from "../utils/theme";
+import { IconLogin,IconLogout,IconRegister,IconUser } from "./icons";
+import { ToggleButton } from "./toggle-button";
+import { UserLabel } from "./user-label";
 
 function ThemeButton() {
   const mode = themeMode.value;

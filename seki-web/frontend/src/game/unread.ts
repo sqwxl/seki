@@ -5,17 +5,17 @@
  * and maintains a signal-based Map of unread games. Cross-tab sync via BroadcastChannel.
  */
 
-import { signal, computed } from "@preact/signals";
-import { subscribe, isGameActive } from "../ws";
-import type { UserData } from "./types";
-import type {
-  InitMessage,
-  GameUpdatedMessage,
-  GameCreatedMessage,
-  GameRemovedMessage,
-} from "../layouts/games-list";
-import { isMyTurn } from "../components/game-description";
+import { computed,signal } from "@preact/signals";
 import type { LiveGameItem } from "../components/game-description";
+import { isMyTurn } from "../components/game-description";
+import type {
+GameCreatedMessage,
+GameRemovedMessage,
+GameUpdatedMessage,
+InitMessage,
+} from "../layouts/games-list";
+import { isGameActive,subscribe } from "../ws";
+import type { UserData } from "./types";
 
 export type UnreadGame = {
   id: number;

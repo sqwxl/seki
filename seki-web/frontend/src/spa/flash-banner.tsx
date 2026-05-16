@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect,useState } from "preact/hooks";
 import { activeFlash } from "../utils/flash";
 
 export function FlashBanner() {

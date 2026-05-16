@@ -1,10 +1,10 @@
 import type { ChatEntry } from "../components/chat";
-import type { UserGamesInitialData } from "../layouts/user-games";
 import type {
-  InitialGameProps,
-  RankData,
-  UserData,
+InitialGameProps,
+RankData,
+UserData,
 } from "../game/types";
+import type { UserGamesInitialData } from "../layouts/user-games";
 import type { FlashMessage } from "../utils/flash";
 
 export type Route =

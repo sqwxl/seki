@@ -1,4 +1,4 @@
-import { storage, SHOW_COORDINATES } from "./storage";
+import { SHOW_COORDINATES,storage } from "./storage";
 
 export function readShowCoordinates(): boolean {
   return storage.get(SHOW_COORDINATES) === "true";

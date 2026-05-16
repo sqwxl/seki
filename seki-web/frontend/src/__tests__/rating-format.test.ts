@@ -1,14 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
 
-import {
-  alternateRankText,
-  fullRankText,
-  parseRatingDisplayMode,
-  primaryRankText,
-  type RankData,
-  type RatingDisplayMode,
-} from "../utils/rating";
 import { UserRank } from "../components/user-rank";
+import {
+alternateRankText,
+fullRankText,
+parseRatingDisplayMode,
+primaryRankText,
+type RankData,
+type RatingDisplayMode,
+} from "../utils/rating";
 
 describe("rating formatting", () => {
   it("accepts the default display mode", () => {

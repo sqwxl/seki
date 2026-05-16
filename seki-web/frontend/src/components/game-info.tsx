@@ -1,22 +1,22 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect,useRef,useState } from "preact/hooks";
 import type {
-  ScoreData,
-  UserData,
-  GameSettings,
-  TerritoryData,
-  SettledTerritoryData,
+GameSettings,
+ScoreData,
+SettledTerritoryData,
+TerritoryData,
+UserData,
 } from "../game/types";
 import { GameStage } from "../game/types";
+import {
+blackSymbol,
+formatSize,
+formatTimeControl,
+whiteSymbol,
+} from "../utils/format";
+import { ratingDisplayPreference } from "../utils/preferences";
+import { primaryRankText } from "../utils/rating";
 import { getStatusText } from "./game-status";
 import { IconInfo } from "./icons";
-import {
-  formatSize,
-  formatTimeControl,
-  blackSymbol,
-  whiteSymbol,
-} from "../utils/format";
-import { primaryRankText } from "../utils/rating";
-import { ratingDisplayPreference } from "../utils/preferences";
 
 export type GameInfoProps = {
   settings: GameSettings;

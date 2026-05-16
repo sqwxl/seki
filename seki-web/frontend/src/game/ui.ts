@@ -1,16 +1,16 @@
 import type { ChatEntry } from "../components/chat";
 import { formatGameDescription } from "../utils/format";
 import {
-  isMyTurn,
-  gameStage,
-  initialProps,
-  black,
-  white,
-  result,
-  moves,
-  addChatMessage,
-  updateChatEntry,
-  removeChatEntry,
+addChatMessage,
+black,
+gameStage,
+initialProps,
+isMyTurn,
+moves,
+removeChatEntry,
+result,
+updateChatEntry,
+white,
 } from "./state";
 
 // --- Tab title flash ("YOUR MOVE") ---

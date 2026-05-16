@@ -1,9 +1,8 @@
-import { useState, useEffect } from "preact/hooks";
-import { subscribe } from "../ws";
+import { useEffect,useState } from "preact/hooks";
+import type { GameUpdate,LiveGameItem } from "../components/game-description";
 import { GameListItem } from "../components/game-description";
-import type { LiveGameItem, GameUpdate } from "../components/game-description";
-import type { UserData } from "../game/types";
 import { isChallengeStage } from "../game/access";
+import { subscribe } from "../ws";
 
 export type InitMessage = {
   kind: "init";

@@ -2,9 +2,9 @@
 // Rated: opponent list filtered, derived settings (handicap/komi/color) shown as read-only preview
 // Unrated: full opponent list, all settings editable; derived settings still previewed when opponent selected
 
-import { useState, useEffect, useRef } from "preact/hooks";
+import { useEffect,useRef,useState } from "preact/hooks";
+import { IconBell,IconGrid4x4,IconHandicap,IconKomi,IconNigiri,IconPrivate,IconSettings,IconUndo,StoneBlack,StoneWhite } from "../../components/icons";
 import { UserLabel } from "../../components/user-label";
-import { IconGrid4x4, IconHandicap, IconUndo, IconPrivate, IconBell, IconKomi, IconNigiri, StoneBlack, StoneWhite, IconSettings } from "../../components/icons";
 import type { RankData } from "../../game/types";
 import { fullRankText } from "../../utils/rating";
 

@@ -1,22 +1,22 @@
-import { useState, useEffect, useRef } from "preact/hooks";
-import { storage, GAME_SETTINGS } from "../utils/storage";
-import { IconTimer, IconBell } from "../components/icons";
+import { useEffect,useRef,useState } from "preact/hooks";
+import { IconBell,IconTimer } from "../components/icons";
 import type { RankData } from "../game/types";
+import { GAME_SETTINGS,storage } from "../utils/storage";
 import {
-  OpenGameForm,
-  type OpenGameSettings,
-  OPEN_DEFAULTS,
-} from "./form-variants/open-game";
-import {
-  DirectChallengeForm,
-  type ChallengeSettings,
-  CHALLENGE_DEFAULTS,
+CHALLENGE_DEFAULTS,
+DirectChallengeForm,
+type ChallengeSettings,
 } from "./form-variants/direct-challenge";
 import {
-  EmailInviteForm,
-  type EmailInviteSettings,
-  EMAIL_DEFAULTS,
+EMAIL_DEFAULTS,
+EmailInviteForm,
+type EmailInviteSettings,
 } from "./form-variants/email-invite";
+import {
+OPEN_DEFAULTS,
+OpenGameForm,
+type OpenGameSettings,
+} from "./form-variants/open-game";
 
 type TimeControl = "none" | "fischer" | "byoyomi" | "correspondence";
 type Variant = "open" | "challenge" | "email";

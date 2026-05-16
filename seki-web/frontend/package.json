@@ -5,6 +5,7 @@
     "build": "node build.mjs",
     "build:wasm": "wasm-pack build ../../go-engine-wasm --target web --out-dir ../seki-web/static/wasm",
     "dev": "node build.mjs --watch",
+    "organize-imports": "node scripts/organize-imports.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

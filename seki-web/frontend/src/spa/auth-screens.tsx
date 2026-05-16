@@ -1,10 +1,27 @@
 import { useEffect } from "preact/hooks";
 import type { UserData } from "../game/types";
-import { activeFlash, clearFlash, setFlash } from "../utils/flash";
+import { activeFlash,clearFlash,setFlash } from "../utils/flash";
+import { setAppCredential } from "../utils/storage";
 import { postForm } from "../utils/web-client";
-import { setHead, pageTitle } from "./head";
+import { pageTitle,setHead } from "./head";
 import { ErrorState } from "./screen-state";
 import type { NavigateFn } from "./types";
+
+async function fetchAuthToken() {
+  try {
+    const response = await fetch("/api/auth/token", {
+      headers: { Accept: "application/json" },
+    });
+    if (response.ok) {
+      const data = await response.json() as { token: string };
+      if (data.token) {
+        setAppCredential(data.token);
+      }
+    }
+  } catch {
+    // Silently ignore — not critical for login flow
+  }
+}
 
 export function AuthFormScreen({
   mode,
@@ -40,6 +57,7 @@ export function AuthFormScreen({
     try {
       const result = await postForm(action, new FormData(form));
       await refreshSession();
+      await fetchAuthToken();
       if (typeof result.redirect === "string") {
         navigate(result.redirect, true);
       }

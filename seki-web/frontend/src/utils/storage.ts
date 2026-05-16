@@ -28,6 +28,7 @@ export const SOUND_ENABLED = "seki:sound_enabled";
 export const SHOW_COORDINATES = "seki:show_coordinates";
 export const SHOW_MOVE_TREE = "seki:show_move_tree";
 export const THEME = "seki:theme";
+export const APP_CREDENTIAL = "seki:app_credential";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -58,3 +59,15 @@ export const storage = {
     localStorage.setItem(key, JSON.stringify(value));
   },
 };
+
+export function getAppCredential(): string | undefined {
+  return storage.get(APP_CREDENTIAL) ?? undefined;
+}
+
+export function setAppCredential(token: string): void {
+  storage.set(APP_CREDENTIAL, token);
+}
+
+export function clearAppCredential(): void {
+  storage.remove(APP_CREDENTIAL);
+}

@@ -1,17 +1,17 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach,describe,expect,it } from "vitest";
 import {
-  gamePhase,
-  analysisMode,
-  estimateMode,
-  toAnalysis,
-  toLive,
-  toEstimate,
-  exitEstimate,
-  toPresentation,
-  toPresentationLocalAnalysis,
-  toPresentationSyncedViewer,
-  exitPresentation,
-  resetPhase,
+analysisMode,
+estimateMode,
+exitEstimate,
+exitPresentation,
+gamePhase,
+resetPhase,
+toAnalysis,
+toEstimate,
+toLive,
+toPresentation,
+toPresentationLocalAnalysis,
+toPresentationSyncedViewer,
 } from "../game/phase";
 
 beforeEach(() => {

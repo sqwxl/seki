@@ -1,5 +1,5 @@
-import { StoneBlack, StoneWhite, IconNigiri, IconUser } from "./icons";
-import { UserRank, type UserRankProps } from "./user-rank";
+import { IconNigiri,IconUser,StoneBlack,StoneWhite } from "./icons";
+import { UserRank,type UserRankProps } from "./user-rank";
 
 type UserLabelProps = {
   name: string;

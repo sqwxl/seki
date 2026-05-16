@@ -2,15 +2,15 @@ import { render } from "preact";
 import { MoveTree } from "../components/move-tree";
 import { flashPassEffect } from "../game/messages";
 import {
-  GameStage,
-  type GameTreeData,
-  type PresentationSnapshot,
-  type ScoreData,
+GameStage,
+type GameTreeData,
+type PresentationSnapshot,
+type ScoreData,
 } from "../game/types";
+import { DESKTOP_BREAKPOINT,DESKTOP_MQ } from "../utils/constants";
 import { storage } from "../utils/storage";
-import { DESKTOP_BREAKPOINT, DESKTOP_MQ } from "../utils/constants";
 import { Goban } from "./";
-import type { MarkerData, Point, Sign, GhostStoneData } from "./types";
+import type { GhostStoneData,MarkerData,Point,Sign } from "./types";
 import { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 
 // ---------------------------------------------------------------------------

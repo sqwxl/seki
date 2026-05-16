@@ -1,10 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
 
-import {
-  inferSettingsFromRanks,
-  rankedSettingsFromGap,
-} from "../layouts/form-variants/direct-challenge";
 import type { RankData } from "../game/types";
+import {
+inferSettingsFromRanks,
+rankedSettingsFromGap,
+} from "../layouts/form-variants/direct-challenge";
 
 function rank(rating: number): RankData {
   return {

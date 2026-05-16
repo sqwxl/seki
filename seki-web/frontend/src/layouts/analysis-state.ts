@@ -1,8 +1,8 @@
 import { signal } from "@preact/signals";
-import type { Board, TerritoryInfo } from "../goban/create-board";
+import type { PlayerPanelProps } from "../components/player-panel";
+import type { Board,TerritoryInfo } from "../goban/create-board";
 import type { Point } from "../goban/types";
 import type { SgfMeta } from "../utils/sgf";
-import type { PlayerPanelProps } from "../components/player-panel";
 
 export const analysisBoard = signal<Board | undefined>(undefined);
 export const analysisMeta = signal<SgfMeta | undefined>(undefined);

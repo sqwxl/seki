@@ -1,4 +1,4 @@
-import { GameStage, type GameSettings } from "./types";
+import { GameStage,type GameSettings } from "./types";
 
 export type AccessBadge = {
   label: string;

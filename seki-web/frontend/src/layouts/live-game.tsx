@@ -1,80 +1,79 @@
-import { render, createRef } from "preact";
 import { effect } from "@preact/signals";
-import type { Sign } from "../goban/types";
-import { GameStage, type InitialGameProps } from "../game/types";
-import { createBoard, computeVertexSize } from "../goban/create-board";
-import { Goban } from "../goban";
+import { createRef,render } from "preact";
 import type { ChatEntry } from "../components/chat";
-import { readShowCoordinates } from "../utils/coord-toggle";
-import {
-  createMoveConfirm,
-  handleMoveConfirmClick,
-  dismissMoveConfirmOnClickOutside,
-} from "../utils/move-confirm";
-import { storage, gameAnalysisKey } from "../utils/storage";
-import { settingsToSgfTime, todayYYYYMMDD } from "../utils/format";
-import { joinGame, subscribe, subscribePresence } from "../ws";
 import { createGameChannel } from "../game/channel";
-import { updateTurnFlash, stopFlashing, updateTitle } from "../game/ui";
-import type { TerritoryCountdown } from "../game/ui";
-import { handleGameMessage, resetMovesTracker } from "../game/messages";
 import type { ClockState } from "../game/clock";
-import { readUserData, derivePlayerStone } from "../game/util";
+import { handleGameMessage,resetMovesTracker } from "../game/messages";
 import { createNotificationState } from "../game/notifications";
-import { markRead } from "../game/unread";
-import { playStoneSound, playPassSound } from "../game/sound";
-import { downloadSgf } from "../utils/sgf";
-import type { SgfMeta } from "../utils/sgf";
-import type { UserData } from "../game/types";
 import {
-  initGameState,
-  gameState,
-  gameStage,
-  currentTurn,
-  moves,
-  black,
-  white,
-  result,
-  territory,
-  settledTerritory,
-  chatMessages,
-  replaceChatMessages,
-  analysisMode,
-  estimateMode,
-  opponentDisconnected,
-  onlineUsers,
-  board,
-  playerStone,
-  currentUserId,
-  initialProps as initialPropsSignal,
-  estimateScore,
-  boardFinalized,
-  boardFinalizedScore,
-  boardReviewing,
-  showCoordinates,
-  moveConfirmEnabled,
-  presentationActive,
-  isPresenter,
-  originatorId,
-  navState,
-  mobileTab,
-  setPresence,
-  resetGameRuntimeState,
-  pendingMove,
-  uiNowMs,
-} from "../game/state";
-import {
-  gamePhase,
-  toAnalysis,
-  toLive,
-  toEstimate,
-  exitEstimate as phaseExitEstimate,
-  toPresentation,
-  toPresentationLocalAnalysis,
-  toPresentationSyncedViewer,
-  resetPhase,
+gamePhase,
+exitEstimate as phaseExitEstimate,
+resetPhase,
+toAnalysis,
+toEstimate,
+toLive,
+toPresentation,
+toPresentationLocalAnalysis,
+toPresentationSyncedViewer,
 } from "../game/phase";
-import { LiveGamePage, getServerTerritory } from "./live-game-page";
+import { playPassSound,playStoneSound } from "../game/sound";
+import {
+analysisMode,
+black,
+board,
+boardFinalized,
+boardFinalizedScore,
+boardReviewing,
+currentTurn,
+currentUserId,
+estimateMode,
+estimateScore,
+gameStage,
+gameState,
+initGameState,
+initialProps as initialPropsSignal,
+isPresenter,
+mobileTab,
+moveConfirmEnabled,
+moves,
+navState,
+onlineUsers,
+opponentDisconnected,
+originatorId,
+pendingMove,
+playerStone,
+presentationActive,
+replaceChatMessages,
+resetGameRuntimeState,
+result,
+setPresence,
+settledTerritory,
+showCoordinates,
+territory,
+uiNowMs,
+white
+} from "../game/state";
+import type { UserData } from "../game/types";
+import { GameStage,type InitialGameProps } from "../game/types";
+import type { TerritoryCountdown } from "../game/ui";
+import { stopFlashing,updateTitle } from "../game/ui";
+import { markRead } from "../game/unread";
+import { derivePlayerStone,readUserData } from "../game/util";
+import { Goban } from "../goban";
+import { computeVertexSize,createBoard } from "../goban/create-board";
+import type { Sign } from "../goban/types";
+import { readShowCoordinates } from "../utils/coord-toggle";
+import { settingsToSgfTime,todayYYYYMMDD } from "../utils/format";
+import {
+createMoveConfirm,
+dismissMoveConfirmOnClickOutside,
+handleMoveConfirmClick,
+} from "../utils/move-confirm";
+import type { SgfMeta } from "../utils/sgf";
+import { downloadSgf } from "../utils/sgf";
+import { gameAnalysisKey,storage } from "../utils/storage";
+import { joinGame,subscribe } from "../ws";
+import { LiveGamePage,getServerTerritory } from "./live-game-page";
 
 export function liveGame(
   initialProps: InitialGameProps,

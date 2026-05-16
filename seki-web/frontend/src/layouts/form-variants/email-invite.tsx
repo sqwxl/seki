@@ -2,16 +2,16 @@
 // Rated checkbox disabled and unchecked, email input, optional message
 
 import {
-  IconGrid4x4,
-  IconHandicap,
-  IconUndo,
-  IconPrivate,
-  IconBell,
-  IconKomi,
-  IconNigiri,
-  StoneBlack,
-  StoneWhite,
-  IconSettings,
+IconBell,
+IconGrid4x4,
+IconHandicap,
+IconKomi,
+IconNigiri,
+IconPrivate,
+IconSettings,
+IconUndo,
+StoneBlack,
+StoneWhite,
 } from "../../components/icons";
 
 export type EmailInviteSettings = {

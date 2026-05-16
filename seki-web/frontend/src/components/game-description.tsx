@@ -1,7 +1,7 @@
-import { GameStage, type UserData, type GameSettings } from "../game/types";
-import { UserLabel } from "./user-label";
-import { buildDescriptionParts } from "../utils/format";
 import { gameAccessBadges } from "../game/access";
+import { GameStage,type GameSettings,type UserData } from "../game/types";
+import { buildDescriptionParts } from "../utils/format";
+import { UserLabel } from "./user-label";
 
 export type GameUpdate = {
   id: number;

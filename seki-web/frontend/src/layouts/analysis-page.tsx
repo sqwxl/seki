@@ -1,33 +1,29 @@
 import type { ControlsProps } from "../components/controls";
-import type { PlayerPanelProps } from "../components/player-panel";
-import { PlayerPanel } from "../components/player-panel";
 import { GameStatus } from "../components/game-status";
-import { Controls } from "./controls";
+import { PlayerPanel } from "../components/player-panel";
 import { TabBar } from "../components/tab-bar";
-import {
-  blackSymbol,
-  whiteSymbol,
-  formatSize,
-  formatSgfTime,
-  formatTime,
-} from "../utils/format";
-import { buildNavProps } from "../utils/shared-controls";
-import type { MoveConfirmState } from "../utils/move-confirm";
-import { playStoneSound } from "../game/sound";
-import type { SgfMeta } from "../utils/sgf";
-import { GamePageLayout } from "./game-page-layout";
 import type { AnalysisCapabilities } from "../game/capabilities";
-import { analysisCapabilities, buildPlayerPanels } from "../game/capabilities";
+import { analysisCapabilities } from "../game/capabilities";
+import { playStoneSound } from "../game/sound";
 import {
-  analysisBoard,
-  analysisKomi,
-  analysisMeta,
-  analysisPanelState,
-  analysisPendingMove,
-  analysisSize,
-  analysisTerritoryInfo,
-  analysisNavState,
+blackSymbol,
+formatSgfTime,
+formatSize,
+whiteSymbol
+} from "../utils/format";
+import type { MoveConfirmState } from "../utils/move-confirm";
+import type { SgfMeta } from "../utils/sgf";
+import {
+analysisBoard,
+analysisKomi,
+analysisMeta,
+analysisNavState,
+analysisPanelState,
+analysisPendingMove,
+analysisSize
 } from "./analysis-state";
+import { Controls } from "./controls";
+import { GamePageLayout } from "./game-page-layout";
 
 // ---------------------------------------------------------------------------
 // Helpers

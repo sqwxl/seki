@@ -1,44 +1,44 @@
-import { GameStage, isPlayStage, type IncomingMessage } from "./types";
+import type { MoveConfirmState } from "../utils/move-confirm";
+import { localDisconnected } from "../ws";
 import type { GameChannel } from "./channel";
 import type { ClockState } from "./clock";
 import { syncClock } from "./clock";
-import type { MoveConfirmState } from "../utils/move-confirm";
-import { updateTurnFlash, syncTerritoryCountdown } from "./ui";
-import type { TerritoryCountdown } from "./ui";
-import { notifyTurn, type NotificationState } from "./notifications";
-import { markRead } from "./unread";
-import { localDisconnected } from "../ws";
-import { playStoneSound, playPassSound } from "./sound";
+import { notifyTurn,type NotificationState } from "./notifications";
+import { playPassSound,playStoneSound } from "./sound";
 import {
-  board,
-  moves,
-  gameStage,
-  gameId,
-  currentTurn,
-  playerStone,
-  analysisMode,
-  undoRequest,
-  territory,
-  settledTerritory,
-  opponentDisconnected,
-  black,
-  white,
-  result,
-  presenterId,
-  controlRequest,
-  clearPendingAction,
-  pendingAction,
-  setGameFlashMessage,
-  applyGameStateMessage,
-  applyUndo,
-  addChatMessage,
-  removePendingChatMessage,
-  retryPendingChatMessages,
-  setPresence,
-  isPresenter,
-  applyPresentationStarted,
-  clearPresentation,
+addChatMessage,
+analysisMode,
+applyGameStateMessage,
+applyPresentationStarted,
+applyUndo,
+black,
+board,
+clearPendingAction,
+clearPresentation,
+controlRequest,
+currentTurn,
+gameId,
+gameStage,
+isPresenter,
+moves,
+opponentDisconnected,
+pendingAction,
+playerStone,
+presenterId,
+removePendingChatMessage,
+result,
+retryPendingChatMessages,
+setGameFlashMessage,
+setPresence,
+settledTerritory,
+territory,
+undoRequest,
+white,
 } from "./state";
+import { GameStage,isPlayStage,type IncomingMessage } from "./types";
+import type { TerritoryCountdown } from "./ui";
+import { syncTerritoryCountdown,updateTurnFlash } from "./ui";
+import { markRead } from "./unread";
 
 export type GameMessageDeps = {
   gobanEl: () => HTMLElement | null;

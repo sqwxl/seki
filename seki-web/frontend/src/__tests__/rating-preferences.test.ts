@@ -1,14 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach,describe,expect,it } from "vitest";
 
-import { writeUserData } from "../game/util";
 import { initialRatingParticipation } from "../components/notification-settings";
+import { writeUserData } from "../game/util";
 import {
-  initPreferences,
-  ratingDisplayPreference,
-  readRatingDisplayPreference,
-  savePref,
+initPreferences,
+ratingDisplayPreference,
+readRatingDisplayPreference,
+savePref,
 } from "../utils/preferences";
-import { storage, RATING_DISPLAY } from "../utils/storage";
+import { RATING_DISPLAY,storage } from "../utils/storage";
 
 describe("rating display preferences", () => {
   beforeEach(() => {

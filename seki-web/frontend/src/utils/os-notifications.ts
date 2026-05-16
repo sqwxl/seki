@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals";
-import { storage, NOTIFICATIONS } from "./storage";
 import { savePref } from "./preferences";
+import { NOTIFICATIONS,storage } from "./storage";
 
 function compute(): boolean {
   return (

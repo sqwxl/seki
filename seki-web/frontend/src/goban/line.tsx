@@ -1,6 +1,6 @@
 import type { JSX } from "preact";
-import type { Point } from "./types";
 import { vertexEquals } from "./helper";
+import type { Point } from "./types";
 
 type LineProps = {
   v1: Point;

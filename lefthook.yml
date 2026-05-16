@@ -9,5 +9,9 @@ pre-commit:
       run: cargo clippy --all-targets -- -D warnings
     prettier:
       glob: "seki-web/**/*.{ts,tsx,css}"
-      run: prettier --write {staged_files}
+      run: pnpm --dir seki-web/frontend exec prettier --write {staged_files} || pnpm dlx prettier --write {staged_files}
+      stage_fixed: true
+    organize-ts-imports:
+      glob: "seki-web/frontend/src/**/*.{ts,tsx}"
+      run: pnpm --dir seki-web/frontend run organize-imports -- {staged_files}
       stage_fixed: true

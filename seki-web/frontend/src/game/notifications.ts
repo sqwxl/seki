@@ -1,14 +1,14 @@
-import { isPlayStage } from "./types";
+import { NOTIFICATIONS,storage } from "../utils/storage";
 import {
-  playerStone,
-  currentTurn,
-  gameStage,
-  gameId,
-  moves,
-  black,
-  white,
+black,
+currentTurn,
+gameId,
+gameStage,
+moves,
+playerStone,
+white,
 } from "./state";
-import { storage, NOTIFICATIONS } from "../utils/storage";
+import { isPlayStage } from "./types";
 
 export type NotificationState = {
   lastNotifiedMoveCount: number;

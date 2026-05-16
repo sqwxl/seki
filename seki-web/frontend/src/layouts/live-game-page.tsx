@@ -1,63 +1,61 @@
-import { useEffect, useState } from "preact/hooks";
-import type { Point } from "../goban/types";
-import type { NavAction, TerritoryOverlay } from "../goban/create-board";
-import { GameStage } from "../game/types";
+import { useEffect,useState } from "preact/hooks";
 import { Chat } from "../components/chat";
+import type { ControlsProps } from "../components/controls";
+import { LobbyControls,LobbyPopover } from "../components/controls";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
 import { PlayerPanel } from "../components/player-panel";
-import type { ControlsProps } from "../components/controls";
-import { LobbyControls, LobbyPopover } from "../components/controls";
-import { Controls } from "./controls";
 import { TabBar } from "../components/tab-bar";
-import type { GameChannel } from "../game/channel";
-import { readUserData } from "../game/util";
-import type { MoveConfirmState } from "../utils/move-confirm";
-import { GamePageLayout } from "./game-page-layout";
-import { requestSpaNavigation } from "../utils/spa-navigation";
-import { postForm, type WebRequestError } from "../utils/web-client";
 import {
-  type LiveGameControlsState,
-  type LiveGameStatusState,
-  liveGameControlsState,
-  liveGameMoveTreeState,
-  liveGamePanelState,
-  liveGameStatusState,
-  buildTerritoryOverlay,
+buildTerritoryOverlay,
+liveGameControlsState,
+liveGameMoveTreeState,
+liveGamePanelState,
+liveGameStatusState,
+type LiveGameControlsState,
+type LiveGameStatusState,
 } from "../game/capabilities";
+import type { GameChannel } from "../game/channel";
 import {
-  gameState,
-  gameStage,
-  moves,
-  black,
-  white,
-  result,
-  territory,
-  settledTerritory,
-  chatMessages,
-  currentUserId,
-  undoRequest,
-  estimateMode,
-  board,
-  playerStone,
-  initialProps,
-  gameId,
-  estimateScore,
-  boardFinalized,
-  boardFinalizedScore,
-  nigiri,
-  allowUndo,
-  onlineUsers,
-  addPendingChatMessage,
-  hasUnreadChat,
-  pendingMove,
-  clearPendingAction,
-  clearGameFlashMessage,
-  isPendingAction,
-  setGameFlashMessage,
-  setPendingAction,
+addPendingChatMessage,
+allowUndo,
+black,
+board,
+boardFinalized,
+boardFinalizedScore,
+chatMessages,
+clearGameFlashMessage,
+clearPendingAction,
+currentUserId,
+estimateMode,
+estimateScore,
+gameId,
+gameStage,
+gameState,
+hasUnreadChat,
+initialProps,
+isPendingAction,
+moves,
+nigiri,
+onlineUsers,
+pendingMove,
+playerStone,
+result,
+setGameFlashMessage,
+setPendingAction,
+settledTerritory,
+territory,
+white
 } from "../game/state";
+import { GameStage } from "../game/types";
+import { readUserData } from "../game/util";
+import type { NavAction,TerritoryOverlay } from "../goban/create-board";
 import { formatResult } from "../utils/format";
+import type { MoveConfirmState } from "../utils/move-confirm";
+import { requestSpaNavigation } from "../utils/spa-navigation";
+import { postForm,type WebRequestError } from "../utils/web-client";
+import { Controls } from "./controls";
+import { GamePageLayout } from "./game-page-layout";
 
 function supportsPopoverSpectating(
   variant: NonNullable<LiveGameStatusState["lobbyPopover"]>["variant"],

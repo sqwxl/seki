@@ -1,30 +1,30 @@
 import classnames from "classnames";
-import type { CSSProperties, HTMLAttributes, JSX } from "preact";
+import type { CSSProperties,HTMLAttributes,JSX } from "preact";
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+useCallback,
+useEffect,
+useMemo,
+useRef,
+useState,
 } from "preact/hooks";
 
-import { CoordCols, CoordRows } from "./coord";
+import { CoordCols,CoordRows } from "./coord";
 import Grid from "./grid";
 import {
-  diffSignMap,
-  getHoshis,
-  neighborhood,
-  random,
-  readjustShifts,
+diffSignMap,
+getHoshis,
+neighborhood,
+random,
+readjustShifts,
 } from "./helper";
 import Line from "./line";
 import type {
-  GhostStoneData,
-  HeatData,
-  LineData,
-  MarkerData,
-  Point,
-  VertexEventHandler,
+GhostStoneData,
+HeatData,
+LineData,
+MarkerData,
+Point,
+VertexEventHandler,
 } from "./types";
 import Vertex from "./vertex";
 

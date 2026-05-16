@@ -1,56 +1,55 @@
 import { computed } from "@preact/signals";
-import type { PlayerPanelProps } from "../components/player-panel";
 import { getStatusText } from "../components/game-status";
-import { formatResult } from "../utils/format";
+import type { PlayerPanelProps } from "../components/player-panel";
 import type { TerritoryOverlay } from "../goban/create-board";
 import type { Point } from "../goban/types";
-import { GameStage, isPlayStage } from "./types";
-import type { TerritoryData, SettledTerritoryData, UserData } from "./types";
-import { clockDisplay } from "./clock";
-import { gamePhase } from "./phase";
-import type { GamePhase } from "./phase";
 import {
-  requiresAccessTokenToJoin,
-  requiresInviteTokenToJoin,
-} from "./access";
-import {
-  analysisKomi,
-  analysisTerritoryInfo,
-  analysisNavState,
+analysisKomi,
+analysisNavState,
+analysisTerritoryInfo,
 } from "../layouts/analysis-state";
 import {
-  gameState,
-  gameStage,
-  currentTurn,
-  moves,
-  black,
-  white,
-  result,
-  territory,
-  settledTerritory,
-  onlineUsers,
-  undoRequest,
-  allowUndo,
-  playerStone,
-  initialProps,
-  nigiri,
-  opponentDisconnected,
-  estimateScore,
-  boardFinalized,
-  boardFinalizedScore,
-  boardReviewing,
-  showMoveTree,
-  moveConfirmEnabled,
-  navState,
-  hasUnreadChat,
-  isPresenter,
-  isOriginator,
-  currentUserId,
-  controlRequest,
-  presenterDisplayName,
-  canStartPresentation,
-  uiNowMs,
+requiresAccessTokenToJoin,
+requiresInviteTokenToJoin,
+} from "./access";
+import { clockDisplay } from "./clock";
+import type { GamePhase } from "./phase";
+import { gamePhase } from "./phase";
+import {
+allowUndo,
+black,
+boardFinalized,
+boardFinalizedScore,
+boardReviewing,
+canStartPresentation,
+controlRequest,
+currentTurn,
+currentUserId,
+estimateScore,
+gameStage,
+gameState,
+hasUnreadChat,
+initialProps,
+isOriginator,
+isPresenter,
+moveConfirmEnabled,
+moves,
+navState,
+nigiri,
+onlineUsers,
+opponentDisconnected,
+playerStone,
+presenterDisplayName,
+result,
+settledTerritory,
+showMoveTree,
+territory,
+uiNowMs,
+undoRequest,
+white,
 } from "./state";
+import type { SettledTerritoryData,TerritoryData,UserData } from "./types";
+import { GameStage,isPlayStage } from "./types";
 
 // ---------------------------------------------------------------------------
 // UiCapabilities type

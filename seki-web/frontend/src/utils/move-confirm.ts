@@ -1,5 +1,5 @@
-import type { Point, Sign } from "../goban/types";
-import { storage, MOVE_CONFIRMATION } from "./storage";
+import type { Point,Sign } from "../goban/types";
+import { MOVE_CONFIRMATION,storage } from "./storage";
 
 export function readMoveConfirmation(): boolean {
   const stored = storage.get(MOVE_CONFIRMATION);

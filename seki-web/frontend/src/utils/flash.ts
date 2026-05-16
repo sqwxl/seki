@@ -1,4 +1,4 @@
-import { computed, signal } from "@preact/signals";
+import { computed,signal } from "@preact/signals";
 
 export type FlashSeverity = "error" | "warning" | "success" | "info";
 

@@ -1,4 +1,4 @@
-import type { ComponentChildren, Ref } from "preact";
+import type { ComponentChildren,Ref } from "preact";
 import { mobileTab } from "../game/state";
 
 export type GamePageLayoutProps = {

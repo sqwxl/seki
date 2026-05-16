@@ -1,50 +1,50 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { batch } from "@preact/signals";
-import { GameStage } from "../game/types";
-import type {
-  GameState,
-  UserData,
-  TerritoryData,
-  SettledTerritoryData,
-} from "../game/types";
+import { beforeEach,describe,expect,it } from "vitest";
+import { liveGameCapabilities,liveGameStatusState } from "../game/capabilities";
 import {
-  resetPhase,
-  toAnalysis,
-  toEstimate,
-  toPresentation,
-  toPresentationLocalAnalysis,
+resetPhase,
+toAnalysis,
+toEstimate,
+toPresentation,
+toPresentationLocalAnalysis,
 } from "../game/phase";
-import { liveGameCapabilities, liveGameStatusState } from "../game/capabilities";
 import {
-  gameState,
-  gameStage,
-  currentTurn,
-  moves,
-  black,
-  white,
-  result,
-  territory,
-  settledTerritory,
-  onlineUsers,
-  undoRequest,
-  allowUndo,
-  opponentDisconnected,
-  playerStone,
-  initialProps,
-  currentUserId,
-  presenterId,
-  originatorId,
-  controlRequest,
-  nigiri,
-  navState,
-  estimateScore,
-  showMoveTree,
-  moveConfirmEnabled,
-  hasUnreadChat,
-  presentationActive,
-  canStartPresentation,
-  boardFinalized,
+allowUndo,
+black,
+boardFinalized,
+canStartPresentation,
+controlRequest,
+currentTurn,
+currentUserId,
+estimateScore,
+gameStage,
+gameState,
+hasUnreadChat,
+initialProps,
+moveConfirmEnabled,
+moves,
+navState,
+nigiri,
+onlineUsers,
+opponentDisconnected,
+originatorId,
+playerStone,
+presentationActive,
+presenterId,
+result,
+settledTerritory,
+showMoveTree,
+territory,
+undoRequest,
+white,
 } from "../game/state";
+import type {
+GameState,
+SettledTerritoryData,
+TerritoryData,
+UserData,
+} from "../game/types";
+import { GameStage } from "../game/types";
 
 // ---------------------------------------------------------------------------
 // Shared fixtures

@@ -1,6 +1,6 @@
-import type { ComponentChildren, ComponentType } from "preact";
-import { GameStage } from "../game/types";
+import type { ComponentChildren,ComponentType } from "preact";
 import type { ScoreData } from "../game/types";
+import { GameStage } from "../game/types";
 import { formatResult } from "../utils/format";
 
 export type GameStatusProps = {

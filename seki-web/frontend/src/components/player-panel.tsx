@@ -1,7 +1,7 @@
-import { formatN } from "../utils/format";
-import { CapturesBlack, CapturesWhite, IconGrid3x3 } from "./icons";
-import { UserLabel } from "./user-label";
 import type { RankData } from "../game/types";
+import { formatN } from "../utils/format";
+import { CapturesBlack,CapturesWhite,IconGrid3x3 } from "./icons";
+import { UserLabel } from "./user-label";
 
 export type PlayerPanelProps = {
   name: string;

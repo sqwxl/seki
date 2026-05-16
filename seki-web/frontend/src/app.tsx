@@ -1,38 +1,44 @@
 import { render } from "preact";
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { NotificationBell } from "./components/notification-bell";
+import { useEffect,useMemo,useRef,useState } from "preact/hooks";
 import { ConnectionStatus } from "./components/connection-status";
+import { NotificationBell } from "./components/notification-bell";
 import { UserMenu } from "./components/user-menu";
-import { ensureConnected } from "./ws";
-import { initUnreadTracking } from "./game/unread";
-import { initTheme } from "./utils/theme";
-import { initPreferences } from "./utils/preferences";
 import type { UserData } from "./game/types";
-import { readUserData, writeUserData } from "./game/util";
-import {
-  SPA_NAVIGATE_EVENT,
-  type SpaNavigateDetail,
-} from "./utils/spa-navigation";
-import {
-  activeFlash,
-  clearFlash,
-  readFlashFromUrl,
-  setFlashState,
-  stripFlashParams,
-  type FlashMessage,
-} from "./utils/flash";
+import { initUnreadTracking } from "./game/unread";
+import { readUserData,writeUserData } from "./game/util";
 import { ensureWasm } from "./goban/create-board";
 import { FlashBanner } from "./spa/flash-banner";
 import {
-  clearRouteDataCache,
-  fetchJson,
-  getBootstrapData,
-  invalidateRouteData,
-  prefetchRouteData,
-  seedBootstrapCache,
+clearRouteDataCache,
+fetchJson,
+getBootstrapData,
+invalidateRouteData,
+prefetchRouteData,
+seedBootstrapCache,
 } from "./spa/route-data";
-import { currentUrl, getRouteDataUrl, parseRoute } from "./spa/routes";
+import { currentUrl,getRouteDataUrl,parseRoute } from "./spa/routes";
 import { Screen } from "./spa/screen";
+import {
+activeFlash,
+clearFlash,
+readFlashFromUrl,
+setFlashState,
+stripFlashParams,
+type FlashMessage,
+} from "./utils/flash";
+import { initPreferences } from "./utils/preferences";
+import {
+  APP_CREDENTIAL,
+  clearAppCredential,
+  getAppCredential,
+  setAppCredential,
+} from "./utils/storage";
+import {
+SPA_NAVIGATE_EVENT,
+type SpaNavigateDetail,
+} from "./utils/spa-navigation";
+import { initTheme } from "./utils/theme";
+import { ensureConnected } from "./ws";
 
 void ensureWasm();
 
@@ -57,6 +63,22 @@ function App() {
     initTheme();
     initUnreadTracking();
     ensureConnected();
+    const userData = readUserData();
+    if (!userData?.is_registered && !getAppCredential()) {
+      fetchToken();
+    }
+  }, []);
+
+  useEffect(() => {
+    const credential = getAppCredential();
+    if (!credential) {
+      return;
+    }
+    const userData = readUserData();
+    if (userData?.is_registered) {
+      return;
+    }
+    restoreCredential(credential);
   }, []);
 
   useEffect(() => {
@@ -104,6 +126,45 @@ function App() {
     initTheme();
     setCurrentUser(next);
     clearRouteDataCache();
+  }
+
+  async function fetchToken() {
+    try {
+      const result = await fetchJson<{ token: string }>("/api/auth/token");
+      if (result.token) {
+        setAppCredential(result.token);
+      }
+    } catch {
+      // Silently ignore — user may not have a session
+    }
+  }
+
+  async function restoreCredential(credential: string) {
+    try {
+      const response = await fetch("/api/auth/restore", {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${credential}`,
+        },
+      });
+      if (!response.ok) {
+        clearAppCredential();
+        return;
+      }
+      const result = await response.json() as { user: UserData; token: string };
+      if (result.user) {
+        writeUserData(result.user);
+        if (result.token) {
+          setAppCredential(result.token);
+        }
+        setCurrentUser(result.user);
+        initPreferences();
+        initTheme();
+        clearRouteDataCache();
+      }
+    } catch {
+      clearAppCredential();
+    }
   }
 
   const navigate = (

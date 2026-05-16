@@ -1,40 +1,40 @@
-import { render, createRef } from "preact";
 import { effect } from "@preact/signals";
-import { createBoard, ensureWasm } from "../goban/create-board";
-import { readShowCoordinates } from "../utils/coord-toggle";
-import {
-  storage,
-  ANALYSIS_SIZE,
-  ANALYSIS_KOMI,
-  ANALYSIS_SGF_META,
-  ANALYSIS_SGF_TEXT,
-  analysisTreeKey,
-} from "../utils/storage";
-import { playStoneSound, playPassSound } from "../game/sound";
-import {
-  createMoveConfirm,
-  handleMoveConfirmClick,
-  dismissMoveConfirmOnClickOutside,
-} from "../utils/move-confirm";
-import { todayYYYYMMDD, formatSgfTime, formatTime } from "../utils/format";
-import { readFileAsText, downloadSgf } from "../utils/sgf";
-import type { SgfMeta } from "../utils/sgf";
-import type { Sign } from "../goban/types";
+import { createRef,render } from "preact";
 import type { PlayerPanelProps } from "../components/player-panel";
 import { buildPlayerPanels } from "../game/capabilities";
+import { playPassSound,playStoneSound } from "../game/sound";
+import { mobileTab,showCoordinates } from "../game/state";
+import { createBoard,ensureWasm } from "../goban/create-board";
+import type { Sign } from "../goban/types";
+import { readShowCoordinates } from "../utils/coord-toggle";
+import { formatSgfTime,formatTime,todayYYYYMMDD } from "../utils/format";
 import {
-  analysisBoard,
-  analysisKomi,
-  analysisMeta,
-  analysisPendingMove,
-  analysisPanelState,
-  analysisSize,
-  analysisTerritoryInfo,
-  analysisNavState,
-  resetAnalysisRuntimeState,
-} from "./analysis-state";
-import { mobileTab, showCoordinates } from "../game/state";
+createMoveConfirm,
+dismissMoveConfirmOnClickOutside,
+handleMoveConfirmClick,
+} from "../utils/move-confirm";
+import type { SgfMeta } from "../utils/sgf";
+import { downloadSgf,readFileAsText } from "../utils/sgf";
+import {
+ANALYSIS_KOMI,
+ANALYSIS_SGF_META,
+ANALYSIS_SGF_TEXT,
+ANALYSIS_SIZE,
+analysisTreeKey,
+storage,
+} from "../utils/storage";
 import { AnalysisPage } from "./analysis-page";
+import {
+analysisBoard,
+analysisKomi,
+analysisMeta,
+analysisNavState,
+analysisPanelState,
+analysisPendingMove,
+analysisSize,
+analysisTerritoryInfo,
+resetAnalysisRuntimeState,
+} from "./analysis-state";
 
 const VALID_SIZES = [9, 13, 19];
 

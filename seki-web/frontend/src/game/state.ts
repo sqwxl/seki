@@ -1,34 +1,34 @@
-import { signal, computed, batch } from "@preact/signals";
-import type {
-  GameState,
-  GameStage,
-  InitialGameProps,
-  UserData,
-  SettledTerritoryData,
-  TerritoryData,
-  TurnData,
-  ScoreData,
-  StateMessage,
-  UndoAcceptedMessage,
-  UndoRejectedMessage,
-  PresentationStartedMessage,
-} from "./types";
-import { GameStage as GS, isPlayStage } from "./types";
-import type { Board } from "../goban/create-board";
+import { batch,computed,signal } from "@preact/signals";
 import type { ChatEntry } from "../components/chat";
+import type { Board } from "../goban/create-board";
 import type { Point } from "../goban/types";
 import {
-  storage,
-  SHOW_MOVE_TREE,
-  SHOW_COORDINATES,
-  SOUND_ENABLED,
-} from "../utils/storage";
+activeFlashMessage,
+clearFlash,
+setFlash,
+} from "../utils/flash";
 import { readMoveConfirmation } from "../utils/move-confirm";
 import {
-  activeFlashMessage,
-  clearFlash,
-  setFlash,
-} from "../utils/flash";
+SHOW_COORDINATES,
+SHOW_MOVE_TREE,
+SOUND_ENABLED,
+storage,
+} from "../utils/storage";
+import type {
+GameStage,
+GameState,
+InitialGameProps,
+PresentationStartedMessage,
+ScoreData,
+SettledTerritoryData,
+StateMessage,
+TerritoryData,
+TurnData,
+UndoAcceptedMessage,
+UndoRejectedMessage,
+UserData,
+} from "./types";
+import { GameStage as GS,isPlayStage } from "./types";
 
 // ---------------------------------------------------------------------------
 // Config signals (set once at page load)
@@ -497,5 +497,5 @@ export function clearPresentation(): void {
 }
 
 // Re-export phase for convenience
-export { gamePhase, analysisMode, estimateMode } from "./phase";
+export { analysisMode,estimateMode,gamePhase } from "./phase";
 export type { GamePhase } from "./phase";

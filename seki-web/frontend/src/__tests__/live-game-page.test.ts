@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe,expect,it } from "vitest";
 import { shouldFallbackJoinToSpectating } from "../layouts/live-game-page";
 
 describe("live game page join fallback", () => {

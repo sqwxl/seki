@@ -1,11 +1,11 @@
 import { useState } from "preact/hooks";
-import { savePref } from "../utils/preferences";
-import { readUserData } from "../game/util";
 import type { UserPreferences } from "../game/types";
+import { readUserData } from "../game/util";
 import {
-  osNotificationsEnabled,
-  toggleOsNotifications,
+osNotificationsEnabled,
+toggleOsNotifications,
 } from "../utils/os-notifications";
+import { savePref } from "../utils/preferences";
 
 type NotifRow = {
   label: string;

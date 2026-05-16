@@ -1,15 +1,15 @@
-import type { CSSProperties, JSX } from "preact";
-import { useCallback } from "preact/hooks";
 import classnames from "classnames";
-import type {
-  MarkerData,
-  HeatData,
-  GhostStoneData,
-  Point,
-  VertexEventHandler,
-} from "./types";
+import type { CSSProperties,JSX } from "preact";
+import { useCallback } from "preact/hooks";
 import { signEquals } from "./helper";
 import Marker from "./marker";
+import type {
+GhostStoneData,
+HeatData,
+MarkerData,
+Point,
+VertexEventHandler,
+} from "./types";
 
 type VertexProps = {
   position: Point;
