@@ -8,4 +8,5 @@ pub mod game_joiner;
 pub mod live;
 pub mod mailer;
 pub mod presentation_actions;
+pub mod rating;
 pub mod state_serializer;

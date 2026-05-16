@@ -20,6 +20,8 @@ pub struct GameSettings {
     pub byoyomi_periods: Option<i32>,
     pub is_private: bool,
     pub invite_only: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub ranked: bool,
 }
 
 /// Full game item sent in lobby `init` and `game_created` messages.
@@ -33,6 +35,14 @@ pub struct LiveGameItem {
     pub white: Option<UserData>,
     pub settings: GameSettings,
     pub move_count: Option<usize>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub ranked: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub derived_handicap: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub derived_komi: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub derived_color_reason: Option<String>,
 }
 
 impl LiveGameItem {
@@ -55,8 +65,13 @@ impl LiveGameItem {
                 byoyomi_periods: gwp.game.byoyomi_periods,
                 is_private: gwp.game.is_private,
                 invite_only: gwp.game.invite_only,
+                ranked: gwp.game.ranked,
             },
             move_count,
+            ranked: gwp.game.ranked,
+            derived_handicap: gwp.game.derived_handicap,
+            derived_komi: gwp.game.derived_komi,
+            derived_color_reason: gwp.game.derived_color_reason.clone(),
         }
     }
 }
@@ -85,6 +100,8 @@ struct GameUpdate {
     black: Option<UserData>,
     white: Option<UserData>,
     move_count: Option<usize>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    ranked: bool,
 }
 
 /// Notify live clients that a new game appeared (created or joined).
@@ -116,6 +133,7 @@ pub fn notify_game_updated(
         black: gwp.black.as_ref().map(UserData::from),
         white: gwp.white.as_ref().map(UserData::from),
         move_count,
+        ranked: gwp.game.ranked,
     };
     let msg = json!({
         "kind": "game_updated",

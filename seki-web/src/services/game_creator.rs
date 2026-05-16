@@ -3,8 +3,10 @@ use rand::RngExt;
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
+use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
+use crate::services::rating;
 
 pub struct CreateGameParams {
     pub cols: i32,
@@ -22,6 +24,7 @@ pub struct CreateGameParams {
     pub byoyomi_time_secs: Option<i32>,
     pub byoyomi_periods: Option<i32>,
     pub open_to: Option<String>,
+    pub ranked: bool,
 }
 
 pub async fn create_game(
@@ -66,6 +69,34 @@ pub async fn create_game(
             "Maximum handicap for {}x{} board is {}",
             params.cols, params.rows, max_hc
         )));
+    }
+
+    if params.ranked {
+        if !creator.is_registered() {
+            return Err(AppError::UnprocessableEntity(
+                "Only registered users can create ranked games".to_string(),
+            ));
+        }
+        if params.is_private {
+            return Err(AppError::UnprocessableEntity(
+                "Private games cannot be ranked".to_string(),
+            ));
+        }
+        if params
+            .invite_email
+            .as_ref()
+            .is_some_and(|email| !email.is_empty())
+        {
+            return Err(AppError::UnprocessableEntity(
+                "Raw invite-only games cannot be ranked".to_string(),
+            ));
+        }
+        if params.handicap != 0 || (params.komi - 6.5).abs() > f64::EPSILON {
+            return Err(AppError::UnprocessableEntity(
+                "Ranked games use server-derived handicap and komi".to_string(),
+            ));
+        }
+        RatingProfile::get_or_create(pool, creator.id).await?;
     }
 
     let friend = if let Some(ref username) = params.invite_username {
@@ -146,8 +177,22 @@ pub async fn create_game(
         nigiri,
         params.open_to.as_deref(),
         invite_only,
+        params.ranked,
     )
     .await?;
+
+    if params.ranked && black_id.is_some() && white_id.is_some() {
+        if let Err(e) =
+            rating::capture_ranked_snapshot(pool, game.id, black_id.unwrap(), white_id.unwrap())
+                .await
+        {
+            tracing::warn!(
+                game_id = game.id,
+                error = %e,
+                "Failed to capture ranked snapshot during game creation"
+            );
+        }
+    }
 
     // When both seats are assigned up front, this is a direct challenge:
     // the invited player must accept or decline before play starts.

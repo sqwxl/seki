@@ -4,6 +4,19 @@ use sqlx::{QueryBuilder, Sqlite};
 
 pub struct GameRead;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RatedStatusFilter {
+    Ranked,
+    Unranked,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GameListRatingFilters {
+    pub rated_status: Option<RatedStatusFilter>,
+    pub min_rating: Option<i32>,
+    pub max_rating: Option<i32>,
+}
+
 impl GameRead {
     /// Insert or update the last-seen move count for a user+game pair.
     pub async fn upsert(

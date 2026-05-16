@@ -5,6 +5,7 @@ use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::game::GameWithPlayers;
 use crate::models::user::User;
+use crate::services::rating;
 
 pub async fn join_open_game(
     pool: &DbPool,
@@ -14,6 +15,12 @@ pub async fn join_open_game(
     if gwp.has_player(user.id) {
         return Err(AppError::UnprocessableEntity(
             "Already in this game".to_string(),
+        ));
+    }
+
+    if gwp.game.ranked && !user.is_registered() {
+        return Err(AppError::UnprocessableEntity(
+            "Only registered users can join ranked games".to_string(),
         ));
     }
 
@@ -46,5 +53,33 @@ pub async fn join_open_game(
     }
 
     tx.commit().await?;
+
+    if gwp.game.ranked {
+        let black = gwp.black.as_ref().map(|u| u.id).or_else(|| {
+            if gwp.game.black_id == Some(user.id) {
+                Some(user.id)
+            } else {
+                gwp.game.black_id
+            }
+        });
+        let white = gwp.white.as_ref().map(|u| u.id).or_else(|| {
+            if gwp.game.white_id == Some(user.id) {
+                Some(user.id)
+            } else {
+                gwp.game.white_id
+            }
+        });
+
+        if let (Some(b_id), Some(w_id)) = (black, white) {
+            if let Err(e) = rating::capture_ranked_snapshot(pool, gwp.game.id, b_id, w_id).await {
+                tracing::warn!(
+                    game_id = gwp.game.id,
+                    error = %e,
+                    "Failed to capture ranked snapshot during game join"
+                );
+            }
+        }
+    }
+
     Ok(())
 }

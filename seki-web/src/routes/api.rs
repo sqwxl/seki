@@ -127,6 +127,8 @@ struct CreateGameRequest {
     byoyomi_periods: Option<i32>,
     #[serde(default)]
     open_to: Option<String>,
+    #[serde(default)]
+    ranked: bool,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -364,6 +366,7 @@ async fn create_game(
         byoyomi_time_secs: body.byoyomi_time_secs,
         byoyomi_periods: body.byoyomi_periods,
         open_to: body.open_to,
+        ranked: body.ranked,
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;
@@ -870,6 +873,7 @@ async fn rematch_game(
         byoyomi_time_secs: gwp.game.byoyomi_time_secs,
         byoyomi_periods: gwp.game.byoyomi_periods,
         open_to: None,
+        ranked: false,
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;

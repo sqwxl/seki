@@ -140,7 +140,14 @@ pub fn serialize_state(
         "result": gwp.game.result,
         "undo_rejected": gwp.game.undo_rejected,
         "allow_undo": gwp.game.allow_undo,
-        "nigiri": gwp.game.nigiri
+        "nigiri": gwp.game.nigiri,
+        "settings": {
+            "ranked": gwp.game.ranked,
+            "derived_handicap": gwp.game.derived_handicap,
+            "derived_komi": gwp.game.derived_komi,
+            "derived_color_reason": gwp.game.derived_color_reason,
+            "calibration_policy_version": gwp.game.calibration_policy_version,
+        }
     });
 
     if let Some(t) = territory {

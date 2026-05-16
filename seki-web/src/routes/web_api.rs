@@ -495,6 +495,7 @@ async fn build_game_props(
             byoyomi_periods: gwp.game.byoyomi_periods,
             is_private: gwp.game.is_private,
             invite_only: gwp.game.invite_only,
+            ranked: gwp.game.ranked,
         },
         moves: engine.moves().to_vec(),
         current_turn_stone: engine.current_turn_stone().to_int() as i32,

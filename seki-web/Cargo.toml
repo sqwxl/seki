@@ -21,6 +21,7 @@ tracing = "0.1"
 tower-livereload = "0.10"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.10"
+skillratings = "0.29.0"
 argon2 = "0.5"
 futures-util = "0.3"
 utoipa = { version = "5", features = ["axum_extras", "chrono"] }

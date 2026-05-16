@@ -12,14 +12,14 @@
 
 **Purpose**: Add the dependency and empty module/test entry points used by later tasks.
 
-- [ ] T001 Add `skillratings` with default features only in `seki-web/Cargo.toml`
-- [ ] T002 Create rating migration file after `001_initial.sql` in `seki-web/migrations/002_player_ratings.sql`
-- [ ] T003 [P] Create rating model module stub and export it from `seki-web/src/models/rating.rs` and `seki-web/src/models/mod.rs`
-- [ ] T004 [P] Create rating service module stub and export it from `seki-web/src/services/rating.rs` and `seki-web/src/services/mod.rs`
-- [ ] T005 [P] Create frontend rating utility stub in `seki-web/frontend/src/utils/rating.ts`
-- [ ] T006 [P] Create Rust integration test module for rating flows in `seki-web/tests/ws/rating.rs`
-- [ ] T007 Register the rating integration test module in `seki-web/tests/ws/main.rs`
-- [ ] T008 [P] Create frontend rating formatting test file in `seki-web/frontend/src/__tests__/rating-format.test.ts`
+- [X] T001 Add `skillratings` with default features only in `seki-web/Cargo.toml`
+- [X] T002 Create rating migration file after `001_initial.sql` in `seki-web/migrations/002_player_ratings.sql`
+- [X] T003 [P] Create rating model module stub and export it from `seki-web/src/models/rating.rs` and `seki-web/src/models/mod.rs`
+- [X] T004 [P] Create rating service module stub and export it from `seki-web/src/services/rating.rs` and `seki-web/src/services/mod.rs`
+- [X] T005 [P] Create frontend rating utility stub in `seki-web/frontend/src/utils/rating.ts`
+- [X] T006 [P] Create Rust integration test module for rating flows in `seki-web/tests/ws/rating.rs`
+- [X] T007 Register the rating integration test module in `seki-web/tests/ws/main.rs`
+- [X] T008 [P] Create frontend rating formatting test file in `seki-web/frontend/src/__tests__/rating-format.test.ts`
 
 ---
 
@@ -29,17 +29,17 @@
 
 **Critical**: No user story implementation should start until this phase is complete.
 
-- [ ] T009 Define `rating_profiles`, `rating_adjustments`, and rated-game snapshot schema with indexes and uniqueness constraints in `seki-web/migrations/002_player_ratings.sql`
-- [ ] T010 Add ranked status and rating snapshot fields to game row types and game write/read queries in `seki-web/src/models/game.rs`
-- [ ] T011 Add ranked status and rating snapshot fields to game list read queries in `seki-web/src/models/game_read.rs`
-- [ ] T012 Implement rating profile and adjustment row/query functions in `seki-web/src/models/rating.rs`
-- [ ] T013 [P] Add rating DTO structs for shared web/API responses in `seki-web/src/services/rating.rs`
-- [ ] T014 [P] Implement versioned rating-to-rank calibration policy and provisional default mapping in `seki-web/src/services/rating.rs`
-- [ ] T015 [P] Implement rank qualifier formatting, uncertainty threshold handling, and alternate display helpers in `seki-web/src/services/rating.rs`
-- [ ] T016 [P] Implement frontend rating display types and formatting helpers in `seki-web/frontend/src/utils/rating.ts`
-- [ ] T017 [P] Extend frontend shared game/user types with rank DTO fields in `seki-web/frontend/src/game/types.ts`
-- [ ] T018 Add unit tests for calibration policy, rank formatting, and uncertainty threshold behavior in `seki-web/src/services/rating.rs`
-- [ ] T019 Add Vitest coverage for kyu/dan, numeric rating, uncertainty, unranked, and non-participating formatting in `seki-web/frontend/src/__tests__/rating-format.test.ts`
+- [X] T009 Define `rating_profiles`, `rating_adjustments`, and rated-game snapshot schema with indexes and uniqueness constraints in `seki-web/migrations/002_player_ratings.sql`
+- [X] T010 Add ranked status and rating snapshot fields to game row types and game write/read queries in `seki-web/src/models/game.rs`
+- [X] T011 Add ranked status and rating snapshot fields to game list read queries in `seki-web/src/models/game_read.rs`
+- [X] T012 Implement rating profile and adjustment row/query functions in `seki-web/src/models/rating.rs`
+- [X] T013 [P] Add rating DTO structs for shared web/API responses in `seki-web/src/services/rating.rs`
+- [X] T014 [P] Implement versioned rating-to-rank calibration policy and provisional default mapping in `seki-web/src/services/rating.rs`
+- [X] T015 [P] Implement rank qualifier formatting, uncertainty threshold handling, and alternate display helpers in `seki-web/src/services/rating.rs`
+- [X] T016 [P] Implement frontend rating display types and formatting helpers in `seki-web/frontend/src/utils/rating.ts`
+- [X] T017 [P] Extend frontend shared game/user types with rank DTO fields in `seki-web/frontend/src/game/types.ts`
+- [X] T018 Add unit tests for calibration policy, rank formatting, and uncertainty threshold behavior in `seki-web/src/services/rating.rs`
+- [X] T019 Add Vitest coverage for kyu/dan, numeric rating, uncertainty, unranked, and non-participating formatting in `seki-web/frontend/src/__tests__/rating-format.test.ts`
 
 **Checkpoint**: Rating persistence primitives and display primitives exist without changing game behavior.
 
@@ -53,7 +53,7 @@
 
 ### Tests for User Story 1
 
-- [ ] T020 [P] [US1] Add integration tests for ranked game creation, private-game rejection, invite-only rejection, and manual handicap/komi rejection in `seki-web/tests/ws/rating.rs`
+- [X] T020 [P] [US1] Add integration tests for ranked game creation, private-game rejection, invite-only rejection, and manual handicap/komi rejection in `seki-web/tests/ws/rating.rs`
 - [ ] T021 [P] [US1] Add integration tests for ranked open-game join snapshot capture and automatic color/handicap/komi derivation in `seki-web/tests/ws/rating.rs`
 - [ ] T022 [P] [US1] Add integration tests for resignation-triggered Glicko-2 update and idempotent repeated finalization in `seki-web/tests/ws/rating.rs`
 - [ ] T023 [P] [US1] Add integration tests for exact-rating random color assignment and lower-rating Black assignment in `seki-web/tests/ws/rating.rs`
@@ -61,14 +61,14 @@
 ### Implementation for User Story 1
 
 - [ ] T024 [US1] Implement rating eligibility checks for registered users, bots, anonymous users, private games, invite-only games, open games, and direct challenges in `seki-web/src/services/rating.rs`
-- [ ] T025 [US1] Implement current rating profile creation/defaulting and participation defaults in `seki-web/src/models/rating.rs`
+- [X] T025 [US1] Implement current rating profile creation/defaulting and participation defaults in `seki-web/src/models/rating.rs`
 - [ ] T026 [US1] Implement Glicko-2 two-player result application and before/after calculation using `skillratings` in `seki-web/src/services/rating.rs`
 - [ ] T027 [US1] Implement idempotent rating adjustment insertion and `rating_applied` marking in `seki-web/src/models/rating.rs`
 - [ ] T028 [US1] Implement ranked snapshot capture and automatic handicap/komi/color derivation in `seki-web/src/services/rating.rs`
 - [ ] T029 [US1] Wire ranked create validation and snapshot initialization into `seki-web/src/services/game_creator.rs`
 - [ ] T030 [US1] Wire ranked open-game join and challenge acceptance validation into `seki-web/src/services/game_joiner.rs`
-- [ ] T031 [US1] Reject or ignore manual ranked handicap/komi in web game creation handlers in `seki-web/src/routes/games.rs`
-- [ ] T032 [US1] Enforce ranked constraints for bearer-token game creation paths in `seki-web/src/routes/api.rs`
+- [X] T031 [US1] Reject or ignore manual ranked handicap/komi in web game creation handlers in `seki-web/src/routes/games.rs`
+- [X] T032 [US1] Enforce ranked constraints for bearer-token game creation paths in `seki-web/src/routes/api.rs`
 - [ ] T033 [US1] Call rating finalization from resignation result flow in `seki-web/src/services/game_actions/mod.rs`
 - [ ] T034 [US1] Call rating finalization from territory/agreed-score result flow in `seki-web/src/services/game_actions/territory.rs`
 - [ ] T035 [US1] Call rating finalization from timeout/disconnect victory flow in `seki-web/src/services/game_actions/disconnect.rs`

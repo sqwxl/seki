@@ -17,7 +17,7 @@ use crate::models::message::Message;
 use crate::models::turn::{ClockSnapshot, TurnRow};
 use crate::models::user::User;
 use crate::services::clock::{self, ClockState, TimeControl};
-use crate::services::{engine_builder, live, state_serializer};
+use crate::services::{engine_builder, live, rating, state_serializer};
 
 // -- Return types --
 
@@ -321,6 +321,24 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
 
         tx.commit().await?;
 
+        if engine.stage() == Stage::Completed
+            && let Some(result) = engine.result()
+            && let Some(b_id) = gwp.game.black_id
+            && let Some(w_id) = gwp.game.white_id
+        {
+            if let Err(e) = crate::services::rating::finalize_rating(
+                &state.db, &gwp.game, result, b_id, w_id,
+            )
+            .await
+            {
+                tracing::error!(
+                    game_id,
+                    error = %e,
+                    "Failed to finalize rating after resign"
+                );
+            }
+        }
+
         if ended {
             gwp.game.result = engine.result().map(String::from);
             gwp.game.stage = "completed".to_string();
@@ -390,6 +408,23 @@ pub async fn accept_challenge(
         gwp.game.stage = start_stage.to_string();
         gwp
     };
+
+    if gwp.game.ranked && gwp.game.black_id.is_some() && gwp.game.white_id.is_some() {
+        if let Err(e) = rating::capture_ranked_snapshot(
+            &state.db,
+            game_id,
+            gwp.game.black_id.unwrap(),
+            gwp.game.white_id.unwrap(),
+        )
+        .await
+        {
+            tracing::warn!(
+                game_id,
+                error = %e,
+                "Failed to capture ranked snapshot on challenge acceptance"
+            );
+        }
+    }
     let engine = state
         .registry
         .get_or_init_engine(&state.db, &gwp.game)
@@ -682,6 +717,23 @@ pub async fn end_game_on_time(
         return Ok(());
     }
 
+    // Rating finalization (outside transaction to avoid locks)
+    if let Some(b_id) = gwp.game.black_id
+        && let Some(w_id) = gwp.game.white_id
+    {
+        if let Err(e) = crate::services::rating::finalize_rating(
+            &state.db, &gwp.game, result, b_id, w_id,
+        )
+        .await
+        {
+            tracing::error!(
+                game_id,
+                error = %e,
+                "Failed to finalize rating after timeout"
+            );
+        }
+    }
+
     // Non-transactional post-actions
     let _ = state
         .registry
@@ -740,7 +792,7 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let game_state = state_serializer::serialize_state(
+    let mut game_state = state_serializer::serialize_state(
         gwp,
         engine,
         undo_requested,
@@ -748,6 +800,23 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
         None,
         clock_ref,
     );
+
+    if let Some(ref black) = gwp.black {
+        if let Ok(profile) = crate::models::rating::RatingProfile::find(&state.db, black.id).await
+        {
+            let user_data =
+                crate::templates::UserData::from_user_with_rank(black, profile.as_ref());
+            game_state["black"] = serde_json::to_value(&user_data).unwrap_or_default();
+        }
+    }
+    if let Some(ref white) = gwp.white {
+        if let Ok(profile) = crate::models::rating::RatingProfile::find(&state.db, white.id).await
+        {
+            let user_data =
+                crate::templates::UserData::from_user_with_rank(white, profile.as_ref());
+            game_state["white"] = serde_json::to_value(&user_data).unwrap_or_default();
+        }
+    }
 
     state
         .registry

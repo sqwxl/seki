@@ -60,6 +60,19 @@ pub struct Game {
     pub nigiri: bool,
     pub open_to: Option<String>,
     pub invite_only: bool,
+    pub ranked: bool,
+    pub rating_applied: bool,
+    pub black_rating_before: Option<f64>,
+    pub white_rating_before: Option<f64>,
+    pub black_deviation_before: Option<f64>,
+    pub white_deviation_before: Option<f64>,
+    pub black_volatility_before: Option<f64>,
+    pub white_volatility_before: Option<f64>,
+    pub derived_handicap: Option<i32>,
+    pub derived_komi: Option<f64>,
+    pub derived_color_reason: Option<String>,
+    pub calibration_policy_version: Option<String>,
+    pub rating_result: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -278,13 +291,14 @@ impl Game {
         nigiri: bool,
         open_to: Option<&str>,
         invite_only: bool,
+        ranked: bool,
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, \
              is_private, allow_undo, access_token, invite_token, time_control, main_time_secs, \
              increment_secs, byoyomi_time_secs, byoyomi_periods, \
-             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, open_to, invite_only)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, open_to, invite_only, ranked)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
              RETURNING *",
         )
         .bind(creator_id)
@@ -310,6 +324,7 @@ impl Game {
         .bind(nigiri)
         .bind(open_to)
         .bind(invite_only)
+        .bind(ranked)
         .fetch_one(executor)
         .await
     }
@@ -337,6 +352,38 @@ impl Game {
             .bind(game_id)
             .execute(executor)
             .await?;
+        Ok(())
+    }
+
+    pub async fn set_ranked_snapshot(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        game_id: i64,
+        snapshot: &RankedGameSnapshotUpdate,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET \
+             ranked = $2, handicap = COALESCE($9, handicap), komi = COALESCE($10, komi), \
+             black_rating_before = $3, white_rating_before = $4, \
+             black_deviation_before = $5, white_deviation_before = $6, \
+             black_volatility_before = $7, white_volatility_before = $8, \
+             derived_handicap = $9, derived_komi = $10, derived_color_reason = $11, \
+             calibration_policy_version = $12, updated_at = CURRENT_TIMESTAMP \
+             WHERE id = $1",
+        )
+        .bind(game_id)
+        .bind(snapshot.ranked)
+        .bind(snapshot.black_rating_before)
+        .bind(snapshot.white_rating_before)
+        .bind(snapshot.black_deviation_before)
+        .bind(snapshot.white_deviation_before)
+        .bind(snapshot.black_volatility_before)
+        .bind(snapshot.white_volatility_before)
+        .bind(snapshot.derived_handicap)
+        .bind(snapshot.derived_komi)
+        .bind(&snapshot.derived_color_reason)
+        .bind(&snapshot.calibration_policy_version)
+        .execute(executor)
+        .await?;
         Ok(())
     }
 
@@ -409,6 +456,20 @@ impl Game {
         )
         .bind(result)
         .bind(stage)
+        .bind(game_id)
+        .execute(executor)
+        .await?;
+        Ok(res.rows_affected() > 0)
+    }
+
+    pub async fn set_rating_applied(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        game_id: i64,
+    ) -> Result<bool, sqlx::Error> {
+        let res = sqlx::query(
+            "UPDATE games SET rating_applied = 1, updated_at = CURRENT_TIMESTAMP \
+             WHERE id = $1 AND rating_applied = 0",
+        )
         .bind(game_id)
         .execute(executor)
         .await?;
@@ -524,6 +585,21 @@ impl Game {
         .fetch_all(executor)
         .await
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct RankedGameSnapshotUpdate {
+    pub ranked: bool,
+    pub black_rating_before: Option<f64>,
+    pub white_rating_before: Option<f64>,
+    pub black_deviation_before: Option<f64>,
+    pub white_deviation_before: Option<f64>,
+    pub black_volatility_before: Option<f64>,
+    pub white_volatility_before: Option<f64>,
+    pub derived_handicap: Option<i32>,
+    pub derived_komi: Option<f64>,
+    pub derived_color_reason: Option<String>,
+    pub calibration_policy_version: Option<String>,
 }
 
 impl Game {

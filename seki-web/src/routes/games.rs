@@ -33,6 +33,7 @@ pub struct CreateGameForm {
     pub byoyomi_periods: Option<i32>,
     pub correspondence_days: Option<i32>,
     pub open_to: Option<String>,
+    pub ranked: Option<String>,
 }
 
 // POST /games
@@ -89,6 +90,7 @@ pub async fn create_game(
         byoyomi_time_secs,
         byoyomi_periods,
         open_to: form.open_to,
+        ranked: form.ranked.as_deref() == Some("true"),
     };
 
     match game_creator::create_game(&state.db, &current_user, params).await {
@@ -281,6 +283,7 @@ pub async fn rematch_game(
         byoyomi_time_secs: gwp.game.byoyomi_time_secs,
         byoyomi_periods: gwp.game.byoyomi_periods,
         open_to: None,
+        ranked: false,
     };
 
     let game = game_creator::create_game(&state.db, &current_user, params).await?;

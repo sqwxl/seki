@@ -11,6 +11,7 @@ mod pass;
 mod presence;
 mod presentation;
 mod private_game;
+mod rating;
 mod rematch;
 mod resign;
 mod security;

@@ -44,6 +44,23 @@ pub async fn claim_victory(state: &AppState, game_id: i64, player_id: i64) -> Re
     crate::models::game::Game::set_ended(&mut *tx, game_id, result, "completed").await?;
     tx.commit().await?;
 
+    // Rating finalization
+    if let Some(b_id) = gwp.game.black_id
+        && let Some(w_id) = gwp.game.white_id
+    {
+        if let Err(e) = crate::services::rating::finalize_rating(
+            &state.db, &gwp.game, result, b_id, w_id,
+        )
+        .await
+        {
+            tracing::error!(
+                game_id,
+                error = %e,
+                "Failed to finalize rating after disconnect claim"
+            );
+        }
+    }
+
     gwp.game.result = Some(result.to_string());
     gwp.game.stage = "completed".to_string();
 

@@ -48,6 +48,7 @@ export type GameTreeData = {
 
 export type UserPreferences = {
   theme?: string;
+  rating_display?: "kyu_dan" | "rating";
   move_confirmation?: boolean;
   show_coordinates?: boolean;
   show_move_tree?: boolean;
@@ -62,11 +63,21 @@ export type UserPreferences = {
   notify_message_email?: boolean;
 };
 
+export type RankData = {
+  qualifier?: string | null;
+  status: "anonymous" | "not_participating" | "unranked" | "ranked";
+  rating?: number | null;
+  deviation?: number | null;
+  volatility?: number | null;
+  uncertain: boolean;
+};
+
 export type UserData = {
   id: number;
   display_name: string;
   is_registered: boolean;
   email?: string;
+  rank?: RankData | null;
   preferences: UserPreferences;
 };
 
@@ -99,6 +110,10 @@ export type GameSettings = {
   cols: number;
   rows: number;
   handicap: number;
+  ranked?: boolean;
+  rating_status?: "ranked" | "unranked";
+  color_reason?: string;
+  calibration_policy_version?: string;
   time_control: "none" | "fischer" | "byoyomi" | "correspondence";
   main_time_secs: number | undefined;
   increment_secs: number | undefined;

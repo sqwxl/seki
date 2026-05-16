@@ -144,6 +144,23 @@ pub async fn settle_territory(
         return Ok(());
     }
 
+    // Rating finalization
+    if let Some(b_id) = gwp.game.black_id
+        && let Some(w_id) = gwp.game.white_id
+    {
+        if let Err(e) = crate::services::rating::finalize_rating(
+            &state.db, &gwp.game, &result, b_id, w_id,
+        )
+        .await
+        {
+            tracing::error!(
+                game_id,
+                error = %e,
+                "Failed to finalize rating after territory settlement"
+            );
+        }
+    }
+
     // Non-transactional post-actions
     state
         .registry
