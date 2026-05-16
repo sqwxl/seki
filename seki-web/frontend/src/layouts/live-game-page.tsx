@@ -479,9 +479,9 @@ function LiveGameStatusSlot(
         </GameStatus>
       )}
       <LobbyControls {...buildControls(liveGameControlsState.value, props)} />
-      {status.disconnectCountdown && (
-        <p class="disconnect-countdown">{status.disconnectCountdown}</p>
-      )}
+      {/* TODO: Put this in the proper place. {status.disconnectCountdown && ( */}
+      {/*   <p class="disconnect-countdown">{status.disconnectCountdown}</p> */}
+      {/* )} */}
       {status.lobbyPopover && (
         <LobbyPopover
           variant={status.lobbyPopover.variant}
