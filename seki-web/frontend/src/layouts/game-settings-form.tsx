@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "preact/hooks";
 import { storage, GAME_SETTINGS } from "../utils/storage";
-import { IconTimer, IconBell, IconSettings } from "../components/icons";
+import { IconTimer, IconBell } from "../components/icons";
 import type { RankData } from "../game/types";
 import {
   OpenGameForm,

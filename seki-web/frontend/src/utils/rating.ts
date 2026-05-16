@@ -19,6 +19,34 @@ export function formatNumericRating(rating: number): string {
   return Math.round(rating).toString();
 }
 
+export function fullRankText(rank: RankData | undefined | null): string {
+  if (!rank || rank.status === "anonymous") {
+    return "";
+  }
+
+  const suffix = rank.uncertain ? "?" : "";
+  const numeric =
+    rank.rating == null ? "" : `${formatNumericRating(rank.rating)}${suffix}`;
+  const kyuDan =
+    rank.qualifier == null
+      ? ""
+      : `${rank.qualifier}${rank.status === "ranked" ? suffix : ""}`;
+
+  if (numeric && kyuDan) {
+    return `${numeric} (${kyuDan})`;
+  }
+  if (numeric) {
+    return `(${numeric})`;
+  }
+  if (kyuDan) {
+    return `(${kyuDan})`;
+  }
+  if (rank.status !== "ranked") {
+    return primaryRankText(rank);
+  }
+  return "";
+}
+
 export function primaryRankText(
   rank: RankData | undefined | null,
   mode: RatingDisplayMode = "kyu_dan",
@@ -30,6 +58,9 @@ export function primaryRankText(
     return "(-)";
   }
   if (rank.status === "unranked") {
+    if (mode === "rating" && rank.rating != null) {
+      return `(${formatNumericRating(rank.rating)}${rank.uncertain ? "?" : ""})`;
+    }
     return "(?)";
   }
 
@@ -50,13 +81,17 @@ export function alternateRankText(
   rank: RankData | undefined | null,
   mode: RatingDisplayMode = "kyu_dan",
 ): string {
-  if (!rank || rank.status !== "ranked") {
+  if (!rank || (rank.status !== "ranked" && rank.status !== "unranked")) {
     return "";
   }
 
   const value =
     mode === "rating"
-      ? rank.qualifier
+      ? rank.qualifier == null
+        ? null
+        : `${rank.qualifier}${
+            rank.status === "ranked" && rank.uncertain ? "?" : ""
+          }`
       : rank.rating == null
         ? null
         : formatNumericRating(rank.rating);
@@ -64,5 +99,5 @@ export function alternateRankText(
     return "";
   }
 
-  return `${value}${rank.uncertain ? "?" : ""}`;
+  return `${value}${mode === "kyu_dan" && rank.uncertain ? "?" : ""}`;
 }

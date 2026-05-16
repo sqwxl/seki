@@ -1,3 +1,4 @@
+import { signal } from "@preact/signals";
 import type { UserPreferences } from "../game/types";
 import { readUserData } from "../game/util";
 import {
@@ -19,10 +20,18 @@ import { parseRatingDisplayMode, type RatingDisplayMode } from "./rating";
 
 let serverPrefs: UserPreferences = {};
 
-export function readRatingDisplayPreference(): RatingDisplayMode {
+function storedRatingDisplayPreference(): RatingDisplayMode {
   return parseRatingDisplayMode(
     storage.get(RATING_DISPLAY) ?? serverPrefs.rating_display,
   );
+}
+
+export const ratingDisplayPreference = signal<RatingDisplayMode>(
+  storedRatingDisplayPreference(),
+);
+
+export function readRatingDisplayPreference(): RatingDisplayMode {
+  return storedRatingDisplayPreference();
 }
 
 /**
@@ -34,6 +43,7 @@ export function initPreferences(): void {
   const userData = readUserData();
   serverPrefs = {};
   if (!userData) {
+    ratingDisplayPreference.value = readRatingDisplayPreference();
     return;
   }
 
@@ -61,6 +71,7 @@ export function initPreferences(): void {
       parseRatingDisplayMode(serverPrefs.rating_display),
     );
   }
+  ratingDisplayPreference.value = readRatingDisplayPreference();
 
   // Refresh signals from updated localStorage
   showCoordinates.value = storage.get(SHOW_COORDINATES) === "true";
@@ -79,7 +90,9 @@ export function savePref(
 ): void {
   serverPrefs[key] = value as never;
   if (key === "rating_display") {
-    storage.set(RATING_DISPLAY, parseRatingDisplayMode(value));
+    const next = parseRatingDisplayMode(value);
+    storage.set(RATING_DISPLAY, next);
+    ratingDisplayPreference.value = next;
   }
   fetch("/settings/preferences", {
     method: "PATCH",

@@ -110,8 +110,17 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
     return (
       <>
         <span class="dismissed-content">
-          <UserLabel name={b} stone="black" rank={props.black?.rank} /> vs{" "}
-          <UserLabel name={w} stone="white" rank={props.white?.rank} />
+          <UserLabel
+            name={b}
+            stone="black"
+            rank={{ value: props.black?.rank }}
+          />{" "}
+          vs{" "}
+          <UserLabel
+            name={w}
+            stone="white"
+            rank={{ value: props.white?.rank }}
+          />
           {partsWithoutResult.length > 0 &&
             ` - ${partsWithoutResult.join(" - ")}`}
         </span>
@@ -127,17 +136,16 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
         name={b}
         stone="black"
         bold={active === "black"}
-        rank={props.black?.rank}
+        rank={{ value: props.black?.rank }}
       />{" "}
       vs{" "}
       <UserLabel
         name={w}
         stone="white"
         bold={active === "white"}
-        rank={props.white?.rank}
+        rank={{ value: props.white?.rank }}
       />{" "}
-      -{" "}
-      {parts.join(" - ")}
+      - {parts.join(" - ")}
     </>
   );
 }

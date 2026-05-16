@@ -4,6 +4,7 @@ import { writeUserData } from "../game/util";
 import { initialRatingParticipation } from "../components/notification-settings";
 import {
   initPreferences,
+  ratingDisplayPreference,
   readRatingDisplayPreference,
   savePref,
 } from "../utils/preferences";
@@ -18,6 +19,7 @@ describe("rating display preferences", () => {
 
   it("defaults to kyu dan when no preference is stored", () => {
     expect(readRatingDisplayPreference()).toBe("kyu_dan");
+    expect(ratingDisplayPreference.value).toBe("kyu_dan");
   });
 
   it("persists the server rating display preference locally", () => {
@@ -32,6 +34,7 @@ describe("rating display preferences", () => {
 
     expect(storage.get(RATING_DISPLAY)).toBe("rating");
     expect(readRatingDisplayPreference()).toBe("rating");
+    expect(ratingDisplayPreference.value).toBe("rating");
   });
 
   it("falls back for invalid local values and saves valid changes", () => {
@@ -41,6 +44,7 @@ describe("rating display preferences", () => {
     savePref("rating_display", "rating");
     expect(storage.get(RATING_DISPLAY)).toBe("rating");
     expect(readRatingDisplayPreference()).toBe("rating");
+    expect(ratingDisplayPreference.value).toBe("rating");
   });
 
   it("initializes the rating participation settings state", () => {

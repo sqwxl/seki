@@ -4,10 +4,9 @@
 
 import { useState, useEffect, useRef } from "preact/hooks";
 import { UserLabel } from "../../components/user-label";
-import { UserRank } from "../../components/user-rank";
 import { IconGrid4x4, IconHandicap, IconUndo, IconPrivate, IconBell, IconKomi, IconNigiri, StoneBlack, StoneWhite, IconSettings } from "../../components/icons";
 import type { RankData } from "../../game/types";
-import { formatNumericRating } from "../../utils/rating";
+import { fullRankText } from "../../utils/rating";
 
 type SearchResult = {
   username: string;
@@ -95,10 +94,7 @@ export function DirectChallengeForm({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const currentRatingText =
-    currentUserRank?.rating == null
-      ? undefined
-      : formatNumericRating(currentUserRank.rating);
+  const currentRatingText = fullRankText(currentUserRank);
 
   const opponentCannotRank =
     opponentRank?.status === "anonymous" ||
@@ -193,35 +189,37 @@ export function DirectChallengeForm({
         <fieldset>
           <legend>Opponent</legend>
           {selected ? (
-          <span class="selected-opponent" onClick={clearOpponent}>
-            {selected.username}{" "}
-            <UserRank rank={selected.rank} showBoth />
-          </span>
-        ) : (
-          <>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search by username..."
-              value={searchQuery}
-              onInput={(e) => onSearchInput(e.currentTarget.value)}
-              autocomplete="off"
-            />
-            {displayResults.length > 0 && (
-              <ul class="opponent-search-results">
-                {displayResults.map((r) => (
-                  <li key={r.username} onClick={() => selectOpponent(r)}>
-                    <span class="user-label">
-                      {r.username}{" "}
-                      <UserRank rank={r.rank} showBoth />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </fieldset>
+            <span class="selected-opponent" onClick={clearOpponent}>
+              <UserLabel
+                name={selected.username}
+                rank={{ value: selected.rank, showBoth: true }}
+              />
+            </span>
+          ) : (
+            <>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search by username..."
+                value={searchQuery}
+                onInput={(e) => onSearchInput(e.currentTarget.value)}
+                autocomplete="off"
+              />
+              {displayResults.length > 0 && (
+                <ul class="opponent-search-results">
+                  {displayResults.map((r) => (
+                    <li key={r.username} onClick={() => selectOpponent(r)}>
+                      <UserLabel
+                        name={r.username}
+                        rank={{ value: r.rank, showBoth: true }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </fieldset>
       )}
       <input type="hidden" name="invite_username" value={s.selectedOpponent} />
 

@@ -15,7 +15,7 @@ import {
   IconSettings,
 } from "../../components/icons";
 import type { RankData } from "../../game/types";
-import { formatNumericRating } from "../../utils/rating";
+import { fullRankText } from "../../utils/rating";
 
 export type OpenGameSettings = {
   cols: number;
@@ -64,10 +64,7 @@ export function OpenGameForm({
   rankedUnavailableReason,
   showPrivate = true,
 }: Props) {
-  const currentRatingText =
-    currentUserRank?.rating == null
-      ? undefined
-      : formatNumericRating(currentUserRank.rating);
+  const currentRatingText = fullRankText(currentUserRank);
 
   const rankedBlockedReason = !isRegistered
     ? (rankedUnavailableReason ?? "Register or sign in to create ranked games.")

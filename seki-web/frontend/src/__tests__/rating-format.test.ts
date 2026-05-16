@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   alternateRankText,
+  fullRankText,
   parseRatingDisplayMode,
   primaryRankText,
   type RankData,
@@ -36,6 +37,7 @@ describe("rating formatting", () => {
     expect(alternateRankText(rank, "kyu_dan")).toBe("1560");
     expect(primaryRankText(rank, "rating")).toBe("(1560)");
     expect(alternateRankText(rank, "rating")).toBe("3k");
+    expect(fullRankText(rank)).toBe("1560 (3k)");
   });
 
   it("formats uncertain and non-participating states", () => {
@@ -50,8 +52,23 @@ describe("rating formatting", () => {
 
     expect(primaryRankText(uncertain)).toBe("(8k?)");
     expect(alternateRankText(uncertain)).toBe("1500?");
-    expect(primaryRankText({ status: "unranked", uncertain: true })).toBe("(?)");
-    expect(primaryRankText({ status: "not_participating", uncertain: false })).toBe("(-)");
+    expect(fullRankText(uncertain)).toBe("1500? (8k?)");
+    const unranked: RankData = {
+      qualifier: "?",
+      status: "unranked",
+      rating: 1450,
+      deviation: 350,
+      volatility: 0.06,
+      uncertain: true,
+    };
+    expect(primaryRankText(unranked)).toBe("(?)");
+    expect(alternateRankText(unranked)).toBe("1450?");
+    expect(primaryRankText(unranked, "rating")).toBe("(1450?)");
+    expect(alternateRankText(unranked, "rating")).toBe("?");
+    expect(fullRankText(unranked)).toBe("1450? (?)");
+    expect(
+      primaryRankText({ status: "not_participating", uncertain: false }),
+    ).toBe("(-)");
     expect(primaryRankText({ status: "anonymous", uncertain: false })).toBe("");
   });
 
@@ -65,7 +82,7 @@ describe("rating formatting", () => {
       uncertain: false,
     };
 
-    const view = UserRank({ rank, displayMode: "kyu_dan" }) as any;
+    const view = UserRank({ value: rank, displayMode: "kyu_dan" }) as any;
     expect(view.props.class).toBe("player-rank");
     expect(view.props.children).toBe("(3k)");
     expect(view.props.title).toBe("1560");
@@ -74,7 +91,7 @@ describe("rating formatting", () => {
 
   it("renders numeric rating as the primary display when mode=rating", () => {
     const view = UserRank({
-      rank: {
+      value: {
         qualifier: "3k",
         status: "ranked",
         rating: 1560,
@@ -91,7 +108,7 @@ describe("rating formatting", () => {
 
   it("renders both formats when showBoth is set", () => {
     const view = UserRank({
-      rank: {
+      value: {
         qualifier: "3k",
         status: "ranked",
         rating: 1560,

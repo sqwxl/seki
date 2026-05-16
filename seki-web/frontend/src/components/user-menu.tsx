@@ -24,8 +24,12 @@ import {
 } from "../utils/theme";
 import { IconLogin, IconLogout, IconRegister, IconUser } from "./icons";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
-import { readRatingDisplayPreference, savePref } from "../utils/preferences";
-import { UserRank } from "./user-rank";
+import {
+  ratingDisplayPreference,
+  readRatingDisplayPreference,
+  savePref,
+} from "../utils/preferences";
+import { UserLabel } from "./user-label";
 import type { RatingDisplayMode } from "../utils/rating";
 
 function ThemeButton() {
@@ -88,7 +92,7 @@ export function UserMenu({
   );
 
   function handleRatingDisplayToggle() {
-    const next = nextRatingDisplay(ratingDisplay);
+    const next = nextRatingDisplay(ratingDisplayPreference.value);
     setRatingDisplay(next);
     savePref("rating_display", next);
   }
@@ -113,8 +117,10 @@ export function UserMenu({
         class="user-menu-trigger"
         onClick={() => setOpen(!open)}
       >
-        {username}{" "}
-        <UserRank rank={userData?.rank} displayMode={ratingDisplay} />
+        <UserLabel
+          name={username}
+          rank={{ value: userData?.rank, displayMode: ratingDisplay }}
+        />
       </button>
       {open && (
         <div class="nav-dropdown">

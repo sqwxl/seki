@@ -2,10 +2,7 @@ import { render } from "preact";
 import type { ComponentType } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { GamesList, type InitMessage } from "./layouts/games-list";
-import {
-  UserGames,
-  type UserGamesInitialData,
-} from "./layouts/user-games";
+import { UserGames, type UserGamesInitialData } from "./layouts/user-games";
 import { ensureWasm } from "./goban/create-board";
 import type { ChatEntry } from "./components/chat";
 import { NotificationBell } from "./components/notification-bell";
@@ -15,10 +12,13 @@ import { NotificationSettings } from "./components/notification-settings";
 import { ensureConnected } from "./ws";
 import { initUnreadTracking } from "./game/unread";
 import { initTheme } from "./utils/theme";
-import { initPreferences, readRatingDisplayPreference } from "./utils/preferences";
-import { formatNumericRating } from "./utils/rating";
-import { UserRank } from "./components/user-rank";
-import { type InitialGameProps, type RankData, type UserData } from "./game/types";
+import { initPreferences } from "./utils/preferences";
+import { formatNumericRating, fullRankText } from "./utils/rating";
+import {
+  type InitialGameProps,
+  type RankData,
+  type UserData,
+} from "./game/types";
 import { readUserData, writeUserData } from "./game/util";
 import {
   SPA_NAVIGATE_EVENT,
@@ -154,7 +154,10 @@ function parseRoute(url: URL): Route {
   }
   const challengeMatch = path.match(/^\/games\/challenge\/([^/]+)$/);
   if (challengeMatch) {
-    return { kind: "challenge", username: decodeURIComponent(challengeMatch[1]) };
+    return {
+      kind: "challenge",
+      username: decodeURIComponent(challengeMatch[1]),
+    };
   }
   if (path === "/analysis") {
     return { kind: "analysis" };
@@ -203,7 +206,7 @@ async function fetchJson<T>(url: string): Promise<T> {
     const message =
       typeof payload === "string"
         ? payload
-        : payload?.error ?? payload?.message ?? "Request failed";
+        : (payload?.error ?? payload?.message ?? "Request failed");
     throw { status: response.status, message } satisfies FetchError;
   }
 
@@ -317,7 +320,9 @@ function setHead(title: string, description?: string): void {
   if (ogTitle) {
     ogTitle.setAttribute("content", title);
   }
-  const ogDescription = document.querySelector('meta[property="og:description"]');
+  const ogDescription = document.querySelector(
+    'meta[property="og:description"]',
+  );
   if (ogDescription && description) {
     ogDescription.setAttribute("content", description);
   }
@@ -400,8 +405,8 @@ function useLazyModule<T>(loader: () => Promise<T>) {
 }
 
 function useRouteData<T>(url: string) {
-  const [data, setData] = useState<T | undefined>(() =>
-    routeDataCache.get(url) as T | undefined,
+  const [data, setData] = useState<T | undefined>(
+    () => routeDataCache.get(url) as T | undefined,
   );
   const [error, setError] = useState<FetchError | undefined>();
 
@@ -568,10 +573,9 @@ function NewGameScreen({
   ) => void;
 }) {
   const { data } = useRouteData<NewGameData>("/api/web/games/new");
-  const {
-    mod: formModule,
-    error: formError,
-  } = useLazyModule(loadGameSettingsFormModule);
+  const { mod: formModule, error: formError } = useLazyModule(
+    loadGameSettingsFormModule,
+  );
 
   const FormComponent = formModule?.GameSettingsForm as
     | ComponentType<GameSettingsFormProps>
@@ -603,7 +607,12 @@ function NewGameScreen({
   return (
     <>
       <h1>New Game</h1>
-      <form id="new-game-form" action="/games" method="post" onSubmit={onSubmit}>
+      <form
+        id="new-game-form"
+        action="/games"
+        method="post"
+        onSubmit={onSubmit}
+      >
         {FormComponent ? (
           <FormComponent
             isRegistered={data?.user_is_registered}
@@ -633,18 +642,18 @@ function ChallengeScreen({
   const { data } = useRouteData<NewGameData>(
     `/api/web/games/new?opponent=${encodeURIComponent(username)}`,
   );
-  const {
-    mod: formModule,
-    error: formError,
-  } = useLazyModule(loadGameSettingsFormModule);
+  const { mod: formModule, error: formError } = useLazyModule(
+    loadGameSettingsFormModule,
+  );
 
   const FormComponent = formModule?.GameSettingsForm as
     | ComponentType<GameSettingsFormProps>
     | undefined;
 
   const oppRank = data?.opponent_rank;
-  const oppLabel = oppRank?.qualifier
-    ? `${username} (${oppRank.qualifier})`
+  const oppRankText = fullRankText(oppRank);
+  const oppLabel = oppRankText
+    ? `${username} ${oppRankText}`
     : username;
 
   useEffect(() => {
@@ -673,7 +682,12 @@ function ChallengeScreen({
   return (
     <>
       <h1>Challenge {oppLabel}</h1>
-      <form id="new-game-form" action="/games" method="post" onSubmit={onSubmit}>
+      <form
+        id="new-game-form"
+        action="/games"
+        method="post"
+        onSubmit={onSubmit}
+      >
         {FormComponent ? (
           <FormComponent
             opponent={data?.opponent ?? username}
@@ -691,14 +705,14 @@ function ChallengeScreen({
 }
 
 function RatingProfileSummary({ rating }: { rating: ProfileRatingData }) {
-  const mode = readRatingDisplayPreference();
   const latest = rating.history[rating.history.length - 1];
+  const rankText = fullRankText(rating.rank);
 
   return (
     <section>
       <h2>Rating</h2>
       <p>
-        <UserRank rank={rating.rank} displayMode={mode} showBoth bare />
+        {rankText}
         {rating.participating ? "" : " (-)"}
         {` · ${rating.rated_games} rated games`}
       </p>
@@ -1011,7 +1025,9 @@ function AuthFormScreen({
             />
           </div>
         )}
-        <button type="submit">{mode === "login" ? "Log in" : "Register"}</button>
+        <button type="submit">
+          {mode === "login" ? "Log in" : "Register"}
+        </button>
       </form>
       <p>
         {mode === "login" ? (
@@ -1084,9 +1100,7 @@ function Screen({
     case "new-game":
       return <NewGameScreen navigate={navigate} />;
     case "challenge":
-      return (
-        <ChallengeScreen username={route.username} navigate={navigate} />
-      );
+      return <ChallengeScreen username={route.username} navigate={navigate} />;
     case "game":
       return <GameScreenRoute route={route} navigate={navigate} />;
     case "analysis":
@@ -1119,12 +1133,7 @@ function Screen({
         />
       );
     case "settings":
-      return (
-        <SettingsRedirect
-          currentUser={currentUser}
-          navigate={navigate}
-        />
-      );
+      return <SettingsRedirect currentUser={currentUser} navigate={navigate} />;
     default:
       return <NotFoundScreen />;
   }
@@ -1223,8 +1232,7 @@ function App() {
     }
     setLocationState((prev) => ({
       key: nextKey,
-      version:
-        reload || nextKey !== prev.key ? prev.version + 1 : prev.version,
+      version: reload || nextKey !== prev.key ? prev.version + 1 : prev.version,
     }));
     if (!url.pathname.startsWith("/games/")) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -1235,11 +1243,12 @@ function App() {
     const url = currentUrl();
     const initial = !seededInitialFlash.current;
     const nextFlash = initial
-      ? initialFlash.current ?? readFlashFromUrl(url)
+      ? (initialFlash.current ?? readFlashFromUrl(url))
       : readFlashFromUrl(url);
     seededInitialFlash.current = true;
     const preservedFlash =
-      preserveFlashAfterUrlCleanup.current || preserveFlashForNextNavigation.current;
+      preserveFlashAfterUrlCleanup.current ||
+      preserveFlashForNextNavigation.current;
     if (nextFlash) {
       setFlashState(nextFlash);
     } else {
@@ -1315,10 +1324,7 @@ function App() {
       navigate(detail.to, detail.replace, detail.reload);
     };
     window.addEventListener("popstate", onPopState);
-    window.addEventListener(
-      SPA_NAVIGATE_EVENT,
-      onSpaNavigate as EventListener,
-    );
+    window.addEventListener(SPA_NAVIGATE_EVENT, onSpaNavigate as EventListener);
     document.addEventListener("click", onClick);
     document.addEventListener("mouseenter", onPrefetch, true);
     document.addEventListener("focusin", onPrefetch);

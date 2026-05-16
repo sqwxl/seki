@@ -25,7 +25,7 @@ export function PlayerPanel(props: PlayerPanelProps) {
           stone={props.stone}
           profileUrl={props.profileUrl}
           isOnline={props.isOnline}
-          rank={props.rank}
+          rank={{ value: props.rank }}
         />
       </span>
       <span class={`player-clock${props.clockLowTime ? " low-time" : ""}`}>

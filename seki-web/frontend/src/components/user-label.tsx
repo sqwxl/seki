@@ -1,7 +1,5 @@
 import { StoneBlack, StoneWhite, IconNigiri, IconUser } from "./icons";
-import type { RankData } from "../game/types";
-import type { RatingDisplayMode } from "../utils/rating";
-import { UserRank } from "./user-rank";
+import { UserRank, type UserRankProps } from "./user-rank";
 
 type UserLabelProps = {
   name: string;
@@ -10,8 +8,7 @@ type UserLabelProps = {
   isOnline?: boolean;
   showRegistered?: boolean;
   bold?: boolean;
-  rank?: RankData | null;
-  ratingDisplay?: RatingDisplayMode;
+  rank?: UserRankProps;
 };
 
 function StoneIcon({ stone }: { stone: "black" | "white" | "nigiri" }) {
@@ -38,7 +35,7 @@ export function UserLabel(props: UserLabelProps) {
       {props.showRegistered && <IconUser />}
       <span class="player-name">{nameContent}</span>
       {" "}
-      <UserRank rank={props.rank} displayMode={props.ratingDisplay} />
+      <UserRank {...props.rank} />
       {props.isOnline !== undefined && (
         <span class={`presence-dot${props.isOnline ? " online" : ""}`} />
       )}
