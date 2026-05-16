@@ -326,18 +326,15 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
             && let Some(result) = engine.result()
             && let Some(b_id) = gwp.game.black_id
             && let Some(w_id) = gwp.game.white_id
+            && let Err(e) =
+                crate::services::rating::finalize_rating(&state.db, &gwp.game, result, b_id, w_id)
+                    .await
         {
-            if let Err(e) = crate::services::rating::finalize_rating(
-                &state.db, &gwp.game, result, b_id, w_id,
-            )
-            .await
-            {
-                tracing::error!(
-                    game_id,
-                    error = %e,
-                    "Failed to finalize rating after resign"
-                );
-            }
+            tracing::error!(
+                game_id,
+                error = %e,
+                "Failed to finalize rating after resign"
+            );
         }
 
         if ended {
@@ -441,8 +438,10 @@ pub async fn accept_challenge(
     };
     Game::set_stage(&state.db, game_id, start_stage).await?;
 
-    if gwp.game.ranked && black_id.is_some() && white_id.is_some() {
-        if let Err(e) = rating::capture_ranked_snapshot(
+    if gwp.game.ranked
+        && black_id.is_some()
+        && white_id.is_some()
+        && let Err(e) = rating::capture_ranked_snapshot(
             &state.db,
             game_id,
             black_id.unwrap(),
@@ -450,13 +449,12 @@ pub async fn accept_challenge(
             gwp.game.max_handicap,
         )
         .await
-        {
-            tracing::warn!(
-                game_id,
-                error = %e,
-                "Failed to capture ranked snapshot on challenge acceptance"
-            );
-        }
+    {
+        tracing::warn!(
+            game_id,
+            error = %e,
+            "Failed to capture ranked snapshot on challenge acceptance"
+        );
     }
 
     let gwp = if players_swapped || ranked_settings.is_some() {
@@ -762,18 +760,14 @@ pub async fn end_game_on_time(
     // Rating finalization (outside transaction to avoid locks)
     if let Some(b_id) = gwp.game.black_id
         && let Some(w_id) = gwp.game.white_id
+        && let Err(e) =
+            crate::services::rating::finalize_rating(&state.db, &gwp.game, result, b_id, w_id).await
     {
-        if let Err(e) = crate::services::rating::finalize_rating(
-            &state.db, &gwp.game, result, b_id, w_id,
-        )
-        .await
-        {
-            tracing::error!(
-                game_id,
-                error = %e,
-                "Failed to finalize rating after timeout"
-            );
-        }
+        tracing::error!(
+            game_id,
+            error = %e,
+            "Failed to finalize rating after timeout"
+        );
     }
 
     // Non-transactional post-actions
@@ -843,21 +837,17 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
         clock_ref,
     );
 
-    if let Some(ref black) = gwp.black {
-        if let Ok(profile) = crate::models::rating::RatingProfile::find(&state.db, black.id).await
-        {
-            let user_data =
-                crate::templates::UserData::from_user_with_rank(black, profile.as_ref());
-            game_state["black"] = serde_json::to_value(&user_data).unwrap_or_default();
-        }
+    if let Some(ref black) = gwp.black
+        && let Ok(profile) = crate::models::rating::RatingProfile::find(&state.db, black.id).await
+    {
+        let user_data = crate::templates::UserData::from_user_with_rank(black, profile.as_ref());
+        game_state["black"] = serde_json::to_value(&user_data).unwrap_or_default();
     }
-    if let Some(ref white) = gwp.white {
-        if let Ok(profile) = crate::models::rating::RatingProfile::find(&state.db, white.id).await
-        {
-            let user_data =
-                crate::templates::UserData::from_user_with_rank(white, profile.as_ref());
-            game_state["white"] = serde_json::to_value(&user_data).unwrap_or_default();
-        }
+    if let Some(ref white) = gwp.white
+        && let Ok(profile) = crate::models::rating::RatingProfile::find(&state.db, white.id).await
+    {
+        let user_data = crate::templates::UserData::from_user_with_rank(white, profile.as_ref());
+        game_state["white"] = serde_json::to_value(&user_data).unwrap_or_default();
     }
 
     state

@@ -1,4 +1,4 @@
-import type { CSSProperties,JSX } from "preact";
+import type { CSSProperties, JSX } from "preact";
 
 type CoordColsProps = {
   style?: CSSProperties;

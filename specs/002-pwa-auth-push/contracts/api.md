@@ -26,9 +26,9 @@ Issue a new browser app JWT credential.
 ```
 
 **Behavior**:
-- Creates a new JWT with `{ sub: user_id, exp: now + 90d, iat: now, jti: <uuid> }`, signed with HMAC-SHA256.
+- Creates a new JWT with `{ sub: user_id, exp: now + 90d, iat: now, jti: <random-id> }`, signed with HMAC-SHA256.
 - Inserts an `app_credentials` row with the `jti` and `expires_at`.
-- If a previous credential exists for this user, revokes it (sets `revoked = 1`).
+- Does not revoke other credentials for the same user; multiple installed devices/browser profiles may coexist.
 - Returns the JWT and expiry. The client stores the JWT in `localStorage` under `seki:app_credential`.
 - Works for both registered and anonymous users.
 
@@ -69,18 +69,27 @@ Restore a session using a browser app JWT.
 
 ## DELETE /api/auth/token
 
-Revoke all browser app credentials for the current user (logout from all devices).
+Revoke the current device's browser app credential (logout from this device only).
 
-**Request**: No body. Authenticated via existing session.
+**Request**: `Authorization: Bearer <jwt>` header. The JWT identifies which device credential to revoke.
 
 **Response 200**:
 ```json
 { "ok": true }
 ```
 
+**Response 401** (invalid/expired JWT):
+```json
+{
+  "error": { "code": "UNAUTHORIZED", "message": "Invalid or expired credential" }
+}
+```
+
 **Behavior**:
-- Sets `revoked = 1` on ALL `app_credentials` rows for the current user.
-- The client should also delete `seki:app_credential` from `localStorage`.
+- Validates the supplied JWT signature and extracts `jti`.
+- Sets `revoked = 1` on the matching `app_credentials` row.
+- Does NOT affect other credentials for the same user on other devices.
+- The client deletes `seki:app_credential` from `localStorage` after success.
 
 ---
 

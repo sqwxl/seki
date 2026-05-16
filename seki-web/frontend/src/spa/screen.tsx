@@ -1,18 +1,18 @@
 import type { UserData } from "../game/types";
 import {
-AuthFormScreen,
-NotFoundScreen,
-SettingsRedirect,
+  AuthFormScreen,
+  NotFoundScreen,
+  SettingsRedirect,
 } from "./auth-screens";
 import {
-AnalysisScreen,
-ChallengeScreen,
-GameScreenRoute,
-GamesScreen,
-NewGameScreen,
+  AnalysisScreen,
+  ChallengeScreen,
+  GameScreenRoute,
+  GamesScreen,
+  NewGameScreen,
 } from "./game-screens";
 import { ProfileScreen } from "./profile-screen";
-import type { NavigateFn,Route } from "./types";
+import type { NavigateFn, Route } from "./types";
 
 export function Screen({
   route,

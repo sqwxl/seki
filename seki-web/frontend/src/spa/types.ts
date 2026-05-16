@@ -1,9 +1,5 @@
 import type { ChatEntry } from "../components/chat";
-import type {
-InitialGameProps,
-RankData,
-UserData,
-} from "../game/types";
+import type { InitialGameProps, RankData, UserData } from "../game/types";
 import type { UserGamesInitialData } from "../layouts/user-games";
 import type { FlashMessage } from "../utils/flash";
 

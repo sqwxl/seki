@@ -1,4 +1,4 @@
-import type { ComponentChildren,Ref } from "preact";
+import type { ComponentChildren, Ref } from "preact";
 import { mobileTab } from "../game/state";
 
 export type GamePageLayoutProps = {
@@ -29,9 +29,7 @@ export function GamePageLayout(props: GamePageLayoutProps) {
       {props.status && <div class="game-status-slot">{props.status}</div>}
       <div class={`game-board-view ${tab === "chat" ? "tab-hidden" : ""}`}>
         {props.playerTop && (
-          <div class="player-panel player-top">
-            {props.playerTop}
-          </div>
+          <div class="player-panel player-top">{props.playerTop}</div>
         )}
         <div class="game-board-area">
           <div
@@ -41,15 +39,9 @@ export function GamePageLayout(props: GamePageLayoutProps) {
           />
         </div>
         {props.playerBottom && (
-          <div class="player-panel player-bottom">
-            {props.playerBottom}
-          </div>
+          <div class="player-panel player-bottom">{props.playerBottom}</div>
         )}
-        {props.controls && (
-          <div class="controls">
-            {props.controls}
-          </div>
-        )}
+        {props.controls && <div class="controls">{props.controls}</div>}
         {props.moveTree}
       </div>
       {hasChat && (

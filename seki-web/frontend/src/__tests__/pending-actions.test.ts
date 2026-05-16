@@ -1,28 +1,28 @@
 import { batch } from "@preact/signals";
-import { beforeEach,describe,expect,it,vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GameMessageDeps } from "../game/messages";
 import { handleGameMessage } from "../game/messages";
 import {
-addPendingChatMessage,
-allowUndo,
-black,
-chatMessages,
-clearGameFlashMessage,
-clearPendingAction,
-currentTurn,
-currentUserId,
-gameFlashMessage,
-gameStage,
-pendingAction,
-playerStone,
-replaceChatMessages,
-result,
-setPendingAction,
-territory,
-undoRequest,
-white,
+  addPendingChatMessage,
+  allowUndo,
+  black,
+  chatMessages,
+  clearGameFlashMessage,
+  clearPendingAction,
+  currentTurn,
+  currentUserId,
+  gameFlashMessage,
+  gameStage,
+  pendingAction,
+  playerStone,
+  replaceChatMessages,
+  result,
+  setPendingAction,
+  territory,
+  undoRequest,
+  white,
 } from "../game/state";
-import { GameStage,type GameState } from "../game/types";
+import { GameStage, type GameState } from "../game/types";
 
 const defaultState: GameState = {
   board: Array(361).fill(0),

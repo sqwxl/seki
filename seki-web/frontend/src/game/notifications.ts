@@ -1,12 +1,12 @@
-import { NOTIFICATIONS,storage } from "../utils/storage";
+import { NOTIFICATIONS, storage } from "../utils/storage";
 import {
-black,
-currentTurn,
-gameId,
-gameStage,
-moves,
-playerStone,
-white,
+  black,
+  currentTurn,
+  gameId,
+  gameStage,
+  moves,
+  playerStone,
+  white,
 } from "./state";
 import { isPlayStage } from "./types";
 

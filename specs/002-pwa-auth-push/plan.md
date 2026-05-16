@@ -24,7 +24,7 @@ Add PWA installability with a web manifest and service worker, add a durable bro
 
 **Performance Goals**: Push delivery accepted within 30 seconds of triggering event. App credential validation <10ms. Manifest and service worker served as static assets (<50ms). No regressions to existing WS notification latency.
 
-**Constraints**: Service Worker scope limited to `/`. Push subscriptions must use VAPID for application server identification. Credential tokens must be opaque random strings (not JWT to avoid complexity). App must function offline with cached shell (no offline gameplay required).
+**Constraints**: Service Worker scope limited to `/`. Push subscriptions must use VAPID for application server identification. Browser app credentials are signed JWTs with server-side `jti` revocation tracking. App must function offline with cached shell (no offline gameplay required).
 
 **Scale/Scope**: Current user scale (fits in SQLite). Push destinations: 1-5 per user (multiple devices). New service worker file (~100 lines). New manifest JSON (~30 lines). New DB tables: 2. New Rust modules: 3-4. New frontend modules: 2-3.
 
@@ -75,13 +75,15 @@ go-engine-wasm/
 
 seki-web/
 ├── migrations/
-│   └── 003_pwa_push.sql  # NEW: app_credentials (jti-based), push_destinations, vapid_config tables
+│   └── 004_pwa_push.sql  # NEW: app_credentials (jti-based), push_destinations, vapid_config tables
 ├── src/
 │   ├── models/
 │   │   ├── app_credential.rs      # NEW: JWT jti tracking (revocation)
-│   │   └── push_destination.rs    # NEW: push subscription CRUD
+│   │   ├── push_destination.rs    # NEW: push subscription CRUD
+│   │   └── vapid_config.rs        # NEW: VAPID key storage
 │   ├── services/
-│   │   └── push.rs                # NEW: push delivery dispatch
+│   │   ├── push.rs                # NEW: push delivery dispatch
+│   │   └── jwt.rs                 # NEW: JWT signing/validation helper
 │   ├── routes/
 │   │   ├── auth.rs                # EXTEND: JWT issuance on login/register, /api/auth/restore endpoint
 │   │   └── push.rs                # NEW: push subscription API endpoints

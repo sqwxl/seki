@@ -2,9 +2,9 @@ import type { RankData } from "../game/types";
 import { ratingDisplayPreference } from "../utils/preferences";
 import type { RatingDisplayMode } from "../utils/rating";
 import {
-alternateRankText,
-fullRankText,
-primaryRankText,
+  alternateRankText,
+  fullRankText,
+  primaryRankText,
 } from "../utils/rating";
 
 export type UserRankProps = {

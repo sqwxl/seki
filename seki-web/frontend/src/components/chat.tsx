@@ -1,4 +1,4 @@
-import { useEffect,useRef } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import type { UserData } from "../game/types";
 import { IconSend } from "./icons";
 import { UserLabel } from "./user-label";

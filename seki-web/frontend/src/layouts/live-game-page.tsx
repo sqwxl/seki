@@ -1,59 +1,59 @@
-import { useEffect,useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { Chat } from "../components/chat";
 import type { ControlsProps } from "../components/controls";
-import { LobbyControls,LobbyPopover } from "../components/controls";
+import { LobbyControls, LobbyPopover } from "../components/controls";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
 import { PlayerPanel } from "../components/player-panel";
 import { TabBar } from "../components/tab-bar";
 import {
-buildTerritoryOverlay,
-liveGameControlsState,
-liveGameMoveTreeState,
-liveGamePanelState,
-liveGameStatusState,
-type LiveGameControlsState,
-type LiveGameStatusState,
+  buildTerritoryOverlay,
+  liveGameControlsState,
+  liveGameMoveTreeState,
+  liveGamePanelState,
+  liveGameStatusState,
+  type LiveGameControlsState,
+  type LiveGameStatusState,
 } from "../game/capabilities";
 import type { GameChannel } from "../game/channel";
 import {
-addPendingChatMessage,
-allowUndo,
-black,
-board,
-boardFinalized,
-boardFinalizedScore,
-chatMessages,
-clearGameFlashMessage,
-clearPendingAction,
-currentUserId,
-estimateMode,
-estimateScore,
-gameId,
-gameStage,
-gameState,
-hasUnreadChat,
-initialProps,
-isPendingAction,
-moves,
-nigiri,
-onlineUsers,
-pendingMove,
-playerStone,
-result,
-setGameFlashMessage,
-setPendingAction,
-settledTerritory,
-territory,
-white
+  addPendingChatMessage,
+  allowUndo,
+  black,
+  board,
+  boardFinalized,
+  boardFinalizedScore,
+  chatMessages,
+  clearGameFlashMessage,
+  clearPendingAction,
+  currentUserId,
+  estimateMode,
+  estimateScore,
+  gameId,
+  gameStage,
+  gameState,
+  hasUnreadChat,
+  initialProps,
+  isPendingAction,
+  moves,
+  nigiri,
+  onlineUsers,
+  pendingMove,
+  playerStone,
+  result,
+  setGameFlashMessage,
+  setPendingAction,
+  settledTerritory,
+  territory,
+  white,
 } from "../game/state";
 import { GameStage } from "../game/types";
 import { readUserData } from "../game/util";
-import type { NavAction,TerritoryOverlay } from "../goban/create-board";
+import type { NavAction, TerritoryOverlay } from "../goban/create-board";
 import { formatResult } from "../utils/format";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { requestSpaNavigation } from "../utils/spa-navigation";
-import { postForm,type WebRequestError } from "../utils/web-client";
+import { postForm, type WebRequestError } from "../utils/web-client";
 import { Controls } from "./controls";
 import { GamePageLayout } from "./game-page-layout";
 
@@ -174,7 +174,8 @@ function buildControls(
   // --- Undo ---
   if (caps.undoTooltip) {
     controlsProps.requestUndo = {
-      onClick: () => runPendingAction("request-undo", () => channel.requestUndo()),
+      onClick: () =>
+        runPendingAction("request-undo", () => channel.requestUndo()),
       disabled: !caps.canRequestUndo,
       pending: pendingUndoRequest,
       title: caps.undoTooltip,
@@ -190,7 +191,11 @@ function buildControls(
       onReject: () => {
         runPendingAction("respond-undo-reject", () => channel.rejectUndo());
       },
-      pending: pendingUndoAccept ? "confirm" : pendingUndoReject ? "cancel" : undefined,
+      pending: pendingUndoAccept
+        ? "confirm"
+        : pendingUndoReject
+          ? "cancel"
+          : undefined,
     };
   }
 
@@ -272,7 +277,8 @@ function buildControls(
     };
   } else if (caps.canExitPresentation) {
     controlsProps.analyze = {
-      onClick: () => runPendingAction("end-presentation", props.exitPresentation),
+      onClick: () =>
+        runPendingAction("end-presentation", props.exitPresentation),
       active: true,
       pending: pendingEndPresentation,
     };
@@ -293,9 +299,13 @@ function buildControls(
     if (caps.canTakeControl) {
       options.push({
         label: "Take control",
-        onClick: () => runPendingAction("take-control", () => channel.takeControl()),
+        onClick: () =>
+          runPendingAction("take-control", () => channel.takeControl()),
         pending: pendingTakeControl,
-        disabled: pendingRequestControl || pendingCancelControlRequest || pendingTakeControl,
+        disabled:
+          pendingRequestControl ||
+          pendingCancelControlRequest ||
+          pendingTakeControl,
       });
     } else if (caps.canCancelControlRequest) {
       options.push({
@@ -419,8 +429,7 @@ function LiveGameStatusSlot(
   },
 ) {
   const status = liveGameStatusState.value;
-  const fullStatusText =
-    status.statusText + status.presentationStatusSuffix;
+  const fullStatusText = status.statusText + status.presentationStatusSuffix;
   const pendingLobbyAction = isPendingAction("accept-challenge")
     ? "accept"
     : isPendingAction("decline-challenge")
@@ -573,7 +582,9 @@ function LiveGameMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
 }
 
 function LiveGameTabBar(props: LiveGamePageProps) {
-  return <TabBar controls={buildControls(liveGameControlsState.value, props)} />;
+  return (
+    <TabBar controls={buildControls(liveGameControlsState.value, props)} />
+  );
 }
 
 // ---------------------------------------------------------------------------

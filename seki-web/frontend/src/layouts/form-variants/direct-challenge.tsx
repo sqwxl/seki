@@ -2,8 +2,19 @@
 // Rated: opponent list filtered, derived settings (handicap/komi/color) shown as read-only preview
 // Unrated: full opponent list, all settings editable; derived settings still previewed when opponent selected
 
-import { useEffect,useRef,useState } from "preact/hooks";
-import { IconBell,IconGrid4x4,IconHandicap,IconKomi,IconNigiri,IconPrivate,IconSettings,IconUndo,StoneBlack,StoneWhite } from "../../components/icons";
+import { useEffect, useRef, useState } from "preact/hooks";
+import {
+  IconBell,
+  IconGrid4x4,
+  IconHandicap,
+  IconKomi,
+  IconNigiri,
+  IconPrivate,
+  IconSettings,
+  IconUndo,
+  StoneBlack,
+  StoneWhite,
+} from "../../components/icons";
 import { UserLabel } from "../../components/user-label";
 import type { RankData } from "../../game/types";
 import { fullRankText } from "../../utils/rating";
@@ -40,7 +51,10 @@ export const CHALLENGE_DEFAULTS: ChallengeSettings = {
 
 type Props = {
   s: ChallengeSettings;
-  set: <K extends keyof ChallengeSettings>(key: K, value: ChallengeSettings[K]) => void;
+  set: <K extends keyof ChallengeSettings>(
+    key: K,
+    value: ChallengeSettings[K],
+  ) => void;
   isRegistered?: boolean;
   currentUserRank?: RankData | null;
   rankedUnavailableReason?: string | null;
@@ -61,7 +75,11 @@ export function rankedSettingsFromGap(
   if (Math.abs(blackRating - whiteRating) < 0.01) {
     return { handicap, komi, color: "nigiri" };
   }
-  return { handicap, komi, color: blackRating < whiteRating ? "black" : "white" };
+  return {
+    handicap,
+    komi,
+    color: blackRating < whiteRating ? "black" : "white",
+  };
 }
 
 export function inferSettingsFromRanks(
@@ -91,7 +109,9 @@ export function DirectChallengeForm({
     if (s.selectedOpponent) {
       return {
         username: s.selectedOpponent,
-        is_registered: opponentRank?.status === "ranked" || opponentRank?.status === "unranked",
+        is_registered:
+          opponentRank?.status === "ranked" ||
+          opponentRank?.status === "unranked",
         is_online: false,
         is_recent: false,
         rank: opponentRank,
@@ -115,7 +135,9 @@ export function DirectChallengeForm({
     ? (rankedUnavailableReason ?? "Register or sign in to create ranked games.")
     : (rankedUnavailableReason ??
       (s.isPrivate ? "Ranked games must be public." : undefined) ??
-      (opponentCannotRank ? "Opponent is not participating in ranking." : undefined));
+      (opponentCannotRank
+        ? "Opponent is not participating in ranking."
+        : undefined));
   const rankedDisabled = Boolean(rankedBlockedReason) || opponentCannotRank;
 
   const derived = inferSettingsFromRanks(currentUserRank, selected?.rank);
@@ -160,9 +182,12 @@ export function DirectChallengeForm({
       return {
         username: s.selectedOpponent,
         is_registered:
-          opponentRank.status === "ranked" || opponentRank.status === "unranked",
-        is_online: prev?.username === s.selectedOpponent ? prev.is_online : false,
-        is_recent: prev?.username === s.selectedOpponent ? prev.is_recent : false,
+          opponentRank.status === "ranked" ||
+          opponentRank.status === "unranked",
+        is_online:
+          prev?.username === s.selectedOpponent ? prev.is_online : false,
+        is_recent:
+          prev?.username === s.selectedOpponent ? prev.is_recent : false,
         rank: opponentRank,
       };
     });
@@ -182,7 +207,9 @@ export function DirectChallengeForm({
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    fetch(`/users/search?q=${encodeURIComponent(query)}`, { signal: controller.signal })
+    fetch(`/users/search?q=${encodeURIComponent(query)}`, {
+      signal: controller.signal,
+    })
       .then((r) => r.json())
       .then((data: SearchResult[]) => setSearchResults(data))
       .catch(() => {});
@@ -191,7 +218,10 @@ export function DirectChallengeForm({
   function onSearchInput(value: string) {
     setSearchQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!value) { setSearchResults([]); return; }
+    if (!value) {
+      setSearchResults([]);
+      return;
+    }
     debounceRef.current = setTimeout(() => doSearch(value), 300);
   }
 
@@ -220,14 +250,19 @@ export function DirectChallengeForm({
 
   return (
     <fieldset>
-      <legend><IconSettings /> Settings</legend>
+      <legend>
+        <IconSettings /> Settings
+      </legend>
 
       <div>
         <label for="challenge_ranked">
           <IconBell /> Ranked game
         </label>
         <input
-          type="checkbox" name="ranked" id="challenge_ranked" value="true"
+          type="checkbox"
+          name="ranked"
+          id="challenge_ranked"
+          value="true"
           checked={s.ranked}
           onChange={(e) => set("ranked", e.currentTarget.checked)}
           disabled={!isRegistered || rankedDisabled}
@@ -292,11 +327,17 @@ export function DirectChallengeForm({
           <IconGrid4x4 /> Board size
         </label>
         <input
-          type="number" name="cols" id="cols"
-          min={5} max={19} step={2}
+          type="number"
+          name="cols"
+          id="cols"
+          min={5}
+          max={19}
+          step={2}
           value={s.ranked ? 19 : s.cols}
           disabled={s.ranked}
-          onChange={(e) => set("cols", parseInt(e.currentTarget.value, 10) || 19)}
+          onChange={(e) =>
+            set("cols", parseInt(e.currentTarget.value, 10) || 19)
+          }
         />
         {s.ranked && <input type="hidden" name="cols" value={19} />}
       </div>
@@ -306,12 +347,18 @@ export function DirectChallengeForm({
           <IconHandicap /> Handicap
         </label>
         <input
-          type="number" name="handicap" id="handicap"
+          type="number"
+          name="handicap"
+          id="handicap"
           value={showHandicap}
           disabled={s.ranked}
-          onChange={(e) => set("handicap", parseInt(e.currentTarget.value, 10) || 0)}
+          onChange={(e) =>
+            set("handicap", parseInt(e.currentTarget.value, 10) || 0)
+          }
         />
-        {s.ranked && <input type="hidden" name="handicap" value={showHandicap} />}
+        {s.ranked && (
+          <input type="hidden" name="handicap" value={showHandicap} />
+        )}
       </div>
 
       <div>
@@ -319,8 +366,12 @@ export function DirectChallengeForm({
           <IconKomi /> Komi
         </label>
         <input
-          type="number" name="komi" id="komi"
-          min={-100.5} max={100.5} step={1}
+          type="number"
+          name="komi"
+          id="komi"
+          min={-100.5}
+          max={100.5}
+          step={1}
           value={showKomi}
           disabled={s.ranked}
           onChange={(e) => set("komi", parseFloat(e.currentTarget.value) || 0)}
@@ -332,32 +383,85 @@ export function DirectChallengeForm({
         <label>Your color</label>
         {s.ranked ? (
           <p class="form-help">
-            {showColor === "black" ? "Black" : showColor === "white" ? "White" : "Random"}
-            {derived && ` (${derived.color === "nigiri" ? "equal rating" : derived.color === "black" ? "lower rating" : "higher rating"})`}
+            {showColor === "black"
+              ? "Black"
+              : showColor === "white"
+                ? "White"
+                : "Random"}
+            {derived &&
+              ` (${derived.color === "nigiri" ? "equal rating" : derived.color === "black" ? "lower rating" : "higher rating"})`}
           </p>
         ) : !selected ? (
           <div class="color-picker">
-            <input type="radio" name="color" value="black" id="color_black"
-              checked={s.color === "black"} onChange={() => set("color", "black")} />
-            <label for="color_black" title="Black"><StoneBlack /></label>
-            <input type="radio" name="color" value="white" id="color_white"
-              checked={s.color === "white"} onChange={() => set("color", "white")} />
-            <label for="color_white" title="White"><StoneWhite /></label>
-            <input type="radio" name="color" value="nigiri" id="color_nigiri"
-              checked={s.color === "nigiri"} onChange={() => set("color", "nigiri")} />
-            <label for="color_nigiri" title="Random"><IconNigiri /></label>
+            <input
+              type="radio"
+              name="color"
+              value="black"
+              id="color_black"
+              checked={s.color === "black"}
+              onChange={() => set("color", "black")}
+            />
+            <label for="color_black" title="Black">
+              <StoneBlack />
+            </label>
+            <input
+              type="radio"
+              name="color"
+              value="white"
+              id="color_white"
+              checked={s.color === "white"}
+              onChange={() => set("color", "white")}
+            />
+            <label for="color_white" title="White">
+              <StoneWhite />
+            </label>
+            <input
+              type="radio"
+              name="color"
+              value="nigiri"
+              id="color_nigiri"
+              checked={s.color === "nigiri"}
+              onChange={() => set("color", "nigiri")}
+            />
+            <label for="color_nigiri" title="Random">
+              <IconNigiri />
+            </label>
           </div>
         ) : (
           <div class="color-picker">
-            <input type="radio" name="color" value="black" id="color_black"
-              checked={s.color === "black"} onChange={() => set("color", "black")} />
-            <label for="color_black" title="Black"><StoneBlack /></label>
-            <input type="radio" name="color" value="white" id="color_white"
-              checked={s.color === "white"} onChange={() => set("color", "white")} />
-            <label for="color_white" title="White"><StoneWhite /></label>
-            <input type="radio" name="color" value="nigiri" id="color_nigiri"
-              checked={s.color === "nigiri"} onChange={() => set("color", "nigiri")} />
-            <label for="color_nigiri" title="Random"><IconNigiri /></label>
+            <input
+              type="radio"
+              name="color"
+              value="black"
+              id="color_black"
+              checked={s.color === "black"}
+              onChange={() => set("color", "black")}
+            />
+            <label for="color_black" title="Black">
+              <StoneBlack />
+            </label>
+            <input
+              type="radio"
+              name="color"
+              value="white"
+              id="color_white"
+              checked={s.color === "white"}
+              onChange={() => set("color", "white")}
+            />
+            <label for="color_white" title="White">
+              <StoneWhite />
+            </label>
+            <input
+              type="radio"
+              name="color"
+              value="nigiri"
+              id="color_nigiri"
+              checked={s.color === "nigiri"}
+              onChange={() => set("color", "nigiri")}
+            />
+            <label for="color_nigiri" title="Random">
+              <IconNigiri />
+            </label>
           </div>
         )}
         {s.ranked && <input type="hidden" name="color" value={showColor} />}
@@ -368,7 +472,10 @@ export function DirectChallengeForm({
           <IconUndo /> Allow takebacks
         </label>
         <input
-          type="checkbox" name="allow_undo" id="allow_undo" value="true"
+          type="checkbox"
+          name="allow_undo"
+          id="allow_undo"
+          value="true"
           checked={s.allowUndo}
           onChange={(e) => set("allowUndo", e.currentTarget.checked)}
         />
@@ -380,14 +487,18 @@ export function DirectChallengeForm({
             <IconPrivate /> Private spectators
           </label>
           <input
-            type="checkbox" name="is_private" id="is_private" value="true"
+            type="checkbox"
+            name="is_private"
+            id="is_private"
+            value="true"
             checked={s.isPrivate}
             disabled={s.ranked}
             onChange={(e) => set("isPrivate", e.currentTarget.checked)}
           />
           {s.ranked && <input type="hidden" name="is_private" value="false" />}
           <p class="form-help">
-            Hide this game from public lists. Non-participants need the invite link to view it.
+            Hide this game from public lists. Non-participants need the invite
+            link to view it.
           </p>
         </div>
       )}

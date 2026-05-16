@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals";
 import type { PlayerPanelProps } from "../components/player-panel";
-import type { Board,TerritoryInfo } from "../goban/create-board";
+import type { Board, TerritoryInfo } from "../goban/create-board";
 import type { Point } from "../goban/types";
 import type { SgfMeta } from "../utils/sgf";
 

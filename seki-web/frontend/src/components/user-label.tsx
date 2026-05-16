@@ -1,5 +1,5 @@
-import { IconNigiri,IconUser,StoneBlack,StoneWhite } from "./icons";
-import { UserRank,type UserRankProps } from "./user-rank";
+import { IconNigiri, IconUser, StoneBlack, StoneWhite } from "./icons";
+import { UserRank, type UserRankProps } from "./user-rank";
 
 type UserLabelProps = {
   name: string;
@@ -33,8 +33,7 @@ export function UserLabel(props: UserLabelProps) {
         </span>
       )}
       {props.showRegistered && <IconUser />}
-      <span class="player-name">{nameContent}</span>
-      {" "}
+      <span class="player-name">{nameContent}</span>{" "}
       <UserRank {...props.rank} />
       {props.isOnline !== undefined && (
         <span class={`presence-dot${props.isOnline ? " online" : ""}`} />

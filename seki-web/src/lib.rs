@@ -2,10 +2,12 @@ use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderName, HeaderValue, header};
 use axum::routing::{get, patch, post};
+use rand::RngExt;
+use std::path::PathBuf;
 use tokio::sync::broadcast;
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_sessions::cookie::time::Duration;
 use tower_sessions::{Expiry, SessionManagerLayer};
@@ -29,6 +31,7 @@ pub struct AppState {
     pub presence_subs: ws::presence_subscriptions::PresenceSubscriptions,
     pub live_tx: broadcast::Sender<String>,
     pub mailer: services::mailer::Mailer,
+    pub jwt_secret: String,
 }
 
 pub async fn build_router(pool: db::DbPool, session_secure: bool) -> (Router, AppState) {
@@ -69,6 +72,18 @@ pub async fn build_router_with_registry_and_presence(
 
     let (live_tx, _) = broadcast::channel::<String>(256);
     let mailer = services::mailer::Mailer::from_env();
+    let static_dir = std::env::var("STATIC_DIR")
+        .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string());
+    let jwt_secret = std::env::var("APP_CREDENTIAL_SECRET").unwrap_or_else(|_| {
+        use rand::distr::Alphanumeric;
+        let mut rng = rand::rng();
+        let s: String = (&mut rng)
+            .sample_iter(&Alphanumeric)
+            .take(64)
+            .map(char::from)
+            .collect();
+        s
+    });
     let state = AppState {
         db: pool,
         registry,
@@ -76,6 +91,7 @@ pub async fn build_router_with_registry_and_presence(
         presence_subs: ws::presence_subscriptions::PresenceSubscriptions::new(),
         live_tx,
         mailer,
+        jwt_secret,
     };
     let app = Router::new()
         .route("/analysis", get(routes::spa::shell))
@@ -157,12 +173,14 @@ pub async fn build_router_with_registry_and_presence(
                 )),
         )
         .route("/up", get(routes::health::health_check))
-        .nest_service(
-            "/static",
-            ServeDir::new(
-                std::env::var("STATIC_DIR")
-                    .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string()),
-            ),
+        .nest_service("/static", ServeDir::new(static_dir.clone()))
+        .route_service(
+            "/sw.js",
+            ServeFile::new(PathBuf::from(&static_dir).join("sw.js")),
+        )
+        .route_service(
+            "/manifest.json",
+            ServeFile::new(PathBuf::from(&static_dir).join("manifest.json")),
         )
         .layer(SetResponseHeaderLayer::if_not_present(
             header::REFERRER_POLICY,

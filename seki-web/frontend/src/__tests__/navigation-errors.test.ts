@@ -1,4 +1,4 @@
-import { afterEach,describe,expect,it,vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildGameNavigationRedirect } from "../utils/navigation-errors";
 
 afterEach(() => {
@@ -12,7 +12,11 @@ describe("game navigation redirects", () => {
     });
 
     expect(
-      buildGameNavigationRedirect(124, { status: 404, message: "Game not found" }, "/games/124"),
+      buildGameNavigationRedirect(
+        124,
+        { status: 404, message: "Game not found" },
+        "/games/124",
+      ),
     ).toEqual({
       to: "/games",
       flash: "The game you were looking for (ID 124) does not exist",
@@ -27,7 +31,11 @@ describe("game navigation redirects", () => {
     expect(
       buildGameNavigationRedirect(
         8,
-        { status: 403, message: "This game is private. You need a valid access token to view it." },
+        {
+          status: 403,
+          message:
+            "This game is private. You need a valid access token to view it.",
+        },
         "/games/8",
       ),
     ).toEqual({

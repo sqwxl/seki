@@ -1,5 +1,5 @@
 import { gameAccessBadges } from "../game/access";
-import { GameStage,type GameSettings,type UserData } from "../game/types";
+import { GameStage, type GameSettings, type UserData } from "../game/types";
 import { buildDescriptionParts } from "../utils/format";
 import { UserLabel } from "./user-label";
 

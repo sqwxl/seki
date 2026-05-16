@@ -1,13 +1,13 @@
-import { useEffect,useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { NotificationSettings } from "../components/notification-settings";
 import { UserGames } from "../layouts/user-games";
-import { clearFlash,setFlash } from "../utils/flash";
-import { formatNumericRating,fullRankText } from "../utils/rating";
+import { clearFlash, setFlash } from "../utils/flash";
+import { formatNumericRating, fullRankText } from "../utils/rating";
 import { postForm } from "../utils/web-client";
-import { pageTitle,setHead } from "./head";
+import { pageTitle, setHead } from "./head";
 import { useRouteData } from "./route-data";
-import { ErrorState,LoadingState } from "./screen-state";
-import type { NavigateFn,ProfileData,ProfileRatingData } from "./types";
+import { ErrorState, LoadingState } from "./screen-state";
+import type { NavigateFn, ProfileData, ProfileRatingData } from "./types";
 
 function RatingProfileSummary({ rating }: { rating: ProfileRatingData }) {
   const latest = rating.history[rating.history.length - 1];

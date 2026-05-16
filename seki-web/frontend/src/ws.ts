@@ -212,5 +212,10 @@ window.addEventListener("beforeunload", () => {
 });
 
 export {
-ensureConnected,isGameActive,joinGame,send,subscribe,subscribePresence
+  ensureConnected,
+  isGameActive,
+  joinGame,
+  send,
+  subscribe,
+  subscribePresence,
 };

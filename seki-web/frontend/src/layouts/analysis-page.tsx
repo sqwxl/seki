@@ -6,21 +6,21 @@ import type { AnalysisCapabilities } from "../game/capabilities";
 import { analysisCapabilities } from "../game/capabilities";
 import { playStoneSound } from "../game/sound";
 import {
-blackSymbol,
-formatSgfTime,
-formatSize,
-whiteSymbol
+  blackSymbol,
+  formatSgfTime,
+  formatSize,
+  whiteSymbol,
 } from "../utils/format";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import type { SgfMeta } from "../utils/sgf";
 import {
-analysisBoard,
-analysisKomi,
-analysisMeta,
-analysisNavState,
-analysisPanelState,
-analysisPendingMove,
-analysisSize
+  analysisBoard,
+  analysisKomi,
+  analysisMeta,
+  analysisNavState,
+  analysisPanelState,
+  analysisPendingMove,
+  analysisSize,
 } from "./analysis-state";
 import { Controls } from "./controls";
 import { GamePageLayout } from "./game-page-layout";

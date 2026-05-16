@@ -2,6 +2,7 @@ pub mod api;
 pub mod auth;
 pub mod games;
 pub mod health;
+pub mod push;
 pub mod settings;
 pub mod spa;
 pub mod users;

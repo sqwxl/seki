@@ -1,12 +1,12 @@
-import { describe,expect,it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-gameAccessBadges,
-requiresAccessTokenToJoin,
-requiresAccessTokenToView,
-requiresInviteTokenToJoin,
-requiresInviteTokenToView,
+  gameAccessBadges,
+  requiresAccessTokenToJoin,
+  requiresAccessTokenToView,
+  requiresInviteTokenToJoin,
+  requiresInviteTokenToView,
 } from "../game/access";
-import { GameStage,type GameSettings } from "../game/types";
+import { GameStage, type GameSettings } from "../game/types";
 
 const baseSettings: GameSettings = {
   cols: 19,

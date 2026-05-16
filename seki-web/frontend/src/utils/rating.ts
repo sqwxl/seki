@@ -1,6 +1,10 @@
 export type RatingDisplayMode = "kyu_dan" | "rating";
 
-export type RankStatus = "anonymous" | "not_participating" | "unranked" | "ranked";
+export type RankStatus =
+  | "anonymous"
+  | "not_participating"
+  | "unranked"
+  | "ranked";
 
 export type RankData = {
   qualifier?: string | null;

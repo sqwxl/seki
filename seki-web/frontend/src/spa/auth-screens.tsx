@@ -1,9 +1,9 @@
 import { useEffect } from "preact/hooks";
 import type { UserData } from "../game/types";
-import { activeFlash,clearFlash,setFlash } from "../utils/flash";
+import { activeFlash, clearFlash, setFlash } from "../utils/flash";
 import { setAppCredential } from "../utils/storage";
 import { postForm } from "../utils/web-client";
-import { pageTitle,setHead } from "./head";
+import { pageTitle, setHead } from "./head";
 import { ErrorState } from "./screen-state";
 import type { NavigateFn } from "./types";
 
@@ -13,7 +13,7 @@ async function fetchAuthToken() {
       headers: { Accept: "application/json" },
     });
     if (response.ok) {
-      const data = await response.json() as { token: string };
+      const data = (await response.json()) as { token: string };
       if (data.token) {
         setAppCredential(data.token);
       }

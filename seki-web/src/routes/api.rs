@@ -15,6 +15,8 @@ use crate::models::game::Game;
 use crate::models::message::Message;
 use crate::models::turn::TurnRow;
 use crate::models::user::User;
+use crate::routes::auth;
+use crate::routes::push;
 use crate::services::live::build_live_items;
 use crate::services::{game_actions, game_creator, game_joiner, state_serializer};
 use crate::session::{ApiUser, OptionalApiUser};
@@ -275,6 +277,17 @@ pub fn router() -> Router<AppState> {
             }),
         )
         .merge(Scalar::with_url("/docs", spec).custom_html(SCALAR_HTML))
+        // Auth
+        .route("/auth/token", get(auth::issue_token))
+        .route("/auth/restore", get(auth::restore_session))
+        .route("/auth/token", axum::routing::delete(auth::revoke_token))
+        // Push subscriptions
+        .route("/push-subscription", get(push::list_subscriptions))
+        .route("/push-subscription", post(push::register_subscription))
+        .route(
+            "/push-subscription/{id}",
+            axum::routing::delete(push::disable_subscription),
+        )
         // Games
         .route("/games", get(list_games))
         .route(

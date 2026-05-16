@@ -1,4 +1,4 @@
-import { beforeEach,describe,expect,it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { gameLabel } from "../components/notification-bell";
 import { writeUserData } from "../game/util";
 

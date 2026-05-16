@@ -4,52 +4,49 @@ import type { PlayerPanelProps } from "../components/player-panel";
 import type { TerritoryOverlay } from "../goban/create-board";
 import type { Point } from "../goban/types";
 import {
-analysisKomi,
-analysisNavState,
-analysisTerritoryInfo,
+  analysisKomi,
+  analysisNavState,
+  analysisTerritoryInfo,
 } from "../layouts/analysis-state";
-import {
-requiresAccessTokenToJoin,
-requiresInviteTokenToJoin,
-} from "./access";
+import { requiresAccessTokenToJoin, requiresInviteTokenToJoin } from "./access";
 import { clockDisplay } from "./clock";
 import type { GamePhase } from "./phase";
 import { gamePhase } from "./phase";
 import {
-allowUndo,
-black,
-boardFinalized,
-boardFinalizedScore,
-boardReviewing,
-canStartPresentation,
-controlRequest,
-currentTurn,
-currentUserId,
-estimateScore,
-gameStage,
-gameState,
-hasUnreadChat,
-initialProps,
-isOriginator,
-isPresenter,
-moveConfirmEnabled,
-moves,
-navState,
-nigiri,
-onlineUsers,
-opponentDisconnected,
-playerStone,
-presenterDisplayName,
-result,
-settledTerritory,
-showMoveTree,
-territory,
-uiNowMs,
-undoRequest,
-white,
+  allowUndo,
+  black,
+  boardFinalized,
+  boardFinalizedScore,
+  boardReviewing,
+  canStartPresentation,
+  controlRequest,
+  currentTurn,
+  currentUserId,
+  estimateScore,
+  gameStage,
+  gameState,
+  hasUnreadChat,
+  initialProps,
+  isOriginator,
+  isPresenter,
+  moveConfirmEnabled,
+  moves,
+  navState,
+  nigiri,
+  onlineUsers,
+  opponentDisconnected,
+  playerStone,
+  presenterDisplayName,
+  result,
+  settledTerritory,
+  showMoveTree,
+  territory,
+  uiNowMs,
+  undoRequest,
+  white,
 } from "./state";
-import type { SettledTerritoryData,TerritoryData,UserData } from "./types";
-import { GameStage,isPlayStage } from "./types";
+import type { SettledTerritoryData, TerritoryData, UserData } from "./types";
+import { GameStage, isPlayStage } from "./types";
 
 // ---------------------------------------------------------------------------
 // UiCapabilities type
@@ -187,7 +184,10 @@ export type LiveGameControlsState = Pick<
   | "nav"
 >;
 
-export type LiveGamePanelState = Pick<UiCapabilities, "topPanel" | "bottomPanel">;
+export type LiveGamePanelState = Pick<
+  UiCapabilities,
+  "topPanel" | "bottomPanel"
+>;
 
 export type LiveGameStatusState = Pick<
   UiCapabilities,
@@ -767,377 +767,370 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   };
 });
 
-export const liveGameControlsState = computed(
-  (): LiveGameControlsState => {
-    const phase = gamePhase.value;
-    const stage = gameStage.value;
-    const stone = playerStone.value;
-    const isPlayer = stone !== 0;
-    const isChallenge = stage === GameStage.Challenge;
-    const isPlay = isPlayStage(stage);
-    const isReview = stage === GameStage.TerritoryReview;
-    const isDone =
-      stage === GameStage.Completed ||
-      stage === GameStage.Aborted ||
-      stage === GameStage.Declined;
-    const isMyTurn = isPlayer && currentTurn.value === stone && isPlay;
-    const mvs = moves.value;
-    const res = result.value;
-    const props = initialProps.value;
-    const b = black.value;
-    const w = white.value;
-    const terr = territory.value;
-    const settled = settledTerritory.value;
-    const oppDisconnected = opponentDisconnected.value;
-    const inAnalysis = isAnalysisCapablePhase(phase);
-    const inEstimate = phase.phase === "estimate";
-    const estimateFromAnalysis = phase.phase === "estimate" && phase.fromAnalysis;
-    const inPresentation = phase.phase === "presentation";
-    const isSyncedViewer =
-      phase.phase === "presentation" && phase.role === "synced-viewer";
-    const modeActive = inAnalysis || inEstimate;
-    const undoState = undoRequest.value;
-    const myId = currentUserId.value || undefined;
-    const isCreator = myId != null && myId === props.creator_id;
-    const onFinalized = boardFinalized.value;
-    const myControlRequest = controlRequest.value?.userId === currentUserId.value;
+export const liveGameControlsState = computed((): LiveGameControlsState => {
+  const phase = gamePhase.value;
+  const stage = gameStage.value;
+  const stone = playerStone.value;
+  const isPlayer = stone !== 0;
+  const isChallenge = stage === GameStage.Challenge;
+  const isPlay = isPlayStage(stage);
+  const isReview = stage === GameStage.TerritoryReview;
+  const isDone =
+    stage === GameStage.Completed ||
+    stage === GameStage.Aborted ||
+    stage === GameStage.Declined;
+  const isMyTurn = isPlayer && currentTurn.value === stone && isPlay;
+  const mvs = moves.value;
+  const res = result.value;
+  const props = initialProps.value;
+  const b = black.value;
+  const w = white.value;
+  const terr = territory.value;
+  const settled = settledTerritory.value;
+  const oppDisconnected = opponentDisconnected.value;
+  const inAnalysis = isAnalysisCapablePhase(phase);
+  const inEstimate = phase.phase === "estimate";
+  const estimateFromAnalysis = phase.phase === "estimate" && phase.fromAnalysis;
+  const inPresentation = phase.phase === "presentation";
+  const isSyncedViewer =
+    phase.phase === "presentation" && phase.role === "synced-viewer";
+  const modeActive = inAnalysis || inEstimate;
+  const undoState = undoRequest.value;
+  const myId = currentUserId.value || undefined;
+  const isCreator = myId != null && myId === props.creator_id;
+  const onFinalized = boardFinalized.value;
+  const myControlRequest = controlRequest.value?.userId === currentUserId.value;
 
-    const canPass =
-      isPlayer && isPlay && isMyTurn && !inEstimate && !inAnalysis;
-    const passIsAnalysisPass = inAnalysis && !inEstimate;
-    const showPass =
-      (isPlayer && (isPlay || isChallenge) && !estimateFromAnalysis) ||
-      passIsAnalysisPass;
-    const confirmPassRequired = canPass && !inAnalysis;
+  const canPass = isPlayer && isPlay && isMyTurn && !inEstimate && !inAnalysis;
+  const passIsAnalysisPass = inAnalysis && !inEstimate;
+  const showPass =
+    (isPlayer && (isPlay || isChallenge) && !estimateFromAnalysis) ||
+    passIsAnalysisPass;
+  const confirmPassRequired = canPass && !inAnalysis;
 
-    const canRequestUndo =
-      isPlayer &&
-      allowUndo.value &&
-      isPlay &&
-      !isChallenge &&
-      mvs.length > 0 &&
-      !isMyTurn &&
-      undoState === "none" &&
-      !modeActive;
+  const canRequestUndo =
+    isPlayer &&
+    allowUndo.value &&
+    isPlay &&
+    !isChallenge &&
+    mvs.length > 0 &&
+    !isMyTurn &&
+    undoState === "none" &&
+    !modeActive;
 
-    let undoTooltip = "";
-    if (isPlayer && allowUndo.value && (isPlay || isChallenge)) {
-      if (isChallenge) {
-        undoTooltip = "Challenge not yet accepted";
-      } else if (undoState === "rejected") {
-        undoTooltip = "Undo was rejected for this move";
-      } else if (undoState === "sent") {
-        undoTooltip = "Undo request pending";
-      } else if (mvs.length === 0) {
-        undoTooltip = "No moves to undo";
-      } else if (isMyTurn) {
-        undoTooltip = "Cannot undo on your turn";
-      } else {
-        undoTooltip = "Request to undo your last move";
-      }
+  let undoTooltip = "";
+  if (isPlayer && allowUndo.value && (isPlay || isChallenge)) {
+    if (isChallenge) {
+      undoTooltip = "Challenge not yet accepted";
+    } else if (undoState === "rejected") {
+      undoTooltip = "Undo was rejected for this move";
+    } else if (undoState === "sent") {
+      undoTooltip = "Undo request pending";
+    } else if (mvs.length === 0) {
+      undoTooltip = "No moves to undo";
+    } else if (isMyTurn) {
+      undoTooltip = "Cannot undo on your turn";
+    } else {
+      undoTooltip = "Request to undo your last move";
     }
+  }
 
-    const canResign =
-      isPlayer && isPlay && !isChallenge && mvs.length > 0 && !modeActive;
-    const showResign = isPlayer && (isPlay || isChallenge);
-    const canAbort =
-      isPlayer &&
-      mvs.length === 0 &&
-      !isDone &&
-      !res &&
-      (!isChallenge || isCreator);
-    const canAcceptTerritory =
-      isReview &&
-      isPlayer &&
-      !oppDisconnected &&
-      !(
-        (stone === 1 && terr?.black_approved) ||
-        (stone === -1 && terr?.white_approved)
+  const canResign =
+    isPlayer && isPlay && !isChallenge && mvs.length > 0 && !modeActive;
+  const showResign = isPlayer && (isPlay || isChallenge);
+  const canAbort =
+    isPlayer &&
+    mvs.length === 0 &&
+    !isDone &&
+    !res &&
+    (!isChallenge || isCreator);
+  const canAcceptTerritory =
+    isReview &&
+    isPlayer &&
+    !oppDisconnected &&
+    !(
+      (stone === 1 && terr?.black_approved) ||
+      (stone === -1 && terr?.white_approved)
+    );
+  const canFinalizeTerritory = inEstimate && boardReviewing.value;
+  const canClaimVictory =
+    isPlayer && !isDone && !res && !!oppDisconnected?.gone;
+  const canRematch = !!res && isDone && isPlayer;
+
+  const canEnterAnalysis =
+    !inAnalysis && !inEstimate && !isReview && !inPresentation;
+  const showAnalysis =
+    canEnterAnalysis || (inEstimate && !estimateFromAnalysis);
+  const canExitAnalysis = inAnalysis || estimateFromAnalysis;
+  const showEnterEstimate =
+    !inEstimate && !isReview && (isPlay || (isDone && !!settled));
+  const canEnterEstimate = showEnterEstimate && !onFinalized;
+  const estimateTitle = isDone && !!settled ? "Show territory" : undefined;
+  const canExitEstimate = inEstimate;
+  const exitEstimateTitle = inAnalysis ? "Back to analysis" : undefined;
+  const canEnterPresentation =
+    isDone && !inPresentation && canStartPresentation.value;
+  const canExitPresentation =
+    inPresentation && isPresenter.value && isOriginator.value;
+  const canReturnControl =
+    inPresentation && isPresenter.value && !isOriginator.value;
+  const showMoveConfirmToggle = isPlayer && isPlay;
+  const showUndoResponse = undoState === "received";
+  const showAnalyzeChoice = inPresentation && !isPresenter.value && !inAnalysis;
+  const canTakeControl =
+    inPresentation && isOriginator.value && !isPresenter.value;
+  const canRequestControl =
+    inPresentation &&
+    !isOriginator.value &&
+    !isPresenter.value &&
+    !myControlRequest &&
+    !controlRequest.value;
+  const canCancelControlRequest =
+    inPresentation && !isPresenter.value && myControlRequest;
+  const controlRequestPending =
+    inPresentation &&
+    !isPresenter.value &&
+    !isOriginator.value &&
+    !!controlRequest.value &&
+    !myControlRequest;
+  const controlRequestDisplayName = controlRequest.value?.displayName ?? "";
+  const controlRequestUserId = controlRequest.value?.userId;
+  const showControlRequestResponse =
+    inPresentation && isOriginator.value && !!controlRequest.value;
+  const ns = navState.value;
+  const nav = isSyncedViewer
+    ? { atStart: true, atLatest: true, atMainEnd: true, counter: ns.counter }
+    : {
+        atStart: ns.atStart,
+        atLatest: ns.atLatest,
+        atMainEnd: ns.atMainEnd,
+        counter: ns.counter,
+      };
+
+  return {
+    canPass,
+    showPass,
+    canRequestUndo,
+    canResign,
+    showResign,
+    canAbort,
+    canAcceptTerritory,
+    canFinalizeTerritory,
+    canClaimVictory,
+    canRematch,
+    canExitAnalysis,
+    canEnterAnalysis,
+    showAnalysis,
+    canEnterEstimate,
+    showEnterEstimate,
+    canExitEstimate,
+    canEnterPresentation,
+    canExitPresentation,
+    canReturnControl,
+    showMoveConfirmToggle,
+    showUndoResponse,
+    undoTooltip,
+    passIsAnalysisPass,
+    confirmPassRequired,
+    estimateTitle,
+    exitEstimateTitle,
+    showAnalyzeChoice,
+    canTakeControl,
+    canRequestControl,
+    canCancelControlRequest,
+    controlRequestPending,
+    controlRequestDisplayName,
+    controlRequestUserId,
+    showControlRequestResponse,
+    nav,
+  };
+});
+
+export const liveGamePanelState = computed((): LiveGamePanelState => {
+  const stone = playerStone.value;
+  const stage = gameStage.value;
+  const res = result.value;
+  const props = initialProps.value;
+  const b = black.value;
+  const w = white.value;
+  const online = onlineUsers.value;
+  const cd = clockDisplay.value;
+  const terr = territory.value;
+  const settled = settledTerritory.value;
+  const isPlay = isPlayStage(stage);
+  const isReview = stage === GameStage.TerritoryReview;
+  const isNigiriPending = nigiri.value && !isPlay && !isReview && !res;
+  const onFinalized = boardFinalized.value;
+  const score =
+    estimateScore.value ??
+    terr?.score ??
+    (onFinalized ? (boardFinalizedScore.value ?? settled?.score) : undefined);
+  const panelOpts = {
+    stone,
+    blackUser: b,
+    whiteUser: w,
+    online,
+    komi: props.komi,
+    captures: gameState.value.captures,
+    score,
+    cd,
+    isNigiriPending,
+  };
+
+  return {
+    topPanel: derivePlayerPanel({ ...panelOpts, position: "top" }),
+    bottomPanel: derivePlayerPanel({ ...panelOpts, position: "bottom" }),
+  };
+});
+
+export const liveGameStatusState = computed((): LiveGameStatusState => {
+  const phase = gamePhase.value;
+  const stage = gameStage.value;
+  const stone = playerStone.value;
+  const isPlayer = stone !== 0;
+  const isDone =
+    stage === GameStage.Completed ||
+    stage === GameStage.Aborted ||
+    stage === GameStage.Declined;
+  const res = result.value;
+  const props = initialProps.value;
+  const b = black.value;
+  const w = white.value;
+  const terr = territory.value;
+  const oppDisconnected = opponentDisconnected.value;
+  const hasOpenSlot = !b || !w;
+  const challengee = b?.id !== props.creator_id ? b : w;
+  const myId = currentUserId.value || undefined;
+  const isReview = stage === GameStage.TerritoryReview;
+  const inEstimate = phase.phase === "estimate";
+  const inPresentation = phase.phase === "presentation";
+  const onFinalized = boardFinalized.value;
+  const boardNav = navState.value;
+
+  const opponentApproved =
+    isReview && isPlayer
+      ? stone === 1
+        ? !!terr?.white_approved
+        : !!terr?.black_approved
+      : false;
+
+  let territoryCountdownSecs: number | undefined;
+  if (isReview && terr?.expires_at) {
+    const remaining = new Date(terr.expires_at).getTime() - uiNowMs.value;
+    territoryCountdownSecs = Math.ceil(Math.max(0, remaining) / 1000);
+  }
+
+  const statusStage =
+    onFinalized && res
+      ? res === "Aborted"
+        ? GameStage.Aborted
+        : res === "Declined"
+          ? GameStage.Declined
+          : GameStage.Completed
+      : stage;
+  const statusResult =
+    statusStage === GameStage.Completed ||
+    statusStage === GameStage.Aborted ||
+    statusStage === GameStage.Declined
+      ? (res ?? undefined)
+      : undefined;
+
+  let disconnectCountdown: string | undefined;
+  if (isPlayer && !isDone && !res && oppDisconnected) {
+    if (oppDisconnected.gone) {
+      disconnectCountdown = "Opponent left the game.";
+    } else if (oppDisconnected.gracePeriodMs != null) {
+      const elapsed = uiNowMs.value - oppDisconnected.since.getTime();
+      const remaining = Math.max(
+        0,
+        Math.ceil((oppDisconnected.gracePeriodMs - elapsed) / 1000),
       );
-    const canFinalizeTerritory = inEstimate && boardReviewing.value;
-    const canClaimVictory =
-      isPlayer && !isDone && !res && !!oppDisconnected?.gone;
-    const canRematch = !!res && isDone && isPlayer;
+      disconnectCountdown =
+        remaining > 0
+          ? `Opponent left. ${remaining}s to reconnect.`
+          : "Opponent left the game.";
+    } else {
+      disconnectCountdown = "Opponent disconnected.";
+    }
+  }
 
-    const canEnterAnalysis =
-      !inAnalysis && !inEstimate && !isReview && !inPresentation;
-    const showAnalysis =
-      canEnterAnalysis || (inEstimate && !estimateFromAnalysis);
-    const canExitAnalysis = inAnalysis || estimateFromAnalysis;
-    const showEnterEstimate =
-      !inEstimate && !isReview && (isPlay || (isDone && !!settled));
-    const canEnterEstimate = showEnterEstimate && !onFinalized;
-    const estimateTitle = isDone && !!settled ? "Show territory" : undefined;
-    const canExitEstimate = inEstimate;
-    const exitEstimateTitle = inAnalysis ? "Back to analysis" : undefined;
-    const canEnterPresentation =
-      isDone && !inPresentation && canStartPresentation.value;
-    const canExitPresentation =
-      inPresentation && isPresenter.value && isOriginator.value;
-    const canReturnControl =
-      inPresentation && isPresenter.value && !isOriginator.value;
-    const showMoveConfirmToggle = isPlayer && isPlay;
-    const showUndoResponse = undoState === "received";
-    const showAnalyzeChoice = inPresentation && !isPresenter.value && !inAnalysis;
-    const canTakeControl =
-      inPresentation && isOriginator.value && !isPresenter.value;
-    const canRequestControl =
-      inPresentation &&
-      !isOriginator.value &&
-      !isPresenter.value &&
-      !myControlRequest &&
-      !controlRequest.value;
-    const canCancelControlRequest =
-      inPresentation && !isPresenter.value && myControlRequest;
-    const controlRequestPending =
-      inPresentation &&
-      !isPresenter.value &&
-      !isOriginator.value &&
-      !!controlRequest.value &&
-      !myControlRequest;
-    const controlRequestDisplayName = controlRequest.value?.displayName ?? "";
-    const controlRequestUserId = controlRequest.value?.userId;
-    const showControlRequestResponse =
-      inPresentation && isOriginator.value && !!controlRequest.value;
-    const ns = navState.value;
-    const nav = isSyncedViewer
-      ? { atStart: true, atLatest: true, atMainEnd: true, counter: ns.counter }
-      : {
-          atStart: ns.atStart,
-          atLatest: ns.atLatest,
-          atMainEnd: ns.atMainEnd,
-          counter: ns.counter,
-        };
+  let lobbyPopover: UiCapabilities["lobbyPopover"];
+  const hasValidAccessToken = !!props.has_valid_access_token;
+  const isChallenge = stage === GameStage.Challenge;
+  const isCreator = myId != null && myId === props.creator_id;
+  const isChallengee =
+    isChallenge && isPlayer && myId != null && myId !== props.creator_id;
+  const opponentName =
+    b?.id === props.creator_id ? w?.display_name : b?.display_name;
 
-    return {
-      canPass,
-      showPass,
-      canRequestUndo,
-      canResign,
-      showResign,
-      canAbort,
-      canAcceptTerritory,
-      canFinalizeTerritory,
-      canClaimVictory,
-      canRematch,
-      canExitAnalysis,
-      canEnterAnalysis,
-      showAnalysis,
-      canEnterEstimate,
-      showEnterEstimate,
-      canExitEstimate,
-      canEnterPresentation,
-      canExitPresentation,
-      canReturnControl,
-      showMoveConfirmToggle,
-      showUndoResponse,
-      undoTooltip,
-      passIsAnalysisPass,
-      confirmPassRequired,
-      estimateTitle,
-      exitEstimateTitle,
-      showAnalyzeChoice,
-      canTakeControl,
-      canRequestControl,
-      canCancelControlRequest,
-      controlRequestPending,
-      controlRequestDisplayName,
-      controlRequestUserId,
-      showControlRequestResponse,
-      nav,
+  if (isChallengee) {
+    lobbyPopover = {
+      variant: "challengee",
+      title: "Waiting for your response",
     };
-  },
-);
+  } else if (isCreator && !isDone && !res && isChallenge) {
+    lobbyPopover = {
+      variant: "creator-challenge",
+      title: `Waiting for ${opponentName ?? "opponent"}`,
+    };
+  } else if (isCreator && !isDone && !res && hasOpenSlot && !isChallenge) {
+    lobbyPopover = {
+      variant: "creator-waiting",
+      title: "Waiting for opponent",
+    };
+  } else if (
+    !isPlayer &&
+    !isDone &&
+    !res &&
+    (isChallenge || hasOpenSlot) &&
+    ((isChallenge && !requiresAccessTokenToJoin(props.settings)) ||
+      ((!requiresAccessTokenToJoin(props.settings) || hasValidAccessToken) &&
+        !requiresInviteTokenToJoin(props.settings)))
+  ) {
+    lobbyPopover = {
+      variant: isChallenge ? "visitor-challenge" : "visitor-open",
+      title: `Waiting for ${opponentName ?? "opponent"}`,
+    };
+  }
 
-export const liveGamePanelState = computed(
-  (): LiveGamePanelState => {
-    const stone = playerStone.value;
-    const stage = gameStage.value;
-    const res = result.value;
-    const props = initialProps.value;
-    const b = black.value;
-    const w = white.value;
-    const online = onlineUsers.value;
-    const cd = clockDisplay.value;
-    const terr = territory.value;
-    const settled = settledTerritory.value;
-    const isPlay = isPlayStage(stage);
-    const isReview = stage === GameStage.TerritoryReview;
-    const isNigiriPending = nigiri.value && !isPlay && !isReview && !res;
-    const onFinalized = boardFinalized.value;
-    const score =
-      estimateScore.value ??
-      terr?.score ??
-      (onFinalized ? (boardFinalizedScore.value ?? settled?.score) : undefined);
-    const panelOpts = {
-      stone,
-      blackUser: b,
-      whiteUser: w,
-      online,
+  const statusText =
+    getStatusText({
+      stage: statusStage,
+      result: statusResult,
       komi: props.komi,
-      captures: gameState.value.captures,
-      score,
-      cd,
-      isNigiriPending,
-    };
+      estimateScore:
+        inEstimate || onFinalized
+          ? (estimateScore.value ??
+            (onFinalized ? boardFinalizedScore.value : undefined))
+          : undefined,
+      territoryScore: terr?.score,
+      lastMoveWasPass: boardNav.boardLastMoveWasPass,
+      isChallengeCreator: myId != null && myId === props.creator_id,
+      challengeWaitingFor: challengee?.display_name,
+      hasOpenSlot,
+      isBlackTurn: boardNav.boardTurnStone === 1,
+      isPlayer,
+      opponentApproved,
+      territoryCountdownSecs,
+    }) ?? "";
 
-    return {
-      topPanel: derivePlayerPanel({ ...panelOpts, position: "top" }),
-      bottomPanel: derivePlayerPanel({ ...panelOpts, position: "bottom" }),
-    };
-  },
-);
-
-export const liveGameStatusState = computed(
-  (): LiveGameStatusState => {
-    const phase = gamePhase.value;
-    const stage = gameStage.value;
-    const stone = playerStone.value;
-    const isPlayer = stone !== 0;
-    const isDone =
-      stage === GameStage.Completed ||
-      stage === GameStage.Aborted ||
-      stage === GameStage.Declined;
-    const res = result.value;
-    const props = initialProps.value;
-    const b = black.value;
-    const w = white.value;
-    const terr = territory.value;
-    const oppDisconnected = opponentDisconnected.value;
-    const hasOpenSlot = !b || !w;
-    const challengee = b?.id !== props.creator_id ? b : w;
-    const myId = currentUserId.value || undefined;
-    const isReview = stage === GameStage.TerritoryReview;
-    const inEstimate = phase.phase === "estimate";
-    const inPresentation = phase.phase === "presentation";
-    const onFinalized = boardFinalized.value;
-    const boardNav = navState.value;
-
-    const opponentApproved =
-      isReview && isPlayer
-        ? stone === 1
-          ? !!terr?.white_approved
-          : !!terr?.black_approved
-        : false;
-
-    let territoryCountdownSecs: number | undefined;
-    if (isReview && terr?.expires_at) {
-      const remaining = new Date(terr.expires_at).getTime() - uiNowMs.value;
-      territoryCountdownSecs = Math.ceil(Math.max(0, remaining) / 1000);
+  let presentationStatusSuffix = "";
+  if (inPresentation) {
+    if (isPresenter.value) {
+      presentationStatusSuffix = " (You are presenting)";
+    } else if (presenterDisplayName.value) {
+      presentationStatusSuffix = ` (${presenterDisplayName.value} presenting)`;
     }
+  }
 
-    const statusStage =
-      onFinalized && res
-        ? res === "Aborted"
-          ? GameStage.Aborted
-          : res === "Declined"
-            ? GameStage.Declined
-            : GameStage.Completed
-        : stage;
-    const statusResult =
-      statusStage === GameStage.Completed ||
-      statusStage === GameStage.Aborted ||
-      statusStage === GameStage.Declined
-        ? (res ?? undefined)
-        : undefined;
-
-    let disconnectCountdown: string | undefined;
-    if (isPlayer && !isDone && !res && oppDisconnected) {
-      if (oppDisconnected.gone) {
-        disconnectCountdown = "Opponent left the game.";
-      } else if (oppDisconnected.gracePeriodMs != null) {
-        const elapsed = uiNowMs.value - oppDisconnected.since.getTime();
-        const remaining = Math.max(
-          0,
-          Math.ceil((oppDisconnected.gracePeriodMs - elapsed) / 1000),
-        );
-        disconnectCountdown =
-          remaining > 0
-            ? `Opponent left. ${remaining}s to reconnect.`
-            : "Opponent left the game.";
-      } else {
-        disconnectCountdown = "Opponent disconnected.";
-      }
-    }
-
-    let lobbyPopover: UiCapabilities["lobbyPopover"];
-    const hasValidAccessToken = !!props.has_valid_access_token;
-    const isChallenge = stage === GameStage.Challenge;
-    const isCreator = myId != null && myId === props.creator_id;
-    const isChallengee =
-      isChallenge && isPlayer && myId != null && myId !== props.creator_id;
-    const opponentName =
-      b?.id === props.creator_id ? w?.display_name : b?.display_name;
-
-    if (isChallengee) {
-      lobbyPopover = {
-        variant: "challengee",
-        title: "Waiting for your response",
-      };
-    } else if (isCreator && !isDone && !res && isChallenge) {
-      lobbyPopover = {
-        variant: "creator-challenge",
-        title: `Waiting for ${opponentName ?? "opponent"}`,
-      };
-    } else if (isCreator && !isDone && !res && hasOpenSlot && !isChallenge) {
-      lobbyPopover = {
-        variant: "creator-waiting",
-        title: "Waiting for opponent",
-      };
-    } else if (
-      !isPlayer &&
-      !isDone &&
-      !res &&
-      (isChallenge || hasOpenSlot) &&
-      ((isChallenge && !requiresAccessTokenToJoin(props.settings)) ||
-        ((!requiresAccessTokenToJoin(props.settings) || hasValidAccessToken) &&
-          !requiresInviteTokenToJoin(props.settings)))
-    ) {
-      lobbyPopover = {
-        variant: isChallenge ? "visitor-challenge" : "visitor-open",
-        title: `Waiting for ${opponentName ?? "opponent"}`,
-      };
-    }
-
-    const statusText =
-      getStatusText({
-        stage: statusStage,
-        result: statusResult,
-        komi: props.komi,
-        estimateScore:
-          inEstimate || onFinalized
-            ? (estimateScore.value ??
-              (onFinalized ? boardFinalizedScore.value : undefined))
-            : undefined,
-        territoryScore: terr?.score,
-        lastMoveWasPass: boardNav.boardLastMoveWasPass,
-        isChallengeCreator: myId != null && myId === props.creator_id,
-        challengeWaitingFor: challengee?.display_name,
-        hasOpenSlot,
-        isBlackTurn: boardNav.boardTurnStone === 1,
-        isPlayer,
-        opponentApproved,
-        territoryCountdownSecs,
-      }) ?? "";
-
-    let presentationStatusSuffix = "";
-    if (inPresentation) {
-      if (isPresenter.value) {
-        presentationStatusSuffix = " (You are presenting)";
-      } else if (presenterDisplayName.value) {
-        presentationStatusSuffix = ` (${presenterDisplayName.value} presenting)`;
-      }
-    }
-
-    return {
-      statusText,
-      presentationStatusSuffix,
-      disconnectCountdown,
-      lobbyPopover,
-      showInviteLink: !!props.access_token && isPlayer,
-    };
-  },
-);
+  return {
+    statusText,
+    presentationStatusSuffix,
+    disconnectCountdown,
+    lobbyPopover,
+    showInviteLink: !!props.access_token && isPlayer,
+  };
+});
 
 export const liveGameMoveTreeState = computed(
   (): LiveGameMoveTreeState => ({

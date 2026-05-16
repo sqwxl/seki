@@ -1,14 +1,14 @@
-import { beforeEach,describe,expect,it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { initialRatingParticipation } from "../components/notification-settings";
 import { writeUserData } from "../game/util";
 import {
-initPreferences,
-ratingDisplayPreference,
-readRatingDisplayPreference,
-savePref,
+  initPreferences,
+  ratingDisplayPreference,
+  readRatingDisplayPreference,
+  savePref,
 } from "../utils/preferences";
-import { RATING_DISPLAY,storage } from "../utils/storage";
+import { RATING_DISPLAY, storage } from "../utils/storage";
 
 describe("rating display preferences", () => {
   beforeEach(() => {
@@ -52,8 +52,8 @@ describe("rating display preferences", () => {
     expect(initialRatingParticipation({ rating_participating: false })).toBe(
       false,
     );
-    expect(initialRatingParticipation({ rating_participating: true }, false)).toBe(
-      false,
-    );
+    expect(
+      initialRatingParticipation({ rating_participating: true }, false),
+    ).toBe(false);
   });
 });

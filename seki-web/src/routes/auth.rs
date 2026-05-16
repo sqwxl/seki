@@ -2,6 +2,7 @@ use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::Form;
+use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
@@ -11,9 +12,12 @@ use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
+use crate::models::app_credential::AppCredential;
 use crate::models::user::User;
 use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
+use crate::services::jwt;
 use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
+use crate::templates::UserData;
 
 async fn redirect_with_flash(
     session: &Session,
@@ -292,4 +296,133 @@ pub async fn logout(
             .unwrap(),
     );
     Ok(response)
+}
+
+// GET /api/auth/token — issue a browser app JWT
+pub async fn issue_token(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let token = jwt::issue_app_credential(current_user.id, &state.jwt_secret)
+        .map_err(|e| AppError::Internal(format!("JWT issuance error: {e}")))?;
+
+    let claims = jwt::validate_app_credential(&token, &state.jwt_secret)
+        .map_err(|e| AppError::Internal(format!("JWT validation error: {e}")))?;
+
+    let expires_at = chrono::DateTime::from_timestamp(claims.exp as i64, 0)
+        .map(|dt| dt.to_rfc3339())
+        .unwrap_or_default();
+
+    AppCredential::create(&state.db, current_user.id, &claims.jti, &expires_at)
+        .await
+        .map_err(AppError::Database)?;
+
+    Ok(Json(json!({
+        "token": token,
+        "expires_at": expires_at,
+    })))
+}
+
+// GET /api/auth/restore — restore session from JWT
+pub async fn restore_session(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+    session: Session,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let auth_header = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .ok_or_else(|| AppError::Unauthorized("Missing or invalid Authorization header".into()))?;
+
+    let claims = jwt::validate_app_credential(auth_header, &state.jwt_secret)
+        .map_err(|_| AppError::Unauthorized("Invalid or expired credential".into()))?;
+
+    let credential = AppCredential::find_by_jti(&state.db, &claims.jti)
+        .await
+        .map_err(AppError::Database)?;
+
+    let credential =
+        credential.ok_or_else(|| AppError::Unauthorized("Credential not found".into()))?;
+
+    if credential.revoked {
+        return Err(AppError::Unauthorized("Credential has been revoked".into()));
+    }
+
+    let user_id: i64 = claims
+        .sub
+        .parse()
+        .map_err(|_| AppError::Unauthorized("Invalid credential subject".into()))?;
+
+    if credential.user_id != user_id {
+        return Err(AppError::Unauthorized(
+            "Credential subject does not match owner".into(),
+        ));
+    }
+
+    let expires_at = chrono::DateTime::parse_from_rfc3339(&credential.expires_at)
+        .map_err(|_| AppError::Unauthorized("Invalid credential expiry".into()))?
+        .with_timezone(&chrono::Utc);
+    if expires_at <= chrono::Utc::now() {
+        return Err(AppError::Unauthorized("Credential has expired".into()));
+    }
+
+    let user = User::find_by_id(&state.db, user_id)
+        .await
+        .map_err(AppError::Database)?;
+
+    // Revoke the old credential
+    AppCredential::revoke_jti(&state.db, &claims.jti)
+        .await
+        .map_err(AppError::Database)?;
+
+    // Issue a fresh JWT
+    let new_token = jwt::issue_app_credential(user.id, &state.jwt_secret)
+        .map_err(|e| AppError::Internal(format!("JWT issuance error: {e}")))?;
+
+    let new_claims = jwt::validate_app_credential(&new_token, &state.jwt_secret)
+        .map_err(|e| AppError::Internal(format!("JWT validation error: {e}")))?;
+
+    let expires_at = chrono::DateTime::from_timestamp(new_claims.exp as i64, 0)
+        .map(|dt| dt.to_rfc3339())
+        .unwrap_or_default();
+
+    AppCredential::create(&state.db, user.id, &new_claims.jti, &expires_at)
+        .await
+        .map_err(AppError::Database)?;
+
+    // Establish session
+    if let Some(ref session_token) = user.session_token {
+        session
+            .insert(USER_ID_KEY, session_token.clone())
+            .await
+            .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
+    }
+
+    let user_data = UserData::from(&user);
+    Ok(Json(json!({
+        "user": user_data,
+        "token": new_token,
+    })))
+}
+
+// DELETE /api/auth/token — revoke per-device credential
+pub async fn revoke_token(
+    State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let auth_header = headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .ok_or_else(|| AppError::Unauthorized("Missing or invalid Authorization header".into()))?;
+
+    let claims = jwt::validate_app_credential(auth_header, &state.jwt_secret)
+        .map_err(|_| AppError::Unauthorized("Invalid or expired credential".into()))?;
+
+    AppCredential::revoke_jti(&state.db, &claims.jti)
+        .await
+        .map_err(AppError::Database)?;
+
+    Ok(Json(json!({"ok": true})))
 }

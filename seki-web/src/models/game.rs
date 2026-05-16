@@ -138,17 +138,14 @@ impl Game {
 
         if let Some(status) = filters.rated_status {
             match status {
-                crate::models::game_read::RatedStatusFilter::Ranked => {
-                    games.retain(|g| g.ranked)
-                }
+                crate::models::game_read::RatedStatusFilter::Ranked => games.retain(|g| g.ranked),
                 crate::models::game_read::RatedStatusFilter::Unranked => {
                     games.retain(|g| !g.ranked)
                 }
             }
         }
 
-        let need_rating_filter =
-            filters.min_rating.is_some() || filters.max_rating.is_some();
+        let need_rating_filter = filters.min_rating.is_some() || filters.max_rating.is_some();
         if need_rating_filter {
             let user_ids: Vec<i64> = {
                 let mut ids = std::collections::HashSet::new();

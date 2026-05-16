@@ -1,21 +1,21 @@
 import { signal } from "@preact/signals";
 import {
-moveConfirmEnabled,
-showCoordinates,
-showMoveTree,
+  moveConfirmEnabled,
+  showCoordinates,
+  showMoveTree,
 } from "../game/state";
 import type { UserPreferences } from "../game/types";
 import { readUserData } from "../game/util";
 import { readMoveConfirmation } from "./move-confirm";
-import { parseRatingDisplayMode,type RatingDisplayMode } from "./rating";
+import { parseRatingDisplayMode, type RatingDisplayMode } from "./rating";
 import {
-MOVE_CONFIRMATION,
-NOTIFICATIONS,
-RATING_DISPLAY,
-SHOW_COORDINATES,
-SHOW_MOVE_TREE,
-storage,
-THEME,
+  MOVE_CONFIRMATION,
+  NOTIFICATIONS,
+  RATING_DISPLAY,
+  SHOW_COORDINATES,
+  SHOW_MOVE_TREE,
+  storage,
+  THEME,
 } from "./storage";
 
 let serverPrefs: UserPreferences = {};

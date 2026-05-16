@@ -3,16 +3,16 @@
 // Unrated: full settings editable
 
 import {
-IconBell,
-IconGrid4x4,
-IconHandicap,
-IconKomi,
-IconNigiri,
-IconPrivate,
-IconSettings,
-IconUndo,
-StoneBlack,
-StoneWhite,
+  IconBell,
+  IconGrid4x4,
+  IconHandicap,
+  IconKomi,
+  IconNigiri,
+  IconPrivate,
+  IconSettings,
+  IconUndo,
+  StoneBlack,
+  StoneWhite,
 } from "../../components/icons";
 import type { RankData } from "../../game/types";
 import { fullRankText } from "../../utils/rating";

@@ -1,6 +1,9 @@
+pub mod app_credential;
 pub mod game;
 pub mod game_read;
 pub mod message;
+pub mod push_destination;
 pub mod rating;
 pub mod turn;
 pub mod user;
+pub mod vapid_config;

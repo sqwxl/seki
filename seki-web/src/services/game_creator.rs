@@ -175,17 +175,23 @@ pub async fn create_game(
     )
     .await?;
 
-    if params.ranked && black_id.is_some() && white_id.is_some() {
-        if let Err(e) =
-            rating::capture_ranked_snapshot(pool, game.id, black_id.unwrap(), white_id.unwrap(), None)
-                .await
-        {
-            tracing::warn!(
-                game_id = game.id,
-                error = %e,
-                "Failed to capture ranked snapshot during game creation"
-            );
-        }
+    if params.ranked
+        && black_id.is_some()
+        && white_id.is_some()
+        && let Err(e) = rating::capture_ranked_snapshot(
+            pool,
+            game.id,
+            black_id.unwrap(),
+            white_id.unwrap(),
+            None,
+        )
+        .await
+    {
+        tracing::warn!(
+            game_id = game.id,
+            error = %e,
+            "Failed to capture ranked snapshot during game creation"
+        );
     }
 
     // When both seats are assigned up front, this is a direct challenge:

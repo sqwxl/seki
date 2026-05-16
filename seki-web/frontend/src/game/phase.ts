@@ -1,5 +1,5 @@
-import { computed,signal } from "@preact/signals";
-import { currentUserId,presentationActive,presenterId } from "./state";
+import { computed, signal } from "@preact/signals";
+import { currentUserId, presentationActive, presenterId } from "./state";
 
 export type GamePhase =
   | { phase: "live" }

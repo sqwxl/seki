@@ -1,13 +1,13 @@
-import { useEffect,useRef,useState } from "preact/hooks";
-import { hasUnreadChat,mobileTab } from "../game/state";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { hasUnreadChat, mobileTab } from "../game/state";
 import type { ControlsProps } from "./controls";
 import { UIControls } from "./controls";
 import {
-IconAnalysis,
-IconChat,
-IconChatUnread,
-IconMenu,
-IconStonesBw,
+  IconAnalysis,
+  IconChat,
+  IconChatUnread,
+  IconMenu,
+  IconStonesBw,
 } from "./icons";
 
 type Tab = "board" | "chat" | "analysis";

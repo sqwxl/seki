@@ -1,19 +1,19 @@
 import type { ComponentType } from "preact";
-import { useEffect,useRef } from "preact/hooks";
-import { GamesList,type InitMessage } from "../layouts/games-list";
-import { clearFlash,setFlash } from "../utils/flash";
+import { useEffect, useRef } from "preact/hooks";
+import { GamesList, type InitMessage } from "../layouts/games-list";
+import { clearFlash, setFlash } from "../utils/flash";
 import { buildGameNavigationRedirect } from "../utils/navigation-errors";
 import { fullRankText } from "../utils/rating";
 import { postForm } from "../utils/web-client";
-import { pageTitle,setHead } from "./head";
+import { pageTitle, setHead } from "./head";
 import { useRouteData } from "./route-data";
-import { ErrorState,LoadingState,useLazyModule } from "./screen-state";
+import { ErrorState, LoadingState, useLazyModule } from "./screen-state";
 import type {
-GamePageData,
-GameSettingsFormProps,
-NavigateFn,
-NewGameData,
-Route,
+  GamePageData,
+  GameSettingsFormProps,
+  NavigateFn,
+  NewGameData,
+  Route,
 } from "./types";
 
 const loadLiveGameModule = () => import("../layouts/live-game");

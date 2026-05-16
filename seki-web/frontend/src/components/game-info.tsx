@@ -1,17 +1,17 @@
-import { useEffect,useRef,useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type {
-GameSettings,
-ScoreData,
-SettledTerritoryData,
-TerritoryData,
-UserData,
+  GameSettings,
+  ScoreData,
+  SettledTerritoryData,
+  TerritoryData,
+  UserData,
 } from "../game/types";
 import { GameStage } from "../game/types";
 import {
-blackSymbol,
-formatSize,
-formatTimeControl,
-whiteSymbol,
+  blackSymbol,
+  formatSize,
+  formatTimeControl,
+  whiteSymbol,
 } from "../utils/format";
 import { ratingDisplayPreference } from "../utils/preferences";
 import { primaryRankText } from "../utils/rating";

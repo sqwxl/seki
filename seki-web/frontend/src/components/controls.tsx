@@ -1,27 +1,27 @@
-import { useEffect,useRef,useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { GameSettings } from "../game/types";
 import type { NavAction } from "../goban/create-board";
-import { formatSize,formatTimeControl } from "../utils/format";
+import { formatSize, formatTimeControl } from "../utils/format";
 import {
-IconAnalysis,
-IconBalance,
-IconCancel,
-IconCheck,
-IconFileExport,
-IconFileUpload,
-IconGrid4x4,
-IconKomi,
-IconPass,
-IconPlaybackForward,
-IconPlaybackNext,
-IconPlaybackPrev,
-IconPlaybackRewind,
-IconRepeat,
-IconSpinner,
-IconStonesBw,
-IconUndo,
-IconWhiteFlag,
-IconX,
+  IconAnalysis,
+  IconBalance,
+  IconCancel,
+  IconCheck,
+  IconFileExport,
+  IconFileUpload,
+  IconGrid4x4,
+  IconKomi,
+  IconPass,
+  IconPlaybackForward,
+  IconPlaybackNext,
+  IconPlaybackPrev,
+  IconPlaybackRewind,
+  IconRepeat,
+  IconSpinner,
+  IconStonesBw,
+  IconUndo,
+  IconWhiteFlag,
+  IconX,
 } from "./icons";
 
 type ButtonDef = {

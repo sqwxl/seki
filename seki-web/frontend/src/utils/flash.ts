@@ -1,4 +1,4 @@
-import { computed,signal } from "@preact/signals";
+import { computed, signal } from "@preact/signals";
 
 export type FlashSeverity = "error" | "warning" | "success" | "info";
 
@@ -12,7 +12,10 @@ const flashState = signal<FlashMessage | undefined>(undefined);
 export const activeFlash = computed(() => flashState.value);
 export const activeFlashMessage = computed(() => flashState.value?.message);
 
-export function setFlash(message: string, severity: FlashSeverity = "error"): void {
+export function setFlash(
+  message: string,
+  severity: FlashSeverity = "error",
+): void {
   flashState.value = { message, severity };
 }
 

@@ -1,4 +1,4 @@
-import { IconSwitchOff,IconSwitchOn } from "./icons";
+import { IconSwitchOff, IconSwitchOn } from "./icons";
 
 type ToggleButtonProps = {
   on: boolean;

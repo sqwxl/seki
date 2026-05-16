@@ -2,8 +2,8 @@ import { useState } from "preact/hooks";
 import type { UserPreferences } from "../game/types";
 import { readUserData } from "../game/util";
 import {
-osNotificationsEnabled,
-toggleOsNotifications,
+  osNotificationsEnabled,
+  toggleOsNotifications,
 } from "../utils/os-notifications";
 import { savePref } from "../utils/preferences";
 

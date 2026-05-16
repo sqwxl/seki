@@ -1,5 +1,5 @@
-import { useEffect,useState } from "preact/hooks";
-import type { BootstrapPayload,FetchError } from "./types";
+import { useEffect, useState } from "preact/hooks";
+import type { BootstrapPayload, FetchError } from "./types";
 
 declare global {
   interface Window {

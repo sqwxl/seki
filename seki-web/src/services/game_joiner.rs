@@ -84,9 +84,7 @@ pub async fn join_open_game(
         return Err(AppError::UnprocessableEntity("Game is full".to_string()));
     }
 
-    if swap_for_ranked {
-        Game::swap_players(&mut *tx, gwp.game.id).await?;
-    } else if !gwp.game.ranked && gwp.game.nigiri && rand::rng().random_bool(0.5) {
+    if swap_for_ranked || (!gwp.game.ranked && gwp.game.nigiri && rand::rng().random_bool(0.5)) {
         Game::swap_players(&mut *tx, gwp.game.id).await?;
     }
 
@@ -104,16 +102,17 @@ pub async fn join_open_game(
 
     tx.commit().await?;
 
-    if gwp.game.ranked {
-        if let (Some(b_id), Some(w_id)) = (black_after_join, white_after_join) {
-            if let Err(e) = rating::capture_ranked_snapshot(pool, gwp.game.id, b_id, w_id, gwp.game.max_handicap).await {
-                tracing::warn!(
-                    game_id = gwp.game.id,
-                    error = %e,
-                    "Failed to capture ranked snapshot during game join"
-                );
-            }
-        }
+    if gwp.game.ranked
+        && let (Some(b_id), Some(w_id)) = (black_after_join, white_after_join)
+        && let Err(e) =
+            rating::capture_ranked_snapshot(pool, gwp.game.id, b_id, w_id, gwp.game.max_handicap)
+                .await
+    {
+        tracing::warn!(
+            game_id = gwp.game.id,
+            error = %e,
+            "Failed to capture ranked snapshot during game join"
+        );
     }
 
     Ok(())

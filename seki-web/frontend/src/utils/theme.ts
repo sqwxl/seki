@@ -1,7 +1,7 @@
 import { signal } from "@preact/signals";
-import { themeAutoSvg,themeDarkSvg,themeLightSvg } from "../components/icons";
+import { themeAutoSvg, themeDarkSvg, themeLightSvg } from "../components/icons";
 import { savePref } from "./preferences";
-import { storage,THEME } from "./storage";
+import { storage, THEME } from "./storage";
 
 export type ThemeMode = "auto" | "light" | "dark";
 

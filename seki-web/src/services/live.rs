@@ -67,14 +67,12 @@ impl LiveGameItem {
             creator_id: gwp.game.creator_id,
             stage: gwp.game.stage.clone(),
             result: gwp.game.result.clone(),
-            black: gwp
-                .black
-                .as_ref()
-                .map(|user| user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))),
-            white: gwp
-                .white
-                .as_ref()
-                .map(|user| user_data_for_game_player(user, &gwp.game, false, profiles.get(&user.id))),
+            black: gwp.black.as_ref().map(|user| {
+                user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))
+            }),
+            white: gwp.white.as_ref().map(|user| {
+                user_data_for_game_player(user, &gwp.game, false, profiles.get(&user.id))
+            }),
             settings: game_settings_for_game(&gwp.game),
             move_count,
             ranked: gwp.game.ranked,
@@ -104,12 +102,13 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
         HashMap::new()
     } else {
         let ids: Vec<i64> = user_ids.into_iter().collect();
-        let rows: Vec<RatingProfile> =
-            sqlx::query_as("SELECT * FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))")
-                .bind(serde_json::to_string(&ids).unwrap_or_default())
-                .fetch_all(pool)
-                .await
-                .unwrap_or_default();
+        let rows: Vec<RatingProfile> = sqlx::query_as(
+            "SELECT * FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))",
+        )
+        .bind(serde_json::to_string(&ids).unwrap_or_default())
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
         rows.into_iter().map(|p| (p.user_id, p)).collect()
     };
     games
@@ -159,22 +158,21 @@ pub fn notify_game_updated(
     stage: &str,
 ) {
     let profiles: HashMap<i64, RatingProfile> = HashMap::new();
-    let update = GameUpdate {
-        id: gwp.game.id,
-        stage: stage.to_string(),
-        result: gwp.game.result.clone(),
-        black: gwp
-            .black
-            .as_ref()
-            .map(|user| user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))),
-        white: gwp
-            .white
-            .as_ref()
-            .map(|user| user_data_for_game_player(user, &gwp.game, false, profiles.get(&user.id))),
-        move_count,
-        ranked: gwp.game.ranked,
-        settings: game_settings_for_game(&gwp.game),
-    };
+    let update =
+        GameUpdate {
+            id: gwp.game.id,
+            stage: stage.to_string(),
+            result: gwp.game.result.clone(),
+            black: gwp.black.as_ref().map(|user| {
+                user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))
+            }),
+            white: gwp.white.as_ref().map(|user| {
+                user_data_for_game_player(user, &gwp.game, false, profiles.get(&user.id))
+            }),
+            move_count,
+            ranked: gwp.game.ranked,
+            settings: game_settings_for_game(&gwp.game),
+        };
     let msg = json!({
         "kind": "game_updated",
         "game": update,

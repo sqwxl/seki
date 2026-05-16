@@ -109,14 +109,13 @@ A user who opts into notifications can receive important game notifications even
 - **FR-011**: System MUST store push notification destinations per user session or device so one user can receive notifications on multiple opted-in devices and can stop notifications for a specific device/session.
 - **FR-011a**: System MUST support push notification destinations for both registered and anonymous users; anonymous user push eligibility MUST use browser-local opt-in state because account-level notification preferences are unavailable.
 - **FR-012**: System MUST remove or disable push destinations that are logged out, revoked, expired, rejected by the push provider, or no longer associated with an authorized user session.
-- **FR-013**: System MUST send push notifications for enabled your-turn, correspondence-turn, new-challenge, new-message, and incoming-friend-request notifications when the user is eligible and no active live connection or tab is required to deliver the notification.
+- **FR-013**: System MUST send push notifications for enabled your-turn, correspondence-turn, new-challenge, new-message, and incoming-friend-request notifications when the user is eligible and no active live connection or tab is required to deliver the notification. *(Note: incoming-friend-request push dispatch stub is included in this feature; actual friend-request events will be wired when the friend-request feature is implemented.)*
 - **FR-014**: System MUST apply existing notification preferences and suppression rules to push notifications, including event type settings for your turn, correspondence turn, new challenge, new message, and incoming friend requests, and avoiding notifications caused by the user's own local optimistic actions.
 - **FR-014a**: System MUST suppress push notifications only for destinations that currently have an active foreground Seki client; other opted-in destinations for the same user remain eligible for push delivery.
 - **FR-015**: System MUST include detailed push notification content whenever the recipient is authorized to view the underlying game or event, and MUST avoid revealing private game details to unauthorized recipients.
 - **FR-016**: System MUST open the relevant destination when the user activates a delivered notification and reconcile unread/read state from authoritative server state.
 - **FR-017**: System MUST provide an offline-capable app shell state so installed users see meaningful navigation or retry feedback when the network is unavailable.
 - **FR-018**: System MUST preserve existing real-time behavior for users who have an active tab or installed app window open.
-- **FR-019**: System MUST make notification registration and authentication failure states visible enough for users to recover, without requiring them to understand browser internals.
 
 ### Contract and Boundary Requirements *(include when applicable)*
 
@@ -142,7 +141,7 @@ A user who opts into notifications can receive important game notifications even
 - **SC-001a**: Valid installed-app identities used at least once every 90 days continue without a manual login until logout, revocation, local clearing, or inactivity expiry.
 - **SC-002**: Supported mobile browsers offer Seki as installable and launch it in standalone presentation in standard installability checks.
 - **SC-003**: A user can install Seki, sign in, close the app, reopen it, and reach their games list in under 10 seconds on a typical mobile connection.
-- **SC-004**: 95% of eligible push notifications for opted-in users are accepted for delivery within 30 seconds of the triggering event when the push provider is reachable.
+- **SC-004**: *(Post-launch monitoring metric; not verifiable during implementation.)* 95% of eligible push notifications for opted-in users are accepted for delivery within 30 seconds of the triggering event when the push provider is reachable.
 - **SC-005**: Users who disable notifications or revoke permission receive zero further push notifications for that disabled destination after the change is processed.
 - **SC-006**: Private or invite-only notification tests expose no protected game details to unauthorized users across browser UI, standalone app launch, and notification activation flows.
 - **SC-007**: Existing in-app notification and real-time flows continue to pass their current acceptance tests after PWA auth and push support are added.

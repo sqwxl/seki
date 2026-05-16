@@ -79,7 +79,11 @@ pub async fn create_game(
     let variant = form.variant.as_deref().unwrap_or("open");
     let is_ranked = form.ranked.as_deref() == Some("true");
     let is_email = variant == "email";
-    let email_to_send = if is_email { form.invite_email.clone() } else { invite_email.clone() };
+    let email_to_send = if is_email {
+        form.invite_email.clone()
+    } else {
+        invite_email.clone()
+    };
     let params = CreateGameParams {
         cols,
         rows: cols,
@@ -97,7 +101,11 @@ pub async fn create_game(
         byoyomi_periods,
         open_to: form.open_to,
         ranked: is_ranked && !is_email,
-        max_handicap: if is_ranked && variant == "open" { form.max_handicap.filter(|&h| h >= 0 && h <= 9) } else { None },
+        max_handicap: if is_ranked && variant == "open" {
+            form.max_handicap.filter(|&h| (0..=9).contains(&h))
+        } else {
+            None
+        },
     };
 
     match game_creator::create_game(&state.db, &current_user, params).await {

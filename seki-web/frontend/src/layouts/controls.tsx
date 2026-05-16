@@ -1,8 +1,8 @@
 import {
-ControlsProps,
-GameControls,
-NavControls,
-UIControls,
+  ControlsProps,
+  GameControls,
+  NavControls,
+  UIControls,
 } from "../components/controls";
 import { IconCheck } from "../components/icons";
 

@@ -10,10 +10,13 @@ use seki_web::db;
 
 #[tokio::main]
 async fn main() {
-    let db_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://seki.db".to_string());
-    let pool = db::create_pool(&db_url).await.expect("Failed to create pool");
-    db::run_migrations(&pool).await.expect("Failed to run migrations");
+    let db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://seki.db".to_string());
+    let pool = db::create_pool(&db_url)
+        .await
+        .expect("Failed to create pool");
+    db::run_migrations(&pool)
+        .await
+        .expect("Failed to run migrations");
 
     let salt = SaltString::generate(&mut OsRng);
     let password_hash = Argon2::default()

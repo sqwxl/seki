@@ -1,33 +1,33 @@
-import { useEffect,useRef,useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import {
-board,
-moveConfirmEnabled,
-showCoordinates,
-showMoveTree,
-soundEnabled,
+  board,
+  moveConfirmEnabled,
+  showCoordinates,
+  showMoveTree,
+  soundEnabled,
 } from "../game/state";
 import { readUserData } from "../game/util";
 import { analysisBoard } from "../layouts/analysis-state";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
 import {
-ratingDisplayPreference,
-readRatingDisplayPreference,
-savePref,
+  ratingDisplayPreference,
+  readRatingDisplayPreference,
+  savePref,
 } from "../utils/preferences";
 import type { RatingDisplayMode } from "../utils/rating";
 import {
-MOVE_CONFIRMATION,
-SHOW_MOVE_TREE,
-SOUND_ENABLED,
-storage
+  MOVE_CONFIRMATION,
+  SHOW_MOVE_TREE,
+  SOUND_ENABLED,
+  storage,
 } from "../utils/storage";
 import {
-cycleTheme,
-getThemeIcon,
-getThemeLabel,
-themeMode,
+  cycleTheme,
+  getThemeIcon,
+  getThemeLabel,
+  themeMode,
 } from "../utils/theme";
-import { IconLogin,IconLogout,IconRegister,IconUser } from "./icons";
+import { IconLogin, IconLogout, IconRegister, IconUser } from "./icons";
 import { ToggleButton } from "./toggle-button";
 import { UserLabel } from "./user-label";
 

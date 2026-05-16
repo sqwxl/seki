@@ -1,11 +1,11 @@
-import { useEffect,useRef,useState } from "preact/hooks";
-import { hasUnread,markRead,unreadGames } from "../game/unread";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { hasUnread, markRead, unreadGames } from "../game/unread";
 import { readUserData } from "../game/util";
 import {
-osNotificationsEnabled,
-toggleOsNotifications,
+  osNotificationsEnabled,
+  toggleOsNotifications,
 } from "../utils/os-notifications";
-import { IconBell,IconBellDisabled,IconBellUnread } from "./icons";
+import { IconBell, IconBellDisabled, IconBellUnread } from "./icons";
 import { ToggleButton } from "./toggle-button";
 
 function isNotifSupported(): boolean {

@@ -1,4 +1,4 @@
-import { useEffect,useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 
 function isDark(): boolean {
   return document.documentElement.dataset.theme === "dark";

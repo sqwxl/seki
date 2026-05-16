@@ -11,11 +11,12 @@ use crate::models::message::Message;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::routes::FlashMessage;
+use crate::routes::push;
 use crate::services::engine_builder;
 use crate::services::live::{LiveGameItem, build_live_items};
 use crate::services::rating::{
-    ProfileRatingDto, RankDto, can_participate_in_ranking, profile_rating_summary, rank_for_profile,
-    rank_for_user,
+    ProfileRatingDto, RankDto, can_participate_in_ranking, profile_rating_summary,
+    rank_for_profile, rank_for_user,
 };
 use crate::services::{game_joiner, live, presentation_actions, state_serializer};
 use crate::session::CurrentUser;
@@ -25,6 +26,10 @@ use crate::templates::games_show::InitialGameProps;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/session/me", axum::routing::get(session_me))
+        .route(
+            "/web/vapid-public-key",
+            axum::routing::get(push::vapid_public_key),
+        )
         .route("/web/games", axum::routing::get(games_index))
         .route("/web/games/new", axum::routing::get(new_game))
         .route("/web/games/{id}", axum::routing::get(game_show))
@@ -55,15 +60,15 @@ pub(crate) async fn bootstrap_for_location(
     };
 
     let data = match path {
-        "/" | "/games" => serde_json::to_value(load_games_index(state, current_user, GameListRatingFilters::default()).await?)?,
+        "/" | "/games" => serde_json::to_value(
+            load_games_index(state, current_user, GameListRatingFilters::default()).await?,
+        )?,
         "/games/new" => serde_json::to_value(
             load_new_game(state, current_user, query_param(query, "opponent")).await?,
         )?,
         _ if path.starts_with("/games/challenge/") => {
             let username = path.trim_start_matches("/games/challenge/").to_string();
-            serde_json::to_value(
-                load_new_game(state, current_user, Some(username)).await?,
-            )?
+            serde_json::to_value(load_new_game(state, current_user, Some(username)).await?)?
         }
         "/analysis" => serde_json::to_value(AnalysisData {})?,
         _ if path.starts_with("/games/") => {
@@ -115,10 +120,7 @@ fn route_data_url(path: &str, query: Option<&str>) -> Option<String> {
         "/analysis" => Some("/api/web/analysis".to_string()),
         _ if path.starts_with("/games/challenge/") => {
             let username = path.trim_start_matches("/games/challenge/");
-            Some(format!(
-                "/api/web/games/new?opponent={}",
-                username
-            ))
+            Some(format!("/api/web/games/new?opponent={}", username))
         }
         _ if path.starts_with("/games/") => {
             let access_token = query_param(query, "access_token");
@@ -638,14 +640,12 @@ async fn build_game_props(
     Ok(InitialGameProps {
         state: engine.game_state(),
         creator_id: gwp.game.creator_id,
-        black: gwp
-            .black
-            .as_ref()
-            .map(|user| live::user_data_for_game_player(user, &gwp.game, true, black_profile.as_ref())),
-        white: gwp
-            .white
-            .as_ref()
-            .map(|user| live::user_data_for_game_player(user, &gwp.game, false, white_profile.as_ref())),
+        black: gwp.black.as_ref().map(|user| {
+            live::user_data_for_game_player(user, &gwp.game, true, black_profile.as_ref())
+        }),
+        white: gwp.white.as_ref().map(|user| {
+            live::user_data_for_game_player(user, &gwp.game, false, white_profile.as_ref())
+        }),
         komi: gwp.game.komi,
         stage,
         settings: live::game_settings_for_game(&gwp.game),

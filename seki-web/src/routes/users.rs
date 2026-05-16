@@ -49,11 +49,11 @@ pub async fn search_users(
         std::collections::HashMap::new()
     } else {
         let ids_json = serde_json::to_string(&user_ids).unwrap_or_default();
-        let users: std::collections::HashMap<i64, User> =
-            User::find_by_ids(&state.db, &user_ids).await?
-                .into_iter()
-                .map(|u| (u.id, u))
-                .collect();
+        let users: std::collections::HashMap<i64, User> = User::find_by_ids(&state.db, &user_ids)
+            .await?
+            .into_iter()
+            .map(|u| (u.id, u))
+            .collect();
         let profiles: Vec<(i64, f64, f64, f64, bool)> = sqlx::query_as(
             "SELECT user_id, rating, deviation, volatility, participating FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))",
         )
@@ -67,16 +67,20 @@ pub async fn search_users(
         let mut map = std::collections::HashMap::new();
         for &id in &user_ids {
             if let Some(user) = users.get(&id) {
-                let profile = profiles.iter().find(|(uid, ..)| *uid == id).map(|(_, r, d, v, p)| RatingProfile {
-                    user_id: id,
-                    rating: *r,
-                    deviation: *d,
-                    volatility: *v,
-                    participating: *p,
-                    rated_games: 0,
-                    created_at: chrono::Utc::now(),
-                    updated_at: chrono::Utc::now(),
-                });
+                let profile =
+                    profiles
+                        .iter()
+                        .find(|(uid, ..)| *uid == id)
+                        .map(|(_, r, d, v, p)| RatingProfile {
+                            user_id: id,
+                            rating: *r,
+                            deviation: *d,
+                            volatility: *v,
+                            participating: *p,
+                            rated_games: 0,
+                            created_at: chrono::Utc::now(),
+                            updated_at: chrono::Utc::now(),
+                        });
                 map.insert(id, rank_for_user(user, profile.as_ref()));
             }
         }

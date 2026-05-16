@@ -937,13 +937,12 @@ async fn ranked_open_game_caps_handicap_by_max_handicap() {
 
     server.join_game(game_id).await;
 
-    let handicap: i32 = sqlx::query_scalar(
-        "SELECT COALESCE(derived_handicap, handicap) FROM games WHERE id = $1",
-    )
-    .bind(game_id)
-    .fetch_one(&server.pool)
-    .await
-    .unwrap();
+    let handicap: i32 =
+        sqlx::query_scalar("SELECT COALESCE(derived_handicap, handicap) FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
 
     assert!(
         handicap <= 3,

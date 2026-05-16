@@ -25,7 +25,9 @@ serve:
 build: deps build-rs build-wasm build-js
 
 deps:
-    cargo binstall wasm-pack && cargo binstall watchexec-cli && pnpm --dir seki-web/frontend install
+    cargo binstall wasm-pack && cargo binstall watchexec-cli
+    pnpm install
+    pnpm exec lefthook install
 
 build-rs:
     cargo build -p seki-web

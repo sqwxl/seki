@@ -1,5 +1,5 @@
 import { h } from "preact";
-import { useEffect,useMemo,useRef } from "preact/hooks";
+import { useEffect, useMemo, useRef } from "preact/hooks";
 import type { GameTreeData } from "../game/types";
 
 const isDesktop =

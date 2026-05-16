@@ -1,42 +1,41 @@
 import { render } from "preact";
-import { useEffect,useMemo,useRef,useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { ConnectionStatus } from "./components/connection-status";
 import { NotificationBell } from "./components/notification-bell";
 import { UserMenu } from "./components/user-menu";
 import type { UserData } from "./game/types";
 import { initUnreadTracking } from "./game/unread";
-import { readUserData,writeUserData } from "./game/util";
+import { readUserData, writeUserData } from "./game/util";
 import { ensureWasm } from "./goban/create-board";
 import { FlashBanner } from "./spa/flash-banner";
 import {
-clearRouteDataCache,
-fetchJson,
-getBootstrapData,
-invalidateRouteData,
-prefetchRouteData,
-seedBootstrapCache,
+  clearRouteDataCache,
+  fetchJson,
+  getBootstrapData,
+  invalidateRouteData,
+  prefetchRouteData,
+  seedBootstrapCache,
 } from "./spa/route-data";
-import { currentUrl,getRouteDataUrl,parseRoute } from "./spa/routes";
+import { currentUrl, getRouteDataUrl, parseRoute } from "./spa/routes";
 import { Screen } from "./spa/screen";
 import {
-activeFlash,
-clearFlash,
-readFlashFromUrl,
-setFlashState,
-stripFlashParams,
-type FlashMessage,
+  activeFlash,
+  clearFlash,
+  readFlashFromUrl,
+  setFlashState,
+  stripFlashParams,
+  type FlashMessage,
 } from "./utils/flash";
 import { initPreferences } from "./utils/preferences";
 import {
-  APP_CREDENTIAL,
+  SPA_NAVIGATE_EVENT,
+  type SpaNavigateDetail,
+} from "./utils/spa-navigation";
+import {
   clearAppCredential,
   getAppCredential,
   setAppCredential,
 } from "./utils/storage";
-import {
-SPA_NAVIGATE_EVENT,
-type SpaNavigateDetail,
-} from "./utils/spa-navigation";
 import { initTheme } from "./utils/theme";
 import { ensureConnected } from "./ws";
 
@@ -51,6 +50,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<UserData | undefined>(() =>
     readUserData(),
   );
+  const [offline, setOffline] = useState(!navigator.onLine);
   const initialFlash = useRef<FlashMessage | undefined>(
     getBootstrapData()?.flash ?? readFlashFromUrl(currentUrl()),
   );
@@ -79,6 +79,16 @@ function App() {
       return;
     }
     restoreCredential(credential);
+  }, []);
+
+  useEffect(() => {
+    const updateOnlineState = () => setOffline(!navigator.onLine);
+    window.addEventListener("online", updateOnlineState);
+    window.addEventListener("offline", updateOnlineState);
+    return () => {
+      window.removeEventListener("online", updateOnlineState);
+      window.removeEventListener("offline", updateOnlineState);
+    };
   }, []);
 
   useEffect(() => {
@@ -151,7 +161,10 @@ function App() {
         clearAppCredential();
         return;
       }
-      const result = await response.json() as { user: UserData; token: string };
+      const result = (await response.json()) as {
+        user: UserData;
+        token: string;
+      };
       if (result.user) {
         writeUserData(result.user);
         if (result.token) {
@@ -306,6 +319,17 @@ function App() {
   );
 
   async function handleLogout() {
+    const credential = getAppCredential();
+    if (credential) {
+      await fetch("/api/auth/token", {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${credential}`,
+        },
+      }).catch(() => undefined);
+      clearAppCredential();
+    }
     await fetch("/logout", {
       method: "POST",
       headers: { Accept: "application/json" },
@@ -339,6 +363,11 @@ function App() {
         </div>
       </nav>
       <FlashBanner />
+      {offline && (
+        <div style="background:#e74c3c;color:#fff;text-align:center;padding:8px;font-size:14px">
+          You are offline. Some features may be unavailable.
+        </div>
+      )}
       <main>
         <Screen
           route={route}

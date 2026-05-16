@@ -317,8 +317,6 @@ fn game_outcome_from_result(result: &str) -> GameOutcome {
         GameOutcome::BlackWin
     } else if result.starts_with("W+") {
         GameOutcome::WhiteWin
-    } else if result == "Draw" {
-        GameOutcome::Draw
     } else {
         GameOutcome::Draw
     }

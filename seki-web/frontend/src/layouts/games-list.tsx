@@ -1,5 +1,5 @@
-import { useEffect,useState } from "preact/hooks";
-import type { GameUpdate,LiveGameItem } from "../components/game-description";
+import { useEffect, useState } from "preact/hooks";
+import type { GameUpdate, LiveGameItem } from "../components/game-description";
 import { GameListItem } from "../components/game-description";
 import { isChallengeStage } from "../game/access";
 import { subscribe } from "../ws";

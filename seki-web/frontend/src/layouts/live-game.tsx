@@ -1,79 +1,79 @@
 import { effect } from "@preact/signals";
-import { createRef,render } from "preact";
+import { createRef, render } from "preact";
 import type { ChatEntry } from "../components/chat";
 import { createGameChannel } from "../game/channel";
 import type { ClockState } from "../game/clock";
-import { handleGameMessage,resetMovesTracker } from "../game/messages";
+import { handleGameMessage, resetMovesTracker } from "../game/messages";
 import { createNotificationState } from "../game/notifications";
 import {
-gamePhase,
-exitEstimate as phaseExitEstimate,
-resetPhase,
-toAnalysis,
-toEstimate,
-toLive,
-toPresentation,
-toPresentationLocalAnalysis,
-toPresentationSyncedViewer,
+  gamePhase,
+  exitEstimate as phaseExitEstimate,
+  resetPhase,
+  toAnalysis,
+  toEstimate,
+  toLive,
+  toPresentation,
+  toPresentationLocalAnalysis,
+  toPresentationSyncedViewer,
 } from "../game/phase";
-import { playPassSound,playStoneSound } from "../game/sound";
+import { playPassSound, playStoneSound } from "../game/sound";
 import {
-analysisMode,
-black,
-board,
-boardFinalized,
-boardFinalizedScore,
-boardReviewing,
-currentTurn,
-currentUserId,
-estimateMode,
-estimateScore,
-gameStage,
-gameState,
-initGameState,
-initialProps as initialPropsSignal,
-isPresenter,
-mobileTab,
-moveConfirmEnabled,
-moves,
-navState,
-onlineUsers,
-opponentDisconnected,
-originatorId,
-pendingMove,
-playerStone,
-presentationActive,
-replaceChatMessages,
-resetGameRuntimeState,
-result,
-setPresence,
-settledTerritory,
-showCoordinates,
-territory,
-uiNowMs,
-white
+  analysisMode,
+  black,
+  board,
+  boardFinalized,
+  boardFinalizedScore,
+  boardReviewing,
+  currentTurn,
+  currentUserId,
+  estimateMode,
+  estimateScore,
+  gameStage,
+  gameState,
+  initGameState,
+  initialProps as initialPropsSignal,
+  isPresenter,
+  mobileTab,
+  moveConfirmEnabled,
+  moves,
+  navState,
+  onlineUsers,
+  opponentDisconnected,
+  originatorId,
+  pendingMove,
+  playerStone,
+  presentationActive,
+  replaceChatMessages,
+  resetGameRuntimeState,
+  result,
+  setPresence,
+  settledTerritory,
+  showCoordinates,
+  territory,
+  uiNowMs,
+  white,
 } from "../game/state";
 import type { UserData } from "../game/types";
-import { GameStage,type InitialGameProps } from "../game/types";
+import { GameStage, type InitialGameProps } from "../game/types";
 import type { TerritoryCountdown } from "../game/ui";
-import { stopFlashing,updateTitle } from "../game/ui";
+import { stopFlashing, updateTitle } from "../game/ui";
 import { markRead } from "../game/unread";
-import { derivePlayerStone,readUserData } from "../game/util";
+import { derivePlayerStone, readUserData } from "../game/util";
 import { Goban } from "../goban";
-import { computeVertexSize,createBoard } from "../goban/create-board";
+import { computeVertexSize, createBoard } from "../goban/create-board";
 import type { Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
-import { settingsToSgfTime,todayYYYYMMDD } from "../utils/format";
+import { settingsToSgfTime, todayYYYYMMDD } from "../utils/format";
 import {
-createMoveConfirm,
-dismissMoveConfirmOnClickOutside,
-handleMoveConfirmClick,
+  createMoveConfirm,
+  dismissMoveConfirmOnClickOutside,
+  handleMoveConfirmClick,
 } from "../utils/move-confirm";
 import type { SgfMeta } from "../utils/sgf";
 import { downloadSgf } from "../utils/sgf";
-import { gameAnalysisKey,storage } from "../utils/storage";
-import { joinGame,subscribe } from "../ws";
-import { LiveGamePage,getServerTerritory } from "./live-game-page";
+import { gameAnalysisKey, storage } from "../utils/storage";
+import { joinGame, subscribe } from "../ws";
+import { LiveGamePage, getServerTerritory } from "./live-game-page";
 
 export function liveGame(
   initialProps: InitialGameProps,
@@ -670,19 +670,19 @@ export function liveGame(
       const map = new Map<number, UserData>();
       for (const [idStr, online] of Object.entries(data.users)) {
         const id = Number(idStr);
-      if (online) {
-        const userData =
-          black.value?.id === id
-            ? black.value
-            : white.value?.id === id
-              ? white.value
-              : undefined;
-        if (userData) {
-          map.set(id, userData);
+        if (online) {
+          const userData =
+            black.value?.id === id
+              ? black.value
+              : white.value?.id === id
+                ? white.value
+                : undefined;
+          if (userData) {
+            map.set(id, userData);
+          }
         }
       }
-    }
-    onlineUsers.value = map;
+      onlineUsers.value = map;
     },
   );
   const unsubPresenceChanged = subscribe<{ user_id: number; online: boolean }>(
@@ -711,73 +711,85 @@ export function liveGame(
   );
 
   // --- Sync move confirmation toggle with mc state ---
-  disposers.push(effect(() => {
-    const enabled = moveConfirmEnabled.value;
-    mc.enabled = enabled;
-    if (!enabled && mc.value) {
-      clearPendingMove();
-      board.value?.render();
-    }
-  }));
+  disposers.push(
+    effect(() => {
+      const enabled = moveConfirmEnabled.value;
+      mc.enabled = enabled;
+      if (!enabled && mc.value) {
+        clearPendingMove();
+        board.value?.render();
+      }
+    }),
+  );
 
   // --- Disconnect countdown timer ---
-  disposers.push(effect(() => {
-    const dc = opponentDisconnected.value;
-    if (!dc) {
-      return;
-    }
-    if (dc.gone || dc.gracePeriodMs == null) {
+  disposers.push(
+    effect(() => {
+      const dc = opponentDisconnected.value;
+      if (!dc) {
+        return;
+      }
+      if (dc.gone || dc.gracePeriodMs == null) {
+        uiNowMs.value = Date.now();
+        return;
+      }
+      const interval = setInterval(() => {
+        uiNowMs.value = Date.now();
+      }, 1000);
       uiNowMs.value = Date.now();
-      return;
-    }
-    const interval = setInterval(() => {
-      uiNowMs.value = Date.now();
-    }, 1000);
-    uiNowMs.value = Date.now();
-    return () => clearInterval(interval);
-  }));
+      return () => clearInterval(interval);
+    }),
+  );
 
   // --- Territory countdown timer ---
-  disposers.push(effect(() => {
-    const terr = territory.value;
-    if (!terr?.expires_at) {
-      return;
-    }
-    const interval = setInterval(() => {
+  disposers.push(
+    effect(() => {
+      const terr = territory.value;
+      if (!terr?.expires_at) {
+        return;
+      }
+      const interval = setInterval(() => {
+        uiNowMs.value = Date.now();
+      }, 1000);
       uiNowMs.value = Date.now();
-    }, 1000);
-    uiNowMs.value = Date.now();
-    return () => clearInterval(interval);
-  }));
+      return () => clearInterval(interval);
+    }),
+  );
 
   // --- Re-render board when returning from Chat tab ---
-  disposers.push(effect(() => {
-    if (mobileTab.value !== "chat" && board.value) {
-      requestAnimationFrame(() => {
-        board.value?.render();
-      });
-    }
-  }));
+  disposers.push(
+    effect(() => {
+      if (mobileTab.value !== "chat" && board.value) {
+        requestAnimationFrame(() => {
+          board.value?.render();
+        });
+      }
+    }),
+  );
 
-  disposers.push(effect(() => {
-    initialPropsSignal.value.creator_id;
-    black.value;
-    white.value;
-    gameStage.value;
-    result.value;
-    moves.value.length;
-    updateTitle();
-  }));
+  disposers.push(
+    effect(() => {
+      initialPropsSignal.value.creator_id;
+      black.value;
+      white.value;
+      gameStage.value;
+      result.value;
+      moves.value.length;
+      updateTitle();
+    }),
+  );
 
   // --- Sync analysis mode with mobile tab ---
-  disposers.push(effect(() => {
-    const tab = mobileTab.value;
-    if (tab === "analysis" && !analysisMode.peek()) {
-      enterAnalysis();
-    } else if (tab === "board" && analysisMode.peek()) {
-      exitAnalysis();
-    }
-  }));
+  disposers.push(
+    effect(() => {
+      const tab = mobileTab.value;
+      if (tab === "analysis" && !analysisMode.peek()) {
+        enterAnalysis();
+      } else if (tab === "board" && analysisMode.peek()) {
+        exitAnalysis();
+      }
+    }),
+  );
 
   // --- Tab title flash on visibility change ---
   const onVisibilityChange = () => {

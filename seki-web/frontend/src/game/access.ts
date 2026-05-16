@@ -1,4 +1,4 @@
-import { GameStage,type GameSettings } from "./types";
+import { GameStage, type GameSettings } from "./types";
 
 export type AccessBadge = {
   label: string;
@@ -54,7 +54,8 @@ export function gameAccessBadges(
   if (isChallengeStage(stage)) {
     badges.push({
       label: "Challenge",
-      title: "Both seats are assigned. The invited player must accept or decline.",
+      title:
+        "Both seats are assigned. The invited player must accept or decline.",
     });
   }
 

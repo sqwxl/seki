@@ -2,7 +2,7 @@ import { signal } from "@preact/signals";
 import { DEFAULT_BYOYOMI_PERIOD_SECS } from "../utils/format";
 import { localDisconnected } from "../ws";
 import { initialProps } from "./state";
-import type { ClockData,GameSettings } from "./types";
+import type { ClockData, GameSettings } from "./types";
 
 export type ClockState = {
   data: ClockData | undefined;

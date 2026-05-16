@@ -116,71 +116,67 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                             bye_received = true;
                         }
                         "join_game" => {
-                            if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64()) {
-                                if let Ok(gwp) = Game::find_with_players(&state.db, game_id).await {
-                                    let tokens = crate::services::game_access::GameViewTokens {
-                                        access_token: data
-                                            .get("access_token")
-                                            .and_then(|v| v.as_str()),
-                                        invite_token: data
-                                            .get("invite_token")
-                                            .and_then(|v| v.as_str()),
-                                    };
-                                    if !crate::services::game_access::can_view_game(
-                                        &gwp,
-                                        Some(user_id),
-                                        tokens,
-                                    ) {
-                                        let _ = tx.send(Arc::new(
-                                            json!({
-                                                "kind": "error",
-                                                "game_id": game_id,
-                                                "message": "Not authorized",
-                                            })
-                                            .to_string(),
-                                        ));
-                                        continue;
-                                    }
-
-                                    state.registry.join(game_id, user_id, tx.clone()).await;
-                                    subscribed_games.insert(game_id);
-
-                                    if let Err(e) = game_channel::send_initial_state(
-                                        &state, game_id, user_id, tokens, &tx,
-                                    )
-                                    .await
-                                    {
-                                        tracing::error!(
-                                            "Failed to send initial state for game {game_id}: {e}"
-                                        );
-                                    }
-
-                                    // Auto-subscribe to both players' presence
-                                    for user in [&gwp.black, &gwp.white].into_iter().flatten() {
-                                        state.presence_subs.subscribe(user.id, tx.clone()).await;
-                                    }
-                                    let mut statuses = Vec::new();
-                                    for user in [&gwp.black, &gwp.white].into_iter().flatten() {
-                                        let online = state.presence.is_connected(user.id).await;
-                                        statuses.push((user.id, online));
-                                    }
-                                    let msg =
-                                        crate::ws::presence_subscriptions::build_presence_state_msg(
-                                            &statuses,
-                                        );
-                                    let _ = tx.send(std::sync::Arc::new(msg));
-
-                                    // Mark game as read at current move count
-                                    let mc = TurnRow::count_by_game_ids(&state.db, &[game_id])
-                                        .await
-                                        .unwrap_or_default()
-                                        .get(&game_id)
-                                        .copied()
-                                        .unwrap_or(0);
-                                    GameRead::upsert(&state.db, user_id, game_id, mc as i32)
-                                        .await
-                                        .ok();
+                            if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64())
+                                && let Ok(gwp) = Game::find_with_players(&state.db, game_id).await
+                            {
+                                let tokens = crate::services::game_access::GameViewTokens {
+                                    access_token: data.get("access_token").and_then(|v| v.as_str()),
+                                    invite_token: data.get("invite_token").and_then(|v| v.as_str()),
+                                };
+                                if !crate::services::game_access::can_view_game(
+                                    &gwp,
+                                    Some(user_id),
+                                    tokens,
+                                ) {
+                                    let _ = tx.send(Arc::new(
+                                        json!({
+                                            "kind": "error",
+                                            "game_id": game_id,
+                                            "message": "Not authorized",
+                                        })
+                                        .to_string(),
+                                    ));
+                                    continue;
                                 }
+
+                                state.registry.join(game_id, user_id, tx.clone()).await;
+                                subscribed_games.insert(game_id);
+
+                                if let Err(e) = game_channel::send_initial_state(
+                                    &state, game_id, user_id, tokens, &tx,
+                                )
+                                .await
+                                {
+                                    tracing::error!(
+                                        "Failed to send initial state for game {game_id}: {e}"
+                                    );
+                                }
+
+                                // Auto-subscribe to both players' presence
+                                for user in [&gwp.black, &gwp.white].into_iter().flatten() {
+                                    state.presence_subs.subscribe(user.id, tx.clone()).await;
+                                }
+                                let mut statuses = Vec::new();
+                                for user in [&gwp.black, &gwp.white].into_iter().flatten() {
+                                    let online = state.presence.is_connected(user.id).await;
+                                    statuses.push((user.id, online));
+                                }
+                                let msg =
+                                    crate::ws::presence_subscriptions::build_presence_state_msg(
+                                        &statuses,
+                                    );
+                                let _ = tx.send(std::sync::Arc::new(msg));
+
+                                // Mark game as read at current move count
+                                let mc = TurnRow::count_by_game_ids(&state.db, &[game_id])
+                                    .await
+                                    .unwrap_or_default()
+                                    .get(&game_id)
+                                    .copied()
+                                    .unwrap_or(0);
+                                GameRead::upsert(&state.db, user_id, game_id, mc as i32)
+                                    .await
+                                    .ok();
                             }
                         }
                         "leave_game" => {

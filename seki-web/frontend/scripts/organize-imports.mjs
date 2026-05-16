@@ -85,6 +85,15 @@ const languageService = ts.createLanguageService(
   ts.createDocumentRegistry(),
 );
 
+const formatOptions = {
+  convertTabsToSpaces: true,
+  indentSize: 2,
+  insertSpaceAfterCommaDelimiter: true,
+  insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
+  semicolons: ts.SemicolonPreference.Insert,
+  tabSize: 2,
+};
+
 function applyTextChanges(text, changes) {
   return [...changes]
     .sort((a, b) => b.span.start - a.span.start)
@@ -100,7 +109,7 @@ let changed = 0;
 for (const fileName of targetFiles) {
   const changes = languageService.organizeImports(
     { type: "file", fileName },
-    {},
+    formatOptions,
     {},
   );
   const textChanges = changes.flatMap((change) => change.textChanges);
