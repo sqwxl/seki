@@ -15,8 +15,8 @@ import {
   blackSymbol,
   whiteSymbol,
 } from "../utils/format";
-import { readUserData } from "../game/util";
-import { parseRatingDisplayMode, primaryRankText } from "../utils/rating";
+import { primaryRankText } from "../utils/rating";
+import { readRatingDisplayPreference } from "../utils/preferences";
 
 export type GameInfoProps = {
   settings: GameSettings;
@@ -53,9 +53,7 @@ export function GameInfo(props: GameInfoProps) {
   const { settings, komi } = props;
   const size = formatSize(settings.cols, settings.rows);
   const tc = formatTimeControl(settings);
-  const ratingMode = parseRatingDisplayMode(
-    readUserData()?.preferences.rating_display,
-  );
+  const ratingMode = readRatingDisplayPreference();
   const blackRank = primaryRankText(props.black?.rank, ratingMode);
   const whiteRank = primaryRankText(props.white?.rank, ratingMode);
 

@@ -24,7 +24,8 @@ import {
 } from "../utils/theme";
 import { IconLogin, IconLogout, IconRegister, IconUser } from "./icons";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
-import { savePref } from "../utils/preferences";
+import { readRatingDisplayPreference, savePref } from "../utils/preferences";
+import type { RatingDisplayMode } from "../utils/rating";
 
 function ThemeButton() {
   const mode = themeMode.value;
@@ -67,6 +68,10 @@ function handleSoundToggle() {
   storage.set(SOUND_ENABLED, String(next));
 }
 
+function nextRatingDisplay(mode: RatingDisplayMode): RatingDisplayMode {
+  return mode === "kyu_dan" ? "rating" : "kyu_dan";
+}
+
 export function UserMenu({
   onLogout,
 }: {
@@ -77,6 +82,15 @@ export function UserMenu({
   const userData = readUserData();
   const username = userData?.display_name ?? "Guest";
   const isRegistered = userData?.is_registered ?? false;
+  const [ratingDisplay, setRatingDisplay] = useState<RatingDisplayMode>(() =>
+    readRatingDisplayPreference(),
+  );
+
+  function handleRatingDisplayToggle() {
+    const next = nextRatingDisplay(ratingDisplay);
+    setRatingDisplay(next);
+    savePref("rating_display", next);
+  }
 
   useEffect(() => {
     if (!open) {
@@ -134,6 +148,13 @@ export function UserMenu({
               label="Sound"
               onToggle={handleSoundToggle}
             />
+            <button
+              type="button"
+              class="nav-dropdown-item"
+              onClick={handleRatingDisplayToggle}
+            >
+              Rating: {ratingDisplay === "kyu_dan" ? "Kyu/dan" : "Numeric"}
+            </button>
           </div>
           <div class="nav-dropdown-section">
             {isRegistered ? (

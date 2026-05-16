@@ -411,6 +411,7 @@ struct UserGamesData {
 #[derive(Serialize)]
 struct UserProfileData {
     profile_username: String,
+    profile_user: UserData,
     initial_games: UserGamesData,
     is_own_profile: bool,
     api_token: Option<String>,
@@ -449,9 +450,11 @@ async fn load_user_profile(
     });
     let items = build_live_items(&state.db, &games).await;
     let is_own_profile = current_user.id == profile_user.id;
+    let profile_rating = RatingProfile::find(&state.db, profile_user.id).await?;
 
     Ok(UserProfileData {
-        profile_username: profile_user.username,
+        profile_username: profile_user.username.clone(),
+        profile_user: UserData::from_user_with_rank(&profile_user, profile_rating.as_ref()),
         initial_games: UserGamesData {
             profile_user_id: profile_user.id,
             games: items,
