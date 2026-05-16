@@ -587,21 +587,8 @@ function LiveGameTabBar(props: LiveGamePageProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Page component
-// ---------------------------------------------------------------------------
-
-export function LiveGamePage(props: LiveGamePageProps) {
-  const { channel, moveTreeEl, gobanRef } = props;
+function LiveGameChat({ channel }: Pick<LiveGamePageProps, "channel">) {
   const userData = readUserData();
-  const [isSpectatingPopover, setIsSpectatingPopover] = useState(false);
-
-  useEffect(() => {
-    const popover = liveGameStatusState.value.lobbyPopover;
-    if (!popover || !supportsPopoverSpectating(popover.variant)) {
-      setIsSpectatingPopover(false);
-    }
-  });
 
   function handleSendChat(text: string) {
     const clientMessageId =
@@ -619,6 +606,35 @@ export function LiveGamePage(props: LiveGamePageProps) {
   }
 
   return (
+    <div class="chat">
+      <Chat
+        messages={chatMessages.value}
+        onlineUsers={onlineUsers.value}
+        black={black.value}
+        white={white.value}
+        onSend={handleSendChat}
+        showPrefix={false}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page component
+// ---------------------------------------------------------------------------
+
+export function LiveGamePage(props: LiveGamePageProps) {
+  const { channel, moveTreeEl, gobanRef } = props;
+  const [isSpectatingPopover, setIsSpectatingPopover] = useState(false);
+
+  useEffect(() => {
+    const popover = liveGameStatusState.value.lobbyPopover;
+    if (!popover || !supportsPopoverSpectating(popover.variant)) {
+      setIsSpectatingPopover(false);
+    }
+  });
+
+  return (
     <GamePageLayout
       gobanRef={gobanRef}
       gobanStyle={`aspect-ratio: ${gameState.value.cols}/${gameState.value.rows}`}
@@ -633,18 +649,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
           onCancelSpectate={() => setIsSpectatingPopover(false)}
         />
       }
-      chat={
-        <div class="chat">
-          <Chat
-            messages={chatMessages.value}
-            onlineUsers={onlineUsers.value}
-            black={black.value}
-            white={white.value}
-            onSend={handleSendChat}
-            showPrefix={false}
-          />
-        </div>
-      }
+      chat={<LiveGameChat channel={channel} />}
       moveTree={<LiveGameMoveTree moveTreeEl={moveTreeEl} />}
       tabBar={<LiveGameTabBar {...props} />}
     />

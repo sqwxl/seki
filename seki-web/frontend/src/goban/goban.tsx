@@ -264,6 +264,15 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
     }
   });
 
+  useEffect(() => {
+    return () => {
+      if (s.clearHandler) {
+        clearTimeout(s.clearHandler);
+        s.clearHandler = null;
+      }
+    };
+  }, [s]);
+
   // Build animated neighbor set
   const animatedSet = new Set<number>();
   for (const i of animatedVertices) {

@@ -11,7 +11,7 @@ import { DESKTOP_BREAKPOINT, DESKTOP_MQ } from "../utils/constants";
 import { storage } from "../utils/storage";
 import { Goban } from "./";
 import type { GhostStoneData, MarkerData, Point, Sign } from "./types";
-import { WasmEngine } from "/static/wasm/go_engine_wasm.js";
+import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 
 // ---------------------------------------------------------------------------
 // WASM singleton
@@ -307,6 +307,7 @@ class BoardController implements Board {
   private finalizedNodes: Map<number, [number, number][]>;
   private finalizedTerritoryCache: Map<number, TerritoryState>;
   private abortController: AbortController;
+  private resizeFrame: number | undefined;
 
   get baseTipNodeId(): number {
     return this._baseTipNodeId;
@@ -860,6 +861,10 @@ class BoardController implements Board {
   }
 
   destroy(): void {
+    if (this.resizeFrame !== undefined) {
+      cancelAnimationFrame(this.resizeFrame);
+      this.resizeFrame = undefined;
+    }
     this.abortController.abort();
   }
 
@@ -899,7 +904,19 @@ class BoardController implements Board {
       opts,
     );
 
-    window.addEventListener("resize", () => this.render(), opts);
+    window.addEventListener(
+      "resize",
+      () => {
+        if (this.resizeFrame !== undefined) {
+          return;
+        }
+        this.resizeFrame = requestAnimationFrame(() => {
+          this.resizeFrame = undefined;
+          this.render();
+        });
+      },
+      opts,
+    );
   }
 }
 

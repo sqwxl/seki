@@ -162,6 +162,15 @@ export function DirectChallengeForm({
   }
 
   useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!recentsFetched) {
       setRecentsFetched(true);
       fetch("/users/search")

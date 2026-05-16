@@ -21,9 +21,16 @@ const loadAnalysisModule = () => import("../layouts/analysis");
 const loadGameSettingsFormModule = () =>
   import("../layouts/game-settings-form");
 
-function LiveGameScreen({ data }: { data: GamePageData }) {
+type LiveGameModule = Awaited<ReturnType<typeof loadLiveGameModule>>;
+
+function LiveGameScreen({
+  data,
+  mod,
+}: {
+  data: GamePageData;
+  mod: LiveGameModule;
+}) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const { mod, error } = useLazyModule(loadLiveGameModule);
 
   useEffect(() => {
     setHead(data.og_title, data.og_description);
@@ -41,14 +48,9 @@ function LiveGameScreen({ data }: { data: GamePageData }) {
     );
   }, [data, mod]);
 
-  if (error) {
-    return <ErrorState message={error} />;
-  }
-
   return (
     <div class="game-page">
       <div ref={rootRef} class="game-page-body" />
-      {!mod && <LoadingState />}
       <div id="game-error"></div>
     </div>
   );
@@ -107,6 +109,8 @@ export function GameScreenRoute({
   route: Extract<Route, { kind: "game" }>;
   navigate: NavigateFn;
 }) {
+  const { mod: liveGameModule, error: liveGameModuleError } =
+    useLazyModule(loadLiveGameModule);
   const parts = [
     route.accessToken
       ? `access_token=${encodeURIComponent(route.accessToken)}`
@@ -138,10 +142,13 @@ export function GameScreenRoute({
     }
     return <ErrorState message={error.message} />;
   }
-  if (!data) {
+  if (liveGameModuleError) {
+    return <ErrorState message={liveGameModuleError} />;
+  }
+  if (!data || !liveGameModule) {
     return <LoadingState />;
   }
-  return <LiveGameScreen data={data} />;
+  return <LiveGameScreen data={data} mod={liveGameModule} />;
 }
 
 export function NewGameScreen({ navigate }: { navigate: NavigateFn }) {

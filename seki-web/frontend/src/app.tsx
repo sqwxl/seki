@@ -6,7 +6,6 @@ import { UserMenu } from "./components/user-menu";
 import type { UserData } from "./game/types";
 import { initUnreadTracking } from "./game/unread";
 import { readUserData, writeUserData } from "./game/util";
-import { ensureWasm } from "./goban/create-board";
 import { FlashBanner } from "./spa/flash-banner";
 import {
   clearRouteDataCache,
@@ -39,7 +38,13 @@ import {
 import { initTheme } from "./utils/theme";
 import { ensureConnected } from "./ws";
 
-void ensureWasm();
+function warmBoardWasm(): void {
+  void import("./goban/create-board")
+    .then(({ ensureWasm }) => ensureWasm())
+    .catch(() => {
+      // Board screens surface their own load errors when the engine is needed.
+    });
+}
 
 function App() {
   const navRef = useRef<HTMLElement>(null);
@@ -63,6 +68,7 @@ function App() {
     initTheme();
     initUnreadTracking();
     ensureConnected();
+    warmBoardWasm();
     const userData = readUserData();
     if (!userData?.is_registered && !getAppCredential()) {
       fetchToken();
