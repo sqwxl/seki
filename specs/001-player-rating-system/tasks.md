@@ -62,16 +62,16 @@
 
 - [ ] T024 [US1] Implement rating eligibility checks for registered users, bots, anonymous users, private games, invite-only games, open games, and direct challenges in `seki-web/src/services/rating.rs`
 - [X] T025 [US1] Implement current rating profile creation/defaulting and participation defaults in `seki-web/src/models/rating.rs`
-- [ ] T026 [US1] Implement Glicko-2 two-player result application and before/after calculation using `skillratings` in `seki-web/src/services/rating.rs`
-- [ ] T027 [US1] Implement idempotent rating adjustment insertion and `rating_applied` marking in `seki-web/src/models/rating.rs`
-- [ ] T028 [US1] Implement ranked snapshot capture and automatic handicap/komi/color derivation in `seki-web/src/services/rating.rs`
-- [ ] T029 [US1] Wire ranked create validation and snapshot initialization into `seki-web/src/services/game_creator.rs`
-- [ ] T030 [US1] Wire ranked open-game join and challenge acceptance validation into `seki-web/src/services/game_joiner.rs`
+- [X] T026 [US1] Implement Glicko-2 two-player result application and before/after calculation using `skillratings` in `seki-web/src/services/rating.rs`
+- [X] T027 [US1] Implement idempotent rating adjustment insertion and `rating_applied` marking in `seki-web/src/models/rating.rs`
+- [X] T028 [US1] Implement ranked snapshot capture and automatic handicap/komi/color derivation in `seki-web/src/services/rating.rs`
+- [X] T029 [US1] Wire ranked create validation and snapshot initialization into `seki-web/src/services/game_creator.rs`
+- [X] T030 [US1] Wire ranked open-game join and challenge acceptance validation into `seki-web/src/services/game_joiner.rs`
 - [X] T031 [US1] Reject or ignore manual ranked handicap/komi in web game creation handlers in `seki-web/src/routes/games.rs`
 - [X] T032 [US1] Enforce ranked constraints for bearer-token game creation paths in `seki-web/src/routes/api.rs`
-- [ ] T033 [US1] Call rating finalization from resignation result flow in `seki-web/src/services/game_actions/mod.rs`
-- [ ] T034 [US1] Call rating finalization from territory/agreed-score result flow in `seki-web/src/services/game_actions/territory.rs`
-- [ ] T035 [US1] Call rating finalization from timeout/disconnect victory flow in `seki-web/src/services/game_actions/disconnect.rs`
+- [X] T033 [US1] Call rating finalization from resignation result flow in `seki-web/src/services/game_actions/mod.rs`
+- [X] T034 [US1] Call rating finalization from territory/agreed-score result flow in `seki-web/src/services/game_actions/territory.rs`
+- [X] T035 [US1] Call rating finalization from timeout/disconnect victory flow in `seki-web/src/services/game_actions/disconnect.rs`
 - [ ] T036 [US1] Add ranked status, rating snapshots, and derived settings to serialized game state in `seki-web/src/services/state_serializer.rs`
 - [ ] T037 [US1] Include ranked settings and rank fields in live game websocket messages in `seki-web/src/ws/live.rs`
 - [ ] T038 [US1] Render ranked choice, unavailable reasons, and numeric pre-game ratings in `seki-web/frontend/src/layouts/game-settings-form.tsx`

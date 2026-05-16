@@ -51,8 +51,24 @@ async fn ranked_api_create_persists_ranked_status_and_profile() {
 async fn ranked_resign_updates_ratings_idempotently() {
     let server = common::TestServer::start().await;
     let game_id = server
-        .create_and_join_with(json!({"ranked": true, "open_to": "registered"}))
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
         .await;
+
+    sqlx::query(
+        "UPDATE rating_profiles SET rating = 1300.0, deviation = 90.0, volatility = 0.06, rated_games = 5 WHERE user_id = $1",
+    )
+    .bind(server.black_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) VALUES ($1, 1600.0, 80.0, 0.06, 8)",
+    )
+    .bind(server.white_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    server.join_game(game_id).await;
 
     let mut black = server.ws_black().await;
     let mut white = server.ws_white().await;
@@ -96,8 +112,8 @@ async fn ranked_resign_updates_ratings_idempotently() {
 
     assert_eq!(adjustment_count, 2);
     assert!(rating_applied);
-    assert_eq!(black_rated_games, 1);
-    assert_eq!(white_rated_games, 1);
+    assert_eq!(black_rated_games, 6);
+    assert_eq!(white_rated_games, 9);
 
     let game = Game::find_by_id(&server.pool, game_id).await.unwrap();
     let applied_again = seki_web::services::rating::finalize_rating(
@@ -236,6 +252,57 @@ async fn ranked_open_join_marks_exact_rating_color_as_random() {
 
     assert_eq!(row.0, "exact_rating_random");
     assert_ne!(row.1, row.2);
+}
+
+#[tokio::test]
+async fn ranked_challenge_accept_derives_color_handicap_and_stage() {
+    let server = common::TestServer::start().await;
+
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) VALUES ($1, 1600.0, 80.0, 0.06, 8)",
+    )
+    .bind(server.black_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO rating_profiles (user_id, rating, deviation, volatility, rated_games) VALUES ($1, 1300.0, 90.0, 0.06, 5)",
+    )
+    .bind(server.white_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+
+    let game_id = server
+        .create_game_with(json!({
+            "ranked": true,
+            "invite_username": "test-white"
+        }))
+        .await;
+
+    let response = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_success());
+
+    let row: (i64, i64, i32, f64, String, String) = sqlx::query_as(
+        "SELECT black_id, white_id, handicap, komi, stage, derived_color_reason FROM games WHERE id = $1",
+    )
+    .bind(game_id)
+    .fetch_one(&server.pool)
+    .await
+    .unwrap();
+
+    assert_eq!(row.0, server.white_id);
+    assert_eq!(row.1, server.black_id);
+    assert_eq!(row.2, 3);
+    assert_eq!(row.3, 0.5);
+    assert_eq!(row.4, "white_to_play");
+    assert_eq!(row.5, "lower_rating_black");
 }
 
 #[tokio::test]
