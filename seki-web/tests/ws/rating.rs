@@ -641,3 +641,140 @@ async fn rating_opt_out_preserves_in_progress_ranked_game_eligibility() {
             .unwrap();
     assert_eq!(adjustment_count, 2);
 }
+
+#[tokio::test]
+async fn profile_rating_history_lists_chronological_adjustments() {
+    let server = common::TestServer::start().await;
+    let game_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+    server.join_game(game_id).await;
+    let game = Game::find_by_id(&server.pool, game_id).await.unwrap();
+
+    seki_web::services::rating::finalize_rating(
+        &server.pool,
+        &game,
+        "B+R",
+        game.black_id.unwrap(),
+        game.white_id.unwrap(),
+    )
+    .await
+    .unwrap();
+
+    let response = server
+        .client_black
+        .get(format!("http://{}/api/web/users/test-black", server.addr))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_success());
+    let body = response.json::<serde_json::Value>().await.unwrap();
+    let history = body["rating"]["history"].as_array().unwrap();
+
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0]["game_id"], game_id);
+    assert_eq!(history[0]["result"], "B+R");
+    assert!(history[0]["rating_before"].is_number());
+    assert!(history[0]["rating_after"].is_number());
+    assert!(history[0]["deviation_before"].is_number());
+    assert!(history[0]["deviation_after"].is_number());
+    assert!(history[0]["volatility_before"].is_number());
+    assert!(history[0]["volatility_after"].is_number());
+    assert!(history[0]["rating_delta"].is_number());
+    assert!(history[0]["created_at"].is_string());
+}
+
+#[tokio::test]
+async fn profile_rating_history_survives_username_change_and_opt_out() {
+    let server = common::TestServer::start().await;
+    let game_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+    server.join_game(game_id).await;
+    let game = Game::find_by_id(&server.pool, game_id).await.unwrap();
+
+    seki_web::services::rating::finalize_rating(
+        &server.pool,
+        &game,
+        "B+R",
+        game.black_id.unwrap(),
+        game.white_id.unwrap(),
+    )
+    .await
+    .unwrap();
+    User::update_username(&server.pool, server.black_id, "renamed-black")
+        .await
+        .unwrap();
+    RatingProfile::set_participating(&server.pool, server.black_id, false)
+        .await
+        .unwrap();
+
+    let response = server
+        .client_black
+        .get(format!(
+            "http://{}/api/web/users/renamed-black",
+            server.addr
+        ))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_success());
+    let body = response.json::<serde_json::Value>().await.unwrap();
+
+    assert_eq!(body["rating"]["participating"], false);
+    assert_eq!(body["rating"]["history"][0]["game_id"], game_id);
+}
+
+#[tokio::test]
+async fn profile_rating_history_filters_protected_games() {
+    let server = common::TestServer::start().await;
+    let private_game_id = server.create_private_game().await;
+    RatingProfile::get_or_create(&server.pool, server.black_id)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO rating_adjustments \
+         (user_id, game_id, opponent_id, result, rating_before, rating_after, \
+          deviation_before, deviation_after, volatility_before, volatility_after, \
+          rating_delta, opponent_rating_before) \
+         VALUES ($1, $2, $3, 'B+R', 1500.0, 1510.0, 350.0, 340.0, 0.06, 0.06, 10.0, 1500.0)",
+    )
+    .bind(server.black_id)
+    .bind(private_game_id)
+    .bind(server.white_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+
+    let spectator_response = server
+        .client_spectator
+        .get(format!("http://{}/api/web/users/test-black", server.addr))
+        .send()
+        .await
+        .unwrap();
+    assert!(spectator_response.status().is_success());
+    let spectator_body = spectator_response
+        .json::<serde_json::Value>()
+        .await
+        .unwrap();
+    assert_eq!(
+        spectator_body["rating"]["history"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+
+    let owner_response = server
+        .client_black
+        .get(format!("http://{}/api/web/users/test-black", server.addr))
+        .send()
+        .await
+        .unwrap();
+    assert!(owner_response.status().is_success());
+    let owner_body = owner_response.json::<serde_json::Value>().await.unwrap();
+    assert_eq!(
+        owner_body["rating"]["history"][0]["game_id"],
+        private_game_id
+    );
+}

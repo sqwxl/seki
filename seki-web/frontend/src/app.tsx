@@ -15,7 +15,8 @@ import { NotificationSettings } from "./components/notification-settings";
 import { ensureConnected } from "./ws";
 import { initUnreadTracking } from "./game/unread";
 import { initTheme } from "./utils/theme";
-import { initPreferences } from "./utils/preferences";
+import { initPreferences, readRatingDisplayPreference } from "./utils/preferences";
+import { formatNumericRating, primaryRankText } from "./utils/rating";
 import { type InitialGameProps, type RankData, type UserData } from "./game/types";
 import { readUserData, writeUserData } from "./game/util";
 import {
@@ -84,11 +85,35 @@ type NewGameData = {
 type ProfileData = {
   profile_username: string;
   profile_user?: UserData;
+  rating?: ProfileRatingData | null;
   initial_games: UserGamesInitialData;
   is_own_profile: boolean;
   api_token?: string | null;
   user_email?: string | null;
   user_is_registered: boolean;
+};
+
+type RatingHistoryEntryData = {
+  game_id: number;
+  result: string;
+  rating_before: number;
+  rating_after: number;
+  deviation_before: number;
+  deviation_after: number;
+  volatility_before: number;
+  volatility_after: number;
+  rating_delta: number;
+  created_at: string;
+};
+
+type ProfileRatingData = {
+  participating: boolean;
+  rating: number;
+  deviation: number;
+  volatility: number;
+  rank: RankData;
+  rated_games: number;
+  history: RatingHistoryEntryData[];
 };
 
 type BootstrapPayload = {
@@ -593,6 +618,53 @@ function NewGameScreen({
   );
 }
 
+function RatingProfileSummary({ rating }: { rating: ProfileRatingData }) {
+  const mode = readRatingDisplayPreference();
+  const rankText = primaryRankText(rating.rank, mode);
+  const latest = rating.history[rating.history.length - 1];
+
+  return (
+    <section>
+      <h2>Rating</h2>
+      <p>
+        {rankText ? `${rankText} ` : ""}
+        {formatNumericRating(rating.rating)}
+        {rating.participating ? "" : " (-)"}
+        {` · ${rating.rated_games} rated games`}
+      </p>
+      {latest && (
+        <table>
+          <thead>
+            <tr>
+              <th>Game</th>
+              <th>Result</th>
+              <th>Before</th>
+              <th>After</th>
+              <th>Delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rating.history.map((entry) => (
+              <tr key={`${entry.game_id}-${entry.created_at}`}>
+                <td>
+                  <a href={`/games/${entry.game_id}`}>#{entry.game_id}</a>
+                </td>
+                <td>{entry.result}</td>
+                <td>{formatNumericRating(entry.rating_before)}</td>
+                <td>{formatNumericRating(entry.rating_after)}</td>
+                <td>
+                  {entry.rating_delta > 0 ? "+" : ""}
+                  {formatNumericRating(entry.rating_delta)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
 function ProfileScreen({
   username,
   navigate,
@@ -684,6 +756,7 @@ function ProfileScreen({
           Challenge
         </a>
       )}
+      {data.rating && <RatingProfileSummary rating={data.rating} />}
       <h2>Games</h2>
       <UserGames initial={data.initial_games} />
       {data.is_own_profile && (

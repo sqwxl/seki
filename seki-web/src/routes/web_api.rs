@@ -12,7 +12,9 @@ use crate::models::user::User;
 use crate::routes::FlashMessage;
 use crate::services::engine_builder;
 use crate::services::live::{LiveGameItem, build_live_items};
-use crate::services::rating::{RankDto, can_participate_in_ranking, rank_for_profile};
+use crate::services::rating::{
+    ProfileRatingDto, RankDto, can_participate_in_ranking, profile_rating_summary, rank_for_profile,
+};
 use crate::services::{game_joiner, live, presentation_actions, state_serializer};
 use crate::session::CurrentUser;
 use crate::templates::UserData;
@@ -414,6 +416,7 @@ struct UserGamesData {
 struct UserProfileData {
     profile_username: String,
     profile_user: UserData,
+    rating: Option<ProfileRatingDto>,
     initial_games: UserGamesData,
     is_own_profile: bool,
     api_token: Option<String>,
@@ -453,10 +456,12 @@ async fn load_user_profile(
     let items = build_live_items(&state.db, &games).await;
     let is_own_profile = current_user.id == profile_user.id;
     let profile_rating = RatingProfile::find(&state.db, profile_user.id).await?;
+    let rating = profile_rating_summary(&state.db, &profile_user, current_user.id).await?;
 
     Ok(UserProfileData {
         profile_username: profile_user.username.clone(),
         profile_user: UserData::from_user_with_rank(&profile_user, profile_rating.as_ref()),
+        rating,
         initial_games: UserGamesData {
             profile_user_id: profile_user.id,
             games: items,

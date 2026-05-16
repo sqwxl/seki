@@ -145,18 +145,18 @@
 
 ### Tests for User Story 4
 
-- [ ] T064 [P] [US4] Add backend tests for chronological rating history rows with before/after rating, deviation, volatility, delta, result, and game reference in `seki-web/tests/ws/rating.rs`
-- [ ] T065 [P] [US4] Add backend tests for username change and opt-out preserving rating history identity in `seki-web/tests/ws/rating.rs`
-- [ ] T066 [P] [US4] Add backend tests for protected private/invite game rating metadata visibility in profile history in `seki-web/tests/ws/rating.rs`
+- [X] T064 [P] [US4] Add backend tests for chronological rating history rows with before/after rating, deviation, volatility, delta, result, and game reference in `seki-web/tests/ws/rating.rs`
+- [X] T065 [P] [US4] Add backend tests for username change and opt-out preserving rating history identity in `seki-web/tests/ws/rating.rs`
+- [X] T066 [P] [US4] Add backend tests for protected private/invite game rating metadata visibility in profile history in `seki-web/tests/ws/rating.rs`
 
 ### Implementation for User Story 4
 
-- [ ] T067 [US4] Implement rating history query with protected game visibility filtering in `seki-web/src/models/rating.rs`
-- [ ] T068 [US4] Add profile rating summary and history DTO assembly in `seki-web/src/services/rating.rs`
-- [ ] T069 [US4] Add profile rating summary and history fields to user route data in `seki-web/src/routes/users.rs`
-- [ ] T070 [US4] Add profile rating summary and history fields to `/api/web/users/:username` responses in `seki-web/src/routes/web_api.rs`
-- [ ] T071 [US4] Render current rating summary and chronological history on user profile pages in `seki-web/frontend/src/layouts/user-games.tsx`
-- [ ] T072 [US4] Ensure registration upgrade and username changes keep rating profile linked by user id in `seki-web/src/models/user.rs`
+- [X] T067 [US4] Implement rating history query with protected game visibility filtering in `seki-web/src/models/rating.rs`
+- [X] T068 [US4] Add profile rating summary and history DTO assembly in `seki-web/src/services/rating.rs`
+- [X] T069 [US4] Add profile rating summary and history fields to user route data in `seki-web/src/routes/users.rs`
+- [X] T070 [US4] Add profile rating summary and history fields to `/api/web/users/:username` responses in `seki-web/src/routes/web_api.rs`
+- [X] T071 [US4] Render current rating summary and chronological history on user profile pages in `seki-web/frontend/src/layouts/user-games.tsx`
+- [X] T072 [US4] Ensure registration upgrade and username changes keep rating profile linked by user id in `seki-web/src/models/user.rs`
 
 **Checkpoint**: User Story 4 works independently with historical rating data.
 

@@ -1,6 +1,7 @@
 //! Rating policy, calculation, and DTO helpers.
 
 mod eligibility;
+mod profile;
 
 use serde::{Deserialize, Serialize};
 use skillratings::{
@@ -12,6 +13,7 @@ pub use eligibility::{
     RankedCreateEligibility, can_accept_ranked, can_create_ranked, can_join_ranked,
     can_participate_in_ranking,
 };
+pub use profile::{ProfileRatingDto, RatingHistoryEntryDto, profile_rating_summary};
 
 use crate::db::DbPool;
 use crate::error::AppError;
