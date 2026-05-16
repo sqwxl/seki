@@ -7,6 +7,7 @@ use crate::AppState;
 use crate::models::game::Game;
 use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
+use crate::services::push::{PushNotificationData, PushPayload, PushService};
 use crate::services::state_serializer;
 use crate::services::{game_actions, presentation_actions};
 use crate::ws::registry::WsSender;
@@ -260,6 +261,10 @@ pub async fn handle_message(
         }
     };
 
+    if result.is_ok() {
+        let _ = dispatch_push_notification(state, game_id, player_id, action).await;
+    }
+
     if let Err(e) = result {
         tracing::error!("Error handling {action}: {e}");
         let client_message_id = if action == "chat" {
@@ -279,6 +284,61 @@ pub async fn handle_message(
             })
             .to_string(),
         );
+    }
+}
+
+async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i64, action: &str) {
+    let Ok(gwp) = Game::find_with_players(&state.db, game_id).await else {
+        return;
+    };
+
+    let opponent_id = if gwp.black.as_ref().is_some_and(|p| p.id == actor_id) {
+        gwp.white.as_ref().map(|p| p.id)
+    } else if gwp.white.as_ref().is_some_and(|p| p.id == actor_id) {
+        gwp.black.as_ref().map(|p| p.id)
+    } else {
+        None
+    };
+
+    let Some(target_id) = opponent_id else {
+        return;
+    };
+
+    let (event_type, title, url) = match action {
+        "play" | "pass" => ("your_turn", "Your turn", format!("/games/{game_id}")),
+        "accept_challenge" => (
+            "challenge_accepted",
+            "Challenge accepted",
+            format!("/games/{game_id}"),
+        ),
+        "chat" => ("new_message", "New message", format!("/games/{game_id}")),
+        _ => return,
+    };
+
+    let payload = PushPayload {
+        title: title.to_string(),
+        body: Some(format!("Game #{game_id}")),
+        icon: None,
+        badge: None,
+        data: Some(PushNotificationData {
+            event_type: event_type.to_string(),
+            game_id: Some(game_id),
+            url: Some(url),
+        }),
+    };
+
+    let vapid_keys = crate::models::vapid_config::load_or_generate(&state.db)
+        .await
+        .unwrap_or_default();
+    if vapid_keys.private_key.is_empty() {
+        return;
+    }
+
+    if let Ok(service) = PushService::new(&vapid_keys.private_key) {
+        service
+            .send_to_user(&state.db, target_id, &payload)
+            .await
+            .ok();
     }
 }
 

@@ -97,7 +97,7 @@ Notes:
 - [x] Score estimator (territory estimate from analysis mode)
 - [ ] Vacation/pause system (for correspondence games)
 - [x] Turn notification (tab title flash when it's your turn)
-- [ ] Turn notifications (email/push)
+- [x] Turn notifications (email/push) — push notifications implemented
 - [ ] Players can agree to postpone timed game
 
 ### Board & Navigation
@@ -147,6 +147,7 @@ Notes:
 - [x] Anonymous play (auto-created sessions)
 - [x] Registration (username/password)
 - [x] Login/logout with session persistence
+- [x] Browser app credentials (JWT with 90-day rolling expiry for PWA identity persistence)
 - [x] Settings page with API token management
 - [x] Basic user profile and game history
 - [ ] User profile customization
@@ -199,5 +200,6 @@ Notes:
 - [x] Email support (SMTP; Mailpit in local development)
 - [ ] Domain registration and deployment
 - [x] Mobile-responsive design (tabbed layout, hamburger menu)
+- [x] PWA install support (web manifest, service worker, offline shell)
 
 [^1]: "Seki" is a Japanese go term meaning _mutual life_. It is a situation where two groups of stones share liberties which neither player can fill without dying.

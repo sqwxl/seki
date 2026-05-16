@@ -9,5 +9,6 @@ pub mod jwt;
 pub mod live;
 pub mod mailer;
 pub mod presentation_actions;
+pub mod push;
 pub mod rating;
 pub mod state_serializer;
