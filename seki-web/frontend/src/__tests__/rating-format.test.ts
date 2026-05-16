@@ -7,6 +7,7 @@ import {
   type RankData,
   type RatingDisplayMode,
 } from "../utils/rating";
+import { UserLabel } from "../components/user-label";
 
 describe("rating formatting", () => {
   it("accepts the default display mode", () => {
@@ -52,5 +53,50 @@ describe("rating formatting", () => {
     expect(primaryRankText({ status: "unranked", uncertain: true })).toBe("(?)");
     expect(primaryRankText({ status: "not_participating", uncertain: false })).toBe("(-)");
     expect(primaryRankText({ status: "anonymous", uncertain: false })).toBe("");
+  });
+
+  it("renders user-label rank primary text and alternate title", () => {
+    const rank: RankData = {
+      qualifier: "3k",
+      status: "ranked",
+      rating: 1560,
+      deviation: 80,
+      volatility: 0.06,
+      uncertain: false,
+    };
+
+    const view = UserLabel({
+      name: "honinbo",
+      rank,
+      ratingDisplay: "kyu_dan",
+    }) as any;
+    const rankNode = view.props.children.find(
+      (child: any) => child?.props?.class === "player-rank",
+    );
+
+    expect(rankNode.props.children).toBe("(3k)");
+    expect(rankNode.props.title).toBe("1560");
+    expect(rankNode.props["aria-label"]).toBe("(3k) 1560");
+  });
+
+  it("renders numeric rating as the user-label primary display when selected", () => {
+    const view = UserLabel({
+      name: "honinbo",
+      rank: {
+        qualifier: "3k",
+        status: "ranked",
+        rating: 1560,
+        deviation: 120,
+        volatility: 0.06,
+        uncertain: true,
+      },
+      ratingDisplay: "rating",
+    }) as any;
+    const rankNode = view.props.children.find(
+      (child: any) => child?.props?.class === "player-rank",
+    );
+
+    expect(rankNode.props.children).toBe("(1560?)");
+    expect(rankNode.props.title).toBe("3k?");
   });
 });

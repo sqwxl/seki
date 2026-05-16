@@ -52,6 +52,16 @@ pub async fn update_preferences(
             "Expected a JSON object".to_string(),
         ));
     }
+    if let Some(value) = body.get("rating_display") {
+        match value.as_str() {
+            Some("kyu_dan" | "rating") => {}
+            _ => {
+                return Err(AppError::UnprocessableEntity(
+                    "rating_display must be kyu_dan or rating".to_string(),
+                ));
+            }
+        }
+    }
 
     let user = User::update_preferences(&state.db, current_user.id, &body).await?;
 

@@ -2,8 +2,6 @@ import { formatN } from "../utils/format";
 import { CapturesBlack, CapturesWhite, IconGrid3x3 } from "./icons";
 import { UserLabel } from "./user-label";
 import type { RankData } from "../game/types";
-import { primaryRankText, parseRatingDisplayMode } from "../utils/rating";
-import { readUserData } from "../game/util";
 
 export type PlayerPanelProps = {
   name: string;
@@ -19,9 +17,6 @@ export type PlayerPanelProps = {
 };
 
 export function PlayerPanel(props: PlayerPanelProps) {
-  const mode = parseRatingDisplayMode(readUserData()?.preferences.rating_display);
-  const rankText = props.rank ? primaryRankText(props.rank, mode) : undefined;
-
   return (
     <>
       <span class="player-name-group">
@@ -30,8 +25,8 @@ export function PlayerPanel(props: PlayerPanelProps) {
           stone={props.stone}
           profileUrl={props.profileUrl}
           isOnline={props.isOnline}
+          rank={props.rank}
         />
-        {rankText && <span class="player-rank">{rankText}</span>}
       </span>
       <span class={`player-clock${props.clockLowTime ? " low-time" : ""}`}>
         {props.clock ?? ""}

@@ -23,6 +23,7 @@ export const GAME_SETTINGS = "seki:game_settings";
 // Preferences
 export const MOVE_CONFIRMATION = "seki:move_confirmation";
 export const NOTIFICATIONS = "seki:notifications";
+export const RATING_DISPLAY = "seki:rating_display";
 export const SOUND_ENABLED = "seki:sound_enabled";
 export const SHOW_COORDINATES = "seki:show_coordinates";
 export const SHOW_MOVE_TREE = "seki:show_move_tree";

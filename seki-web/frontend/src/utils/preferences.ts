@@ -13,9 +13,17 @@ import {
   SHOW_COORDINATES,
   SHOW_MOVE_TREE,
   NOTIFICATIONS,
+  RATING_DISPLAY,
 } from "./storage";
+import { parseRatingDisplayMode, type RatingDisplayMode } from "./rating";
 
 let serverPrefs: UserPreferences = {};
+
+export function readRatingDisplayPreference(): RatingDisplayMode {
+  return parseRatingDisplayMode(
+    storage.get(RATING_DISPLAY) ?? serverPrefs.rating_display,
+  );
+}
 
 /**
  * Initialize preferences from the server-provided UserData.
@@ -24,6 +32,7 @@ let serverPrefs: UserPreferences = {};
  */
 export function initPreferences(): void {
   const userData = readUserData();
+  serverPrefs = {};
   if (!userData) {
     return;
   }
@@ -46,6 +55,12 @@ export function initPreferences(): void {
   if (serverPrefs.notifications != null) {
     storage.set(NOTIFICATIONS, serverPrefs.notifications);
   }
+  if (serverPrefs.rating_display != null) {
+    storage.set(
+      RATING_DISPLAY,
+      parseRatingDisplayMode(serverPrefs.rating_display),
+    );
+  }
 
   // Refresh signals from updated localStorage
   showCoordinates.value = storage.get(SHOW_COORDINATES) === "true";
@@ -63,6 +78,9 @@ export function savePref(
   value: string | boolean,
 ): void {
   serverPrefs[key] = value as never;
+  if (key === "rating_display") {
+    storage.set(RATING_DISPLAY, parseRatingDisplayMode(value));
+  }
   fetch("/settings/preferences", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

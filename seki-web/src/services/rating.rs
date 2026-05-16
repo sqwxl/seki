@@ -17,6 +17,7 @@ use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::game::{Game, RankedGameSnapshotUpdate};
 use crate::models::rating::{NewRatingAdjustment, RatingAdjustment, RatingProfile};
+use crate::models::user::User;
 
 pub const PROVISIONAL_DEVIATION_THRESHOLD: f64 = 110.0;
 pub const DEFAULT_DISPLAY_MODE: RatingDisplayMode = RatingDisplayMode::KyuDan;
@@ -357,6 +358,31 @@ pub fn rank_for_profile(profile: Option<&RatingProfile>) -> RankDto {
                 uncertain: profile.deviation > PROVISIONAL_DEVIATION_THRESHOLD,
             }
         }
+    }
+}
+
+pub fn rank_for_user(user: &User, profile: Option<&RatingProfile>) -> RankDto {
+    if !user.is_registered() {
+        return RankDto {
+            qualifier: None,
+            status: RankStatus::Anonymous,
+            rating: None,
+            deviation: None,
+            volatility: None,
+            uncertain: false,
+        };
+    }
+
+    match profile {
+        None => RankDto {
+            qualifier: Some("?".to_string()),
+            status: RankStatus::Unranked,
+            rating: None,
+            deviation: None,
+            volatility: None,
+            uncertain: true,
+        },
+        Some(profile) => rank_for_profile(Some(profile)),
     }
 }
 

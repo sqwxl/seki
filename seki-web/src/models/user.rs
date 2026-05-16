@@ -6,6 +6,8 @@ use sqlx::Sqlite;
 
 use crate::db::DbPool;
 
+const DEFAULT_RATING_DISPLAY: &str = "kyu_dan";
+
 const ADJECTIVES: &[&str] = &[
     "bold", "calm", "clever", "swift", "keen", "bright", "gentle", "nimble", "quiet", "fierce",
     "wise", "brave", "noble", "steady", "agile", "deft", "glad", "proud", "lively", "merry",
@@ -127,6 +129,26 @@ impl User {
 
     pub fn is_registered(&self) -> bool {
         self.password_hash.is_some()
+    }
+
+    pub fn rating_display_preference(&self) -> &'static str {
+        match self
+            .preferences
+            .get("rating_display")
+            .and_then(|value| value.as_str())
+        {
+            Some("rating") => "rating",
+            _ => DEFAULT_RATING_DISPLAY,
+        }
+    }
+
+    pub fn preferences_with_defaults(&self) -> serde_json::Value {
+        let mut preferences = self.preferences.clone();
+        if !preferences.is_object() {
+            preferences = serde_json::json!({});
+        }
+        preferences["rating_display"] = self.rating_display_preference().into();
+        preferences
     }
 
     pub async fn find_by_username(

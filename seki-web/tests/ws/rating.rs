@@ -1,5 +1,7 @@
 use super::common;
 use seki_web::models::game::Game;
+use seki_web::models::rating::RatingProfile;
+use seki_web::models::user::User;
 use serde_json::json;
 
 #[test]
@@ -459,4 +461,105 @@ async fn ranked_api_create_allows_direct_email_challenge_for_existing_user() {
     assert!(ranked);
     assert_eq!(white_id, Some(server.white_id));
     assert_eq!(stage, "challenge");
+}
+
+#[tokio::test]
+async fn web_user_rank_dtos_cover_rating_states() {
+    let server = common::TestServer::start().await;
+    let registered = User::find_by_id(&server.pool, server.black_id)
+        .await
+        .unwrap();
+    let anonymous = User::create(&server.pool).await.unwrap();
+
+    let anonymous_rank = seki_web::templates::UserData::from_user_with_rank(&anonymous, None)
+        .rank
+        .unwrap();
+    assert_eq!(
+        anonymous_rank.status,
+        seki_web::services::rating::RankStatus::Anonymous
+    );
+
+    let unranked_without_profile =
+        seki_web::templates::UserData::from_user_with_rank(&registered, None)
+            .rank
+            .unwrap();
+    assert_eq!(
+        unranked_without_profile.status,
+        seki_web::services::rating::RankStatus::Unranked
+    );
+    assert_eq!(unranked_without_profile.qualifier.as_deref(), Some("?"));
+
+    let mut profile = RatingProfile::get_or_create(&server.pool, server.black_id)
+        .await
+        .unwrap();
+    let unranked = seki_web::templates::UserData::from_user_with_rank(&registered, Some(&profile))
+        .rank
+        .unwrap();
+    assert_eq!(
+        unranked.status,
+        seki_web::services::rating::RankStatus::Unranked
+    );
+
+    RatingProfile::set_participating(&server.pool, server.black_id, false)
+        .await
+        .unwrap();
+    profile = RatingProfile::find(&server.pool, server.black_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let not_participating =
+        seki_web::templates::UserData::from_user_with_rank(&registered, Some(&profile))
+            .rank
+            .unwrap();
+    assert_eq!(
+        not_participating.status,
+        seki_web::services::rating::RankStatus::NotParticipating
+    );
+
+    sqlx::query(
+        "UPDATE rating_profiles SET participating = true, rated_games = 1, rating = 1560.0, deviation = 120.0 WHERE user_id = $1",
+    )
+    .bind(server.black_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    profile = RatingProfile::find(&server.pool, server.black_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let ranked = seki_web::templates::UserData::from_user_with_rank(&registered, Some(&profile))
+        .rank
+        .unwrap();
+    assert_eq!(
+        ranked.status,
+        seki_web::services::rating::RankStatus::Ranked
+    );
+    assert_eq!(ranked.rating, Some(1560.0));
+    assert!(ranked.uncertain);
+    assert!(ranked.qualifier.is_some());
+}
+
+#[tokio::test]
+async fn rating_display_preference_patch_validates_values() {
+    let server = common::TestServer::start().await;
+
+    let response = server
+        .client_black
+        .patch(format!("http://{}/settings/preferences", server.addr))
+        .json(&json!({"rating_display": "rating"}))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_success());
+    let body = response.json::<serde_json::Value>().await.unwrap();
+    assert_eq!(body["rating_display"], "rating");
+
+    let response = server
+        .client_black
+        .patch(format!("http://{}/settings/preferences", server.addr))
+        .json(&json!({"rating_display": "invalid"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::UNPROCESSABLE_ENTITY);
 }

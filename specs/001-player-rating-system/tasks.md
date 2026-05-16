@@ -90,20 +90,20 @@
 
 ### Tests for User Story 2
 
-- [ ] T041 [P] [US2] Create frontend rating preference tests for fallback and persistence behavior in `seki-web/frontend/src/__tests__/rating-preferences.test.ts`
-- [ ] T042 [P] [US2] Add frontend tests for user-label primary and alternate rating display behavior in `seki-web/frontend/src/__tests__/rating-format.test.ts`
-- [ ] T043 [P] [US2] Add backend tests for web DTO rank states across ranked, uncertain, unranked, not-participating, anonymous, and bot users in `seki-web/tests/ws/rating.rs`
+- [X] T041 [P] [US2] Create frontend rating preference tests for fallback and persistence behavior in `seki-web/frontend/src/__tests__/rating-preferences.test.ts`
+- [X] T042 [P] [US2] Add frontend tests for user-label primary and alternate rating display behavior in `seki-web/frontend/src/__tests__/rating-format.test.ts`
+- [X] T043 [P] [US2] Add backend tests for web DTO rank states across ranked, uncertain, unranked, not-participating, anonymous, and bot users in `seki-web/tests/ws/rating.rs`
 
 ### Implementation for User Story 2
 
-- [ ] T044 [US2] Extend user-facing DTO assembly with rank status, rating, deviation, volatility, uncertainty, and derived qualifier in `seki-web/src/services/rating.rs`
+- [X] T044 [US2] Extend user-facing DTO assembly with rank status, rating, deviation, volatility, uncertainty, and derived qualifier in `seki-web/src/services/rating.rs`
 - [ ] T045 [US2] Add rank fields to game-list, game-detail, challenge, and profile web API responses in `seki-web/src/routes/web_api.rs`
-- [ ] T046 [US2] Add rating display preference parsing and defaulting to `kyu_dan` in `seki-web/src/models/user.rs`
-- [ ] T047 [US2] Add rating display preference patch handling and validation in `seki-web/src/routes/settings.rs`
-- [ ] T048 [US2] Initialize and save frontend `rating_display` preference in `seki-web/frontend/src/utils/preferences.ts`
-- [ ] T049 [US2] Extend `UserLabel` props and rendering for rank qualifier, uncertainty marker, and alternate hover/accessibility text in `seki-web/frontend/src/components/user-label.tsx`
+- [X] T046 [US2] Add rating display preference parsing and defaulting to `kyu_dan` in `seki-web/src/models/user.rs`
+- [X] T047 [US2] Add rating display preference patch handling and validation in `seki-web/src/routes/settings.rs`
+- [X] T048 [US2] Initialize and save frontend `rating_display` preference in `seki-web/frontend/src/utils/preferences.ts`
+- [X] T049 [US2] Extend `UserLabel` props and rendering for rank qualifier, uncertainty marker, and alternate hover/accessibility text in `seki-web/frontend/src/components/user-label.tsx`
 - [ ] T050 [US2] Render rank labels in game list rows with global display preference in `seki-web/frontend/src/layouts/games-list.tsx`
-- [ ] T051 [US2] Render rank labels in player panels using shared user-label behavior in `seki-web/frontend/src/components/player-panel.tsx`
+- [X] T051 [US2] Render rank labels in player panels using shared user-label behavior in `seki-web/frontend/src/components/player-panel.tsx`
 - [ ] T052 [US2] Render rank labels and unrated status in game info popovers in `seki-web/frontend/src/components/game-info.tsx`
 - [ ] T053 [US2] Render rating display preference controls in settings/user menu UI in `seki-web/frontend/src/components/user-menu.tsx`
 - [ ] T054 [US2] Update live websocket rank DTO handling in `seki-web/frontend/src/game/messages.ts`
