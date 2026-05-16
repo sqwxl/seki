@@ -71,34 +71,6 @@ pub async fn create_game(
         )));
     }
 
-    if params.ranked {
-        if !creator.is_registered() {
-            return Err(AppError::UnprocessableEntity(
-                "Only registered users can create ranked games".to_string(),
-            ));
-        }
-        if params.is_private {
-            return Err(AppError::UnprocessableEntity(
-                "Private games cannot be ranked".to_string(),
-            ));
-        }
-        if params
-            .invite_email
-            .as_ref()
-            .is_some_and(|email| !email.is_empty())
-        {
-            return Err(AppError::UnprocessableEntity(
-                "Raw invite-only games cannot be ranked".to_string(),
-            ));
-        }
-        if params.handicap != 0 || (params.komi - 6.5).abs() > f64::EPSILON {
-            return Err(AppError::UnprocessableEntity(
-                "Ranked games use server-derived handicap and komi".to_string(),
-            ));
-        }
-        RatingProfile::get_or_create(pool, creator.id).await?;
-    }
-
     let friend = if let Some(ref username) = params.invite_username {
         if !username.is_empty() {
             Some(
@@ -128,6 +100,26 @@ pub async fn create_game(
     let invite_only =
         params.invite_email.as_ref().is_some_and(|e| !e.is_empty()) && friend.is_none();
     let is_private = params.is_private || invite_only;
+
+    if params.ranked {
+        let creator_profile = RatingProfile::find(pool, creator.id).await?;
+        rating::can_create_ranked(
+            creator,
+            creator_profile.as_ref(),
+            rating::RankedCreateEligibility {
+                is_private: params.is_private,
+                invite_only,
+                has_direct_opponent: friend.is_some(),
+                handicap: params.handicap,
+                komi: params.komi,
+            },
+        )?;
+        if let Some(opponent) = friend.as_ref() {
+            let opponent_profile = RatingProfile::find(pool, opponent.id).await?;
+            rating::can_join_ranked(opponent, opponent_profile.as_ref())?;
+        }
+        RatingProfile::get_or_create(pool, creator.id).await?;
+    }
 
     let friend_id = friend.as_ref().map(|f| f.id);
 

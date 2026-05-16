@@ -378,3 +378,85 @@ async fn ranked_api_create_rejects_private_invite_and_manual_settings() {
         assert_eq!(response.status(), reqwest::StatusCode::UNPROCESSABLE_ENTITY);
     }
 }
+
+#[tokio::test]
+async fn ranked_web_create_and_join_reject_anonymous_users() {
+    let server = common::TestServer::start().await;
+    let anonymous = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    let create_response = anonymous
+        .post(format!("http://{}/games", server.addr))
+        .header(reqwest::header::ACCEPT, "application/json")
+        .form(&[
+            ("cols", "9"),
+            ("komi", "6.5"),
+            ("handicap", "0"),
+            ("color", "black"),
+            ("ranked", "true"),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        create_response.status(),
+        reqwest::StatusCode::UNPROCESSABLE_ENTITY
+    );
+
+    let game_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+    let join_response = anonymous
+        .post(format!("http://{}/games/{game_id}/join", server.addr))
+        .header(reqwest::header::ACCEPT, "application/json")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        join_response.status(),
+        reqwest::StatusCode::UNPROCESSABLE_ENTITY
+    );
+}
+
+#[tokio::test]
+async fn ranked_api_create_allows_direct_email_challenge_for_existing_user() {
+    let server = common::TestServer::start().await;
+    sqlx::query("UPDATE users SET email = $1 WHERE id = $2")
+        .bind("white@example.com")
+        .bind(server.white_id)
+        .execute(&server.pool)
+        .await
+        .unwrap();
+
+    let response = server
+        .client_black
+        .post(format!("http://{}/api/games", server.addr))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .json(&json!({
+            "cols": 9,
+            "komi": 6.5,
+            "handicap": 0,
+            "color": "black",
+            "ranked": true,
+            "invite_email": "white@example.com"
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), reqwest::StatusCode::CREATED);
+    let body = response.json::<serde_json::Value>().await.unwrap();
+    let game_id = body["id"].as_i64().unwrap();
+    let (ranked, white_id, stage): (bool, Option<i64>, String) =
+        sqlx::query_as("SELECT ranked, white_id, stage FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    assert!(ranked);
+    assert_eq!(white_id, Some(server.white_id));
+    assert_eq!(stage, "challenge");
+}

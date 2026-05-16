@@ -1,16 +1,22 @@
 //! Rating policy, calculation, and DTO helpers.
 
+mod eligibility;
+
 use serde::{Deserialize, Serialize};
 use skillratings::{
     Outcomes,
     glicko2::{Glicko2Config, Glicko2Rating, glicko2},
 };
 
+pub use eligibility::{
+    RankedCreateEligibility, can_accept_ranked, can_create_ranked, can_join_ranked,
+    can_participate_in_ranking,
+};
+
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::game::{Game, RankedGameSnapshotUpdate};
 use crate::models::rating::{NewRatingAdjustment, RatingAdjustment, RatingProfile};
-use crate::models::user::User;
 
 pub const PROVISIONAL_DEVIATION_THRESHOLD: f64 = 110.0;
 pub const DEFAULT_DISPLAY_MODE: RatingDisplayMode = RatingDisplayMode::KyuDan;
@@ -178,42 +184,6 @@ pub fn apply_glicko2(
         black_after,
         white_after,
     }
-}
-
-pub fn can_participate_in_ranking(user: &User, profile: Option<&RatingProfile>) -> bool {
-    user.is_registered() && profile.is_none_or(|p| p.participating)
-}
-
-pub fn can_create_ranked(creator: &User) -> Result<(), AppError> {
-    if !creator.is_registered() {
-        return Err(AppError::UnprocessableEntity(
-            "Only registered users can create ranked games".to_string(),
-        ));
-    }
-    Ok(())
-}
-
-pub fn can_join_ranked(user: &User) -> Result<(), AppError> {
-    if !user.is_registered() {
-        return Err(AppError::UnprocessableEntity(
-            "Only registered users can join ranked games".to_string(),
-        ));
-    }
-    Ok(())
-}
-
-pub fn can_accept_ranked(user: &User, profile: Option<&RatingProfile>) -> Result<(), AppError> {
-    if !user.is_registered() {
-        return Err(AppError::UnprocessableEntity(
-            "Only registered users can accept ranked challenges".to_string(),
-        ));
-    }
-    if profile.is_some_and(|p| !p.participating) {
-        return Err(AppError::UnprocessableEntity(
-            "You are not participating in ranked games".to_string(),
-        ));
-    }
-    Ok(())
 }
 
 pub async fn capture_ranked_snapshot(

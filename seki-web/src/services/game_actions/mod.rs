@@ -394,6 +394,10 @@ pub async fn accept_challenge(
                 ));
             }
         };
+        let acceptor = User::find_by_id(&state.db, player_id).await?;
+        let acceptor_profile = RatingProfile::find(&state.db, player_id).await?;
+        rating::can_accept_ranked(&acceptor, acceptor_profile.as_ref())?;
+
         let mut black_profile = RatingProfile::get_or_create(&state.db, current_black_id).await?;
         let mut white_profile = RatingProfile::get_or_create(&state.db, current_white_id).await?;
         let should_swap = if (black_profile.rating - white_profile.rating).abs() < f64::EPSILON {

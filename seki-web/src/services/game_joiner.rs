@@ -19,10 +19,9 @@ pub async fn join_open_game(
         ));
     }
 
-    if gwp.game.ranked && !user.is_registered() {
-        return Err(AppError::UnprocessableEntity(
-            "Only registered users can join ranked games".to_string(),
-        ));
+    if gwp.game.ranked {
+        let profile = RatingProfile::find(pool, user.id).await?;
+        rating::can_join_ranked(user, profile.as_ref())?;
     }
 
     if gwp.game.open_to.as_deref() == Some("registered") && !user.is_registered() {

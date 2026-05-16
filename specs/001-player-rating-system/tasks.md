@@ -60,7 +60,7 @@
 
 ### Implementation for User Story 1
 
-- [ ] T024 [US1] Implement rating eligibility checks for registered users, bots, anonymous users, private games, invite-only games, open games, and direct challenges in `seki-web/src/services/rating.rs`
+- [X] T024 [US1] Implement rating eligibility checks for registered users, bots, anonymous users, private games, invite-only games, open games, and direct challenges in `seki-web/src/services/rating.rs`
 - [X] T025 [US1] Implement current rating profile creation/defaulting and participation defaults in `seki-web/src/models/rating.rs`
 - [X] T026 [US1] Implement Glicko-2 two-player result application and before/after calculation using `skillratings` in `seki-web/src/services/rating.rs`
 - [X] T027 [US1] Implement idempotent rating adjustment insertion and `rating_applied` marking in `seki-web/src/models/rating.rs`
