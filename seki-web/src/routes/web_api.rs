@@ -12,7 +12,7 @@ use crate::models::user::User;
 use crate::routes::FlashMessage;
 use crate::services::engine_builder;
 use crate::services::live::{LiveGameItem, build_live_items};
-use crate::services::rating::{RankDto, rank_for_profile};
+use crate::services::rating::{RankDto, can_participate_in_ranking, rank_for_profile};
 use crate::services::{game_joiner, live, presentation_actions, state_serializer};
 use crate::session::CurrentUser;
 use crate::templates::UserData;
@@ -52,12 +52,9 @@ pub(crate) async fn bootstrap_for_location(
 
     let data = match path {
         "/" | "/games" => serde_json::to_value(load_games_index(state, current_user).await?)?,
-        "/games/new" => serde_json::to_value(load_new_game(
-            state,
-            current_user,
-            query_param(query, "opponent"),
-        )
-        .await?)?,
+        "/games/new" => serde_json::to_value(
+            load_new_game(state, current_user, query_param(query, "opponent")).await?,
+        )?,
         "/analysis" => serde_json::to_value(AnalysisData {})?,
         _ if path.starts_with("/games/") => {
             let game_id = path
@@ -203,7 +200,9 @@ async fn new_game(
     current_user: CurrentUser,
     Query(query): Query<NewGameQuery>,
 ) -> Result<Json<NewGameData>, AppError> {
-    Ok(Json(load_new_game(&state, &current_user, query.opponent).await?))
+    Ok(Json(
+        load_new_game(&state, &current_user, query.opponent).await?,
+    ))
 }
 
 async fn load_new_game(
@@ -212,25 +211,28 @@ async fn load_new_game(
     opponent: Option<String>,
 ) -> Result<NewGameData, AppError> {
     let user_is_registered = current_user.is_registered();
-    let current_user_rank = if user_is_registered {
-        Some(rank_for_profile(Some(
-            &RatingProfile::get_or_create(&state.db, current_user.id).await?,
-        )))
+    let current_user_profile = if user_is_registered {
+        Some(RatingProfile::get_or_create(&state.db, current_user.id).await?)
     } else {
         None
     };
+    let current_user_rank = current_user_profile
+        .as_ref()
+        .map(|profile| rank_for_profile(Some(profile)));
 
-    let ranked_unavailable_reason = if user_is_registered {
-        None
-    } else {
+    let ranked_unavailable_reason = if !user_is_registered {
         Some("Register or sign in to create ranked games".to_string())
+    } else if !can_participate_in_ranking(&current_user.user, current_user_profile.as_ref()) {
+        Some("Turn on rating participation to create ranked games".to_string())
+    } else {
+        None
     };
 
     Ok(NewGameData {
         opponent,
         user_is_registered,
         rating: NewGameRatingData {
-            can_create_ranked: user_is_registered,
+            can_create_ranked: ranked_unavailable_reason.is_none(),
             current_user_rank,
             ranked_unavailable_reason,
         },

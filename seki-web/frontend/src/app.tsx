@@ -83,6 +83,7 @@ type NewGameData = {
 
 type ProfileData = {
   profile_username: string;
+  profile_user?: UserData;
   initial_games: UserGamesInitialData;
   is_own_profile: boolean;
   api_token?: string | null;
@@ -725,7 +726,12 @@ function ProfileScreen({
                 </button>
               </form>
               <h3>Notifications</h3>
-              <NotificationSettings hasEmail={!!data.user_email} />
+              <NotificationSettings
+                hasEmail={!!data.user_email}
+                ratingParticipating={
+                  data.profile_user?.preferences.rating_participating
+                }
+              />
               <h3>API Token</h3>
               <p>
                 Use this token to authenticate with the API via{" "}

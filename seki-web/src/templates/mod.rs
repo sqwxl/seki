@@ -20,12 +20,17 @@ pub struct UserData {
 
 impl UserData {
     pub fn from_user_with_rank(user: &User, profile: Option<&RatingProfile>) -> Self {
+        let mut preferences = user.preferences_with_defaults();
+        if user.is_registered() {
+            preferences["rating_participating"] =
+                profile.is_none_or(|profile| profile.participating).into();
+        }
         Self {
             id: user.id,
             display_name: user.display_name().to_string(),
             is_registered: user.is_registered(),
             email: user.email.clone(),
-            preferences: user.preferences_with_defaults(),
+            preferences,
             rank: Some(rank_for_user(user, profile)),
         }
     }

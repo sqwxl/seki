@@ -562,4 +562,82 @@ async fn rating_display_preference_patch_validates_values() {
         .await
         .unwrap();
     assert_eq!(response.status(), reqwest::StatusCode::UNPROCESSABLE_ENTITY);
+
+    let response = server
+        .client_black
+        .patch(format!("http://{}/settings/preferences", server.addr))
+        .json(&json!({"rating_participating": false}))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_success());
+    let body = response.json::<serde_json::Value>().await.unwrap();
+    assert_eq!(body["rating_participating"], false);
+}
+
+#[tokio::test]
+async fn rating_opt_out_blocks_future_ranked_create_and_join() {
+    let server = common::TestServer::start().await;
+    RatingProfile::set_participating(&server.pool, server.black_id, false)
+        .await
+        .unwrap();
+
+    let response = server.try_create_game_with(json!({"ranked": true})).await;
+    assert_eq!(response.status(), reqwest::StatusCode::UNPROCESSABLE_ENTITY);
+
+    RatingProfile::set_participating(&server.pool, server.black_id, true)
+        .await
+        .unwrap();
+    let game_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+    RatingProfile::set_participating(&server.pool, server.white_id, false)
+        .await
+        .unwrap();
+
+    let response = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/join", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .json(&json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
+async fn rating_opt_out_preserves_in_progress_ranked_game_eligibility() {
+    let server = common::TestServer::start().await;
+    let game_id = server
+        .create_game_with(json!({"ranked": true, "open_to": "registered"}))
+        .await;
+    server.join_game(game_id).await;
+
+    RatingProfile::set_participating(&server.pool, server.black_id, false)
+        .await
+        .unwrap();
+    RatingProfile::set_participating(&server.pool, server.white_id, false)
+        .await
+        .unwrap();
+
+    let game = Game::find_by_id(&server.pool, game_id).await.unwrap();
+    let applied = seki_web::services::rating::finalize_rating(
+        &server.pool,
+        &game,
+        "B+R",
+        game.black_id.unwrap(),
+        game.white_id.unwrap(),
+    )
+    .await
+    .unwrap();
+    assert!(applied);
+
+    let adjustment_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM rating_adjustments WHERE game_id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    assert_eq!(adjustment_count, 2);
 }

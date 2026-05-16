@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { writeUserData } from "../game/util";
+import { initialRatingParticipation } from "../components/notification-settings";
 import {
   initPreferences,
   readRatingDisplayPreference,
@@ -40,5 +41,15 @@ describe("rating display preferences", () => {
     savePref("rating_display", "rating");
     expect(storage.get(RATING_DISPLAY)).toBe("rating");
     expect(readRatingDisplayPreference()).toBe("rating");
+  });
+
+  it("initializes the rating participation settings state", () => {
+    expect(initialRatingParticipation({})).toBe(true);
+    expect(initialRatingParticipation({ rating_participating: false })).toBe(
+      false,
+    );
+    expect(initialRatingParticipation({ rating_participating: true }, false)).toBe(
+      false,
+    );
   });
 });

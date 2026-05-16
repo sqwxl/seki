@@ -8,6 +8,7 @@ use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
+use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::session::CurrentUser;
@@ -62,10 +63,42 @@ pub async fn update_preferences(
             }
         }
     }
+    if let Some(value) = body.get("rating_participating")
+        && !value.is_boolean()
+    {
+        return Err(AppError::UnprocessableEntity(
+            "rating_participating must be true or false".to_string(),
+        ));
+    }
 
-    let user = User::update_preferences(&state.db, current_user.id, &body).await?;
+    let mut preferences_patch = body.clone();
+    let rating_participating = preferences_patch
+        .as_object_mut()
+        .and_then(|object| object.remove("rating_participating"))
+        .and_then(|value| value.as_bool());
 
-    Ok(Json(user.preferences))
+    if let Some(participating) = rating_participating {
+        RatingProfile::set_participating(&state.db, current_user.id, participating).await?;
+    }
+
+    let user = if preferences_patch
+        .as_object()
+        .is_some_and(|object| object.is_empty())
+    {
+        User::find_by_id(&state.db, current_user.id).await?
+    } else {
+        User::update_preferences(&state.db, current_user.id, &preferences_patch).await?
+    };
+    let profile = RatingProfile::find(&state.db, current_user.id).await?;
+    let mut preferences = user.preferences_with_defaults();
+    if user.is_registered() {
+        preferences["rating_participating"] = profile
+            .as_ref()
+            .is_none_or(|profile| profile.participating)
+            .into();
+    }
+
+    Ok(Json(preferences))
 }
 
 #[derive(Deserialize)]

@@ -120,18 +120,18 @@
 
 ### Tests for User Story 3
 
-- [ ] T055 [P] [US3] Add backend tests for opt-out blocking ranked create/join and preserving in-progress ranked game eligibility in `seki-web/tests/ws/rating.rs`
-- [ ] T056 [P] [US3] Add frontend tests for non-participating label formatting and settings state in `seki-web/frontend/src/__tests__/rating-preferences.test.ts`
+- [X] T055 [P] [US3] Add backend tests for opt-out blocking ranked create/join and preserving in-progress ranked game eligibility in `seki-web/tests/ws/rating.rs`
+- [X] T056 [P] [US3] Add frontend tests for non-participating label formatting and settings state in `seki-web/frontend/src/__tests__/rating-preferences.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T057 [US3] Implement participation opt-in/opt-out update query in `seki-web/src/models/rating.rs`
-- [ ] T058 [US3] Add participation setting route validation and response payloads in `seki-web/src/routes/settings.rs`
-- [ ] T059 [US3] Enforce participation status in ranked create and join eligibility in `seki-web/src/services/rating.rs`
-- [ ] T060 [US3] Preserve captured eligibility for already-started ranked games in `seki-web/src/services/rating.rs`
-- [ ] T061 [US3] Render participation status and control in settings UI in `seki-web/frontend/src/components/notification-settings.tsx`
-- [ ] T062 [US3] Render ranked-unavailable feedback in game creation UI in `seki-web/frontend/src/layouts/game-settings-form.tsx`
-- [ ] T063 [US3] Render non-participating `(-)` status consistently in profile and user labels in `seki-web/frontend/src/components/user-label.tsx`
+- [X] T057 [US3] Implement participation opt-in/opt-out update query in `seki-web/src/models/rating.rs`
+- [X] T058 [US3] Add participation setting route validation and response payloads in `seki-web/src/routes/settings.rs`
+- [X] T059 [US3] Enforce participation status in ranked create and join eligibility in `seki-web/src/services/rating.rs`
+- [X] T060 [US3] Preserve captured eligibility for already-started ranked games in `seki-web/src/services/rating.rs`
+- [X] T061 [US3] Render participation status and control in settings UI in `seki-web/frontend/src/components/notification-settings.tsx`
+- [X] T062 [US3] Render ranked-unavailable feedback in game creation UI in `seki-web/frontend/src/layouts/game-settings-form.tsx`
+- [X] T063 [US3] Render non-participating `(-)` status consistently in profile and user labels in `seki-web/frontend/src/components/user-label.tsx`
 
 **Checkpoint**: User Story 3 works independently without changing completed rating history.
 

@@ -49,6 +49,7 @@ export type GameTreeData = {
 export type UserPreferences = {
   theme?: string;
   rating_display?: "kyu_dan" | "rating";
+  rating_participating?: boolean;
   move_confirmation?: boolean;
   show_coordinates?: boolean;
   show_move_tree?: boolean;
