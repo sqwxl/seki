@@ -25,10 +25,23 @@ toolbox_build_release_binary() {
     fi
 
     if ! toolbox_run bash -c \
-        'dpkg -s crossbuild-essential-arm64 pkg-config >/dev/null 2>&1'; then
+        'dpkg -s crossbuild-essential-arm64 pkg-config libssl-dev:arm64 >/dev/null 2>&1'; then
         echo "Installing cross-build packages in toolbox $TOOLBOX_CONTAINER" >&2
-        toolbox_run bash -c \
-            'sudo apt-get update && sudo apt-get install -y crossbuild-essential-arm64 pkg-config' >&2
+        toolbox_run bash -c '
+            sudo dpkg --add-architecture arm64
+            if ! grep -q ports.ubuntu.com /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null; then
+                sudo tee /etc/apt/sources.list.d/ports-ubuntu.sources >/dev/null <<"SRCSRC"
+Types: deb
+URIs: http://ports.ubuntu.com/ubuntu-ports
+Suites: noble noble-updates noble-security
+Components: main universe
+Architectures: arm64
+SRCSRC
+            fi
+            sudo sed -i "s/^Architectures:.*/Architectures: amd64/" /etc/apt/sources.list.d/ubuntu.sources
+            sudo apt-get update
+            sudo apt-get install -y crossbuild-essential-arm64 pkg-config libssl-dev:arm64
+        ' >&2
     fi
 
     echo "Ensuring Rust target $BUILD_TARGET exists in toolbox $TOOLBOX_CONTAINER" >&2
@@ -37,6 +50,8 @@ toolbox_build_release_binary() {
     echo "Building release server binary in toolbox $TOOLBOX_CONTAINER" >&2
     toolbox_run env \
         CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="${CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER:-aarch64-linux-gnu-gcc}" \
+        PKG_CONFIG_SYSROOT_DIR="/" \
+        PKG_CONFIG_PATH="/usr/lib/aarch64-linux-gnu/pkgconfig" \
         bash -c "cd '$ROOT_DIR' && cargo build --release -p seki-web --target '$BUILD_TARGET'"
 }
 

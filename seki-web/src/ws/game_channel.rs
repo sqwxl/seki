@@ -289,6 +289,7 @@ pub async fn handle_message(
 
 async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i64, action: &str) {
     let Ok(gwp) = Game::find_with_players(&state.db, game_id).await else {
+        tracing::warn!("push: game {game_id} not found");
         return;
     };
 
@@ -301,6 +302,7 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
     };
 
     let Some(target_id) = opponent_id else {
+        tracing::warn!("push: no opponent found for actor {actor_id} in game {game_id}");
         return;
     };
 
@@ -331,14 +333,46 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
         .await
         .unwrap_or_default();
     if vapid_keys.private_key.is_empty() {
+        tracing::warn!("push: vapid keys empty, cannot send notification");
         return;
     }
 
-    if let Ok(service) = PushService::new(&vapid_keys.private_key) {
-        service
-            .send_to_user(&state.db, target_id, &payload)
-            .await
-            .ok();
+    let service = match PushService::new(&vapid_keys.private_key) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("push: failed to create PushService: {e}");
+            return;
+        }
+    };
+
+    tracing::info!("push: sending {action} notification to user {target_id} for game {game_id}");
+
+    let destinations =
+        match crate::models::push_destination::PushDestination::find_by_user_and_enabled(
+            &state.db, target_id,
+        )
+        .await
+        {
+            Ok(d) => d,
+            Err(e) => {
+                tracing::error!("push: failed to load destinations for user {target_id}: {e}");
+                return;
+            }
+        };
+
+    tracing::info!(
+        "push: user {target_id} has {} enabled destinations",
+        destinations.len()
+    );
+
+    for destination in &destinations {
+        match service.send(destination, &payload).await {
+            Ok(()) => tracing::info!("push: delivered to destination {}", destination.id),
+            Err(e) => tracing::error!(
+                "push: failed to send to destination {}: {e}",
+                destination.id
+            ),
+        }
     }
 }
 

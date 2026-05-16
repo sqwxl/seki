@@ -31,11 +31,19 @@ WantedBy=default.target
 EOF
 
 if [[ ! -f "$ENV_FILE" ]]; then
+    VAPID_PRIVATE_PEM="$(mktemp)"
+    openssl ecparam -name prime256v1 -genkey -noout -out "$VAPID_PRIVATE_PEM"
+    VAPID_PRIVATE_KEY="$(openssl ec -in "$VAPID_PRIVATE_PEM" -outform DER | tail -c +8 | head -c 32 | base64 | tr -d '=' | tr '/+' '_-')"
+    VAPID_PUBLIC_KEY="$(openssl ec -in "$VAPID_PRIVATE_PEM" -pubout -outform DER | tail -c 65 | base64 | tr -d '=' | tr '/+' '_-')"
+    rm -f "$VAPID_PRIVATE_PEM"
+
     cat >"$ENV_FILE" <<EOF
 DATABASE_URL=sqlite://$DATA_DIR/seki.db
 PORT=3000
 BASE_URL=https://pi.basilisk-aeolian.ts.net
 ENVIRONMENT=production
+VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
+VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
 EOF
 fi
 
