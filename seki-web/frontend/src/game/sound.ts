@@ -11,6 +11,7 @@ function ensureContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
   }
+
   return audioCtx;
 }
 
@@ -19,13 +20,17 @@ async function loadBuffer(
   url: string,
 ): Promise<AudioBuffer> {
   const cached = buffers[url];
+
   if (cached) {
     return cached;
   }
+
   const resp = await fetch(url);
   const data = await resp.arrayBuffer();
   const buf = await ctx.decodeAudioData(data);
+
   buffers[url] = buf;
+
   return buf;
 }
 
@@ -33,7 +38,9 @@ export function playStoneSound(): void {
   if (!soundEnabled.value) {
     return;
   }
+
   const ctx = ensureContext();
+
   loadBuffer(ctx, "/static/sounds/clicks.webm").then((buf) => {
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -46,7 +53,9 @@ export function playPassSound(): void {
   if (!soundEnabled.value) {
     return;
   }
+
   const ctx = ensureContext();
+
   loadBuffer(ctx, "/static/sounds/ding.mp3").then((buf) => {
     const src = ctx.createBufferSource();
     src.buffer = buf;

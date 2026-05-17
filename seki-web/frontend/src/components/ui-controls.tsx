@@ -26,17 +26,21 @@ export function UIControls(
     if (!analyzeChoiceOpen || analyzeChoicePending) {
       return;
     }
+
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
+
       if (
         analyzeChoiceRef.current?.contains(target) ||
         analyzeChoiceButtonRef.current?.contains(target)
       ) {
         return;
       }
+
       setAnalyzeChoiceOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
+
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [analyzeChoiceOpen, analyzeChoicePending]);
 

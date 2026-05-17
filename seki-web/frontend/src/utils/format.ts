@@ -36,18 +36,22 @@ export function formatResult(score: ScoreData, komi: number): string {
   const bTotal = score.black.territory + score.black.captures;
   const wTotal = score.white.territory + score.white.captures + komi;
   const diff = bTotal - wTotal;
+
   if (diff > 0) {
     return `B+${formatN(diff)}`;
   }
+
   if (diff < 0) {
     return `W+${formatN(-diff)}`;
   }
+
   return "Draw";
 }
 
 export function formatTime(secs: number): string {
   const m = Math.floor(secs / 60);
   const s = Math.floor(secs % 60);
+
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
@@ -58,18 +62,21 @@ export function formatTimeControl(s: GameSettings): string | undefined {
     case "fischer": {
       const main = formatTime(s.main_time_secs ?? DEFAULT_FISCHER_MAIN_SECS);
       const inc = s.increment_secs ?? DEFAULT_FISCHER_INCREMENT_SECS;
+
       return `${main}+${inc}s`;
     }
     case "byoyomi": {
       const main = formatTime(s.main_time_secs ?? DEFAULT_BYOYOMI_MAIN_SECS);
       const periods = s.byoyomi_periods ?? DEFAULT_BYOYOMI_PERIODS;
       const periodTime = s.byoyomi_time_secs ?? DEFAULT_BYOYOMI_PERIOD_SECS;
+
       return `${main} (${periods}×${periodTime}s)`;
     }
     case "correspondence": {
       const days = Math.floor(
         (s.main_time_secs ?? DEFAULT_CORRESPONDENCE_SECS) / 86400,
       );
+
       return `${days}d`;
     }
   }
@@ -83,13 +90,17 @@ export function formatSgfTime(
   if (timeLimitSecs == null && !overtime) {
     return undefined;
   }
+
   const parts: string[] = [];
+
   if (timeLimitSecs != null) {
     parts.push(formatTime(timeLimitSecs));
   }
+
   if (overtime) {
     parts.push(overtime);
   }
+
   return parts.join(" + ");
 }
 
@@ -124,6 +135,7 @@ export function todayYYYYMMDD(): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
+
   return `${y}${m}${day}`;
 }
 
@@ -131,6 +143,7 @@ export function formatSize(cols: number, rows: number): string {
   if (cols === rows) {
     return `${cols}×${cols}`;
   }
+
   return `${cols}×${rows}`;
 }
 
@@ -153,6 +166,7 @@ export function buildDescriptionParts(g: DescriptionInput): string[] {
   }
 
   const tc = formatTimeControl(g.settings);
+
   if (tc) {
     parts.push(tc);
   }
@@ -193,9 +207,11 @@ export function parseDatasetJson<T>(
   key: string,
 ): T | undefined {
   const json = root.dataset[key];
+
   if (!json) {
     return undefined;
   }
+
   try {
     return JSON.parse(json) as T;
   } catch {

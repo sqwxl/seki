@@ -9,7 +9,7 @@ pre-commit:
       glob: '*.rs'
       run: cargo clippy --all-targets -- -D warnings
     prettier:
-      glob: seki-web/**/*.{ts,tsx,css}
+      glob: seki-web/**/*.{mjs,ts,tsx,css}
       run: pnpm dlx prettier --write {staged_files}
       stage_fixed: true
     organize-ts-imports:

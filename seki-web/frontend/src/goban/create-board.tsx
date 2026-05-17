@@ -140,6 +140,7 @@ class BoardController implements Board {
   static async create(config: BoardConfig): Promise<BoardController> {
     const wasm = await ensureWasm();
     const engine = new wasm.WasmEngine(config.cols, config.rows);
+
     if (config.handicap && config.handicap >= 2) {
       engine.set_handicap(config.handicap);
     }
@@ -155,15 +156,21 @@ class BoardController implements Board {
       if (!engine.replace_tree(saved)) {
         engine.replace_moves(saved);
       }
+
       const savedBase = storage.get(`${config.storageKey}:base`);
+
       if (savedBase) {
         baseMoves = savedBase;
         baseMoveCount = (JSON.parse(savedBase) as unknown[]).length;
       }
+
       restoredWithAnalysis = engine.tree_node_count() > baseMoveCount;
+
       const savedNodeId = storage.get(`${config.storageKey}:node`);
+
       if (savedNodeId != null) {
         const id = parseInt(savedNodeId, 10);
+
         if (id >= 0) {
           engine.navigate_to(id);
         } else {
@@ -203,16 +210,21 @@ class BoardController implements Board {
     if (!storageKey) {
       return new Map();
     }
+
     const raw = storage.get(`${storageKey}:finalized`);
+
     if (!raw) {
       return new Map();
     }
+
     try {
       const data: Record<string, [number, number][]> = JSON.parse(raw);
       const map = new Map<number, [number, number][]>();
+
       for (const [k, v] of Object.entries(data)) {
         map.set(Number(k), v);
       }
+
       return map;
     } catch {
       return new Map();
@@ -223,14 +235,18 @@ class BoardController implements Board {
     if (!this.config.storageKey) {
       return;
     }
+
     if (this.finalizedNodes.size === 0) {
       storage.remove(`${this.config.storageKey}:finalized`);
       return;
     }
+
     const data: Record<string, [number, number][]> = {};
+
     for (const [id, dead] of this.finalizedNodes) {
       data[String(id)] = dead;
     }
+
     storage.set(`${this.config.storageKey}:finalized`, JSON.stringify(data));
   }
 
@@ -249,9 +265,11 @@ class BoardController implements Board {
   ): TerritoryOverlay {
     const size = this.engine.cols() * this.engine.rows();
     const paintMap: (number | null)[] = new Array(size);
+
     for (let i = 0; i < size; i++) {
       paintMap[i] = ownership[i] || null;
     }
+
     return { paintMap, dimmedVertices: deadStones };
   }
 
@@ -269,19 +287,23 @@ class BoardController implements Board {
         black: parsed.black,
         white: parsed.white,
       };
+
       return { deadStones, ownership, score };
     } catch {
       console.warn("Failed to compute territory state");
+
       return undefined;
     }
   }
 
   enterTerritoryReview(): void {
     let deadStones: [number, number][];
+
     try {
       deadStones = JSON.parse(this.engine.detect_dead_stones());
     } catch {
       console.warn("Failed to parse dead stones");
+
       return;
     }
     this.territoryState = this.computeTerritoryState(deadStones);
@@ -297,17 +319,21 @@ class BoardController implements Board {
     if (!this.territoryState) {
       return undefined;
     }
+
     const score = this.territoryState.score;
     const deadStones = this.territoryState.deadStones;
     const nodeId = this.engine.current_node_id();
+
     if (nodeId < 0) {
       return undefined;
     }
+
     this.finalizedNodes.set(nodeId, deadStones);
     this.saveFinalizedNodes();
     this.territoryState = undefined;
     this.save();
     this.render();
+
     return score;
   }
 
@@ -315,6 +341,7 @@ class BoardController implements Board {
     if (this._baseTipNodeId < 0) {
       return;
     }
+
     this.finalizedNodes.set(this._baseTipNodeId, deadStones);
     this.saveFinalizedNodes();
   }
@@ -334,6 +361,7 @@ class BoardController implements Board {
     if (this.config.moveTreeDirection === "responsive") {
       return window.innerWidth < DESKTOP_BREAKPOINT ? "horizontal" : "vertical";
     }
+
     return this.config.moveTreeDirection;
   }
 
@@ -346,13 +374,16 @@ class BoardController implements Board {
 
     if (finalized) {
       let ts = this.finalizedTerritoryCache.get(nodeId);
+
       if (!ts) {
         const deadStones = this.finalizedNodes.get(nodeId)!;
         ts = this.computeTerritoryState(deadStones);
+
         if (ts) {
           this.finalizedTerritoryCache.set(nodeId, ts);
         }
       }
+
       if (ts) {
         overlay = this.buildOverlay(ts.deadStones, ts.ownership);
         territoryInfo = {
@@ -379,6 +410,7 @@ class BoardController implements Board {
       };
     } else if (this.config.territoryOverlay && this.engine.is_at_latest()) {
       const serverOverlay = this.config.territoryOverlay();
+
       if (serverOverlay) {
         overlay = serverOverlay;
         territoryInfo = {
@@ -404,6 +436,7 @@ class BoardController implements Board {
     const onVertexClick = (_: Event, [col, row]: Point) => {
       if (this.territoryState && !finalized) {
         let newDead: [number, number][];
+
         try {
           const deadJson = this.engine.toggle_dead_chain(
             col,
@@ -413,8 +446,10 @@ class BoardController implements Board {
           newDead = JSON.parse(deadJson);
         } catch {
           console.warn("Failed to toggle dead chain");
+
           return;
         }
+
         this.territoryState = this.computeTerritoryState(newDead);
         this.render();
         return;
@@ -423,6 +458,7 @@ class BoardController implements Board {
       if (this.config.onVertexClick && this.config.onVertexClick(col, row)) {
         return;
       }
+
       if (this.engine.try_play(col, row)) {
         this.config.onStonePlay?.();
         this.save();
@@ -452,17 +488,21 @@ class BoardController implements Board {
 
     if (this.config.moveTreeEl) {
       let branchNodes: Set<number> | undefined;
+
       if (this.config.branchAtBaseTip && this._baseTipNodeId >= 0) {
         branchNodes = new Set([this._baseTipNodeId]);
       }
+
       if (this.finalizedNodes.size > 0) {
         if (!branchNodes) {
           branchNodes = new Set();
         }
+
         for (const id of this.finalizedNodes.keys()) {
           branchNodes.add(id);
         }
       }
+
       renderMoveTree(
         this.engine,
         this.config.moveTreeEl,
@@ -488,23 +528,28 @@ class BoardController implements Board {
     if (this.territoryState) {
       this.territoryState = undefined;
     }
+
     if (navigateEngine(this.engine, action)) {
       const stage = this.engine.stage();
       const nodeId = this.engine.current_node_id();
+
       if (
         stage === GameStage.TerritoryReview &&
         !this.isFinalized() &&
         nodeId !== this._baseTipNodeId
       ) {
         this.enterTerritoryReview();
+
         return;
       }
+
       this.render();
     }
   }
 
   pass(): boolean {
     const stage = this.engine.stage();
+
     if (
       this.isFinalized() ||
       stage === GameStage.TerritoryReview ||
@@ -512,20 +557,27 @@ class BoardController implements Board {
     ) {
       return false;
     }
+
     if (this.territoryState) {
       this.territoryState = undefined;
     }
+
     if (this.engine.pass()) {
       this.config.onPass?.();
       this.save();
       flashPassEffect(this.config.gobanEl);
+
       if (this.engine.stage() === GameStage.TerritoryReview) {
         this.enterTerritoryReview();
+
         return true;
       }
+
       this.render();
+
       return true;
     }
+
     return false;
   }
 
@@ -629,6 +681,7 @@ class BoardController implements Board {
         },
       };
     }
+
     return JSON.stringify(snapshot);
   }
 
@@ -636,27 +689,34 @@ class BoardController implements Board {
     if (!json) {
       return;
     }
+
     let snapshot: PresentationSnapshot;
+
     try {
       snapshot = JSON.parse(json);
     } catch {
       console.warn("Failed to parse presentation snapshot");
       return;
     }
+
     if (snapshot.tree) {
       this.engine.replace_tree(snapshot.tree);
     }
+
     const nodeId = parseInt(snapshot.activeNodeId, 10);
+
     if (nodeId >= 0) {
       this.engine.navigate_to(nodeId);
     } else {
       this.engine.to_start();
     }
+
     if (snapshot.territory) {
       const cols = this.engine.cols();
       const deadStones: [number, number][] = snapshot.territory.deadStones.map(
         (idx) => [idx % cols, Math.floor(idx / cols)] as [number, number],
       );
+
       this.territoryState = {
         deadStones,
         ownership: snapshot.territory.ownership,
@@ -665,6 +725,7 @@ class BoardController implements Board {
     } else {
       this.territoryState = undefined;
     }
+
     this.render();
   }
 
@@ -673,6 +734,7 @@ class BoardController implements Board {
       cancelAnimationFrame(this.resizeFrame);
       this.resizeFrame = undefined;
     }
+
     this.abortController.abort();
   }
 
@@ -685,27 +747,33 @@ class BoardController implements Board {
       "keydown",
       (e: KeyboardEvent) => {
         const tag = (e.target as HTMLElement)?.tagName;
+
         if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
           return;
         }
+
         switch (e.key) {
           case "ArrowLeft":
             e.preventDefault();
             this.navigate("back");
+
             break;
           case "ArrowRight":
             e.preventDefault();
             this.navigate("forward");
+
             break;
           case "ArrowUp":
           case "Home":
             e.preventDefault();
             this.navigate("start");
+
             break;
           case "ArrowDown":
           case "End":
             e.preventDefault();
             this.navigate("end");
+
             break;
         }
       },
@@ -718,6 +786,7 @@ class BoardController implements Board {
         if (this.resizeFrame !== undefined) {
           return;
         }
+
         this.resizeFrame = requestAnimationFrame(() => {
           this.resizeFrame = undefined;
           this.render();

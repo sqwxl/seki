@@ -13,7 +13,9 @@ export default function Line({
   v2,
   type = "line",
 }: LineProps): JSX.Element | null {
-  if (vertexEquals(v1, v2)) return null;
+  if (vertexEquals(v1, v2)) {
+    return null;
+  }
 
   const [x1, y1] = v1;
   const [x2, y2] = v2;

@@ -181,7 +181,9 @@ export const presenterDisplayName = computed(() => {
   if (!presentationActive.value) {
     return "";
   }
+
   const user = onlineUsers.value.get(presenterId.value);
+
   return user?.display_name ?? "";
 });
 
@@ -189,7 +191,9 @@ export function setPendingAction(id: PendingActionId): boolean {
   if (pendingAction.value) {
     return false;
   }
+
   pendingAction.value = id;
+
   return true;
 }
 
@@ -279,6 +283,7 @@ export function resetGameRuntimeState(): void {
     boardReviewing.value = false;
     mobileTab.value = "board";
   });
+
   clearFlash();
 }
 
@@ -291,16 +296,20 @@ function upsertChatMessages(nextEntry: ChatEntry): void {
   const next = chatMessages.value.map((entry) => {
     if (nextEntry.id != null && entry.id === nextEntry.id) {
       replaced = true;
+
       return nextEntry;
     }
+
     if (
       !replaced &&
       nextEntry.client_message_id &&
       entry.client_message_id === nextEntry.client_message_id
     ) {
       replaced = true;
+
       return nextEntry;
     }
+
     return entry;
   });
   chatMessages.value = replaced ? next : [...next, nextEntry];
@@ -313,9 +322,11 @@ export function applyGameStateMessage(data: StateMessage): void {
     if (data.territory.black_approved && !_prevBlackApproved) {
       approvalMessages.push({ text: "Black accepted the score" });
     }
+
     if (data.territory.white_approved && !_prevWhiteApproved) {
       approvalMessages.push({ text: "White accepted the score" });
     }
+
     _prevBlackApproved = data.territory.black_approved;
     _prevWhiteApproved = data.territory.white_approved;
   }
@@ -325,6 +336,7 @@ export function applyGameStateMessage(data: StateMessage): void {
     gameStage.value = data.stage;
     currentTurn.value = data.current_turn_stone;
     moves.value = data.moves ?? [];
+
     // Server undo_rejected resets per-move; sync local undo state.
     // Always dismiss on game end so the popover doesn't linger.
     if (data.result) {
@@ -334,10 +346,13 @@ export function applyGameStateMessage(data: StateMessage): void {
     } else if (undoRequest.value !== "received") {
       undoRequest.value = "none";
     }
+
     allowUndo.value = data.allow_undo ?? false;
+
     if (data.nigiri !== undefined) {
       nigiri.value = data.nigiri;
     }
+
     if (data.settings || data.komi != null) {
       initialProps.value = {
         ...initialProps.value,
@@ -345,14 +360,18 @@ export function applyGameStateMessage(data: StateMessage): void {
         komi: data.komi ?? initialProps.value.komi,
       };
     }
+
     result.value = data.result;
     territory.value = data.territory;
     settledTerritory.value = data.settled_territory;
+
     if (data.can_start_presentation != null) {
       canStartPresentation.value = data.can_start_presentation;
     }
+
     black.value = data.black ?? undefined;
     white.value = data.white ?? undefined;
+
     // Re-derive playerStone from updated black/white (nigiri swap may have changed them)
     if (currentUserId.value) {
       if (data.black?.id === currentUserId.value) {
@@ -361,6 +380,7 @@ export function applyGameStateMessage(data: StateMessage): void {
         playerStone.value = -1;
       }
     }
+
     if (approvalMessages.length > 0) {
       chatMessages.value = [...chatMessages.value, ...approvalMessages];
     }
@@ -376,9 +396,11 @@ export function applyUndo(
       data.undo_rejected !== undefined && data.undo_rejected
         ? "rejected"
         : "none";
+
     if (data.state) {
       gameState.value = data.state;
       currentTurn.value = data.current_turn_stone ?? null;
+
       if (data.moves) {
         moves.value = data.moves;
       }
@@ -402,15 +424,19 @@ export function addChatMessage(entry: ChatEntry): void {
 export function replaceChatMessages(entries: ChatEntry[]): void {
   const seenIds = new Set<number>();
   const deduped: ChatEntry[] = [];
+
   for (const entry of entries) {
     if (entry.id != null) {
       if (seenIds.has(entry.id)) {
         continue;
       }
+
       seenIds.add(entry.id);
     }
+
     deduped.push(entry);
   }
+
   chatMessages.value = deduped;
 }
 
@@ -451,11 +477,13 @@ export function setPresence(
   user?: UserData,
 ): void {
   const next = new Map(onlineUsers.value);
+
   if (online && user) {
     next.set(userId, user);
   } else {
     next.delete(userId);
   }
+
   onlineUsers.value = next;
 }
 
@@ -484,6 +512,7 @@ export function clearPresentation(): void {
     presenterId.value = 0;
     originatorId.value = 0;
     controlRequest.value = undefined;
+
     // After a session ends, has_had_presentation is true server-side,
     // so any connected user on a finished game is now eligible
     if (result.value) {

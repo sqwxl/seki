@@ -10,16 +10,21 @@ export function FlashBanner() {
     if (flash) {
       setRenderedFlash(flash);
       setLeaving(false);
+
       return;
     }
+
     if (!renderedFlash) {
       return;
     }
+
     setLeaving(true);
+
     const timeout = window.setTimeout(() => {
       setRenderedFlash(undefined);
       setLeaving(false);
     }, 250);
+
     return () => {
       window.clearTimeout(timeout);
     };

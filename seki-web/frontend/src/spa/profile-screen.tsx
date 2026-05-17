@@ -75,7 +75,9 @@ export function ProfileScreen({
   async function submitUsername(e: Event) {
     e.preventDefault();
     clearFlash();
+
     const form = e.currentTarget as HTMLFormElement;
+
     try {
       const result = await postForm(form.action, new FormData(form));
       await refreshSession();
@@ -90,7 +92,9 @@ export function ProfileScreen({
   async function submitEmail(e: Event) {
     e.preventDefault();
     clearFlash();
+
     const form = e.currentTarget as HTMLFormElement;
+
     try {
       const result = await postForm(form.action, new FormData(form));
       await refreshSession();
@@ -104,15 +108,18 @@ export function ProfileScreen({
 
   async function generateToken() {
     clearFlash();
+
     try {
       const response = await fetch("/settings/token", {
         method: "POST",
         headers: { Accept: "application/json" },
       });
       const result = await response.json();
+
       if (!response.ok) {
         throw new Error(result.error ?? "Request failed");
       }
+
       if (typeof result.redirect === "string") {
         navigate(result.redirect, true, true);
       }
@@ -124,6 +131,7 @@ export function ProfileScreen({
   if (error) {
     return <ErrorState message={error.message} />;
   }
+
   if (!data) {
     return <LoadingState />;
   }

@@ -112,8 +112,10 @@ export function liveGame(
     if (clockState.syncedAt <= 0) {
       return undefined;
     }
+
     return performance.now() - clockState.syncedAt;
   });
+
   const gobanRef = createRef<HTMLDivElement>();
   const territoryCountdown: TerritoryCountdown = {
     deadline: undefined,
@@ -121,11 +123,15 @@ export function liveGame(
     flagSent: false,
     chatEntry: undefined,
   };
+
   showCoordinates.value = readShowCoordinates();
+
   const mc = createMoveConfirm({
     getSign: () => playerStone.value as Sign,
   });
+
   moveConfirmEnabled.value = mc.enabled;
+
   const disposers: Array<() => void> = [];
 
   // --- Move tree element ---
@@ -154,13 +160,16 @@ export function liveGame(
   }: { restorePosition?: boolean; nodeId?: number } = {}) {
     const cur = gamePhase.value;
     clearPendingMove();
+
     if (cur.phase === "presentation" && cur.role === "synced-viewer") {
       toPresentationLocalAnalysis();
     } else {
       toAnalysis();
     }
+
     mobileTab.value = "analysis";
     const saved = loadSavedAnalysisTree(board.value, analysisKey, moves.value);
+
     if (nodeId != null && board.value) {
       if (nodeId >= 0) {
         board.value.engine.navigate_to(nodeId);
@@ -170,6 +179,7 @@ export function liveGame(
     } else if (restorePosition) {
       restoreAnalysisPosition(board.value, saved);
     }
+
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
   }
@@ -178,11 +188,14 @@ export function liveGame(
     if (gamePhase.value.phase === "estimate") {
       doExitEstimate();
     }
+
     clearPendingMove();
     saveAnalysis(board.value, analysisMode.value, analysisKey, false);
     const cur = gamePhase.value;
+
     if (cur.phase === "presentation" && cur.role === "local-analysis") {
       toPresentationSyncedViewer();
+
       if (lastPresentationSnapshot && board.value) {
         board.value.importSnapshot(lastPresentationSnapshot);
       }
@@ -190,14 +203,17 @@ export function liveGame(
       toLive();
       board.value?.restoreBaseMoves();
     }
+
     mobileTab.value = "board";
     board.value?.render();
   }
 
   function enterEstimate() {
     const wasAnalysis = analysisMode.value;
+
     clearPendingMove();
     toEstimate();
+
     if (settledTerritory.value && !wasAnalysis) {
       board.value?.render();
     } else {
@@ -207,12 +223,15 @@ export function liveGame(
 
   function doExitEstimate() {
     const cur = gamePhase.value;
+
     if (cur.phase !== "estimate") {
       return;
     }
+
     const wasFromAnalysis = cur.fromAnalysis;
     phaseExitEstimate();
     estimateScore.value = undefined;
+
     if (settledTerritory.value && !wasFromAnalysis) {
       board.value?.render();
     } else {
@@ -228,6 +247,7 @@ export function liveGame(
     if (!board.value || !isPresenter.value) {
       return;
     }
+
     const snapshot = board.value.exportSnapshot();
     channel.sendPresentationState(snapshot);
   }
@@ -249,6 +269,7 @@ export function liveGame(
     if (!board.value) {
       return;
     }
+
     const timeFields = settingsToSgfTime(initialProps.settings);
     const meta: SgfMeta = {
       cols: gameState.value.cols,
@@ -265,6 +286,7 @@ export function liveGame(
     const sgf = board.value.engine.export_sgf(JSON.stringify(meta));
     const bName = black.value?.display_name ?? "Black";
     const wName = white.value?.display_name ?? "White";
+
     downloadSgf(sgf, `${todayYYYYMMDD()}-${bName}-vs-${wName}.sgf`);
   }
 
@@ -273,26 +295,35 @@ export function liveGame(
     if (analysisMode.value) {
       return false;
     }
+
     if (!board.value || !board.value.engine.is_at_latest()) {
       return true;
     }
+
     if (playerStone.value === 0) {
       return true;
     }
+
     if (result.value) {
       return true;
     }
+
     if (gameStage.value === GameStage.Challenge) {
       return true;
     }
+
     if (gameStage.value === GameStage.TerritoryReview) {
       const b = board.value?.engine.board();
+
       if (b && b[row * gameState.value.cols + col] !== 0) {
         channel.toggleChain(col, row);
       }
+
       return true;
     }
+
     const isMyTurn = currentTurn.value === playerStone.value;
+
     if (isMyTurn) {
       if (!mc.enabled) {
         clearPendingMove();
@@ -313,6 +344,7 @@ export function liveGame(
         }
       }
     }
+
     return true;
   }
 
@@ -363,6 +395,7 @@ export function liveGame(
     if (analysisMode.value || estimateMode.value) {
       return undefined;
     }
+
     return mc.getGhostStone();
   }
 
@@ -379,12 +412,15 @@ export function liveGame(
       if (analysisMode.value) {
         return true;
       }
+
       if (playerStone.value === 0 || result.value) {
         return false;
       }
+
       if (gameStage.value === GameStage.Challenge) {
         return false;
       }
+
       return currentTurn.value === playerStone.value;
     },
     onVertexClick: handleVertexClick,
@@ -417,17 +453,23 @@ export function liveGame(
       b.destroy();
       return;
     }
+
     board.value = b;
     board.value.setMoveTreeEl(moveTreeEl);
+
     if (moves.value.length > 0) {
       const movesJson = JSON.stringify(moves.value);
+
       resetMovesTracker(moves.value.length);
       board.value.updateBaseMoves(movesJson);
     }
+
     if (settledTerritory.value) {
       board.value.markSettled(settledTerritory.value.dead_stones);
     }
+
     const saved = readSavedAnalysis(analysisKey);
+
     if (saved?.active) {
       enterAnalysis();
     } else if (saved && saved.active !== false && result.value) {
@@ -504,8 +546,10 @@ export function liveGame(
     "presence_state",
     (data) => {
       const map = new Map<number, UserData>();
+
       for (const [idStr, online] of Object.entries(data.users)) {
         const id = Number(idStr);
+
         if (online) {
           const userData =
             black.value?.id === id
@@ -513,6 +557,7 @@ export function liveGame(
               : white.value?.id === id
                 ? white.value
                 : undefined;
+
           if (userData) {
             map.set(id, userData);
           }
@@ -521,6 +566,7 @@ export function liveGame(
       onlineUsers.value = map;
     },
   );
+
   const unsubPresenceChanged = subscribe<{ user_id: number; online: boolean }>(
     "presence_changed",
     (data) => {
@@ -531,6 +577,7 @@ export function liveGame(
             ? white.value
             : undefined;
       setPresence(data.user_id, data.online, userData ?? undefined);
+
       if (data.online) {
         const myStone = playerStone.value;
         const oppId =
@@ -539,6 +586,7 @@ export function liveGame(
             : myStone === -1
               ? black.value?.id
               : undefined;
+
         if (oppId === data.user_id) {
           opponentDisconnected.value = undefined;
         }
@@ -551,6 +599,7 @@ export function liveGame(
     effect(() => {
       const enabled = moveConfirmEnabled.value;
       mc.enabled = enabled;
+
       if (!enabled && mc.value) {
         clearPendingMove();
         board.value?.render();
@@ -562,17 +611,23 @@ export function liveGame(
   disposers.push(
     effect(() => {
       const dc = opponentDisconnected.value;
+
       if (!dc) {
         return;
       }
+
       if (dc.gone || dc.gracePeriodMs == null) {
         uiNowMs.value = Date.now();
+
         return;
       }
+
       const interval = setInterval(() => {
         uiNowMs.value = Date.now();
       }, 1000);
+
       uiNowMs.value = Date.now();
+
       return () => clearInterval(interval);
     }),
   );
@@ -581,13 +636,16 @@ export function liveGame(
   disposers.push(
     effect(() => {
       const terr = territory.value;
+
       if (!terr?.expires_at) {
         return;
       }
+
       const interval = setInterval(() => {
         uiNowMs.value = Date.now();
       }, 1000);
       uiNowMs.value = Date.now();
+
       return () => clearInterval(interval);
     }),
   );
@@ -619,6 +677,7 @@ export function liveGame(
   disposers.push(
     effect(() => {
       const tab = mobileTab.value;
+
       if (tab === "analysis" && !analysisMode.peek()) {
         untracked(() => enterAnalysis());
       } else if (tab === "board" && analysisMode.peek()) {
@@ -633,13 +692,16 @@ export function liveGame(
       stopFlashing();
     }
   };
+
   document.addEventListener("visibilitychange", onVisibilityChange);
 
   return () => {
     disposed = true;
+
     for (const dispose of disposers) {
       dispose();
     }
+
     stopDismissOutside();
     leaveGame();
     unsubPresenceState();

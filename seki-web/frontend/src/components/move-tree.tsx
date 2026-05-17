@@ -33,6 +33,7 @@ function layoutTree(
 
     const children = tree.nodes[nodeId].children;
     const allBranch = branchAfterNodes?.has(nodeId) ?? false;
+
     for (let i = 0; i < children.length; i++) {
       if (i === 0 && !allBranch) {
         // First child stays on the same row
@@ -47,6 +48,7 @@ function layoutTree(
 
   for (let i = 0; i < tree.root_children.length; i++) {
     const rootId = tree.root_children[i];
+
     if (i === 0) {
       walk(rootId, 0, nextRow);
     } else {
@@ -87,13 +89,16 @@ export function MoveTree({
   // Compute active path: ancestors from current node to root
   const activePath = useMemo(() => {
     const path = new Set<number>();
+
     if (currentNodeId >= 0 && currentNodeId < tree.nodes.length) {
       let id: number | null = currentNodeId;
+
       while (id != null) {
         path.add(id);
         id = tree.nodes[id].parent;
       }
     }
+
     return path;
   }, [currentNodeId, tree]);
 
@@ -121,22 +126,28 @@ export function MoveTree({
   // Auto-scroll to keep current node visible
   useEffect(() => {
     const el = scrollRef.current;
+
     if (!el) {
       return;
     }
+
     let x: number;
     let y: number;
+
     if (currentNodeId === -1) {
       x = cx(0, 0);
       y = cy(0, 0);
     } else {
       const cur = layout.find((n) => n.id === currentNodeId);
+
       if (!cur) {
         return;
       }
+
       x = cx(cur.col, cur.row);
       y = cy(cur.col, cur.row);
     }
+
     const pad = PADDING;
     const sl = el.scrollLeft;
     const st = el.scrollTop;
@@ -148,6 +159,7 @@ export function MoveTree({
     } else if (x + pad > sl + w) {
       el.scrollLeft = x + pad - w;
     }
+
     if (y - pad < st) {
       el.scrollTop = Math.max(0, y - pad);
     } else if (y + pad > st + h) {
@@ -157,13 +169,17 @@ export function MoveTree({
 
   // Build edges
   const edges: h.JSX.Element[] = [];
+
   for (const node of layout) {
     if (!node) {
       continue;
     }
+
     const treeNode = tree.nodes[node.id];
+
     if (treeNode.parent != null) {
       const parentLayout = layout[treeNode.parent];
+
       if (parentLayout) {
         const x1 = cx(parentLayout.col, parentLayout.row);
         const y1 = cy(parentLayout.col, parentLayout.row);
@@ -207,10 +223,12 @@ export function MoveTree({
 
   // Build nodes
   const nodes: h.JSX.Element[] = [];
+
   for (const node of layout) {
     if (!node) {
       continue;
     }
+
     const treeNode = tree.nodes[node.id];
     const x = cx(node.col, node.row);
     const y = cy(node.col, node.row);

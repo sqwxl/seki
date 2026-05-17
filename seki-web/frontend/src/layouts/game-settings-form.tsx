@@ -55,6 +55,7 @@ type AllSettings = {
 function loadSettings(): AllSettings {
   try {
     const saved = storage.getJson<Partial<AllSettings>>(GAME_SETTINGS);
+
     if (saved) {
       return {
         shared: { ...SHARED_DEFAULTS, ...saved.shared },
@@ -64,6 +65,7 @@ function loadSettings(): AllSettings {
       };
     }
   } catch {}
+
   return {
     shared: { ...SHARED_DEFAULTS },
     open: { ...OPEN_DEFAULTS },
@@ -95,18 +97,23 @@ export function GameSettingsForm({
 }: Props) {
   const [all, setAll] = useState(() => {
     const saved = loadSettings();
+
     if (opponent) {
       saved.shared.variant = "challenge";
       saved.challenge.selectedOpponent = opponent;
+
       const canRank =
         opponentRank?.status === "ranked" ||
         opponentRank?.status === "unranked";
+
       if (canRank && isRegistered && !rankedUnavailableReason) {
         saved.challenge.ranked = true;
       }
     }
+
     return saved;
   });
+
   const settingsRef = useRef(all);
   settingsRef.current = all;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -131,9 +138,11 @@ export function GameSettingsForm({
   ) {
     setAll((prev) => {
       const next = { ...prev.open, [key]: value };
+
       if (key === "ranked" && value) {
         next.isPrivate = false;
       }
+
       return { ...prev, open: next };
     });
   }
@@ -144,12 +153,14 @@ export function GameSettingsForm({
   ) {
     setAll((prev) => {
       const next = { ...prev.challenge, [key]: value };
+
       if (key === "ranked" && value) {
         next.isPrivate = false;
         next.cols = 19;
         next.handicap = 0;
         next.komi = 6.5;
       }
+
       return { ...prev, challenge: next };
     });
   }
@@ -163,26 +174,36 @@ export function GameSettingsForm({
 
   useEffect(() => {
     const form = rootRef.current?.closest("form");
-    if (!form) return;
+
+    if (!form) {
+      return;
+    }
+
     const onSubmit = () => {
       try {
         storage.setJson(GAME_SETTINGS, settingsRef.current);
       } catch {}
     };
+
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "BUTTON") {
         e.preventDefault();
+
         const inputs = Array.from(
           form.querySelectorAll<HTMLElement>(
             "input:not([hidden]):not([disabled]), select:not([disabled]), button:not([disabled])",
           ),
         );
         const idx = inputs.indexOf(e.target as HTMLElement);
-        if (idx >= 0 && idx < inputs.length - 1) inputs[idx + 1].focus();
+
+        if (idx >= 0 && idx < inputs.length - 1) {
+          inputs[idx + 1].focus();
+        }
       }
     };
     form.addEventListener("submit", onSubmit);
     form.addEventListener("keydown", onKeydown);
+
     return () => {
       form.removeEventListener("submit", onSubmit);
       form.removeEventListener("keydown", onKeydown);

@@ -66,6 +66,7 @@ export function GameListItem({
   ]
     .filter(Boolean)
     .join(" ");
+
   return (
     <li
       key={game.id}
@@ -92,9 +93,11 @@ function activeStone(stage: GameStage): "black" | "white" | undefined {
   if (stage === GameStage.BlackToPlay) {
     return "black";
   }
+
   if (stage === GameStage.WhiteToPlay) {
     return "white";
   }
+
   return undefined;
 }
 
@@ -107,6 +110,7 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
 
   if (props.dismissed && props.result) {
     const partsWithoutResult = parts.filter((p) => p !== props.result);
+
     return (
       <>
         <span class="dismissed-content">

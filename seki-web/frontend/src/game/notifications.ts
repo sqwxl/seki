@@ -34,6 +34,7 @@ function getOpponentName(): string {
 
 function sendNotification(title: string, body: string, tag: string): void {
   const n = new Notification(title, { body, tag });
+
   n.onclick = () => {
     window.focus();
     n.close();
@@ -44,20 +45,25 @@ export function notifyTurn(state: NotificationState): void {
   if (!isEnabled() || !document.hidden) {
     return;
   }
+
   if (playerStone.value === 0) {
     return;
   }
+
   if (currentTurn.value !== playerStone.value) {
     return;
   }
+
   if (!isPlayStage(gameStage.value)) {
     return;
   }
 
   const moveCount = moves.value.length;
+
   if (moveCount <= state.lastNotifiedMoveCount) {
     return;
   }
+
   state.lastNotifiedMoveCount = moveCount;
 
   sendNotification(

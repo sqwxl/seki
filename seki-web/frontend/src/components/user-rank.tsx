@@ -31,12 +31,15 @@ export function UserRank({
 
   if (showBoth) {
     const text = fullRankText(rank);
+
     if (!text) {
       return bare ? null : <span class="player-rank">{""}</span>;
     }
+
     if (bare) {
       return <>{text}</>;
     }
+
     return (
       <span class="player-rank" title={alternate || undefined}>
         {text}

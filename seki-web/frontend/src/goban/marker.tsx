@@ -1,4 +1,4 @@
-import type { JSX } from "preact";
+import type { CSSProperties, JSX } from "preact";
 
 type MarkerProps = {
   sign: number;
@@ -13,7 +13,7 @@ export default function Marker({
   label,
   zIndex,
 }: MarkerProps): JSX.Element {
-  const containerStyle: JSX.CSSProperties = {
+  const containerStyle: CSSProperties = {
     position: "absolute",
     zIndex,
   };

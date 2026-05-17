@@ -170,6 +170,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     b?.id === props.creator_id ? w?.display_name : b?.display_name;
 
   let lobbyPopover: UiCapabilities["lobbyPopover"];
+
   if (isChallengee) {
     lobbyPopover = {
       variant: "challengee",
@@ -204,6 +205,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     isPlayer && !isDone && !res && !!oppDisconnected?.gone;
 
   let disconnectCountdown: string | undefined;
+
   if (isPlayer && !isDone && !res && oppDisconnected) {
     if (oppDisconnected.gone) {
       disconnectCountdown = "Opponent left the game.";
@@ -213,6 +215,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
         0,
         Math.ceil((oppDisconnected.gracePeriodMs - elapsed) / 1000),
       );
+
       if (remaining > 0) {
         disconnectCountdown = `Opponent left. ${remaining}s to reconnect.`;
       } else {
@@ -238,7 +241,9 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
   const onFinalized = boardFinalized.value;
   const showEnterEstimate =
     !inEstimate && !isReview && (isPlay || (isDone && !!settled));
+
   const canEnterEstimate = showEnterEstimate && !onFinalized;
+
   const estimateTitle = isDone && !!settled ? "Show territory" : undefined;
 
   const canExitEstimate = inEstimate;
@@ -341,6 +346,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
       : false;
 
   let territoryCountdownSecs: number | undefined;
+
   if (isReview && terr?.expires_at) {
     const remaining = new Date(terr.expires_at).getTime() - uiNowMs.value;
     territoryCountdownSecs = Math.ceil(Math.max(0, remaining) / 1000);
@@ -354,6 +360,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
           ? GameStage.Declined
           : GameStage.Completed
       : stage;
+
   const statusResult =
     statusStage === GameStage.Completed ||
     statusStage === GameStage.Aborted ||
@@ -383,6 +390,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     }) ?? "";
 
   let presentationStatusSuffix = "";
+
   if (inPresentation) {
     if (isPresenter.value) {
       presentationStatusSuffix = " (You are presenting)";

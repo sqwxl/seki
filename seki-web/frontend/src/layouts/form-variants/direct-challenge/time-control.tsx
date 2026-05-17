@@ -20,9 +20,11 @@ export function rankedSettingsFromGap(
   const steps = Math.floor(gap / rps);
   const handicap = steps >= 2 ? Math.min(steps, 9) : 0;
   const komi = handicap >= 2 ? 0.5 : 6.5;
+
   if (Math.abs(blackRating - whiteRating) < 0.01) {
     return { handicap, komi, color: "nigiri" };
   }
+
   return {
     handicap,
     komi,
@@ -37,6 +39,7 @@ export function inferSettingsFromRanks(
   if (currentUserRank?.rating == null || opponentRank?.rating == null) {
     return null;
   }
+
   return rankedSettingsFromGap(currentUserRank.rating, opponentRank.rating);
 }
 

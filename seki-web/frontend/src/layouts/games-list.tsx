@@ -28,12 +28,15 @@ export type GameRemovedMessage = {
 
 function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
   const map = new Map<number, LiveGameItem>();
+
   for (const g of msg.player_games) {
     map.set(g.id, g);
   }
+
   for (const g of msg.public_games) {
     map.set(g.id, g);
   }
+
   return map;
 }
 
@@ -51,6 +54,7 @@ function GameSection({
   if (!emptyText && games.length === 0) {
     return null;
   }
+
   return (
     <>
       <h1>{title}</h1>
@@ -86,6 +90,7 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
         setGames((prev) => {
           const next = new Map(prev);
           next.set(msg.game.id, msg.game);
+
           return next;
         });
       }),
@@ -93,11 +98,14 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
       subscribe<GameUpdatedMessage>("game_updated", (msg) => {
         setGames((prev) => {
           const existing = prev.get(msg.game.id);
+
           if (!existing) {
             return prev;
           }
+
           const next = new Map(prev);
           next.set(msg.game.id, { ...existing, ...msg.game });
+
           return next;
         });
       }),
@@ -106,6 +114,7 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
         setGames((prev) => {
           const next = new Map(prev);
           next.delete(msg.game_id);
+
           return next;
         });
       }),

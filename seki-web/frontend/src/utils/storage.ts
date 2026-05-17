@@ -47,9 +47,11 @@ export const storage = {
   },
   getJson<T>(key: string): T | undefined {
     const raw = localStorage.getItem(key);
+
     if (!raw) {
       return undefined;
     }
+
     try {
       return JSON.parse(raw) as T;
     } catch {

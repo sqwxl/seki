@@ -24,6 +24,7 @@ import { postForm } from "../../utils/web-client";
 
 export function buildShareGameUrl(): string {
   const accessToken = initialProps.value.access_token;
+
   return initialProps.value.settings.is_private && accessToken
     ? `${window.location.origin}/games/${gameId.value}?access_token=${accessToken}`
     : `${window.location.origin}/games/${gameId.value}`;
@@ -33,9 +34,11 @@ export function getServerTerritory(): TerritoryOverlay | undefined {
   if (gameStage.value === GameStage.TerritoryReview && territory.value) {
     return buildTerritoryOverlay(territory.value);
   }
+
   if (estimateMode.value && settledTerritory.value) {
     return buildTerritoryOverlay(settledTerritory.value);
   }
+
   return undefined;
 }
 
@@ -94,9 +97,11 @@ export function buildControls(
     run: () => void,
   ) {
     clearGameFlashMessage();
+
     if (!setPendingAction(action)) {
       return;
     }
+
     run();
   }
 
@@ -113,6 +118,7 @@ export function buildControls(
       controlsProps.pass = { onClick: () => board.value?.pass() };
     } else {
       controlsProps.pass = { onClick: () => {}, disabled: !caps.canPass };
+
       if (caps.confirmPassRequired) {
         controlsProps.confirmPass = {
           message: "Pass your turn?",
@@ -198,16 +204,20 @@ export function buildControls(
     controlsProps.rematch = {
       onConfirm: async (swapColors) => {
         clearGameFlashMessage();
+
         if (!setPendingAction("rematch")) {
           return;
         }
+
         const formData = new FormData();
         formData.set("swap_colors", swapColors ? "true" : "false");
+
         try {
           const result = await postForm(
             `/games/${gameId.value}/rematch`,
             formData,
           );
+
           if (typeof result.redirect === "string") {
             requestSpaNavigation(result.redirect);
           }
@@ -283,6 +293,7 @@ export function buildControls(
         disabled: pendingRequestControl,
       });
     }
+
     options.push({
       label: "Analyze (local)",
       onClick: enterAnalysis,

@@ -24,6 +24,7 @@ export async function fetchJson<T>(url: string): Promise<T> {
       typeof payload === "string"
         ? payload
         : (payload?.error ?? payload?.message ?? "Request failed");
+
     throw { status: response.status, message } satisfies FetchError;
   }
 
@@ -34,17 +35,23 @@ export function getBootstrapData(): BootstrapPayload | undefined {
   if (window.__sekiBootstrap) {
     return window.__sekiBootstrap;
   }
+
   const el = document.getElementById("bootstrap-data");
+
   if (!el?.textContent) {
     return;
   }
+
   const payload = JSON.parse(el.textContent) as BootstrapPayload;
+
   window.__sekiBootstrap = payload;
+
   return payload;
 }
 
 export function seedBootstrapCache(): void {
   const payload = getBootstrapData();
+
   if (payload?.url && payload.data !== undefined) {
     routeDataCache.set(payload.url, payload.data);
   }
@@ -64,10 +71,13 @@ async function fetchRouteData<T>(url: string): Promise<T> {
   if (routeDataCache.has(url)) {
     return routeDataCache.get(url) as T;
   }
+
   const inflight = inflightRouteData.get(url);
+
   if (inflight) {
     return (await inflight) as T;
   }
+
   const request = fetchJson<T>(url)
     .then((data) => {
       routeDataCache.set(url, data);
@@ -78,7 +88,9 @@ async function fetchRouteData<T>(url: string): Promise<T> {
       inflightRouteData.delete(url);
       throw err;
     });
+
   inflightRouteData.set(url, request as Promise<unknown>);
+
   return request;
 }
 
@@ -86,6 +98,7 @@ export function prefetchRouteData(url: string | undefined): void {
   if (!url || routeDataCache.has(url) || inflightRouteData.has(url)) {
     return;
   }
+
   void fetchRouteData(url);
 }
 
@@ -98,6 +111,7 @@ export function useRouteData<T>(url: string) {
   useEffect(() => {
     let cancelled = false;
     const cached = routeDataCache.get(url) as T | undefined;
+
     setData(cached);
     setError(undefined);
     fetchRouteData<T>(url)
@@ -111,6 +125,7 @@ export function useRouteData<T>(url: string) {
           setError(err);
         }
       });
+
     return () => {
       cancelled = true;
     };

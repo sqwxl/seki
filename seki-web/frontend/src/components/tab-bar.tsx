@@ -8,7 +8,7 @@ import {
   IconMenu,
   IconStonesBw,
 } from "./icons";
-import { UIControls } from "./UIControls";
+import { UIControls } from "./ui-controls";
 
 type Tab = "board" | "chat" | "analysis";
 
@@ -22,12 +22,15 @@ function TabIcon({ id }: { id: Tab }) {
   if (id === "board") {
     return <IconStonesBw />;
   }
+
   if (id === "chat") {
     return hasUnreadChat.value ? <IconChatUnread /> : <IconChat />;
   }
+
   if (id === "analysis") {
     return <IconAnalysis />;
   }
+
   return null;
 }
 
@@ -39,12 +42,15 @@ function ControlsMenu({ controls }: { controls: ControlsProps }) {
     if (!open) {
       return;
     }
+
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
+
     document.addEventListener("click", onClickOutside, true);
+
     return () => document.removeEventListener("click", onClickOutside, true);
   }, [open]);
 
@@ -68,6 +74,7 @@ function ControlsMenu({ controls }: { controls: ControlsProps }) {
 
 export function TabBar({ controls }: { controls?: ControlsProps }) {
   const current = mobileTab.value;
+
   return (
     <div class="mobile-tab-bar">
       {tabs.map((t) => (

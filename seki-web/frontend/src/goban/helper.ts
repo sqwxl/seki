@@ -25,7 +25,9 @@ export const signEquals = (...xs: (number | null | undefined)[]): boolean =>
     : xs.every((x) => Math.sign(x ?? 0) === Math.sign(xs[0] ?? 0));
 
 export function getHoshis(width: number, height: number): Point[] {
-  if (Math.min(width, height) <= 6) return [];
+  if (Math.min(width, height) <= 6) {
+    return [];
+  }
 
   const [nearX, nearY] = [width, height].map((x) => (x >= 13 ? 3 : 2));
   const [farX, farY] = [width - nearX - 1, height - nearY - 1];
@@ -38,12 +40,17 @@ export function getHoshis(width: number, height: number): Point[] {
     [nearX, nearY],
   ];
 
-  if (width % 2 !== 0 && height % 2 !== 0 && width !== 7 && height !== 7)
+  if (width % 2 !== 0 && height % 2 !== 0 && width !== 7 && height !== 7) {
     result.push([middleX, middleY]);
-  if (width % 2 !== 0 && width !== 7)
+  }
+
+  if (width % 2 !== 0 && width !== 7) {
     result.push([middleX, nearY], [middleX, farY]);
-  if (height % 2 !== 0 && height !== 7)
+  }
+
+  if (height % 2 !== 0 && height !== 7) {
     result.push([nearX, middleY], [farX, middleY]);
+  }
 
   return result;
 }
@@ -87,9 +94,18 @@ export function readjustShifts(
     ];
 
     for (const [directions, [qx, qy], removeShifts] of neighbors) {
-      if (!directions.includes(direction)) continue;
-      if (qx < 0 || qx >= cols || qy < 0 || qy >= rows) continue;
+      if (
+        !directions.includes(direction) ||
+        qx < 0 ||
+        qx >= cols ||
+        qy < 0 ||
+        qy >= rows
+      ) {
+        continue;
+      }
+
       const qi = qy * cols + qx;
+
       if (removeShifts.includes(shiftMap[qi])) {
         shiftMap[qi] = 0;
       }

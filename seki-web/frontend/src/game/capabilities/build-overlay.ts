@@ -24,11 +24,13 @@ export function deriveTerritoryOverlay(
   if (stage === GameStage.TerritoryReview && terr) {
     return buildTerritoryOverlay(terr);
   }
+
   // Settled territory overlay for estimate mode on finished games (not in analysis — WASM handles that)
   if (phase.phase === "estimate" && !phase.fromAnalysis && settled) {
     return buildTerritoryOverlay(settled);
   }
-  return undefined;
+
+  return;
 }
 
 export function isAnalysisCapablePhase(phase: GamePhase): boolean {

@@ -7,6 +7,7 @@ export function buildPlayerPanels(input: ScoreInput): {
   white: PanelScoreFields;
 } {
   const { komi, captures, score } = input;
+
   return {
     black: {
       captures: score ? score.black.captures : captures.black,
@@ -81,8 +82,10 @@ export function derivePlayerPanel(opts: {
   };
 
   const isWhitePlayer = stone === -1;
+
   if (position === "top") {
     return isWhitePlayer ? blackPanel : whitePanel;
   }
+
   return isWhitePlayer ? whitePanel : blackPanel;
 }

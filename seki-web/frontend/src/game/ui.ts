@@ -24,12 +24,17 @@ function startFlashing() {
   if (flashInterval) {
     return;
   }
+
   savedTitle = document.title;
+
   let on = true;
+
   document.title = "YOUR MOVE";
+
   flashInterval = setInterval(() => {
     on = !on;
     document.title = on ? "YOUR MOVE" : (savedTitle ?? "");
+
     if (favicon) {
       favicon.href = `/static/images/favicon-${on ? "dark" : "light"}.svg`;
     }
@@ -40,12 +45,16 @@ export function stopFlashing() {
   if (!flashInterval) {
     return;
   }
+
   clearInterval(flashInterval);
+
   flashInterval = undefined;
+
   if (savedTitle != null) {
     document.title = savedTitle;
     savedTitle = undefined;
   }
+
   if (favicon) {
     const dark = matchMedia("(prefers-color-scheme:dark)").matches;
     favicon.href = `/static/images/favicon-${dark ? "dark" : "light"}.svg`;
@@ -70,6 +79,7 @@ export function updateTitle(): void {
     result: result.value ?? undefined,
     move_count: moves.value.length > 0 ? moves.value.length : undefined,
   });
+
   if (!flashInterval) {
     document.title = desc;
   } else {
@@ -93,6 +103,7 @@ export function syncTerritoryCountdown(
     clearInterval(countdown.interval);
     countdown.interval = undefined;
   }
+
   countdown.flagSent = false;
 
   if (expiresAt) {
@@ -104,6 +115,7 @@ export function syncTerritoryCountdown(
     );
   } else {
     countdown.deadline = undefined;
+
     if (countdown.chatEntry) {
       removeChatEntry(countdown.chatEntry);
       countdown.chatEntry = undefined;
@@ -118,11 +130,14 @@ function updateTerritoryCountdown(
   if (!countdown.deadline) {
     return;
   }
+
   const remaining = countdown.deadline - Date.now();
+
   if (remaining <= 0 && !countdown.flagSent) {
     countdown.flagSent = true;
     onFlag();
   }
+
   const secs = Math.ceil(Math.max(0, remaining) / 1000);
   const text = `Score must be accepted within ${secs}s`;
 

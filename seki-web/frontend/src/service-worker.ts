@@ -18,6 +18,7 @@ self.addEventListener("activate", (event) => {
       );
     }),
   );
+
   self.clients.claim();
 });
 
@@ -37,10 +38,12 @@ function isApiRequest(url: URL): boolean {
 
 async function fetchAndCache(request: Request): Promise<Response> {
   const response = await fetch(request);
+
   if (response.ok) {
     const clone = response.clone();
     caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
   }
+
   return response;
 }
 
@@ -60,12 +63,14 @@ self.addEventListener("fetch", (event) => {
         });
       }),
     );
+
     return;
   }
 
   if (isStaticAsset(url)) {
     if (isNetworkOnlyAsset(url)) {
       event.respondWith(fetch(event.request));
+
       return;
     }
 
@@ -76,12 +81,14 @@ self.addEventListener("fetch", (event) => {
           if (cached) {
             return cached;
           }
+
           return fetchAndCache(event.request);
         })
         .then((response) => {
           if (response) {
             return response;
           }
+
           return fetchAndCache(event.request);
         }),
     );
@@ -99,6 +106,7 @@ self.addEventListener("push", (event) => {
   if (!event.data) {
     return;
   }
+
   try {
     const payload = event.data.json() as {
       title: string;
@@ -107,6 +115,7 @@ self.addEventListener("push", (event) => {
       badge?: string;
       data?: { type?: string; gameId?: number; url?: string };
     };
+
     event.waitUntil(
       self.registration.showNotification(payload.title, {
         body: payload.body,
@@ -122,19 +131,24 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+
   const data = event.notification.data as { url?: string } | undefined;
   const targetUrl = new URL(data?.url ?? "/", self.location.origin).href;
+
   event.waitUntil(
     self.clients.matchAll({ type: "window" }).then(async (clients) => {
       for (const client of clients) {
         if (client.url.startsWith(self.location.origin) && "focus" in client) {
           await client.focus();
+
           if ("navigate" in client) {
             return client.navigate(targetUrl);
           }
+
           return;
         }
       }
+
       return self.clients.openWindow(targetUrl);
     }),
   );

@@ -6,35 +6,45 @@ export function currentUrl(): URL {
 
 export function parseRoute(url: URL): Route {
   const path = url.pathname;
+
   if (path === "/" || path === "/games") {
     return { kind: "games" };
   }
+
   if (path === "/games/new") {
     return { kind: "new-game" };
   }
+
   const challengeMatch = path.match(/^\/games\/challenge\/([^/]+)$/);
+
   if (challengeMatch) {
     return {
       kind: "challenge",
       username: decodeURIComponent(challengeMatch[1]),
     };
   }
+
   if (path === "/analysis") {
     return { kind: "analysis" };
   }
+
   if (path === "/login") {
     return {
       kind: "login",
       redirect: url.searchParams.get("redirect"),
     };
   }
+
   if (path === "/register") {
     return { kind: "register" };
   }
+
   if (path === "/settings") {
     return { kind: "settings" };
   }
+
   const gameMatch = path.match(/^\/games\/(\d+)$/);
+
   if (gameMatch) {
     return {
       kind: "game",
@@ -43,13 +53,16 @@ export function parseRoute(url: URL): Route {
       inviteToken: url.searchParams.get("invite_token"),
     };
   }
+
   const userMatch = path.match(/^\/users\/([^/]+)$/);
+
   if (userMatch) {
     return {
       kind: "profile",
       username: decodeURIComponent(userMatch[1]),
     };
   }
+
   return { kind: "not-found" };
 }
 
@@ -70,6 +83,7 @@ export function getRouteDataUrl(route: Route): string | undefined {
           ? `invite_token=${encodeURIComponent(route.inviteToken)}`
           : null,
       ].filter(Boolean);
+
       return gameParams.length > 0
         ? `/api/web/games/${route.id}?${gameParams.join("&")}`
         : `/api/web/games/${route.id}`;

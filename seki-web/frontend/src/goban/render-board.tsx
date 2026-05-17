@@ -34,6 +34,7 @@ function renderFromEngine(
       const lr = engine.last_move_row();
       markerMap[lr * cols + lc] = { type: "circle" };
     }
+
     if (engine.has_ko()) {
       const kc = engine.ko_col();
       const kr = engine.ko_row();
@@ -42,8 +43,10 @@ function renderFromEngine(
   }
 
   let ghostStoneMap: (GhostStoneData | null)[] | undefined;
+
   if (ghostStone) {
     const gs = ghostStone();
+
     if (gs) {
       ghostStoneMap = Array(board.length).fill(null);
       ghostStoneMap![gs.row * cols + gs.col] = { sign: gs.sign };
@@ -56,6 +59,7 @@ function renderFromEngine(
   // This is also needed when crossing from desktop → mobile: the stale inline
   // pixel value would otherwise override the mobile CSS default.
   const body = gobanEl.closest(".game-page-body") as HTMLElement | null;
+
   body?.style.removeProperty("--col-width");
 
   const vertexSize = computeVertexSize(gobanEl, cols, rows, showCoordinates);
@@ -83,6 +87,7 @@ function renderFromEngine(
   // the CSS default min(90vw, 70vh) handles sizing)
   if (desktopMQ.matches && body) {
     const goban = gobanEl.querySelector(".goban") as HTMLElement | null;
+
     if (goban) {
       body.style.setProperty("--col-width", `${goban.offsetWidth}px`);
     }
@@ -106,12 +111,14 @@ function renderMoveTree(
   branchAfterNodes?: Set<number>,
 ): void {
   const nodeCount = engine.tree_node_count();
+
   if (nodeCount !== cachedTreeNodeCount || !cachedTree) {
     try {
       cachedTree = JSON.parse(engine.tree_json());
       cachedTreeNodeCount = nodeCount;
     } catch {
       console.warn("Failed to parse move tree JSON");
+
       return;
     }
   }
@@ -127,15 +134,19 @@ function renderMoveTree(
 
   // Inject synthetic root node for the empty board
   const rootId = tree.nodes.length;
+
   tree.nodes.push({
     turn: { kind: "pass", stone: 0, pos: null },
     parent: null,
     children: [...tree.root_children],
   });
+
   for (const childId of tree.root_children) {
     tree.nodes[childId] = { ...tree.nodes[childId], parent: rootId };
   }
+
   tree.root_children = [rootId];
+
   if (currentNodeId === -1) {
     currentNodeId = rootId;
   }

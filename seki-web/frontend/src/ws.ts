@@ -24,7 +24,9 @@ declare global {
 }
 
 let ws: WebSocket | undefined;
+
 window.__ws = { close: () => ws?.close() };
+
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let disconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSends: string[] = [];
@@ -40,6 +42,7 @@ function ensureConnected() {
 function connect() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   const url = `${proto}//${location.host}/ws`;
+
   ws = new WebSocket(url);
 
   ws.onopen = () => {
@@ -47,44 +50,54 @@ function connect() {
       clearTimeout(disconnectTimer);
       disconnectTimer = undefined;
     }
+
     localDisconnected.value = false;
+
     // Notify game handlers before re-joining so they can reset stale state
     for (const [gameId, handler] of gameHandlers) {
       handler({ kind: "ws_reconnected", game_id: gameId });
     }
+
     // Re-join any game rooms after reconnect
     for (const gameId of gameHandlers.keys()) {
       ws!.send(JSON.stringify(joinGameMessage(gameId)));
     }
+
     // Flush pending sends
     for (const msg of pendingSends) {
       ws!.send(msg);
     }
+
     pendingSends = [];
   };
 
   ws.onmessage = (event: MessageEvent) => {
     let data: Record<string, unknown>;
+
     try {
       data = JSON.parse(event.data);
     } catch (e) {
       console.error("WS: malformed message", e);
       return;
     }
+
     const gameId = data.game_id as number | undefined;
 
     // Route game-specific messages to the game handler
     if (gameId != null) {
       const handler = gameHandlers.get(gameId);
+
       if (handler) {
         handler(data);
       }
+
       return;
     }
 
     // Route by kind (lobby events)
     const kind = data.kind as string;
     const kindHandlers = handlers.get(kind);
+
     if (kindHandlers) {
       for (const handler of kindHandlers) {
         handler(data);
@@ -98,10 +111,12 @@ function connect() {
     if (!disconnectTimer && !localDisconnected.value) {
       disconnectTimer = setTimeout(() => {
         localDisconnected.value = true;
+
         // Notify game handlers that we're disconnected so they can show UI feedback
         for (const [gameId, handler] of gameHandlers) {
           handler({ kind: "ws_disconnected", game_id: gameId });
         }
+
         disconnectTimer = undefined;
       }, 3000);
     }
@@ -120,6 +135,7 @@ function connect() {
 
 function joinGameMessage(gameId: number): Record<string, unknown> {
   const search = new URLSearchParams(location.search);
+
   return {
     action: "join_game",
     game_id: gameId,
@@ -134,10 +150,12 @@ function joinGameMessage(gameId: number): Record<string, unknown> {
  */
 function send(data: Record<string, unknown>): void {
   const msg = JSON.stringify(data);
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(msg);
   } else {
     pendingSends.push(msg);
+
     ensureConnected();
   }
 }
@@ -156,16 +174,19 @@ function subscribe<T extends Record<string, unknown> = Record<string, unknown>>(
   handler: TypedHandler<T>,
 ): () => void {
   let kindHandlers = handlers.get(kind);
+
   if (!kindHandlers) {
     kindHandlers = new Set();
     handlers.set(kind, kindHandlers);
   }
+
   kindHandlers.add(handler as Handler);
 
   ensureConnected();
 
   return () => {
     kindHandlers!.delete(handler as Handler);
+
     if (kindHandlers!.size === 0) {
       handlers.delete(kind);
     }

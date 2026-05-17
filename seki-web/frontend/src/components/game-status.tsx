@@ -11,6 +11,7 @@ export type GameStatusProps = {
 
 export function GameStatus(props: GameStatusProps) {
   const Icon = props.icon;
+
   return (
     <div class="game-status">
       {Icon && <Icon />}
@@ -51,9 +52,11 @@ export function getStatusText(input: StatusInput): string | undefined {
     if (input.isChallengeCreator && input.challengeWaitingFor) {
       return `Waiting for ${input.challengeWaitingFor}`;
     }
+
     if (!input.isChallengeCreator) {
       return "Waiting for your response";
     }
+
     return undefined;
   }
 
@@ -66,6 +69,7 @@ export function getStatusText(input: StatusInput): string | undefined {
       ? "Black to play (White passed)"
       : "Black to play";
   }
+
   if (stage === GameStage.WhiteToPlay) {
     return input.lastMoveWasPass
       ? "White to play (Black passed)"
@@ -76,12 +80,15 @@ export function getStatusText(input: StatusInput): string | undefined {
     if (input.territoryScore) {
       return formatResult(input.territoryScore, input.komi);
     }
+
     if (input.opponentApproved && input.territoryCountdownSecs != null) {
       return `Opponent accepted. ${input.territoryCountdownSecs}s`;
     }
+
     if (input.isPlayer) {
       return "Select dead stones; accept when ready";
     }
+
     return "Territory review";
   }
 
@@ -103,6 +110,7 @@ export function getStatusText(input: StatusInput): string | undefined {
         ? "Black to play (White passed)"
         : "White to play (Black passed)";
     }
+
     return input.isBlackTurn ? "Black to play" : "White to play";
   }
 

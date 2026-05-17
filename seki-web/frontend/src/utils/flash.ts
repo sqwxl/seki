@@ -22,8 +22,10 @@ export function setFlash(
 export function setFlashState(flash: FlashMessage | undefined): void {
   if (!flash?.message) {
     flashState.value = undefined;
+
     return;
   }
+
   flashState.value = flash;
 }
 
@@ -33,10 +35,13 @@ export function clearFlash(): void {
 
 export function readFlashFromUrl(url: URL): FlashMessage | undefined {
   const message = url.searchParams.get("flash");
+
   if (!message) {
     return undefined;
   }
+
   const severity = normalizeSeverity(url.searchParams.get("flash_level"));
+
   return { message, severity };
 }
 
@@ -44,6 +49,7 @@ export function stripFlashParams(url: URL): string {
   const next = new URL(url.toString());
   next.searchParams.delete("flash");
   next.searchParams.delete("flash_level");
+
   return `${next.pathname}${next.search}`;
 }
 

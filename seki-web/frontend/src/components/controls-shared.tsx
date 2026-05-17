@@ -92,6 +92,7 @@ export function ButtonContent(props: {
   pending?: boolean;
 }) {
   const Icon = props.icon;
+
   if (props.pending) {
     return <IconSpinner />;
   }
@@ -122,6 +123,7 @@ export function ConfirmPopover({
 }) {
   const Icon = icon;
   const disableActions = pending != null;
+
   return (
     <div class="confirm-popover">
       <Icon />
@@ -206,6 +208,7 @@ export function ConfirmButton({
     } else if (wasPendingRef.current) {
       setOpen(false);
     }
+
     wasPendingRef.current = isPending;
   }, [isPending]);
 
@@ -213,11 +216,14 @@ export function ConfirmButton({
     if (!open || isPending) {
       return;
     }
+
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
+
       if (buttonRef.current?.contains(target)) {
         return;
       }
+
       setOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
@@ -288,6 +294,7 @@ export function SgfImportButton({
 
 export function CopyInviteLinkButton({ onClick }: { onClick: () => void }) {
   let timer: ReturnType<typeof setTimeout> | undefined;
+
   return (
     <button
       title="Copy access link"

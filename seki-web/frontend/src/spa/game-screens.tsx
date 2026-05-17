@@ -40,6 +40,7 @@ function LiveGameScreen({
     if (!rootRef.current || !mod) {
       return;
     }
+
     return mod.liveGame(
       data.game_props,
       data.game_id,
@@ -71,6 +72,7 @@ export function AnalysisScreen() {
     if (!rootRef.current || !mod) {
       return;
     }
+
     return mod.initAnalysis(rootRef.current);
   }, [mod]);
 
@@ -96,9 +98,11 @@ export function GamesScreen() {
   if (error) {
     return <ErrorState message={error.message} />;
   }
+
   if (!data) {
     return <LoadingState />;
   }
+
   return <GamesList initial={data} />;
 }
 
@@ -129,7 +133,9 @@ export function GameScreenRoute({
     if (!error) {
       return;
     }
+
     const redirect = buildGameNavigationRedirect(route.id, error, routePath);
+
     if (redirect) {
       setFlash(redirect.flash);
       navigate(redirect.to, true, false, true);
@@ -140,14 +146,18 @@ export function GameScreenRoute({
     if (buildGameNavigationRedirect(route.id, error, routePath)) {
       return <LoadingState />;
     }
+
     return <ErrorState message={error.message} />;
   }
+
   if (liveGameModuleError) {
     return <ErrorState message={liveGameModuleError} />;
   }
+
   if (!data || !liveGameModule) {
     return <LoadingState />;
   }
+
   return <LiveGameScreen data={data} mod={liveGameModule} />;
 }
 
@@ -168,10 +178,13 @@ export function NewGameScreen({ navigate }: { navigate: NavigateFn }) {
   async function onSubmit(e: Event) {
     e.preventDefault();
     clearFlash();
+
     const form = e.currentTarget as HTMLFormElement;
+
     try {
       const result = await postForm("/games", new FormData(form));
       const redirect = result.redirect;
+
       if (typeof redirect === "string") {
         navigate(redirect);
       }
@@ -236,10 +249,13 @@ export function ChallengeScreen({
   async function onSubmit(e: Event) {
     e.preventDefault();
     clearFlash();
+
     const form = e.currentTarget as HTMLFormElement;
+
     try {
       const result = await postForm("/games", new FormData(form));
       const redirect = result.redirect;
+
       if (typeof redirect === "string") {
         navigate(redirect);
       }

@@ -40,18 +40,22 @@ const VALID_SIZES = [9, 13, 19];
 
 export function initAnalysis(root: HTMLElement) {
   const gobanRef = createRef<HTMLDivElement>();
-
   const moveTreeEl = document.createElement("div");
+
   moveTreeEl.className = "move-tree";
 
   // Restore persisted state into signals
   const savedSize = storage.get(ANALYSIS_SIZE);
   let parsed = savedSize ? parseInt(savedSize, 10) : 19;
+
   if (!VALID_SIZES.includes(parsed)) {
     parsed = 19;
   }
+
   analysisSize.value = parsed;
+
   const savedKomi = storage.get(ANALYSIS_KOMI);
+
   analysisKomi.value = savedKomi != null ? parseFloat(savedKomi) : 6.5;
   analysisMeta.value = storage.getJson(ANALYSIS_SGF_META);
 
@@ -101,6 +105,7 @@ export function initAnalysis(root: HTMLElement) {
     const mtJson = engine.current_move_time();
     let bClock = "";
     let wClock = "";
+
     if (mtJson) {
       const mt = JSON.parse(mtJson) as {
         black_time?: number;
@@ -108,19 +113,24 @@ export function initAnalysis(root: HTMLElement) {
         white_time?: number;
         white_periods?: number;
       };
+
       if (mt.black_time != null) {
         bClock = formatTime(mt.black_time);
+
         if (mt.black_periods != null) {
           bClock += ` (${mt.black_periods})`;
         }
       }
+
       if (mt.white_time != null) {
         wClock = formatTime(mt.white_time);
+
         if (mt.white_periods != null) {
           wClock += ` (${mt.white_periods})`;
         }
       }
     }
+
     if (!bClock && !wClock) {
       const fallback =
         formatSgfTime(meta?.time_limit_secs, meta?.overtime) ?? "";
@@ -180,9 +190,11 @@ export function initAnalysis(root: HTMLElement) {
   // --- Board initialization ---
   async function initBoard(size: number) {
     const initVersion = ++boardInitVersion;
+
     if (analysisBoard.value) {
       analysisBoard.value.destroy();
     }
+
     clearPendingMove();
     analysisBoard.value = undefined;
 
@@ -200,19 +212,25 @@ export function initAnalysis(root: HTMLElement) {
         if (!mc.enabled) {
           return false;
         }
+
         const action = handleMoveConfirmClick(
           mc,
           col,
           row,
           !!analysisBoard.value?.engine.is_legal(col, row),
         );
+
         syncPendingMove();
+
         if (action === "confirm") {
           return false;
         }
+
         analysisBoard.value?.render();
+
         return true;
       },
+
       onStonePlay: () => {
         clearPendingMove();
         playStoneSound();
@@ -231,6 +249,7 @@ export function initAnalysis(root: HTMLElement) {
 
     if (disposed || initVersion !== boardInitVersion) {
       board.destroy();
+
       return;
     }
 
@@ -246,33 +265,45 @@ export function initAnalysis(root: HTMLElement) {
   // --- SGF import ---
   async function handleSgfImport(input: HTMLInputElement) {
     const file = input.files?.[0];
+
     if (!file) {
       return;
     }
+
     const text = await readFileAsText(file);
     const wasm = await ensureWasm();
     const metaJson = wasm.parse_sgf(text);
     const meta: SgfMeta = JSON.parse(metaJson);
+
     if (meta.error) {
       alert(`SGF error: ${meta.error}`);
       input.value = "";
+
       return;
     }
+
     if (meta.cols !== meta.rows) {
       alert("Non-square boards are not supported.");
       input.value = "";
+
       return;
     }
+
     const size = meta.cols;
+
     if (!VALID_SIZES.includes(size)) {
       alert(`Unsupported board size: ${size}×${size}`);
       input.value = "";
+
       return;
     }
+
     // Update signals + storage
     analysisSize.value = size;
     storage.set(ANALYSIS_SIZE, String(size));
+
     const treeKey = analysisTreeKey(size);
+
     storage.remove(treeKey);
     storage.remove(`${treeKey}:base`);
     storage.remove(`${treeKey}:finalized`);
@@ -283,22 +314,27 @@ export function initAnalysis(root: HTMLElement) {
     storage.set(ANALYSIS_SGF_TEXT, text);
 
     await initBoard(size);
+
     const board = analysisBoard.value;
+
     if (board) {
       board.engine.load_sgf_tree(text);
       board.engine.to_start();
       board.save();
       board.render();
     }
+
     input.value = "";
   }
 
   // --- SGF export ---
   function handleSgfExport() {
     const board = analysisBoard.value;
+
     if (!board) {
       return;
     }
+
     const meta: SgfMeta = {
       cols: analysisSize.value,
       rows: analysisSize.value,
@@ -320,6 +356,7 @@ export function initAnalysis(root: HTMLElement) {
       : hasNames
         ? `${date}-${analysisMeta.value!.black_name}-vs-${analysisMeta.value!.white_name}`
         : "analysis";
+
     downloadSgf(sgf, `${filename}.sgf`);
   }
 
@@ -362,9 +399,11 @@ export function initAnalysis(root: HTMLElement) {
   return () => {
     disposed = true;
     boardInitVersion += 1;
+
     for (const dispose of disposers) {
       dispose();
     }
+
     stopDismissOutside();
     analysisBoard.value?.destroy();
     analysisBoard.value = undefined;

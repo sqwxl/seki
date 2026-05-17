@@ -69,6 +69,7 @@ function initAnimState(
   signMap: number[],
 ): AnimState {
   const size = cols * rows;
+
   return {
     cols,
     rows,
@@ -108,6 +109,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
   const [touchTarget, setTouchTarget] = useState<Point | null>(null);
   const touchTargetRef = useRef<Point | null>(null);
   const onVertexClickRef = useRef(props.onVertexClick);
+
   onVertexClickRef.current = props.onVertexClick;
 
   const OFFSET_PX = 76; // ~2cm in CSS pixels (consistent across DPI)
@@ -115,18 +117,22 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
   const touchToVertex = useCallback(
     (touch: Touch): Point | null => {
       const el = contentRef.current;
+
       if (!el) {
         return null;
       }
+
       const rect = el.getBoundingClientRect();
       const x = touch.clientX - rect.left;
       const y = touch.clientY - rect.top - OFFSET_PX;
       const vx = rect.width / cols;
       const col = Math.round(x / vx - 0.5);
       const row = Math.round(y / vx - 0.5);
+
       if (col < 0 || col >= cols || row < 0 || row >= rows) {
         return null;
       }
+
       return [col, row];
     },
     [cols, rows],
@@ -134,11 +140,14 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
 
   const isFarFromBoard = useCallback((touch: Touch): boolean => {
     const el = contentRef.current;
+
     if (!el) {
       return true;
     }
+
     const rect = el.getBoundingClientRect();
     const margin = 2 * OFFSET_PX;
+
     return (
       touch.clientX < rect.left - margin ||
       touch.clientX > rect.right + margin ||
@@ -151,9 +160,11 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
 
   useEffect(() => {
     const el = contentRef.current;
+
     if (!el || !crosshairActive) {
       touchTargetRef.current = null;
       setTouchTarget(null);
+
       return;
     }
 
@@ -161,8 +172,10 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
       if (e.touches.length !== 1) {
         touchTargetRef.current = null;
         setTouchTarget(null);
+
         return;
       }
+
       e.preventDefault();
       const pt = touchToVertex(e.touches[0]);
       touchTargetRef.current = pt;
@@ -173,14 +186,19 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
       if (e.touches.length !== 1) {
         touchTargetRef.current = null;
         setTouchTarget(null);
+
         return;
       }
+
       e.preventDefault();
+
       if (isFarFromBoard(e.touches[0])) {
         touchTargetRef.current = null;
         setTouchTarget(null);
+
         return;
       }
+
       const pt = touchToVertex(e.touches[0]);
       touchTargetRef.current = pt;
       setTouchTarget(pt);
@@ -189,9 +207,11 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
     function onTouchEnd(e: TouchEvent) {
       e.preventDefault();
       const target = touchTargetRef.current;
+
       if (target) {
         onVertexClickRef.current?.(e, target);
       }
+
       touchTargetRef.current = null;
       setTouchTarget(null);
     }
@@ -219,6 +239,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
   // Persistent animation state — reset when dimensions change, mutated in
   // place during the animation cycle (safe in Preact, no concurrent mode).
   const ref = useRef<AnimState | null>(null);
+
   if (!ref.current || ref.current.cols !== cols || ref.current.rows !== rows) {
     ref.current = initAnimState(cols, rows, signMap);
   } else if (
@@ -275,6 +296,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
 
   // Build animated neighbor set
   const animatedSet = new Set<number>();
+
   for (const i of animatedVertices) {
     for (const pt of neighborhood([i % cols, Math.floor(i / cols)])) {
       if (pt[0] >= 0 && pt[0] < cols && pt[1] >= 0 && pt[1] < rows) {
@@ -286,17 +308,21 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
   // Pre-index dimmed/selected vertices for O(1) lookup in the vertex loop
   const dimmedSet = useMemo(() => {
     const s = new Set<string>();
+
     for (const [x, y] of dimmedVertices) {
       s.add(`${x},${y}`);
     }
+
     return s;
   }, [dimmedVertices]);
 
   const selectedSet = useMemo(() => {
     const s = new Set<string>();
+
     for (const [x, y] of selectedVertices) {
       s.add(`${x},${y}`);
     }
+
     return s;
   }, [selectedVertices]);
 

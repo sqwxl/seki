@@ -16,9 +16,11 @@ function BellIcon() {
   if (hasUnread.value) {
     return <IconBellUnread />;
   }
+
   if (isNotifSupported() && Notification.permission === "denied") {
     return <IconBellDisabled />;
   }
+
   return <IconBell />;
 }
 
@@ -31,12 +33,15 @@ export function NotificationBell() {
     if (!open) {
       return;
     }
+
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
+
     document.addEventListener("click", onClickOutside, true);
+
     return () => document.removeEventListener("click", onClickOutside, true);
   }, [open]);
 
@@ -58,6 +63,7 @@ export function NotificationBell() {
             {games.length > 0 ? (
               games.map((g) => {
                 const label = gameLabel(g);
+
                 return (
                   <a
                     key={g.id}
@@ -102,10 +108,13 @@ export function gameLabel(g: {
 }): string {
   const b = g.black?.display_name ?? "?";
   const w = g.white?.display_name ?? "?";
+
   if (g.stage === "challenge") {
     const creatorName = resolveCreatorName(g);
+
     return `Challenge from ${creatorName}`;
   }
+
   return `Your turn: ${b} vs ${w}`;
 }
 
@@ -115,10 +124,12 @@ function resolveCreatorName(g: {
   white?: { id: number; display_name: string };
 }): string {
   const currentUserId = readUserData()?.id;
+
   if (g.creator_id != null) {
     if (g.black?.id === g.creator_id) {
       return g.black.display_name;
     }
+
     if (g.white?.id === g.creator_id) {
       return g.white.display_name;
     }
@@ -128,6 +139,7 @@ function resolveCreatorName(g: {
     if (g.black?.id === currentUserId && g.white?.display_name) {
       return g.white.display_name;
     }
+
     if (g.white?.id === currentUserId && g.black?.display_name) {
       return g.black.display_name;
     }

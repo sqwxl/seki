@@ -89,6 +89,7 @@ export function DirectChallengeForm({
         rank: opponentRank,
       };
     }
+
     return null;
   });
   const [recentsFetched, setRecentsFetched] = useState(false);
@@ -118,15 +119,18 @@ export function DirectChallengeForm({
     if (currentUserRank?.rating == null || r.rank?.rating == null) {
       return null;
     }
+
     return `${r.username}:${currentUserRank.rating}:${r.rank.rating}`;
   }
 
   function applyInferredSettings(r: SearchResult) {
     const inferred = inferSettingsFromRanks(currentUserRank, r.rank);
     const key = inferenceKey(r);
+
     if (!inferred || !key) {
       return;
     }
+
     set("handicap", inferred.handicap);
     set("komi", inferred.komi);
     set("color", inferred.color);
@@ -138,6 +142,7 @@ export function DirectChallengeForm({
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
+
       abortRef.current?.abort();
     };
   }, []);
@@ -156,10 +161,12 @@ export function DirectChallengeForm({
     if (!s.selectedOpponent || !opponentRank) {
       return;
     }
+
     setSelected((prev) => {
       if (prev?.username === s.selectedOpponent && prev.rank === opponentRank) {
         return prev;
       }
+
       return {
         username: s.selectedOpponent,
         is_registered:
@@ -178,16 +185,22 @@ export function DirectChallengeForm({
     if (!selected) {
       return;
     }
+
     const key = inferenceKey(selected);
+
     if (key && inferredSettingsKeyRef.current !== key) {
       applyInferredSettings(selected);
     }
   }, [selected, currentUserRank?.rating]);
 
   function doSearch(query: string) {
-    if (abortRef.current) abortRef.current.abort();
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
+
     fetch(`/users/search?q=${encodeURIComponent(query)}`, {
       signal: controller.signal,
     })
@@ -198,11 +211,17 @@ export function DirectChallengeForm({
 
   function onSearchInput(value: string) {
     setSearchQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
     if (!value) {
       setSearchResults([]);
+
       return;
     }
+
     debounceRef.current = setTimeout(() => doSearch(value), 300);
   }
 

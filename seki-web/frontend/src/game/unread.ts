@@ -46,7 +46,9 @@ function addUnread(game: UnreadGame): void {
   if (isGameActive(game.id)) {
     return;
   }
+
   const next = new Map(unreadGames.value);
+
   next.set(game.id, {
     id: game.id,
     creator_id: game.creator_id,
@@ -54,6 +56,7 @@ function addUnread(game: UnreadGame): void {
     black: game.black,
     white: game.white,
   });
+
   unreadGames.value = next;
 }
 
@@ -61,8 +64,11 @@ function removeUnread(gameId: number): void {
   if (!unreadGames.value.has(gameId)) {
     return;
   }
+
   const next = new Map(unreadGames.value);
+
   next.delete(gameId);
+
   unreadGames.value = next;
 }
 
@@ -87,7 +93,9 @@ export function initUnreadTracking(): void {
   // Init message — populate from player_games where unread === true
   subscribe<InitMessage>("init", (msg) => {
     currentPlayerId = msg.player_id;
+
     const next = new Map<number, UnreadGame>();
+
     for (const g of msg.player_games) {
       if ((g as LiveGameItem & { unread?: boolean }).unread) {
         next.set(g.id, {
@@ -99,12 +107,14 @@ export function initUnreadTracking(): void {
         });
       }
     }
+
     unreadGames.value = next;
   });
 
   // Game updated — check if it became my turn
   subscribe<GameUpdatedMessage>("game_updated", (msg) => {
     const g = msg.game;
+
     if (isMyTurn(g, currentPlayerId)) {
       if (!unreadGames.value.has(g.id)) {
         addUnread(g);
@@ -117,6 +127,7 @@ export function initUnreadTracking(): void {
   // Game created — check if it's a challenge for me
   subscribe<GameCreatedMessage>("game_created", (msg) => {
     const g = msg.game;
+
     if (isMyTurn(g, currentPlayerId)) {
       addUnread(g);
     }

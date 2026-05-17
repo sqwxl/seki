@@ -9,9 +9,11 @@ function useDarkMode(): boolean {
   useEffect(() => {
     const handler = () => setDark(isDark());
     document.documentElement.addEventListener("themechange", handler);
+
     return () =>
       document.documentElement.removeEventListener("themechange", handler);
   }, []);
+
   return dark;
 }
 
@@ -37,6 +39,7 @@ type IconProps = { title?: string };
 function darkModeIcon(lightSvg: string, darkSvg: string) {
   return function DarkModeIconComponent(props: IconProps) {
     const dark = useDarkMode();
+
     // Safe: SVG content is hardcoded constants, not user input
     return (
       <span
@@ -87,6 +90,7 @@ document.documentElement.addEventListener("themechange", () => {
     const stone = el.dataset.stone;
     el.innerHTML = stone === "black" ? stoneBlackSvg() : stoneWhiteSvg(); // safe: hardcoded SVG constants, not user input
   }
+
   for (const el of document.querySelectorAll<HTMLElement>(
     ".captures-icon[data-stone]",
   )) {
@@ -171,6 +175,8 @@ export const playbackNextSvg = `${svgOpen}<path d="M660-280v-400q0-17 11.5-28.5T
 export const playbackPrevSvg = `${svgOpen}<path d="M220-280v-400q0-17 11.5-28.5T260-720q17 0 28.5 11.5T300-680v400q0 17-11.5 28.5T260-240q-17 0-28.5-11.5T220-280Zm458-1L430-447q-9-6-13.5-14.5T412-480q0-10 4.5-18.5T430-513l248-166q5-4 11-5t11-1q16 0 28 11t12 29v330q0 18-12 29t-28 11q-5 0-11-1t-11-5Z"/></svg>`;
 
 export const playbackRewindSvg = `${svgOpen}<path d="M798-281 550-447q-9-6-13.5-14.5T532-480q0-10 4.5-18.5T550-513l248-166q5-4 11-5t11-1q16 0 28 11t12 29v330q0 18-12 29t-28 11q-5 0-11-1t-11-5Zm-400 0L150-447q-9-6-13.5-14.5T132-480q0-10 4.5-18.5T150-513l248-166q5-4 11-5t11-1q16 0 28 11t12 29v330q0 18-12 29t-28 11q-5 0-11-1t-11-5Z"/></svg>`;
+
+export const plusSvg = `${svgOpen}<path d="M451.5-131.5Q440-143 440-160v-280H160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520h280v-280q0-17 11.5-28.5T480-840q17 0 28.5 11.5T520-800v280h280q17 0 28.5 11.5T840-480q0 17-11.5 28.5T800-440H520v280q0 17-11.5 28.5T480-120q-17 0-28.5-11.5Z" /></svg>`;
 
 export const repeatSvg = `${svgOpen}<path d="m274-200 34 34q12 12 11.5 28T308-110q-12 12-28.5 12.5T251-109L148-212q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l103-103q12-12 28.5-11.5T308-370q11 12 11.5 28T308-314l-34 34h406v-120q0-17 11.5-28.5T720-440q17 0 28.5 11.5T760-400v120q0 33-23.5 56.5T680-200H274Zm412-480H280v120q0 17-11.5 28.5T240-520q-17 0-28.5-11.5T200-560v-120q0-33 23.5-56.5T280-760h406l-34-34q-12-12-11.5-28t11.5-28q12-12 28.5-12.5T709-851l103 103q6 6 8.5 13t2.5 15q0 8-2.5 15t-8.5 13L709-589q-12 12-28.5 11.5T652-590q-11-12-11.5-28t11.5-28l34-34Z"/></svg>`;
 
@@ -260,6 +266,7 @@ export const IconLoupe = icon(loupeSvg);
 export const IconOffline = icon(offlineSvg);
 export const IconOnline = icon(onlineSvg);
 export const IconPass = icon(passSvg);
+export const IconPlus = icon(plusSvg);
 export const IconPublic = icon(publicSvg);
 export const IconPrivate = icon(privateSvg);
 export const IconPlaybackForward = icon(playbackForwardSvg);
@@ -284,11 +291,9 @@ export const IconX = icon(xSvg);
 export const menuSvg = `${svgOpen}<path d="M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z"/></svg>`;
 export const IconMenu = icon(menuSvg);
 
-// --- Imperative DOM helpers ---
-// Safe: all SVG content is hardcoded constants from this file, not user input
-
 export function setIcon(id: string, svg: string): void {
   const el = document.getElementById(id);
+
   if (el) {
     el.innerHTML = svg;
   }

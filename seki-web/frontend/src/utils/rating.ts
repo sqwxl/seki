@@ -39,15 +39,19 @@ export function fullRankText(rank: RankData | undefined | null): string {
   if (numeric && kyuDan) {
     return `${numeric} (${kyuDan})`;
   }
+
   if (numeric) {
     return `(${numeric})`;
   }
+
   if (kyuDan) {
     return `(${kyuDan})`;
   }
+
   if (rank.status !== "ranked") {
     return primaryRankText(rank);
   }
+
   return "";
 }
 
@@ -58,13 +62,16 @@ export function primaryRankText(
   if (!rank || rank.status === "anonymous") {
     return "";
   }
+
   if (rank.status === "not_participating") {
     return "(-)";
   }
+
   if (rank.status === "unranked") {
     if (mode === "rating" && rank.rating != null) {
       return `(${formatNumericRating(rank.rating)}${rank.uncertain ? "?" : ""})`;
     }
+
     return "(?)";
   }
 
@@ -74,6 +81,7 @@ export function primaryRankText(
         ? null
         : formatNumericRating(rank.rating)
       : rank.qualifier;
+
   if (!value) {
     return "";
   }
@@ -99,6 +107,7 @@ export function alternateRankText(
       : rank.rating == null
         ? null
         : formatNumericRating(rank.rating);
+
   if (!value) {
     return "";
   }

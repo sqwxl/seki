@@ -1,13 +1,6 @@
 import * as esbuild from "esbuild";
 import { existsSync } from "fs";
-import {
-  copyFile,
-  mkdir,
-  readdir,
-  readFile,
-  rm,
-  writeFile,
-} from "fs/promises";
+import { copyFile, mkdir, readdir, readFile, rm, writeFile } from "fs/promises";
 import { createRequire } from "module";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -58,35 +51,45 @@ const swConfig = {
 
 async function collectSourceEntries(dir = srcDir) {
   const entries = [];
+
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     if (entry.name === "__tests__" || entry.name === "__mocks__") {
       continue;
     }
+
     const fullPath = path.join(dir, entry.name);
+
     if (entry.isDirectory()) {
       entries.push(...(await collectSourceEntries(fullPath)));
     } else if (/\.[cm]?[tj]sx?$/.test(entry.name)) {
       entries.push(fullPath);
     }
   }
+
   return entries;
 }
 
 function packagePath(packageName, relativePath) {
   let packageJson;
+
   try {
     packageJson = require.resolve(`${packageName}/package.json`);
   } catch {
     packageJson = require.resolve(packageName);
+
     while (path.basename(packageJson) !== "node_modules") {
       const candidate = path.join(packageJson, "../package.json");
+
       if (existsSync(candidate)) {
         packageJson = candidate;
+
         break;
       }
+
       packageJson = path.dirname(packageJson);
     }
   }
+
   return path.join(path.dirname(packageJson), relativePath);
 }
 
@@ -96,9 +99,11 @@ function toBrowserPath(filePath) {
 
 function rewriteSpecifier(specifier, filePath) {
   const vendor = vendorImports.get(specifier);
+
   if (vendor) {
     return vendor;
   }
+
   if (!specifier.startsWith(".")) {
     return specifier;
   }
@@ -106,9 +111,11 @@ function rewriteSpecifier(specifier, filePath) {
   const fromDir = path.dirname(filePath);
   const targetBase = path.resolve(fromDir, specifier);
   let target = targetBase;
+
   if (!path.extname(targetBase)) {
     const jsFile = `${targetBase}.js`;
     const indexFile = path.join(targetBase, "index.js");
+
     if (existsSync(jsFile)) {
       target = jsFile;
     } else if (existsSync(indexFile)) {
@@ -117,9 +124,11 @@ function rewriteSpecifier(specifier, filePath) {
   }
 
   let next = toBrowserPath(path.relative(fromDir, target));
+
   if (!next.startsWith(".")) {
     next = `./${next}`;
   }
+
   return next;
 }
 
@@ -134,10 +143,12 @@ function rewriteImports(code, filePath) {
 async function rewriteJsImports(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const fullPath = path.join(dir, entry.name);
+
     if (entry.isDirectory()) {
       await rewriteJsImports(fullPath);
     } else if (entry.name.endsWith(".js")) {
       const code = await readFile(fullPath, "utf8");
+
       await writeFile(fullPath, rewriteImports(code, fullPath));
     }
   }
@@ -192,6 +203,7 @@ async function finalizeDevBuild() {
 
 async function createDevContext() {
   const entryPoints = await collectSourceEntries();
+
   return esbuild.context({
     entryPoints,
     ...jsxConfig,
@@ -223,6 +235,7 @@ async function main() {
     const swCtx = await esbuild.context(swConfig);
     await appCtx.watch();
     await swCtx.watch();
+
     console.log("Watching unbundled frontend modules...");
   } else {
     await Promise.all([esbuild.build(appConfig), esbuild.build(swConfig)]);

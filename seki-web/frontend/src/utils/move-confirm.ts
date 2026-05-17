@@ -3,9 +3,11 @@ import { MOVE_CONFIRMATION, storage } from "./storage";
 
 export function readMoveConfirmation(): boolean {
   const stored = storage.get(MOVE_CONFIRMATION);
+
   if (stored !== null) {
     return stored === "true";
   }
+
   return window.matchMedia("(max-width: 1199px)").matches;
 }
 
@@ -36,7 +38,9 @@ export function createMoveConfirm(config: MoveConfirmConfig): MoveConfirmState {
       if (!state.value) {
         return undefined;
       }
+
       const [col, row] = state.value;
+
       return { col, row, sign: config.getSign() };
     },
     clear() {
@@ -60,13 +64,18 @@ export function handleMoveConfirmClick(
 ): "confirm" | "set" | "clear" {
   if (mc.value && mc.value[0] === col && mc.value[1] === row) {
     mc.clear();
+
     return "confirm";
   }
+
   if (isLegal) {
     mc.value = [col, row];
+
     return "set";
   }
+
   mc.clear();
+
   return "clear";
 }
 
@@ -83,17 +92,23 @@ export function dismissMoveConfirmOnClickOutside(
     if (!mc.value) {
       return;
     }
+
     const target = e.target as HTMLElement;
+
     if (gobanEl()?.contains(target)) {
       return;
     }
+
     if (target.closest(".controls-confirm")) {
       return;
     }
+
     mc.clear();
+
     onDismiss();
   };
 
   document.addEventListener("pointerdown", onPointerDown);
+
   return () => document.removeEventListener("pointerdown", onPointerDown);
 }

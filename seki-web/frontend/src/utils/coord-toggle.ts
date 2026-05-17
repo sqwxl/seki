@@ -7,5 +7,6 @@ export function readShowCoordinates(): boolean {
 export function toggleShowCoordinates(): boolean {
   const next = storage.get(SHOW_COORDINATES) !== "true";
   storage.set(SHOW_COORDINATES, String(next));
+
   return next;
 }

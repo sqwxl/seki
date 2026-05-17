@@ -59,12 +59,15 @@ export function GameInfo(props: GameInfoProps) {
 
   // Compact bar parts
   const parts = [size];
+
   if (settings.ranked) {
     parts.push("Ranked");
   }
+
   if (settings.handicap >= 2) {
     parts.push(`H${settings.handicap}`);
   }
+
   if (tc) {
     parts.push(tc);
   }
@@ -99,17 +102,21 @@ export function GameInfo(props: GameInfoProps) {
     if (!open) {
       return;
     }
+
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
+
       if (
         popoverRef.current?.contains(target) ||
         buttonRef.current?.contains(target)
       ) {
         return;
       }
+
       setOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown);
+
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
@@ -140,10 +147,7 @@ export function GameInfo(props: GameInfoProps) {
           <dl class="game-info-details">
             {statusText && <Row label="Status" value={statusText} />}
             <Row label="Board" value={size} />
-            <Row
-              label="Rating"
-              value={settings.ranked ? "Ranked" : "Unrated"}
-            />
+            <Row label="Rated" value={settings.ranked ? "Yes" : "No"} />
             <Row label="Komi" value={String(komi)} />
             {settings.handicap >= 2 && (
               <Row label="Handicap" value={String(settings.handicap)} />

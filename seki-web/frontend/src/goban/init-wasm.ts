@@ -21,9 +21,11 @@ export async function ensureWasm(): Promise<
   if (wasmModule) {
     return wasmModule;
   }
+
   const wasm = await import("/static/wasm/go_engine_wasm.js");
   await wasm.default();
   wasmModule = wasm;
+
   return wasm;
 }
 
@@ -39,11 +41,13 @@ export function computeVertexSize(
 ): number {
   const w = gobanEl.clientWidth;
   const h = gobanEl.clientHeight;
+
   // On desktop the goban container has a CSS height from the grid row;
   // on mobile clientHeight is stale content height, so ignore it.
   const avail = desktopMQ.matches && h > 0 ? Math.min(w, h) : w;
   const extra = 0.8;
   const coordExtra = showCoordinates ? 2 : 0;
+
   return Math.max(avail / (Math.max(cols, rows) + extra + coordExtra), 12);
 }
 

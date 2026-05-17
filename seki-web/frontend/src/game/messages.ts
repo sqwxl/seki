@@ -63,12 +63,14 @@ function reconcilePendingActionFromState(): void {
       if (currentTurnChangedAwayFromPlayer() || !isPlayStage(gameStage.value)) {
         clearPendingAction("pass");
       }
+
       break;
     case "resign":
     case "claim-victory":
       if (result.value || gameStage.value === GameStage.Completed) {
         clearPendingAction();
       }
+
       break;
     case "abort":
     case "decline-challenge":
@@ -79,16 +81,19 @@ function reconcilePendingActionFromState(): void {
       ) {
         clearPendingAction();
       }
+
       break;
     case "accept-challenge":
       if (gameStage.value !== GameStage.Challenge) {
         clearPendingAction();
       }
+
       break;
     case "join-game":
       if (playerStone.value !== 0 || gameStage.value !== GameStage.Challenge) {
         clearPendingAction("join-game");
       }
+
       break;
     case "accept-territory":
       if (
@@ -98,6 +103,7 @@ function reconcilePendingActionFromState(): void {
       ) {
         clearPendingAction("accept-territory");
       }
+
       break;
   }
 }
@@ -112,13 +118,16 @@ function syncBoardMoves(
   onNewMove?: () => void,
 ): void {
   const b = board.value;
+
   if (!b) {
     return;
   }
+
   const currentMoves = moves.value;
   if (currentMoves.length !== prevMoveCount) {
     if (gameStage.value !== GameStage.Completed && playEffects) {
       const lastMove = currentMoves[currentMoves.length - 1];
+
       if (lastMove?.kind === "play") {
         playStoneSound();
       } else if (lastMove?.kind === "pass" && gobanEl) {
@@ -126,11 +135,13 @@ function syncBoardMoves(
         flashPassEffect(gobanEl);
       }
     }
+
     prevMoveCount = currentMoves.length;
     b.updateBaseMoves(JSON.stringify(currentMoves));
     b.save();
     onNewMove?.();
   }
+
   if (!analysisMode.value) {
     b.render();
   }
@@ -171,18 +182,22 @@ export function handleGameMessage(
           (prevStage === GameStage.Unstarted ||
             prevStage === GameStage.Challenge) &&
           isPlayStage(data.stage);
+
         if (gameJustStarted) {
           playPassSound();
         }
       }
 
       syncBoardMoves(isLiveUpdate, deps.gobanEl(), onNewMove);
+
       // Mark the base tip as settled when territory is agreed
       if (settledTerritory.value && board.value) {
         board.value.markSettled(settledTerritory.value.dead_stones);
         board.value.render();
       }
+
       markRead(gameId.value);
+
       if (isLiveUpdate) {
         updateTurnFlash();
         notifyTurn(notificationState);
@@ -191,6 +206,7 @@ export function handleGameMessage(
         // fire spuriously for moves that were already present on load.
         notificationState.lastNotifiedMoveCount = moves.value.length;
       }
+
       syncClock(clockState, data.clock, () => channel.timeoutFlag());
       syncTerritoryCountdown(
         territoryCountdown,
@@ -201,7 +217,9 @@ export function handleGameMessage(
       if (!isPlayStage(gameStage.value)) {
         pendingMove.clear();
       }
+
       reconcilePendingActionFromState();
+
       break;
     }
     case "chat": {
@@ -214,41 +232,51 @@ export function handleGameMessage(
         move_number: data.move_number,
         sent_at: data.sent_at,
       });
+
       break;
     }
     case "error": {
       console.warn("Game error:", data.message);
+
       if (data.client_message_id) {
         removePendingChatMessage(data.client_message_id);
       }
+
       clearPendingAction();
       setGameFlashMessage(data.message);
+
       break;
     }
     case "undo_accepted":
     case "undo_rejected": {
       pendingMove.clear();
       applyUndo(data);
+
       if (data.state && data.moves) {
         syncBoardMoves(false, deps.gobanEl());
       }
+
       syncClock(clockState, data.clock, () => channel.timeoutFlag());
       clearPendingAction("respond-undo-accept");
       clearPendingAction("respond-undo-reject");
       clearPendingAction("request-undo");
+
       break;
     }
     case "undo_request_sent": {
       undoRequest.value = "sent";
       clearPendingAction("request-undo");
+
       break;
     }
     case "undo_response_needed": {
       undoRequest.value = "received";
+
       break;
     }
     case "player_disconnected": {
       setPresence(data.user_id, false);
+
       if (isOpponent(data.user_id)) {
         opponentDisconnected.value = {
           since: new Date(data.timestamp),
@@ -256,15 +284,18 @@ export function handleGameMessage(
           gone: false,
         };
       }
+
       break;
     }
     case "player_gone": {
       if (isOpponent(data.user_id)) {
         const current = opponentDisconnected.value;
+
         if (current) {
           opponentDisconnected.value = { ...current, gone: true };
         }
       }
+
       break;
     }
     case "player_reconnected": {
@@ -275,30 +306,37 @@ export function handleGameMessage(
           : white.value?.id === data.user_id
             ? white.value
             : undefined;
+
       if (userData) {
         setPresence(data.user_id, true, userData);
       }
+
       if (isOpponent(data.user_id)) {
         opponentDisconnected.value = undefined;
       }
+
       break;
     }
     case "presentation_started": {
       applyPresentationStarted(data);
       clearPendingAction("start-presentation");
       deps.onPresentationStarted?.(data.snapshot);
+
       break;
     }
     case "presentation_ended": {
       const wasPresenter = isPresenter.value;
+
       clearPresentation();
       clearPendingAction("end-presentation");
       clearPendingAction("give-control");
       deps.onPresentationEnded?.(wasPresenter);
+
       break;
     }
     case "presentation_update": {
       deps.onPresentationUpdate?.(data.snapshot);
+
       break;
     }
     case "control_changed": {
@@ -310,6 +348,7 @@ export function handleGameMessage(
       clearPendingAction("reject-control-request");
       clearPendingAction("give-control");
       deps.onControlChanged?.(data.presenter_id);
+
       break;
     }
     case "control_requested": {
@@ -318,16 +357,19 @@ export function handleGameMessage(
         displayName: data.display_name,
       };
       clearPendingAction("request-control");
+
       break;
     }
     case "control_request_cancelled": {
       controlRequest.value = undefined;
       clearPendingAction("cancel-control-request");
       clearPendingAction("reject-control-request");
+
       break;
     }
     case "ws_reconnected": {
       localDisconnected.value = false;
+
       // Clear stale local state before the server sends fresh state on rejoin.
       // Without this, presentation signals from a previous session persist
       // (e.g. "You are presenting" after the presentation ended while offline).
@@ -338,14 +380,17 @@ export function handleGameMessage(
           deps.channel.say(text, clientMessageId);
         });
       });
+
       break;
     }
     case "ws_disconnected": {
       localDisconnected.value = true;
+
       break;
     }
     default: {
       console.warn("Unknown game message kind:", data);
+
       break;
     }
   }
@@ -353,12 +398,15 @@ export function handleGameMessage(
 
 function isOpponent(userId: number): boolean {
   const myStone = playerStone.value;
+
   if (myStone === 1) {
     return white.value?.id === userId;
   }
+
   if (myStone === -1) {
     return black.value?.id === userId;
   }
+
   return false;
 }
 

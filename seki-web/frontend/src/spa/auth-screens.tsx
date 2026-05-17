@@ -12,8 +12,10 @@ async function fetchAuthToken() {
     const response = await fetch("/api/auth/token", {
       headers: { Accept: "application/json" },
     });
+
     if (response.ok) {
       const data = (await response.json()) as { token: string };
+
       if (data.token) {
         setAppCredential(data.token);
       }
@@ -41,6 +43,7 @@ export function AuthFormScreen({
       pageTitle(mode === "login" ? "Log in" : "Register"),
       "Play Go (Weiqi/Baduk) online with friends",
     );
+
     if (currentUser?.is_registered) {
       navigate("/", true);
     }
@@ -49,15 +52,19 @@ export function AuthFormScreen({
   async function onSubmit(e: Event) {
     e.preventDefault();
     clearFlash();
+
     const form = e.currentTarget as HTMLFormElement;
     const action =
       mode === "login" && redirectTarget
         ? `/login?redirect=${encodeURIComponent(redirectTarget)}`
         : `/${mode}`;
+
     try {
       const result = await postForm(action, new FormData(form));
+
       await refreshSession();
       await fetchAuthToken();
+
       if (typeof result.redirect === "string") {
         navigate(result.redirect, true);
       }

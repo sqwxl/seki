@@ -36,16 +36,21 @@ function formatSgfDescription(meta: SgfMeta): string {
     `${b} ${blackSymbol()} vs ${w} ${whiteSymbol()}`,
     formatSize(meta.cols, meta.rows),
   ];
+
   if (meta.handicap && meta.handicap >= 2) {
     parts.push(`H${meta.handicap}`);
   }
+
   const tc = formatSgfTime(meta.time_limit_secs, meta.overtime);
+
   if (tc) {
     parts.push(tc);
   }
+
   if (meta.result) {
     parts.push(meta.result);
   }
+
   return parts.join(" - ");
 }
 
@@ -55,6 +60,7 @@ function formatSgfDescription(meta: SgfMeta): string {
 
 function AnalysisHeader() {
   const meta = analysisMeta.value;
+
   return <>{meta && <p>{formatSgfDescription(meta)}</p>}</>;
 }
 
@@ -96,6 +102,7 @@ function buildAnalysisControls(
       onClick: () => board?.finalizeTerritoryReview(),
     };
   }
+
   if (caps.showTerritoryExit) {
     controlsProps.territoryExit = {
       onClick: () => board?.exitTerritoryReview(),
@@ -106,15 +113,18 @@ function buildAnalysisControls(
   if (caps.canPass) {
     controlsProps.pass = { onClick: () => board?.pass() };
   }
+
   if (caps.showEstimate) {
     controlsProps.estimate = {
       onClick: () => board?.enterTerritoryReview(),
       disabled: !caps.canEstimate,
     };
   }
+
   if (caps.showSgfImport) {
     controlsProps.sgfImport = { onFileChange: handleSgfImport };
   }
+
   if (caps.showSgfExport) {
     controlsProps.sgfExport = { onClick: handleSgfExport };
   }
@@ -125,8 +135,10 @@ function buildAnalysisControls(
       onClick: () => {
         if (analysisPendingMove.value && board) {
           const [col, row] = analysisPendingMove.value;
+
           mc.clear();
           analysisPendingMove.value = undefined;
+
           if (board.engine.try_play(col, row)) {
             playStoneSound();
             board.save();

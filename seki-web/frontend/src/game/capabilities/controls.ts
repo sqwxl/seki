@@ -2,7 +2,6 @@ import { computed } from "@preact/signals";
 import { gamePhase } from "../phase";
 import {
   allowUndo,
-  black,
   boardFinalized,
   boardReviewing,
   canStartPresentation,
@@ -21,7 +20,6 @@ import {
   settledTerritory,
   territory,
   undoRequest,
-  white,
 } from "../state";
 import { GameStage, isPlayStage } from "../types";
 import { isAnalysisCapablePhase } from "./build-overlay";
@@ -43,8 +41,6 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
   const mvs = moves.value;
   const res = result.value;
   const props = initialProps.value;
-  const b = black.value;
-  const w = white.value;
   const terr = territory.value;
   const settled = settledTerritory.value;
   const oppDisconnected = opponentDisconnected.value;
@@ -79,6 +75,7 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
     !modeActive;
 
   let undoTooltip = "";
+
   if (isPlayer && allowUndo.value && (isPlay || isChallenge)) {
     if (isChallenge) {
       undoTooltip = "Challenge not yet accepted";
@@ -97,13 +94,16 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
 
   const canResign =
     isPlayer && isPlay && !isChallenge && mvs.length > 0 && !modeActive;
+
   const showResign = isPlayer && (isPlay || isChallenge);
+
   const canAbort =
     isPlayer &&
     mvs.length === 0 &&
     !isDone &&
     !res &&
     (!isChallenge || isCreator);
+
   const canAcceptTerritory =
     isReview &&
     isPlayer &&
@@ -113,50 +113,70 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
       (stone === -1 && terr?.white_approved)
     );
   const canFinalizeTerritory = inEstimate && boardReviewing.value;
+
   const canClaimVictory =
     isPlayer && !isDone && !res && !!oppDisconnected?.gone;
+
   const canRematch = !!res && isDone && isPlayer;
 
   const canEnterAnalysis =
     !inAnalysis && !inEstimate && !isReview && !inPresentation;
+
   const showAnalysis =
     canEnterAnalysis || (inEstimate && !estimateFromAnalysis);
+
   const canExitAnalysis = inAnalysis || estimateFromAnalysis;
+
   const showEnterEstimate =
     !inEstimate && !isReview && (isPlay || (isDone && !!settled));
+
   const canEnterEstimate = showEnterEstimate && !onFinalized;
+
   const estimateTitle = isDone && !!settled ? "Show territory" : undefined;
+
   const canExitEstimate = inEstimate;
+
   const exitEstimateTitle = inAnalysis ? "Back to analysis" : undefined;
+
   const canEnterPresentation =
     isDone && !inPresentation && canStartPresentation.value;
+
   const canExitPresentation =
     inPresentation && isPresenter.value && isOriginator.value;
+
   const canReturnControl =
     inPresentation && isPresenter.value && !isOriginator.value;
+
   const showMoveConfirmToggle = isPlayer && isPlay;
   const showUndoResponse = undoState === "received";
   const showAnalyzeChoice = inPresentation && !isPresenter.value && !inAnalysis;
+
   const canTakeControl =
     inPresentation && isOriginator.value && !isPresenter.value;
+
   const canRequestControl =
     inPresentation &&
     !isOriginator.value &&
     !isPresenter.value &&
     !myControlRequest &&
     !controlRequest.value;
+
   const canCancelControlRequest =
     inPresentation && !isPresenter.value && myControlRequest;
+
   const controlRequestPending =
     inPresentation &&
     !isPresenter.value &&
     !isOriginator.value &&
     !!controlRequest.value &&
     !myControlRequest;
+
   const controlRequestDisplayName = controlRequest.value?.displayName ?? "";
   const controlRequestUserId = controlRequest.value?.userId;
+
   const showControlRequestResponse =
     inPresentation && isOriginator.value && !!controlRequest.value;
+
   const ns = navState.value;
   const nav = isSyncedViewer
     ? { atStart: true, atLatest: true, atMainEnd: true, counter: ns.counter }

@@ -34,15 +34,19 @@ function formatTimestamp(iso: string): string {
 
 function formatPrefix(entry: ChatEntry): string {
   const parts: string[] = [];
+
   if (entry.move_number != null) {
     parts.push(`#${entry.move_number}`);
   }
+
   if (entry.sent_at) {
     parts.push(formatTimestamp(entry.sent_at));
   }
+
   if (parts.length > 0) {
     return `[${parts.join(" ")}] `;
   }
+
   return "";
 }
 
@@ -53,9 +57,11 @@ function SenderLabel(props: {
   isOnline: boolean;
 }) {
   const { entry, black, white, isOnline } = props;
+
   if (entry.user_id == null) {
     return <>⚑</>;
   }
+
   if (black?.id === entry.user_id) {
     return (
       <UserLabel
@@ -66,6 +72,7 @@ function SenderLabel(props: {
       />
     );
   }
+
   if (white?.id === entry.user_id) {
     return (
       <UserLabel
@@ -76,7 +83,9 @@ function SenderLabel(props: {
       />
     );
   }
+
   const name = entry.display_name ?? "?";
+
   return (
     <UserLabel name={name} profileUrl={`/users/${name}`} isOnline={isOnline} />
   );
@@ -95,6 +104,7 @@ export function Chat({
 
   useEffect(() => {
     const box = boxRef.current;
+
     if (box) {
       box.scrollTop = box.scrollHeight;
     }
@@ -102,11 +112,15 @@ export function Chat({
 
   function handleSubmit(e: Event) {
     e.preventDefault();
+
     const input = inputRef.current;
+
     if (!input) {
       return;
     }
+
     const text = input.value.trim();
+
     if (text) {
       onSend(text);
       input.value = "";

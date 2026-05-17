@@ -46,15 +46,19 @@ export function buildWebSocketDeps(params: {
       } else {
         const wasInEstimate = estimateMode.value;
         const wasInAnalysis = analysisMode.value;
+
         if (wasInEstimate) {
           estimateScore.value = undefined;
           board.value?.exitTerritoryReview();
         }
+
         if (wasInAnalysis) {
           clearPendingMove();
           doSaveAnalysis();
         }
+
         toPresentation("synced-viewer");
+
         if (snapshot) {
           setSnapshot(snapshot);
           board.value?.importSnapshot(snapshot);
@@ -64,14 +68,17 @@ export function buildWebSocketDeps(params: {
     },
     onPresentationEnded: (wasPresenter: boolean) => {
       setSnapshot("");
+
       if (wasPresenter) {
         doExitAnalysis();
       } else {
         const cur = gamePhase.value;
+
         if (cur.phase === "presentation" && cur.role === "local-analysis") {
           toAnalysis();
         } else {
           toLive();
+
           if (board.value) {
             board.value.updateBaseMoves(JSON.stringify(moves.value));
             board.value.navigate("end");
@@ -82,13 +89,16 @@ export function buildWebSocketDeps(params: {
     },
     onPresentationUpdate: (snapshot: string) => {
       setSnapshot(snapshot);
+
       if (!isPresenter.value && !analysisMode.value) {
         board.value?.importSnapshot(snapshot);
+
         try {
           const parsed = JSON.parse(snapshot) as {
             tree?: string;
             activeNodeId?: string;
           };
+
           if (parsed.tree) {
             storage.setJson(analysisKey, {
               tree: parsed.tree,
@@ -103,7 +113,9 @@ export function buildWebSocketDeps(params: {
     onControlChanged: (newPresenterId: number) => {
       if (newPresenterId === currentUserId.value) {
         const wasAnalysis = analysisMode.value;
+
         toPresentation("presenter");
+
         if (!wasAnalysis) {
           clearPendingMove();
           doRestoreAnalysisPosition();
@@ -111,13 +123,16 @@ export function buildWebSocketDeps(params: {
         }
       } else {
         const wasInEstimate = estimateMode.value;
+
         if (wasInEstimate) {
           estimateScore.value = undefined;
           board.value?.exitTerritoryReview();
         }
+
         clearPendingMove();
         doSaveAnalysis();
         toPresentation("synced-viewer");
+
         if (getSnapshot() && board.value) {
           board.value.importSnapshot(getSnapshot());
         }

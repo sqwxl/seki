@@ -27,6 +27,7 @@ export const clockDisplay = signal<ClockDisplay>({
 
 export function formatClock(ms: number, isCorrespondence: boolean): string {
   const clamped = Math.max(0, ms);
+
   if (isCorrespondence) {
     const totalSecs = Math.ceil(clamped / 1000);
     const days = Math.floor(totalSecs / 86400);
@@ -37,21 +38,26 @@ export function formatClock(ms: number, isCorrespondence: boolean): string {
     const mins = Math.floor((totalSecs % 3600) / 60);
     return `${hours}h ${mins}m`;
   }
+
   // Under 10s: show tenths for precision
   if (clamped < 10000) {
     const tenths = Math.floor(clamped / 100) / 10;
     return tenths.toFixed(1);
   }
+
   // Round up so the display doesn't appear to skip a second at period
   // boundaries (e.g. 29.9s remaining shows "0:30", not "0:29").
   const totalSecs = Math.ceil(clamped / 1000);
+
   if (totalSecs >= 3600) {
     const hours = Math.floor(totalSecs / 3600);
     const mins = Math.floor((totalSecs % 3600) / 60);
     return `${hours}h ${mins}m`;
   }
+
   const mins = Math.floor(totalSecs / 60);
   const secs = totalSecs % 60;
+
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
@@ -63,14 +69,17 @@ function totalRemainingMs(
 ): number {
   const side = stone === 1 ? cd.black : cd.white;
   let remaining = side.remaining_ms;
+
   if (cd.active_stone === stone) {
     remaining -= elapsed;
   }
+
   if (cd.type === "byoyomi" && side.periods > 0 && remaining <= 0) {
     const periodMs =
       (settings.byoyomi_time_secs ?? DEFAULT_BYOYOMI_PERIOD_SECS) * 1000;
     return side.periods * periodMs + remaining;
   }
+
   return remaining;
 }
 
@@ -157,10 +166,12 @@ export function checkClockTimeout(
   ) {
     return;
   }
+
   const cd = clockState.data;
   const elapsed = performance.now() - clockState.syncedAt;
   const activeStone = cd.active_stone as 1 | -1;
   const total = totalRemainingMs(cd, activeStone, elapsed, settings);
+
   if (total <= 0) {
     clockState.timeoutFlagSent = true;
     onFlag();
@@ -189,17 +200,22 @@ export function syncClock(
     clockData?.server_now_ms != null
       ? Math.max(0, Date.now() - clockData.server_now_ms)
       : 0;
+
   clockState.syncedAt = performance.now() - transitMs;
   clockState.timeoutFlagSent = false;
+
   if (clockState.interval) {
     clearInterval(clockState.interval);
     clockState.interval = undefined;
   }
+
   const settings = initialProps.value.settings;
+
   if (clockState.data && clockState.data.active_stone) {
     if (onFlag) {
       checkClockTimeout(clockState, settings, onFlag);
     }
+
     updateClockSignal(clockState);
     clockState.interval = setInterval(() => {
       if (onFlag) {

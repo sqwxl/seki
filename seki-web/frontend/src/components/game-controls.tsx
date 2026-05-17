@@ -73,6 +73,7 @@ export function GameControls(props: ControlsProps) {
               const swap = (
                 document.getElementById("rematch-swap") as HTMLInputElement
               ).checked;
+
               props.rematch!.onConfirm(swap);
             },
             pending: props.rematch.pending,

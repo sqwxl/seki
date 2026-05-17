@@ -39,6 +39,7 @@ function isAnalysisCapable(p: GamePhase): boolean {
 
 export function toAnalysis(): void {
   const cur = gamePhase.value;
+
   if (cur.phase === "analysis") {
     return;
   }
@@ -50,34 +51,43 @@ export function toAnalysis(): void {
   ) {
     return;
   }
+
   gamePhase.value = { phase: "analysis" };
 }
 
 export function toLive(): void {
   const cur = gamePhase.value;
+
   if (cur.phase === "live") {
     return;
   }
+
   gamePhase.value = { phase: "live" };
 }
 
 export function toEstimate(): void {
   const cur = gamePhase.value;
+
   if (cur.phase === "estimate") {
     return;
   }
+
   const fromAnalysis = isAnalysisCapable(cur);
+
   if (cur.phase !== "live" && !fromAnalysis) {
     return;
   }
+
   gamePhase.value = { phase: "estimate", fromAnalysis };
 }
 
 export function exitEstimate(): void {
   const cur = gamePhase.value;
+
   if (cur.phase !== "estimate") {
     return;
   }
+
   if (cur.fromAnalysis) {
     // Restore to the correct analysis-capable phase
     if (presentationActive.value) {
@@ -100,25 +110,31 @@ export function toPresentation(role: "presenter" | "synced-viewer"): void {
 
 export function toPresentationLocalAnalysis(): void {
   const cur = gamePhase.value;
+
   if (cur.phase !== "presentation" || cur.role !== "synced-viewer") {
     return;
   }
+
   gamePhase.value = { phase: "presentation", role: "local-analysis" };
 }
 
 export function toPresentationSyncedViewer(): void {
   const cur = gamePhase.value;
+
   if (cur.phase !== "presentation" || cur.role !== "local-analysis") {
     return;
   }
+
   gamePhase.value = { phase: "presentation", role: "synced-viewer" };
 }
 
 export function exitPresentation(): void {
   const cur = gamePhase.value;
+
   if (cur.phase !== "presentation") {
     return;
   }
+
   gamePhase.value = { phase: "live" };
 }
 

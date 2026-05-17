@@ -57,16 +57,20 @@ export function onRenderCallback(
     ? territoryInfo.score
     : undefined;
   boardReviewing.value = territoryInfo.reviewing;
+
   if (estimateMode.value && !territoryInfo.reviewing) {
     exitEstimateFn();
     estimateScore.value = undefined;
   }
+
   if (analysisMode.value && territoryInfo.reviewing && !estimateMode.value) {
     enterEstimateFn();
   }
+
   if (estimateMode.value && territoryInfo.score) {
     estimateScore.value = territoryInfo.score;
   }
+
   if (
     board.value &&
     !analysisMode.value &&
@@ -79,6 +83,7 @@ export function onRenderCallback(
       nodeId: engine.current_node_id(),
     });
   }
+
   if (presentationActive.value && isPresenter.value) {
     broadcastSnapshot();
   }

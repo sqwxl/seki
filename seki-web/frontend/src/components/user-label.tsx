@@ -15,6 +15,7 @@ function StoneIcon({ stone }: { stone: "black" | "white" | "nigiri" }) {
   if (stone === "nigiri") {
     return <IconNigiri />;
   }
+
   return stone === "black" ? <StoneBlack /> : <StoneWhite />;
 }
 

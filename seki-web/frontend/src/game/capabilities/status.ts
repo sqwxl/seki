@@ -58,6 +58,7 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
       : false;
 
   let territoryCountdownSecs: number | undefined;
+
   if (isReview && terr?.expires_at) {
     const remaining = new Date(terr.expires_at).getTime() - uiNowMs.value;
     territoryCountdownSecs = Math.ceil(Math.max(0, remaining) / 1000);
@@ -71,6 +72,7 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
           ? GameStage.Declined
           : GameStage.Completed
       : stage;
+
   const statusResult =
     statusStage === GameStage.Completed ||
     statusStage === GameStage.Aborted ||
@@ -79,6 +81,7 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
       : undefined;
 
   let disconnectCountdown: string | undefined;
+
   if (isPlayer && !isDone && !res && oppDisconnected) {
     if (oppDisconnected.gone) {
       disconnectCountdown = "Opponent left the game.";
@@ -158,6 +161,7 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
     }) ?? "";
 
   let presentationStatusSuffix = "";
+
   if (inPresentation) {
     if (isPresenter.value) {
       presentationStatusSuffix = " (You are presenting)";

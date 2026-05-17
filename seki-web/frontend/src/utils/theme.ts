@@ -27,9 +27,11 @@ const ICONS: Record<ThemeMode, string> = {
 
 export function getMode(): ThemeMode {
   const stored = storage.get(THEME);
+
   if (stored === "light" || stored === "dark") {
     return stored;
   }
+
   return "auto";
 }
 
@@ -39,9 +41,11 @@ function resolve(mode: ThemeMode): "light" | "dark" {
   if (mode === "light") {
     return "light";
   }
+
   if (mode === "dark") {
     return "dark";
   }
+
   return darkQuery.matches ? "dark" : "light";
 }
 
@@ -60,6 +64,7 @@ export function getThemeIcon(mode: ThemeMode): string {
 
 export function cycleTheme(): void {
   const next = NEXT[themeMode.value];
+
   storage.set(THEME, next);
   savePref("theme", next);
   themeMode.value = next;

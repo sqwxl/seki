@@ -64,26 +64,31 @@ export function NotificationSettings({
 
   const [values, setValues] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
+
     for (const row of ROWS) {
       init[row.appKey] =
         (prefs[row.appKey] as boolean | undefined) ?? row.appDefault;
       init[row.emailKey] =
         (prefs[row.emailKey] as boolean | undefined) ?? false;
     }
+
     return init;
   });
+
   const [participating, setParticipating] = useState(
     initialRatingParticipation(prefs, ratingParticipating),
   );
 
   function toggle(key: keyof UserPreferences) {
     const next = !values[key];
+
     setValues((v) => ({ ...v, [key]: next }));
     savePref(key, next);
   }
 
   function toggleParticipation() {
     const next = !participating;
+
     setParticipating(next);
     savePref("rating_participating", next);
   }

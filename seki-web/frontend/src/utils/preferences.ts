@@ -42,8 +42,10 @@ export function readRatingDisplayPreference(): RatingDisplayMode {
 export function initPreferences(): void {
   const userData = readUserData();
   serverPrefs = {};
+
   if (!userData) {
     ratingDisplayPreference.value = readRatingDisplayPreference();
+
     return;
   }
 
@@ -53,24 +55,30 @@ export function initPreferences(): void {
   if (serverPrefs.theme != null) {
     storage.set(THEME, serverPrefs.theme);
   }
+
   if (serverPrefs.move_confirmation != null) {
     storage.set(MOVE_CONFIRMATION, String(serverPrefs.move_confirmation));
   }
+
   if (serverPrefs.show_coordinates != null) {
     storage.set(SHOW_COORDINATES, String(serverPrefs.show_coordinates));
   }
+
   if (serverPrefs.show_move_tree != null) {
     storage.set(SHOW_MOVE_TREE, String(serverPrefs.show_move_tree));
   }
+
   if (serverPrefs.notifications != null) {
     storage.set(NOTIFICATIONS, serverPrefs.notifications);
   }
+
   if (serverPrefs.rating_display != null) {
     storage.set(
       RATING_DISPLAY,
       parseRatingDisplayMode(serverPrefs.rating_display),
     );
   }
+
   ratingDisplayPreference.value = readRatingDisplayPreference();
 
   // Refresh signals from updated localStorage
@@ -89,11 +97,13 @@ export function savePref(
   value: string | boolean,
 ): void {
   serverPrefs[key] = value as never;
+
   if (key === "rating_display") {
     const next = parseRatingDisplayMode(value);
     storage.set(RATING_DISPLAY, next);
     ratingDisplayPreference.value = next;
   }
+
   fetch("/settings/preferences", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

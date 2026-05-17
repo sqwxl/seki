@@ -14,8 +14,11 @@ if (!configPath) {
 }
 
 const configFile = ts.readConfigFile(configPath, ts.sys.readFile);
+
 if (configFile.error) {
-  throw new Error(ts.flattenDiagnosticMessageText(configFile.error.messageText, "\n"));
+  throw new Error(
+    ts.flattenDiagnosticMessageText(configFile.error.messageText, "\n"),
+  );
 }
 
 const parsed = ts.parseJsonConfigFileContent(
@@ -38,11 +41,13 @@ function gitRoot() {
 
 function resolveInputPath(input) {
   const fromCwd = resolve(process.cwd(), input);
+
   if (existsSync(fromCwd)) {
     return fromCwd;
   }
 
   const fromGitRoot = resolve(gitRoot(), input);
+
   if (existsSync(fromGitRoot)) {
     return fromGitRoot;
   }
@@ -57,10 +62,14 @@ function isTypeScriptFile(file) {
 const requestedFiles = process.argv.slice(2).map(resolveInputPath);
 const targetFiles =
   requestedFiles.length > 0
-    ? requestedFiles.filter((file) => isTypeScriptFile(file) && projectFiles.has(file))
+    ? requestedFiles.filter(
+        (file) => isTypeScriptFile(file) && projectFiles.has(file),
+      )
     : [...projectFiles].filter(isTypeScriptFile);
 
-const fileVersions = new Map(parsed.fileNames.map((file) => [resolve(file), "0"]));
+const fileVersions = new Map(
+  parsed.fileNames.map((file) => [resolve(file), "0"]),
+);
 const serviceHost = {
   getScriptFileNames: () => parsed.fileNames,
   getScriptVersion: (fileName) => fileVersions.get(resolve(fileName)) ?? "0",
@@ -68,6 +77,7 @@ const serviceHost = {
     if (!existsSync(fileName)) {
       return undefined;
     }
+
     return ts.ScriptSnapshot.fromString(readFileSync(fileName, "utf8"));
   },
   getCurrentDirectory: () => frontendRoot,
@@ -100,6 +110,7 @@ function applyTextChanges(text, changes) {
     .reduce((next, change) => {
       const start = change.span.start;
       const end = start + change.span.length;
+
       return `${next.slice(0, start)}${change.newText}${next.slice(end)}`;
     }, text);
 }
@@ -113,12 +124,14 @@ for (const fileName of targetFiles) {
     {},
   );
   const textChanges = changes.flatMap((change) => change.textChanges);
+
   if (textChanges.length === 0) {
     continue;
   }
 
   const current = readFileSync(fileName, "utf8");
   const next = applyTextChanges(current, textChanges);
+
   if (next !== current) {
     writeFileSync(fileName, next);
     changed += 1;
@@ -126,5 +139,7 @@ for (const fileName of targetFiles) {
 }
 
 if (changed > 0) {
-  console.log(`Organized imports in ${changed} file${changed === 1 ? "" : "s"}.`);
+  console.log(
+    `Organized imports in ${changed} file${changed === 1 ? "" : "s"}.`,
+  );
 }

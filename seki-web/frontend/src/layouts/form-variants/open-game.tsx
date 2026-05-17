@@ -52,7 +52,10 @@ type Props = {
 };
 
 function maxHandicapForBoard(size: number): number {
-  if (size % 2 === 0 || size < 7) return 0;
+  if (size % 2 === 0 || size < 7) {
+    return 0;
+  }
+
   return size >= 13 ? 9 : 5;
 }
 

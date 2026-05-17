@@ -33,6 +33,7 @@ import { UserLabel } from "./user-label";
 
 function ThemeButton() {
   const mode = themeMode.value;
+
   // NOTE: dangerouslySetInnerHTML is safe here — SVG content is hardcoded constants, not user input
   return (
     <button type="button" class="nav-dropdown-item" onClick={cycleTheme}>
@@ -100,12 +101,15 @@ export function UserMenu({
     if (!open) {
       return;
     }
+
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
+
     document.addEventListener("click", onClickOutside, true);
+
     return () => document.removeEventListener("click", onClickOutside, true);
   }, [open]);
 

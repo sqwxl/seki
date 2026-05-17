@@ -37,6 +37,7 @@ import {
 } from "./utils/storage";
 import { initTheme } from "./utils/theme";
 import { ensureConnected } from "./ws";
+import { IconPlus } from "./components/icons";
 
 function warmBoardWasm(): void {
   void import("./goban/create-board")
@@ -69,7 +70,9 @@ function App() {
     initUnreadTracking();
     ensureConnected();
     warmBoardWasm();
+
     const userData = readUserData();
+
     if (!userData?.is_registered && !getAppCredential()) {
       fetchToken();
     }
@@ -77,20 +80,26 @@ function App() {
 
   useEffect(() => {
     const credential = getAppCredential();
+
     if (!credential) {
       return;
     }
+
     const userData = readUserData();
+
     if (userData?.is_registered) {
       return;
     }
+
     restoreCredential(credential);
   }, []);
 
   useEffect(() => {
     const updateOnlineState = () => setOffline(!navigator.onLine);
+
     window.addEventListener("online", updateOnlineState);
     window.addEventListener("offline", updateOnlineState);
+
     return () => {
       window.removeEventListener("online", updateOnlineState);
       window.removeEventListener("offline", updateOnlineState);
@@ -99,18 +108,23 @@ function App() {
 
   useEffect(() => {
     const nav = navRef.current;
+
     if (!nav) {
       return;
     }
+
     const setNavHeight = () => {
       document.documentElement.style.setProperty(
         "--nav-height",
         `${nav.offsetHeight}px`,
       );
     };
+
     setNavHeight();
+
     const observer = new ResizeObserver(setNavHeight);
     observer.observe(nav);
+
     return () => {
       observer.disconnect();
     };
@@ -122,13 +136,16 @@ function App() {
         clearFlash();
       }
     };
+
     const onPointerDown = () => {
       if (activeFlash.value) {
         clearFlash();
       }
     };
+
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("pointerdown", onPointerDown);
+
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("pointerdown", onPointerDown);
@@ -137,6 +154,7 @@ function App() {
 
   async function refreshSession() {
     const next = await fetchJson<UserData>("/api/session/me");
+
     writeUserData(next);
     initPreferences();
     initTheme();
@@ -147,6 +165,7 @@ function App() {
   async function fetchToken() {
     try {
       const result = await fetchJson<{ token: string }>("/api/auth/token");
+
       if (result.token) {
         setAppCredential(result.token);
       }
@@ -163,19 +182,25 @@ function App() {
           Authorization: `Bearer ${credential}`,
         },
       });
+
       if (!response.ok) {
         clearAppCredential();
+
         return;
       }
+
       const result = (await response.json()) as {
         user: UserData;
         token: string;
       };
+
       if (result.user) {
         writeUserData(result.user);
+
         if (result.token) {
           setAppCredential(result.token);
         }
+
         setCurrentUser(result.user);
         initPreferences();
         initTheme();
@@ -194,22 +219,28 @@ function App() {
   ) => {
     const url = new URL(to, window.location.origin);
     const nextKey = `${url.pathname}${url.search}`;
+
     preserveFlashForNextNavigation.current = preserveFlash;
+
     if (reload) {
       const dataUrl = getRouteDataUrl(parseRoute(url));
+
       if (dataUrl) {
         invalidateRouteData(dataUrl);
       }
     }
+
     if (replace) {
       window.history.replaceState({}, "", nextKey);
     } else if (nextKey !== locationState.key) {
       window.history.pushState({}, "", nextKey);
     }
+
     setLocationState((prev) => ({
       key: nextKey,
       version: reload || nextKey !== prev.key ? prev.version + 1 : prev.version,
     }));
+
     if (!url.pathname.startsWith("/games/")) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
@@ -221,22 +252,29 @@ function App() {
     const nextFlash = initial
       ? (initialFlash.current ?? readFlashFromUrl(url))
       : readFlashFromUrl(url);
+
     seededInitialFlash.current = true;
+
     const preservedFlash =
       preserveFlashAfterUrlCleanup.current ||
       preserveFlashForNextNavigation.current;
+
     if (nextFlash) {
       setFlashState(nextFlash);
     } else if (!preservedFlash) {
       clearFlash();
     }
+
     preserveFlashAfterUrlCleanup.current = false;
     preserveFlashForNextNavigation.current = false;
 
     const strippedKey = stripFlashParams(url);
+
     if (strippedKey !== `${url.pathname}${url.search}`) {
       preserveFlashAfterUrlCleanup.current = !!nextFlash;
+
       window.history.replaceState({}, "", strippedKey);
+
       setLocationState((prev) =>
         prev.key === strippedKey ? prev : { ...prev, key: strippedKey },
       );
@@ -248,6 +286,7 @@ function App() {
         version: prev.version + 1,
       }));
     };
+
     const onClick = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
@@ -259,44 +298,57 @@ function App() {
       ) {
         return;
       }
+
       const target = event.target as HTMLElement | null;
       const link = target?.closest("a");
+
       if (!link || link.target || link.hasAttribute("download")) {
         return;
       }
+
       const url = new URL(link.href, window.location.origin);
-      if (url.origin !== window.location.origin) {
-        return;
-      }
+
       if (
+        url.origin !== window.location.origin ||
         url.pathname.startsWith("/api") ||
         url.pathname.startsWith("/static") ||
         url.pathname === "/up"
       ) {
         return;
       }
+
       event.preventDefault();
+
       navigate(`${url.pathname}${url.search}`);
     };
+
     const onPrefetch = (event: MouseEvent | FocusEvent | TouchEvent) => {
       const target = event.target as HTMLElement | null;
       const link = target?.closest("a");
+
       if (!link) {
         return;
       }
+
       const url = new URL(link.href, window.location.origin);
+
       if (url.origin !== window.location.origin) {
         return;
       }
+
       prefetchRouteData(getRouteDataUrl(parseRoute(url)));
     };
+
     const onSpaNavigate = (event: Event) => {
       const detail = (event as CustomEvent<SpaNavigateDetail>).detail;
+
       if (!detail?.to) {
         return;
       }
+
       navigate(detail.to, detail.replace, detail.reload);
     };
+
     window.addEventListener("popstate", onPopState);
     window.addEventListener(SPA_NAVIGATE_EVENT, onSpaNavigate as EventListener);
     document.addEventListener("click", onClick);
@@ -306,6 +358,7 @@ function App() {
       passive: true,
       capture: true,
     });
+
     return () => {
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener(
@@ -326,6 +379,7 @@ function App() {
 
   async function handleLogout() {
     const credential = getAppCredential();
+
     if (credential) {
       await fetch("/api/auth/token", {
         method: "DELETE",
@@ -334,13 +388,17 @@ function App() {
           Authorization: `Bearer ${credential}`,
         },
       }).catch(() => undefined);
+
       clearAppCredential();
     }
+
     await fetch("/logout", {
       method: "POST",
       headers: { Accept: "application/json" },
     });
+
     await refreshSession();
+
     navigate("/", true);
   }
 
@@ -349,15 +407,7 @@ function App() {
       <nav ref={navRef}>
         <div>
           <a href="/games/new" title="New game">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 -960 960 960"
-              fill="currentColor"
-            >
-              <path d="M451.5-131.5Q440-143 440-160v-280H160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520h280v-280q0-17 11.5-28.5T480-840q17 0 28.5 11.5T520-800v280h280q17 0 28.5 11.5T840-480q0 17-11.5 28.5T800-440H520v280q0 17-11.5 28.5T480-120q-17 0-28.5-11.5Z" />
-            </svg>
+            <IconPlus />
           </a>
           <a href="/games">Games</a>
           <a href="/analysis">Analysis</a>

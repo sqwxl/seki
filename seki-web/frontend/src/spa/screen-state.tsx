@@ -17,6 +17,7 @@ export function LoadingState() {
 
 function isDynamicImportError(err: unknown) {
   const message = err instanceof Error ? err.message : String(err);
+
   return DYNAMIC_IMPORT_ERROR_PATTERNS.some((pattern) =>
     message.toLowerCase().includes(pattern.toLowerCase()),
   );
@@ -50,7 +51,9 @@ async function clearServiceWorkerCaches() {
   if (!("caches" in window)) {
     return;
   }
+
   const keys = await caches.keys();
+
   await Promise.all(
     keys
       .filter((key) => key.startsWith("seki-"))
@@ -62,12 +65,15 @@ async function recoverFromDynamicImportError(err: unknown) {
   if (!isDynamicImportError(err) || hasReloadedAfterDynamicImportError()) {
     return false;
   }
+
   markDynamicImportReload();
+
   try {
     await clearServiceWorkerCaches();
   } finally {
     window.location.reload();
   }
+
   return true;
 }
 
@@ -77,6 +83,7 @@ export function useLazyModule<T>(loader: () => Promise<T>) {
 
   useEffect(() => {
     let cancelled = false;
+
     loader()
       .then((next) => {
         if (!cancelled) {
@@ -85,14 +92,13 @@ export function useLazyModule<T>(loader: () => Promise<T>) {
         }
       })
       .catch(async (err: Error) => {
-        if (cancelled) {
+        if (cancelled || (await recoverFromDynamicImportError(err))) {
           return;
         }
-        if (await recoverFromDynamicImportError(err)) {
-          return;
-        }
+
         setError(err.message);
       });
+
     return () => {
       cancelled = true;
     };

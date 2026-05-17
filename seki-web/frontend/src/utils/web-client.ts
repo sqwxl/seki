@@ -9,13 +9,16 @@ export async function postForm(
   formData: FormData,
 ): Promise<Record<string, unknown>> {
   const body = new URLSearchParams();
+
   formData.forEach((value, key) => body.append(key, String(value)));
+
   const response = await fetch(url, {
     method: "POST",
     headers: { Accept: "application/json" },
     body,
   });
   const data = await response.json();
+
   if (!response.ok) {
     throw {
       status: response.status,
@@ -23,5 +26,6 @@ export async function postForm(
       field: data.field,
     } satisfies WebRequestError;
   }
+
   return data;
 }

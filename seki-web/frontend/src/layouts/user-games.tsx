@@ -24,11 +24,13 @@ export function UserGames({ initial }: { initial?: UserGamesInitialData }) {
   const currentUserId = readUserData()?.id;
   const [games, setGames] = useState<Map<number, LiveGameItem>>(() => {
     const map = new Map<number, LiveGameItem>();
+
     if (initial) {
       for (const g of initial.games) {
         map.set(g.id, g);
       }
     }
+
     return map;
   });
   const [visibleCount, setVisibleCount] = useState(GAMES_PER_PAGE);
@@ -38,10 +40,12 @@ export function UserGames({ initial }: { initial?: UserGamesInitialData }) {
     const unsubs = [
       subscribe<GameCreatedMessage>("game_created", (msg) => {
         const userId = profileUserIdRef.current;
+
         if (userId != null && involvesUser(msg.game, userId)) {
           setGames((prev) => {
             const next = new Map(prev);
             next.set(msg.game.id, msg.game);
+
             return next;
           });
         }
@@ -53,15 +57,19 @@ export function UserGames({ initial }: { initial?: UserGamesInitialData }) {
           if (!existing) {
             // Check if the update now involves the profile user
             const userId = profileUserIdRef.current;
+
             if (userId != null && involvesUser(msg.game, userId)) {
               // We don't have settings for this game, so we can't add it.
               // It'll show up on next page load.
               return prev;
             }
+
             return prev;
           }
+
           const next = new Map(prev);
           next.set(msg.game.id, { ...existing, ...msg.game });
+
           return next;
         });
       }),

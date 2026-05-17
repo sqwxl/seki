@@ -2,8 +2,8 @@ import { useEffect, useState } from "preact/hooks";
 import { Chat } from "../components/chat";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
-import { LobbyControls } from "../components/LobbyControls";
-import { LobbyPopover } from "../components/LobbyPopover";
+import { LobbyControls } from "../components/lobby-controls";
+import { LobbyPopover } from "../components/lobby-popover";
 import { PlayerPanel } from "../components/player-panel";
 import { TabBar } from "../components/tab-bar";
 import {
@@ -212,32 +212,41 @@ function LiveGameStatusSlot(
           }
           onAccept={() => {
             clearGameFlashMessage();
+
             if (!setPendingAction("accept-challenge")) {
               return;
             }
+
             props.channel.acceptChallenge();
           }}
           onDecline={() => {
             clearGameFlashMessage();
+
             if (!setPendingAction("decline-challenge")) {
               return;
             }
+
             props.channel.declineChallenge();
           }}
           onAbort={() => {
             clearGameFlashMessage();
+
             if (!setPendingAction("abort")) {
               return;
             }
+
             props.channel.abort();
           }}
           onJoin={() => {
             clearGameFlashMessage();
+
             if (!setPendingAction("join-game")) {
               return;
             }
+
             const accessToken = initialProps.value.access_token;
             const url = `/games/${gameId.value}/join${accessToken ? `?access_token=${accessToken}` : ""}`;
+
             void postForm(url, new FormData())
               .then((result) => {
                 if (typeof result.redirect === "string") {
@@ -251,6 +260,7 @@ function LiveGameStatusSlot(
                 if (shouldFallbackJoinToSpectating(err)) {
                   clearPendingAction("join-game");
                   props.onSpectate();
+
                   return;
                 }
                 clearPendingAction("join-game");
@@ -274,6 +284,7 @@ function LiveGameStatusSlot(
 
 function LiveGameMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
   const showMoveTree = liveGameMoveTreeState.value.showMoveTree;
+
   return (
     <div
       class={`move-tree-slot${!showMoveTree ? " hidden" : ""}`}
@@ -322,6 +333,7 @@ function LiveGameChat({ channel }: Pick<LiveGamePageProps, "channel">) {
       display_name: userData?.display_name,
       text,
     });
+
     hasUnreadChat.value = false;
     channel.say(text, clientMessageId);
   }
@@ -350,6 +362,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
 
   useEffect(() => {
     const popover = liveGameStatusState.value.lobbyPopover;
+
     if (!popover || !supportsPopoverSpectating(popover.variant)) {
       setIsSpectatingPopover(false);
     }
