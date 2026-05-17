@@ -1,12 +1,7 @@
 // @ts-nocheck -- ServiceWorkerGlobalScope types
-const CACHE_NAME = "seki-v2";
-const STATIC_PATHS = [
-  "/static/dist/",
-  "/static/css/",
-  "/static/wasm/",
-  "/static/images/",
-  "/static/sounds/",
-];
+const CACHE_NAME = "seki-v3";
+const NETWORK_FIRST_PATHS = ["/static/css/", "/static/dist/", "/static/wasm/"];
+const CACHE_FIRST_PATHS = ["/static/images/", "/static/sounds/"];
 
 self.addEventListener("install", () => {
   // The SPA shell embeds user-specific bootstrap data, so do not precache it.
@@ -27,11 +22,26 @@ self.addEventListener("activate", (event) => {
 });
 
 function isStaticAsset(url: URL): boolean {
-  return STATIC_PATHS.some((p) => url.pathname.startsWith(p));
+  return [...NETWORK_FIRST_PATHS, ...CACHE_FIRST_PATHS].some((p) =>
+    url.pathname.startsWith(p),
+  );
+}
+
+function isNetworkFirstAsset(url: URL): boolean {
+  return NETWORK_FIRST_PATHS.some((p) => url.pathname.startsWith(p));
 }
 
 function isApiRequest(url: URL): boolean {
   return url.pathname.startsWith("/api/");
+}
+
+async function fetchAndCache(request: Request): Promise<Response> {
+  const response = await fetch(request);
+  if (response.ok) {
+    const clone = response.clone();
+    caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+  }
+  return response;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -55,17 +65,19 @@ self.addEventListener("fetch", (event) => {
 
   if (isStaticAsset(url)) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        const fetched = fetch(event.request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches
-              .open(CACHE_NAME)
-              .then((cache) => cache.put(event.request, clone));
-          }
+      (isNetworkFirstAsset(url)
+        ? fetchAndCache(event.request).catch(() => caches.match(event.request))
+        : caches.match(event.request).then((cached) => {
+            if (cached) {
+              return cached;
+            }
+            return fetchAndCache(event.request);
+          })
+      ).then((response) => {
+        if (response) {
           return response;
-        });
-        return cached ?? fetched;
+        }
+        return fetchAndCache(event.request);
       }),
     );
     return;
