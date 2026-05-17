@@ -23,8 +23,7 @@
 .game-board-area,
 .game-page-body .player-panel,
 .game-page-body .controls,
-.move-tree-slot,
-.mobile-tab-bar {
+.move-tree-slot {
   width: var(--col-width);
   max-width: var(--goban-max-size);
 }
