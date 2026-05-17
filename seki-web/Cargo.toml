@@ -32,6 +32,6 @@ jsonwebtoken = "9"
 web-push = { version = "0.11", features = ["hyper-client"] }
 
 [dev-dependencies]
-testcontainers = "0.23"
+testcontainers = "0.27"
 reqwest = { version = "0.12", features = ["json", "cookies"] }
-tokio-tungstenite = "0.26"
+tokio-tungstenite = "0.29"
