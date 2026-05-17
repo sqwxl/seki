@@ -148,7 +148,10 @@ export function liveGame(
 
   // --- Mode transition helpers ---
 
-  function enterAnalysis({ restorePosition = true } = {}) {
+  function enterAnalysis({
+    restorePosition = true,
+    nodeId,
+  }: { restorePosition?: boolean; nodeId?: number } = {}) {
     const cur = gamePhase.value;
     clearPendingMove();
     if (cur.phase === "presentation" && cur.role === "synced-viewer") {
@@ -158,7 +161,13 @@ export function liveGame(
     }
     mobileTab.value = "analysis";
     const saved = loadSavedAnalysisTree(board.value, analysisKey, moves.value);
-    if (restorePosition) {
+    if (nodeId != null && board.value) {
+      if (nodeId >= 0) {
+        board.value.engine.navigate_to(nodeId);
+      } else {
+        board.value.engine.to_start();
+      }
+    } else if (restorePosition) {
       restoreAnalysisPosition(board.value, saved);
     }
     board.value?.setMoveTreeEl(moveTreeEl);

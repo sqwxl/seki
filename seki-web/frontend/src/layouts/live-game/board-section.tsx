@@ -26,7 +26,10 @@ export function onRenderCallback(
     }>;
     broadcastSnapshot: () => void;
     saveAnalysis: (active?: boolean) => void;
-    enterAnalysis: (opts?: { restorePosition?: boolean }) => void;
+    enterAnalysis: (opts?: {
+      restorePosition?: boolean;
+      nodeId?: number;
+    }) => void;
     exitEstimateFn: () => void;
     enterEstimateFn: () => void;
   },
@@ -71,7 +74,10 @@ export function onRenderCallback(
     (engine.view_index() < moves.value.length || !engine.is_on_main_line()) &&
     !(presentationActive.value && !isPresenter.value)
   ) {
-    enterAnalysis({ restorePosition: false });
+    enterAnalysis({
+      restorePosition: false,
+      nodeId: engine.current_node_id(),
+    });
   }
   if (presentationActive.value && isPresenter.value) {
     broadcastSnapshot();
