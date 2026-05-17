@@ -93,9 +93,13 @@ export function BoardParameterFields({
           id="handicap"
           value={showHandicap}
           disabled={s.ranked}
-          onChange={(e) =>
-            set("handicap", parseInt(e.currentTarget.value, 10) || 0)
-          }
+          onChange={(e) => {
+            const handicap = parseInt(e.currentTarget.value, 10) || 0;
+            set("handicap", handicap);
+            if (!s.ranked && handicap >= 2) {
+              set("komi", 0.5);
+            }
+          }}
         />
         {s.ranked && (
           <input type="hidden" name="handicap" value={showHandicap} />

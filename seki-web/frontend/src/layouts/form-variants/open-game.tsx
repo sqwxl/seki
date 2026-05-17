@@ -153,9 +153,13 @@ export function OpenGameForm({
               name="handicap"
               id="handicap"
               value={s.handicap}
-              onChange={(e) =>
-                set("handicap", parseInt(e.currentTarget.value, 10))
-              }
+              onChange={(e) => {
+                const handicap = parseInt(e.currentTarget.value, 10);
+                set("handicap", handicap);
+                if (!s.ranked && handicap >= 2) {
+                  set("komi", 0.5);
+                }
+              }}
             >
               <option value={0}>None</option>
               {Array.from(
