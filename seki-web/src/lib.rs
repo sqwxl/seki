@@ -34,6 +34,10 @@ pub struct AppState {
     pub jwt_secret: String,
 }
 
+fn no_store_layer() -> SetResponseHeaderLayer<HeaderValue> {
+    SetResponseHeaderLayer::overriding(header::CACHE_CONTROL, HeaderValue::from_static("no-store"))
+}
+
 pub async fn build_router(pool: db::DbPool, session_secure: bool) -> (Router, AppState) {
     build_router_with_presence(pool, session_secure, ws::presence::UserPresence::new()).await
 }
@@ -74,6 +78,7 @@ pub async fn build_router_with_registry_and_presence(
     let mailer = services::mailer::Mailer::from_env();
     let static_dir = std::env::var("STATIC_DIR")
         .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string());
+    let static_dir_path = PathBuf::from(&static_dir);
     let jwt_secret = std::env::var("APP_CREDENTIAL_SECRET").unwrap_or_else(|_| {
         use rand::distr::Alphanumeric;
         let mut rng = rand::rng();
@@ -93,7 +98,17 @@ pub async fn build_router_with_registry_and_presence(
         mailer,
         jwt_secret,
     };
+    let static_assets = Router::new()
+        .nest_service("/css", ServeDir::new(static_dir_path.join("css")))
+        .nest_service("/dist", ServeDir::new(static_dir_path.join("dist")))
+        .nest_service("/wasm", ServeDir::new(static_dir_path.join("wasm")))
+        .layer(no_store_layer())
+        .fallback_service(ServeDir::new(static_dir_path.clone()));
+    let sw_route = Router::new()
+        .route_service("/sw.js", ServeFile::new(static_dir_path.join("dist/sw.js")))
+        .layer(no_store_layer());
     let app = Router::new()
+        .merge(sw_route)
         .route("/analysis", get(routes::spa::shell))
         .route("/", get(routes::spa::shell))
         .route("/games", get(routes::spa::shell))
@@ -173,14 +188,10 @@ pub async fn build_router_with_registry_and_presence(
                 )),
         )
         .route("/up", get(routes::health::health_check))
-        .nest_service("/static", ServeDir::new(static_dir.clone()))
-        .route_service(
-            "/sw.js",
-            ServeFile::new(PathBuf::from(&static_dir).join("dist/sw.js")),
-        )
+        .nest("/static", static_assets)
         .route_service(
             "/manifest.json",
-            ServeFile::new(PathBuf::from(&static_dir).join("manifest.json")),
+            ServeFile::new(static_dir_path.join("manifest.json")),
         )
         .layer(SetResponseHeaderLayer::if_not_present(
             header::REFERRER_POLICY,

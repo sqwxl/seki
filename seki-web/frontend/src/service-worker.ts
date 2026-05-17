@@ -1,6 +1,6 @@
 // @ts-nocheck -- ServiceWorkerGlobalScope types
-const CACHE_NAME = "seki-v3";
-const NETWORK_FIRST_PATHS = ["/static/css/", "/static/dist/", "/static/wasm/"];
+const CACHE_NAME = "seki-v4";
+const NETWORK_ONLY_PATHS = ["/static/css/", "/static/dist/", "/static/wasm/"];
 const CACHE_FIRST_PATHS = ["/static/images/", "/static/sounds/"];
 
 self.addEventListener("install", () => {
@@ -22,13 +22,13 @@ self.addEventListener("activate", (event) => {
 });
 
 function isStaticAsset(url: URL): boolean {
-  return [...NETWORK_FIRST_PATHS, ...CACHE_FIRST_PATHS].some((p) =>
+  return [...NETWORK_ONLY_PATHS, ...CACHE_FIRST_PATHS].some((p) =>
     url.pathname.startsWith(p),
   );
 }
 
-function isNetworkFirstAsset(url: URL): boolean {
-  return NETWORK_FIRST_PATHS.some((p) => url.pathname.startsWith(p));
+function isNetworkOnlyAsset(url: URL): boolean {
+  return NETWORK_ONLY_PATHS.some((p) => url.pathname.startsWith(p));
 }
 
 function isApiRequest(url: URL): boolean {
@@ -64,21 +64,26 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isStaticAsset(url)) {
+    if (isNetworkOnlyAsset(url)) {
+      event.respondWith(fetch(event.request));
+      return;
+    }
+
     event.respondWith(
-      (isNetworkFirstAsset(url)
-        ? fetchAndCache(event.request).catch(() => caches.match(event.request))
-        : caches.match(event.request).then((cached) => {
-            if (cached) {
-              return cached;
-            }
-            return fetchAndCache(event.request);
-          })
-      ).then((response) => {
-        if (response) {
-          return response;
-        }
-        return fetchAndCache(event.request);
-      }),
+      caches
+        .match(event.request)
+        .then((cached) => {
+          if (cached) {
+            return cached;
+          }
+          return fetchAndCache(event.request);
+        })
+        .then((response) => {
+          if (response) {
+            return response;
+          }
+          return fetchAndCache(event.request);
+        }),
     );
     return;
   }
