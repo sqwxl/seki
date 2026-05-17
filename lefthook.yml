@@ -1,17 +1,18 @@
+---
 pre-commit:
   commands:
     rustfmt:
-      glob: "*.rs"
+      glob: '*.rs'
       run: cargo fmt
       stage_fixed: true
     clippy:
-      glob: "*.rs"
+      glob: '*.rs'
       run: cargo clippy --all-targets -- -D warnings
     prettier:
-      glob: "seki-web/**/*.{ts,tsx,css}"
-      run: pnpm --dir seki-web/frontend exec prettier --write {staged_files} || pnpm dlx prettier --write {staged_files}
+      glob: seki-web/**/*.{ts,tsx,css}
+      run: pnpm dlx prettier --write {staged_files}
       stage_fixed: true
     organize-ts-imports:
-      glob: "seki-web/frontend/src/**/*.{ts,tsx}"
+      glob: seki-web/frontend/src/**/*.{ts,tsx}
       run: pnpm --dir seki-web/frontend run organize-imports -- {staged_files}
       stage_fixed: true
