@@ -12,7 +12,6 @@ import {
   toAnalysis,
   toEstimate,
   toLive,
-  toPresentation,
   toPresentationLocalAnalysis,
   toPresentationSyncedViewer,
 } from "../game/phase";
@@ -25,7 +24,6 @@ import {
   boardFinalizedScore,
   boardReviewing,
   currentTurn,
-  currentUserId,
   estimateMode,
   estimateScore,
   gameStage,
@@ -71,9 +69,17 @@ import {
 } from "../utils/move-confirm";
 import type { SgfMeta } from "../utils/sgf";
 import { downloadSgf } from "../utils/sgf";
-import { gameAnalysisKey, storage } from "../utils/storage";
+import { gameAnalysisKey } from "../utils/storage";
 import { joinGame, subscribe } from "../ws";
 import { LiveGamePage, getServerTerritory } from "./live-game-page";
+import { onRenderCallback } from "./live-game/board-section";
+import { buildWebSocketDeps } from "./live-game/game-info";
+import {
+  loadSavedAnalysisTree,
+  readSavedAnalysis,
+  restoreAnalysisPosition,
+  saveAnalysis,
+} from "./live-game/sidebar";
 
 export function liveGame(
   initialProps: InitialGameProps,
@@ -138,62 +144,7 @@ export function liveGame(
   // --- Analysis persistence helpers ---
   const analysisKey = gameAnalysisKey(gameId);
 
-  type SavedAnalysis = {
-    tree: string;
-    nodeId: number;
-    active?: boolean;
-  };
-
-  function readSavedAnalysis(): SavedAnalysis | undefined {
-    return storage.getJson<SavedAnalysis>(analysisKey);
-  }
-
-  function saveAnalysis(active?: boolean) {
-    if (!board.value) {
-      return;
-    }
-    const nextActive = active ?? analysisMode.value;
-    if (analysisMode.value || nextActive) {
-      storage.setJson(analysisKey, {
-        tree: board.value.engine.tree_json(),
-        nodeId: board.value.engine.current_node_id(),
-        active: nextActive,
-      });
-      return;
-    }
-
-    const saved = readSavedAnalysis();
-    if (saved) {
-      storage.setJson(analysisKey, { ...saved, active: nextActive });
-    }
-  }
-
-  function loadSavedAnalysisTree(): SavedAnalysis | undefined {
-    if (!board.value) {
-      return undefined;
-    }
-    const saved = readSavedAnalysis();
-    if (!saved?.tree) {
-      return saved;
-    }
-    board.value.engine.replace_tree(saved.tree);
-    if (moves.value.length > 0) {
-      board.value.engine.merge_base_moves(JSON.stringify(moves.value));
-    }
-    return saved;
-  }
-
-  /** Navigate to the last saved analysis position (tree is already loaded). */
-  function restoreAnalysisPosition(saved = readSavedAnalysis()): void {
-    if (!board.value || !saved) {
-      return;
-    }
-    if (saved.nodeId >= 0) {
-      board.value.engine.navigate_to(saved.nodeId);
-    } else {
-      board.value.engine.to_start();
-    }
-  }
+  // Imported from sidebar.tsx: readSavedAnalysis, saveAnalysis, loadSavedAnalysisTree, restoreAnalysisPosition
 
   // --- Mode transition helpers ---
 
@@ -205,9 +156,9 @@ export function liveGame(
     } else {
       toAnalysis();
     }
-    const saved = loadSavedAnalysisTree();
+    const saved = loadSavedAnalysisTree(board.value, analysisKey, moves.value);
     if (restorePosition) {
-      restoreAnalysisPosition(saved);
+      restoreAnalysisPosition(board.value, saved);
     }
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
@@ -218,7 +169,7 @@ export function liveGame(
       doExitEstimate();
     }
     clearPendingMove();
-    saveAnalysis(false);
+    saveAnalysis(board.value, analysisMode.value, analysisKey, false);
     const cur = gamePhase.value;
     if (cur.phase === "presentation" && cur.role === "local-analysis") {
       toPresentationSyncedViewer();
@@ -238,7 +189,6 @@ export function liveGame(
     clearPendingMove();
     toEstimate();
     if (settledTerritory.value && !wasAnalysis) {
-      // Static overlay for finished games — just toggle and re-render
       board.value?.render();
     } else {
       board.value?.enterTerritoryReview();
@@ -261,8 +211,6 @@ export function liveGame(
   }
 
   // --- Presentation snapshot cache ---
-  // Always stores the latest snapshot from the presenter, even while in local
-  // analysis, so we can re-sync when exiting personal analysis.
   let lastPresentationSnapshot = "";
 
   // --- Presentation helpers ---
@@ -380,9 +328,6 @@ export function liveGame(
     root,
   );
 
-  // Static preview only helps on empty boards; on populated boards it makes the
-  // eventual WASM handoff visibly jumpier because the preview and engine render
-  // have different timing and placement state.
   if (gobanRef.current && !gameState.value.board.some((cell) => cell !== 0)) {
     const gs = gameState.value;
     render(
@@ -436,57 +381,25 @@ export function liveGame(
     onStonePlay: playStoneSound,
     onPass: playPassSound,
     onRender: (engine, territoryInfo) => {
-      boardFinalized.value = territoryInfo.finalized;
-      boardFinalizedScore.value = territoryInfo.finalized
-        ? territoryInfo.score
-        : undefined;
-      boardReviewing.value = territoryInfo.reviewing;
-      // Auto-exit estimate when territory review gets cleared (e.g. by navigation)
-      if (estimateMode.value && !territoryInfo.reviewing) {
-        phaseExitEstimate();
-        estimateScore.value = undefined;
-      }
-      // Auto-enter estimate when board enters territory review in analysis
-      // (e.g. passing twice or navigating to a territory review node)
-      if (
-        analysisMode.value &&
-        territoryInfo.reviewing &&
-        !estimateMode.value
-      ) {
-        toEstimate();
-      }
-      // Capture estimate score for status display
-      if (estimateMode.value && territoryInfo.score) {
-        estimateScore.value = territoryInfo.score;
-      }
-      // Auto-enter analysis when navigating away from latest game move
-      // or onto a variation branch (e.g. clicking a variation in the move tree)
-      // (skip for presentation viewers — their board is driven by snapshots)
-      if (
-        board.value &&
-        !analysisMode.value &&
-        !estimateMode.value &&
-        (engine.view_index() < moves.value.length ||
-          !engine.is_on_main_line()) &&
-        !(presentationActive.value && !isPresenter.value)
-      ) {
-        enterAnalysis({ restorePosition: false });
-      }
-      // Broadcast snapshot to viewers when presenting
-      if (presentationActive.value && isPresenter.value) {
-        broadcastSnapshot();
-      }
-      // Persist analysis tree on every render so branches survive refresh
-      saveAnalysis();
-      // Update nav state signal so Preact re-renders the controls
-      navState.value = {
-        atStart: engine.is_at_start(),
-        atLatest: engine.is_at_latest(),
-        atMainEnd: engine.is_at_main_end(),
-        counter: `${engine.view_index()}`,
-        boardTurnStone: engine.current_turn_stone(),
-        boardLastMoveWasPass: engine.last_move_was_pass(),
-      };
+      onRenderCallback(engine, territoryInfo, {
+        board,
+        analysisMode,
+        estimateMode,
+        moves,
+        boardFinalized,
+        boardFinalizedScore,
+        boardReviewing,
+        estimateScore,
+        presentationActive,
+        isPresenter,
+        navState,
+        broadcastSnapshot,
+        saveAnalysis: (active) =>
+          saveAnalysis(board.value, analysisMode.value, analysisKey, active),
+        enterAnalysis,
+        exitEstimateFn: doExitEstimate,
+        enterEstimateFn: enterEstimate,
+      });
     },
   }).then((b) => {
     if (disposed) {
@@ -500,17 +413,13 @@ export function liveGame(
       resetMovesTracker(moves.value.length);
       board.value.updateBaseMoves(movesJson);
     }
-    // Mark the base tip as settled for games that ended via territory
     if (settledTerritory.value) {
       board.value.markSettled(settledTerritory.value.dead_stones);
     }
-    // Always restore the saved tree so analysis branches persist across refreshes.
-    const saved = readSavedAnalysis();
+    const saved = readSavedAnalysis(analysisKey);
     if (saved?.active) {
-      // Page was refreshed while in analysis — restore exact position
       enterAnalysis();
     } else if (saved && saved.active !== false && result.value) {
-      // Completed game with saved analysis (and user didn't explicitly exit)
       enterAnalysis();
     } else {
       board.value.navigate("main-end");
@@ -529,7 +438,6 @@ export function liveGame(
 
   // --- Notifications ---
   const notificationState = createNotificationState();
-  // Seed from initial props so we only notify on genuinely new moves.
   notificationState.lastNotifiedMoveCount = moves.value.length;
 
   // --- WebSocket ---
@@ -563,102 +471,19 @@ export function liveGame(
         doExitEstimate();
       }
     },
-    onPresentationStarted: (snapshot: string) => {
-      if (isPresenter.value) {
-        clearPendingMove();
-        toPresentation("presenter");
-        restoreAnalysisPosition();
-        board.value?.setMoveTreeEl(moveTreeEl);
-      } else {
-        // Clean up any active mode before syncing with presentation
-        const wasInEstimate = estimateMode.value;
-        const wasInAnalysis = analysisMode.value;
-        if (wasInEstimate) {
-          estimateScore.value = undefined;
-          board.value?.exitTerritoryReview();
-        }
-        if (wasInAnalysis) {
-          clearPendingMove();
-          saveAnalysis();
-        }
-        toPresentation("synced-viewer");
-        if (snapshot) {
-          lastPresentationSnapshot = snapshot;
-          board.value?.importSnapshot(snapshot);
-        }
-      }
-      board.value?.render();
-    },
-    onPresentationEnded: (wasPresenter: boolean) => {
-      lastPresentationSnapshot = "";
-      if (wasPresenter) {
-        // Presenter: exit analysis (also clears estimate if active)
-        exitAnalysis();
-      } else {
-        const cur = gamePhase.value;
-        if (cur.phase === "presentation" && cur.role === "local-analysis") {
-          // Local-analysis viewer: transition to standalone analysis
-          toAnalysis();
-        } else {
-          // Synced viewer: reset to live at final position
-          toLive();
-          if (board.value) {
-            board.value.updateBaseMoves(JSON.stringify(moves.value));
-            board.value.navigate("end");
-            board.value.render();
-          }
-        }
-      }
-    },
-    onPresentationUpdate: (snapshot: string) => {
-      // Always cache the latest snapshot for re-sync on analysis exit
-      lastPresentationSnapshot = snapshot;
-      // Only import if we're a synced viewer (not presenter, not in personal analysis)
-      if (!isPresenter.value && !analysisMode.value) {
-        board.value?.importSnapshot(snapshot);
-        // Overwrite viewer's stored analysis with the presentation tree
-        try {
-          const parsed = JSON.parse(snapshot) as {
-            tree?: string;
-            activeNodeId?: string;
-          };
-          if (parsed.tree) {
-            storage.setJson(analysisKey, {
-              tree: parsed.tree,
-              nodeId: parseInt(parsed.activeNodeId ?? "-1", 10),
-            });
-          }
-        } catch {
-          // Ignore parse failures
-        }
-      }
-    },
-    onControlChanged: (newPresenterId: number) => {
-      if (newPresenterId === currentUserId.value) {
-        // We just became the presenter
-        const wasAnalysis = analysisMode.value;
-        toPresentation("presenter");
-        if (!wasAnalysis) {
-          clearPendingMove();
-          restoreAnalysisPosition();
-          board.value?.setMoveTreeEl(moveTreeEl);
-        }
-      } else {
-        // We lost control — exit to synced viewer
-        const wasInEstimate = estimateMode.value;
-        if (wasInEstimate) {
-          estimateScore.value = undefined;
-          board.value?.exitTerritoryReview();
-        }
-        clearPendingMove();
-        saveAnalysis();
-        toPresentation("synced-viewer");
-        if (lastPresentationSnapshot && board.value) {
-          board.value.importSnapshot(lastPresentationSnapshot);
-        }
-      }
-      board.value?.render();
-    },
+    ...buildWebSocketDeps({
+      clearPendingMove,
+      moveTreeEl,
+      analysisKey,
+      lastPresentationSnapshot: () => lastPresentationSnapshot,
+      setLastPresentationSnapshot: (v: string) => {
+        lastPresentationSnapshot = v;
+      },
+      saveAnalysis: (active) =>
+        saveAnalysis(board.value, analysisMode.value, analysisKey, active),
+      exitAnalysis,
+      restoreAnalysisPosition: () => restoreAnalysisPosition(board.value),
+    }),
   };
   markRead(gameId);
   const leaveGame = joinGame(gameId, (raw) => handleGameMessage(raw, deps));
@@ -794,7 +619,6 @@ export function liveGame(
   // --- Tab title flash on visibility change ---
   const onVisibilityChange = () => {
     if (!document.hidden) {
-      // Stop flashing when returning to tab; starting only happens on new moves
       stopFlashing();
     }
   };

@@ -1,10 +1,8 @@
-import {
-  ControlsProps,
-  GameControls,
-  NavControls,
-  UIControls,
-} from "../components/controls";
+import { type ControlsProps } from "../components/controls-shared";
+import { GameControls } from "../components/GameControls";
 import { IconCheck } from "../components/icons";
+import { NavControls } from "../components/NavControls";
+import { UIControls } from "../components/UIControls";
 
 export function Controls(props: ControlsProps) {
   const reviewing = props.layout === "analysis-review";

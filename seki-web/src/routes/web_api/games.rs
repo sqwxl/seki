@@ -1,6 +1,5 @@
+use axum::Json;
 use axum::extract::{Path, Query, State};
-use axum::http::Uri;
-use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -9,178 +8,24 @@ use crate::models::game::{Game, GameWithPlayers};
 use crate::models::game_read::GameListRatingFilters;
 use crate::models::message::Message;
 use crate::models::rating::RatingProfile;
-use crate::models::user::User;
-use crate::routes::FlashMessage;
-use crate::routes::push;
 use crate::services::engine_builder;
-use crate::services::live::{LiveGameItem, build_live_items};
-use crate::services::rating::{
-    ProfileRatingDto, RankDto, can_participate_in_ranking, profile_rating_summary,
-    rank_for_profile, rank_for_user,
-};
-use crate::services::{game_joiner, live, presentation_actions, state_serializer};
+use crate::services::live::{self, LiveGameItem, build_live_items};
+use crate::services::{game_joiner, presentation_actions, state_serializer};
 use crate::session::CurrentUser;
-use crate::templates::UserData;
 use crate::templates::games_show::InitialGameProps;
 
-pub fn router() -> Router<AppState> {
-    Router::new()
-        .route("/session/me", axum::routing::get(session_me))
-        .route(
-            "/web/vapid-public-key",
-            axum::routing::get(push::vapid_public_key),
-        )
-        .route("/web/games", axum::routing::get(games_index))
-        .route("/web/games/new", axum::routing::get(new_game))
-        .route("/web/games/{id}", axum::routing::get(game_show))
-        .route("/web/analysis", axum::routing::get(analysis))
-        .route("/web/users/{username}", axum::routing::get(user_profile))
-}
-
 #[derive(Serialize)]
-pub(crate) struct BootstrapPayload {
-    pub url: Option<String>,
-    pub data: Option<serde_json::Value>,
-    pub flash: Option<FlashMessage>,
-}
-
-pub(crate) async fn bootstrap_for_location(
-    state: &AppState,
-    current_user: &CurrentUser,
-    uri: &Uri,
-) -> Result<BootstrapPayload, AppError> {
-    let path = uri.path();
-    let query = uri.query();
-    let Some(url) = route_data_url(path, query) else {
-        return Ok(BootstrapPayload {
-            url: None,
-            data: None,
-            flash: None,
-        });
-    };
-
-    let data = match path {
-        "/" | "/games" => serde_json::to_value(
-            load_games_index(state, current_user, GameListRatingFilters::default()).await?,
-        )?,
-        "/games/new" => serde_json::to_value(
-            load_new_game(state, current_user, query_param(query, "opponent")).await?,
-        )?,
-        _ if path.starts_with("/games/challenge/") => {
-            let username = path.trim_start_matches("/games/challenge/").to_string();
-            serde_json::to_value(load_new_game(state, current_user, Some(username)).await?)?
-        }
-        "/analysis" => serde_json::to_value(AnalysisData {})?,
-        _ if path.starts_with("/games/") => {
-            let game_id = path
-                .trim_start_matches("/games/")
-                .parse::<i64>()
-                .map_err(|_| AppError::NotFound("Game not found".to_string()))?;
-            let access_token = query_param(query, "access_token");
-            let invite_token = query_param(query, "invite_token");
-            let mut params = Vec::new();
-            if let Some(token) = access_token {
-                params.push(format!("access_token={token}"));
-            }
-            if let Some(token) = invite_token {
-                params.push(format!("invite_token={token}"));
-            }
-            serde_json::to_value(load_game_show(state, current_user, game_id, params).await?)?
-        }
-        _ if path.starts_with("/users/") => {
-            let username = path.trim_start_matches("/users/").to_string();
-            serde_json::to_value(load_user_profile(state, current_user, username).await?)?
-        }
-        _ => {
-            return Ok(BootstrapPayload {
-                url: None,
-                data: None,
-                flash: None,
-            });
-        }
-    };
-
-    Ok(BootstrapPayload {
-        url: Some(url),
-        data: Some(data),
-        flash: None,
-    })
-}
-
-fn route_data_url(path: &str, query: Option<&str>) -> Option<String> {
-    match path {
-        "/" | "/games" => Some("/api/web/games".to_string()),
-        "/games/new" => {
-            let opponent = query_param(query, "opponent");
-            Some(match opponent {
-                Some(opponent) => format!("/api/web/games/new?opponent={opponent}"),
-                None => "/api/web/games/new".to_string(),
-            })
-        }
-        "/analysis" => Some("/api/web/analysis".to_string()),
-        _ if path.starts_with("/games/challenge/") => {
-            let username = path.trim_start_matches("/games/challenge/");
-            Some(format!("/api/web/games/new?opponent={}", username))
-        }
-        _ if path.starts_with("/games/") => {
-            let access_token = query_param(query, "access_token");
-            let invite_token = query_param(query, "invite_token");
-            let mut params = Vec::new();
-            if let Some(token) = access_token {
-                params.push(format!("access_token={token}"));
-            }
-            if let Some(token) = invite_token {
-                params.push(format!("invite_token={token}"));
-            }
-            Some(if params.is_empty() {
-                path.replacen("/games", "/api/web/games", 1)
-            } else {
-                format!("{path}?{}", params.join("&")).replacen("/games", "/api/web/games", 1)
-            })
-        }
-        _ if path.starts_with("/users/") => Some(path.replacen("/users", "/api/web/users", 1)),
-        _ => None,
-    }
-}
-
-fn query_param(query: Option<&str>, key: &str) -> Option<String> {
-    query.and_then(|query| {
-        query.split('&').find_map(|pair| {
-            let mut parts = pair.splitn(2, '=');
-            let k = parts.next()?;
-            let v = parts.next().unwrap_or_default();
-            if k == key { Some(v.to_string()) } else { None }
-        })
-    })
-}
-
-async fn session_me(
-    State(state): State<AppState>,
-    current_user: CurrentUser,
-) -> Result<Json<UserData>, AppError> {
-    let rating_profile = if current_user.is_registered() {
-        RatingProfile::find(&state.db, current_user.id).await?
-    } else {
-        None
-    };
-    Ok(Json(UserData::from_user_with_rank(
-        &current_user.user,
-        rating_profile.as_ref(),
-    )))
-}
-
-#[derive(Serialize)]
-struct GamesIndexData {
-    player_id: i64,
-    player_games: Vec<LiveGameItem>,
-    public_games: Vec<LiveGameItem>,
+pub(crate) struct GamesIndexData {
+    pub player_id: i64,
+    pub player_games: Vec<LiveGameItem>,
+    pub public_games: Vec<LiveGameItem>,
 }
 
 #[derive(Deserialize)]
-struct GamesIndexQuery {
-    rated_status: Option<String>,
-    min_rating: Option<i32>,
-    max_rating: Option<i32>,
+pub(crate) struct GamesIndexQuery {
+    pub rated_status: Option<String>,
+    pub min_rating: Option<i32>,
+    pub max_rating: Option<i32>,
 }
 
 fn parse_rating_filters(query: &GamesIndexQuery) -> GameListRatingFilters {
@@ -196,7 +41,7 @@ fn parse_rating_filters(query: &GamesIndexQuery) -> GameListRatingFilters {
     }
 }
 
-async fn games_index(
+pub(crate) async fn games_index(
     State(state): State<AppState>,
     current_user: CurrentUser,
     Query(query): Query<GamesIndexQuery>,
@@ -206,7 +51,7 @@ async fn games_index(
     ))
 }
 
-async fn load_games_index(
+pub(crate) async fn load_games_index(
     state: &AppState,
     current_user: &CurrentUser,
     rating_filters: GameListRatingFilters,
@@ -231,34 +76,34 @@ async fn load_games_index(
 }
 
 #[derive(Deserialize)]
-struct NewGameQuery {
-    opponent: Option<String>,
+pub(crate) struct NewGameQuery {
+    pub opponent: Option<String>,
 }
 
 #[derive(Serialize)]
-struct NewGameData {
-    opponent: Option<String>,
-    user_is_registered: bool,
-    rating: NewGameRatingData,
-    eligible_opponents: Vec<EligibleOpponent>,
-    opponent_rank: Option<RankDto>,
+pub(crate) struct NewGameData {
+    pub opponent: Option<String>,
+    pub user_is_registered: bool,
+    pub rating: NewGameRatingData,
+    pub eligible_opponents: Vec<EligibleOpponent>,
+    pub opponent_rank: Option<crate::services::rating::RankDto>,
 }
 
 #[derive(Serialize)]
-struct EligibleOpponent {
-    id: i64,
-    username: String,
-    rank: Option<RankDto>,
+pub(crate) struct EligibleOpponent {
+    pub id: i64,
+    pub username: String,
+    pub rank: Option<crate::services::rating::RankDto>,
 }
 
 #[derive(Serialize)]
-struct NewGameRatingData {
-    can_create_ranked: bool,
-    current_user_rank: Option<RankDto>,
-    ranked_unavailable_reason: Option<String>,
+pub(crate) struct NewGameRatingData {
+    pub can_create_ranked: bool,
+    pub current_user_rank: Option<crate::services::rating::RankDto>,
+    pub ranked_unavailable_reason: Option<String>,
 }
 
-async fn new_game(
+pub(crate) async fn new_game(
     State(state): State<AppState>,
     current_user: CurrentUser,
     Query(query): Query<NewGameQuery>,
@@ -268,11 +113,14 @@ async fn new_game(
     ))
 }
 
-async fn load_new_game(
+pub(crate) async fn load_new_game(
     state: &AppState,
     current_user: &CurrentUser,
     opponent: Option<String>,
 ) -> Result<NewGameData, AppError> {
+    use crate::models::user::User;
+    use crate::services::rating::{can_participate_in_ranking, rank_for_profile, rank_for_user};
+
     let user_is_registered = current_user.is_registered();
     let current_user_profile = if user_is_registered {
         Some(RatingProfile::get_or_create(&state.db, current_user.id).await?)
@@ -341,7 +189,7 @@ struct GameShowToken {
     invite_token: Option<String>,
 }
 
-async fn game_show(
+pub(crate) async fn game_show(
     State(state): State<AppState>,
     current_user: CurrentUser,
     Path(id): Path<i64>,
@@ -359,7 +207,7 @@ async fn game_show(
     ))
 }
 
-async fn load_game_show(
+pub(crate) async fn load_game_show(
     state: &AppState,
     current_user: &CurrentUser,
     id: i64,
@@ -468,111 +316,37 @@ async fn load_game_show(
         og_description,
     })
 }
+
 #[derive(Deserialize)]
-struct ShowGameQuery {
+pub(crate) struct ShowGameQuery {
     access_token: Option<String>,
     invite_token: Option<String>,
 }
 
 #[derive(Serialize)]
-struct GameChatEntry {
-    id: i64,
-    user_id: Option<i64>,
-    display_name: Option<String>,
-    text: String,
-    move_number: Option<i32>,
-    sent_at: chrono::DateTime<chrono::Utc>,
+pub(crate) struct GameChatEntry {
+    pub id: i64,
+    pub user_id: Option<i64>,
+    pub display_name: Option<String>,
+    pub text: String,
+    pub move_number: Option<i32>,
+    pub sent_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Serialize)]
-struct GamePageData {
-    game_id: i64,
-    game_props: InitialGameProps,
-    chat_log: Vec<GameChatEntry>,
-    og_title: String,
-    og_description: String,
+pub(crate) struct GamePageData {
+    pub game_id: i64,
+    pub game_props: InitialGameProps,
+    pub chat_log: Vec<GameChatEntry>,
+    pub og_title: String,
+    pub og_description: String,
 }
 
 #[derive(Serialize)]
-struct AnalysisData {}
+pub(crate) struct AnalysisData {}
 
-async fn analysis() -> Json<AnalysisData> {
+pub(crate) async fn analysis() -> Json<AnalysisData> {
     Json(AnalysisData {})
-}
-
-#[derive(Serialize)]
-struct UserGamesData {
-    profile_user_id: i64,
-    games: Vec<LiveGameItem>,
-}
-
-#[derive(Serialize)]
-struct UserProfileData {
-    profile_username: String,
-    profile_user: UserData,
-    rating: Option<ProfileRatingDto>,
-    initial_games: UserGamesData,
-    is_own_profile: bool,
-    api_token: Option<String>,
-    user_email: Option<String>,
-    user_is_registered: bool,
-}
-
-async fn user_profile(
-    State(state): State<AppState>,
-    current_user: CurrentUser,
-    Path(username): Path<String>,
-) -> Result<Json<UserProfileData>, AppError> {
-    Ok(Json(
-        load_user_profile(&state, &current_user, username).await?,
-    ))
-}
-
-async fn load_user_profile(
-    state: &AppState,
-    current_user: &CurrentUser,
-    username: String,
-) -> Result<UserProfileData, AppError> {
-    let profile_user = User::find_by_username(&state.db, &username)
-        .await?
-        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
-
-    let mut games = Game::list_all_for_player(&state.db, profile_user.id)
-        .await
-        .unwrap_or_default();
-    games.retain(|gwp| {
-        crate::services::game_access::can_view_game(
-            gwp,
-            Some(current_user.id),
-            crate::services::game_access::GameViewTokens::default(),
-        )
-    });
-    let items = build_live_items(&state.db, &games).await;
-    let is_own_profile = current_user.id == profile_user.id;
-    let profile_rating = RatingProfile::find(&state.db, profile_user.id).await?;
-    let rating = profile_rating_summary(&state.db, &profile_user, current_user.id).await?;
-
-    Ok(UserProfileData {
-        profile_username: profile_user.username.clone(),
-        profile_user: UserData::from_user_with_rank(&profile_user, profile_rating.as_ref()),
-        rating,
-        initial_games: UserGamesData {
-            profile_user_id: profile_user.id,
-            games: items,
-        },
-        is_own_profile,
-        api_token: if is_own_profile {
-            current_user.api_token.clone()
-        } else {
-            None
-        },
-        user_email: if is_own_profile {
-            current_user.email.clone()
-        } else {
-            None
-        },
-        user_is_registered: current_user.is_registered(),
-    })
 }
 
 async fn build_game_props(

@@ -1,4 +1,4 @@
-import type { ControlsProps } from "../components/controls";
+import type { ControlsProps } from "../components/controls-shared";
 import { GameStatus } from "../components/game-status";
 import { PlayerPanel } from "../components/player-panel";
 import { TabBar } from "../components/tab-bar";

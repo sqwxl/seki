@@ -1,4 +1,4 @@
-import type { ControlsProps } from "../components/controls";
+import type { ControlsProps } from "../components/controls-shared";
 import type { Board, NavAction } from "../goban/create-board";
 
 export function buildNavProps(board: Board | undefined): ControlsProps["nav"] {

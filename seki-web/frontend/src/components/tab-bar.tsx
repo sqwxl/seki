@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { hasUnreadChat, mobileTab } from "../game/state";
-import type { ControlsProps } from "./controls";
-import { UIControls } from "./controls";
+import type { ControlsProps } from "./controls-shared";
 import {
   IconAnalysis,
   IconChat,
@@ -9,6 +8,7 @@ import {
   IconMenu,
   IconStonesBw,
 } from "./icons";
+import { UIControls } from "./UIControls";
 
 type Tab = "board" | "chat" | "analysis";
 

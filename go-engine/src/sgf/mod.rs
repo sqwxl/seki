@@ -1,11 +1,13 @@
+mod collection;
 pub mod convert;
 mod error;
-mod parser;
+mod game_tree;
+mod properties;
 mod serialize;
 pub mod types;
 
+pub use collection::parse;
 pub use error::SgfError;
-pub use parser::parse;
 pub use serialize::serialize;
 pub use types::*;
 

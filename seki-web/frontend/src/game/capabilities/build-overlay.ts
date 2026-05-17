@@ -1,0 +1,40 @@
+import type { TerritoryOverlay } from "../../goban/create-board";
+import type { Point } from "../../goban/types";
+import type { GamePhase } from "../phase";
+import type { SettledTerritoryData, TerritoryData } from "../types";
+import { GameStage } from "../types";
+
+export function buildTerritoryOverlay(data: {
+  ownership: number[];
+  dead_stones: [number, number][];
+}): TerritoryOverlay {
+  const paintMap = data.ownership.map((v) => (v === 0 ? null : v));
+  const dimmedVertices: Point[] = data.dead_stones.map(
+    ([c, r]) => [c, r] as Point,
+  );
+  return { paintMap, dimmedVertices };
+}
+
+export function deriveTerritoryOverlay(
+  phase: GamePhase,
+  stage: GameStage,
+  terr: TerritoryData | undefined,
+  settled: SettledTerritoryData | undefined,
+): TerritoryOverlay | undefined {
+  if (stage === GameStage.TerritoryReview && terr) {
+    return buildTerritoryOverlay(terr);
+  }
+  // Settled territory overlay for estimate mode on finished games (not in analysis — WASM handles that)
+  if (phase.phase === "estimate" && !phase.fromAnalysis && settled) {
+    return buildTerritoryOverlay(settled);
+  }
+  return undefined;
+}
+
+export function isAnalysisCapablePhase(phase: GamePhase): boolean {
+  return (
+    phase.phase === "analysis" ||
+    (phase.phase === "presentation" &&
+      (phase.role === "presenter" || phase.role === "local-analysis"))
+  );
+}

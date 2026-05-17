@@ -19,7 +19,7 @@ Always apply the grug brain philosophy to software development: fight complexity
 - Prefer minimal diffs.
 - In general, don't test log output
 - When a function starts taking too many parameters (>4), consider passing an object instead.
-- Keep source files manageable; prefer 500 lines or less. If a file grows larger, justify why it remains cohesive or split it into modules organized by purpose/concern.
+- Keep source files manageable; prefer 500 lines or less. If a file grows larger, justify why it remains cohesive or split it into modules organized by purpose/concern. Test files are exempt from this limit.
 - Avoid pulling in outside dependencies for trivial features
 - When considering adding a new dependency, always consider that library's own dependency tree. Prefer libraries with less dependencies.
 - When completing a feature, update any associated documentation (README checklist, closing github issues, etc)
@@ -57,6 +57,9 @@ pnpm run build:wasm                  # build WASM engine
 pnpm run dev                         # watch mode
 pnpm run typecheck                   # tsc --noEmit
 pnpm test                            # run Vitest tests
+
+# File size check
+./scripts/check-file-size.sh          # verify non-test source files <= 500 lines (or have justification)
 
 # Docker
 docker compose up                    # sqlite-backed web service on :3000
@@ -152,5 +155,5 @@ axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-s
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/003-ranked-game-form/plan.md
+at specs/004-refactor-large-files/plan.md
 <!-- SPECKIT END -->
