@@ -23,11 +23,15 @@
 }
 
 .game-info-popover {
-  position: absolute;
-  top: calc(100% + 0.5em);
-  right: 0;
+  position: fixed;
   z-index: 250;
-  max-width: 20em;
+  max-width: calc(100vw - (var(--viewport-padding) * 2));
+  max-height: calc(100vh - (var(--viewport-padding) * 2));
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: max-content;
+  overflow: auto;
   padding: 0.75em;
   border: 1px solid var(--border);
   border-radius: 0.5rem;

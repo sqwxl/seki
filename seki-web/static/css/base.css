@@ -13,6 +13,7 @@
   --orange: #fe8019;
   --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.15);
   --radius-sm: 0.25rem;
+  --viewport-padding: 0.75em;
 
   /* Move tree */
   --tree-edge: #aaa;
@@ -169,7 +170,7 @@ main {
   flex-direction: column;
   align-items: stretch;
   width: 100%;
-  padding: 0.75em 0.75em 0;
+  padding: var(--viewport-padding) var(--viewport-padding) 0;
 }
 
 main:not(:has(.game-page)) {
