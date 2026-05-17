@@ -58,9 +58,6 @@ pnpm run dev                         # watch mode
 pnpm run typecheck                   # tsc --noEmit
 pnpm test                            # run Vitest tests
 
-# File size check
-./scripts/check-file-size.sh          # verify non-test source files <= 500 lines (or have justification)
-
 # Docker
 docker compose up                    # sqlite-backed web service on :3000
 ```
