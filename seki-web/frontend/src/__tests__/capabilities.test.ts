@@ -1142,6 +1142,23 @@ describe("lobby / lifecycle", () => {
     expect(caps().lobbyPopover?.variant).toBe("visitor-open");
   });
 
+  it("server join capability can disable joining while keeping spectator popover", () => {
+    batch(() => {
+      gameStage.value = GameStage.Unstarted;
+      black.value = userBlack;
+      white.value = undefined;
+      playerStone.value = 0;
+      currentUserId.value = 999;
+      initialProps.value = {
+        ...initialProps.value,
+        can_join_game: false,
+      };
+    });
+    expect(caps().canJoinGame).toBe(false);
+    expect(statusCaps().canJoinGame).toBe(false);
+    expect(statusCaps().lobbyPopover?.variant).toBe("visitor-open");
+  });
+
   it("status popover uses current user id for spectator on white-created open game", () => {
     batch(() => {
       gameStage.value = GameStage.Unstarted;

@@ -45,7 +45,7 @@ Those remain server responsibilities.
 
 - live game state uses `@preact/signals` in [`seki-web/frontend/src/game/state.ts`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/game/state.ts).
 - analysis mode uses a separate signal set in [`seki-web/frontend/src/layouts/analysis-state.ts`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/layouts/analysis-state.ts).
-- controls and visible affordances are derived from capability selectors in [`seki-web/frontend/src/game/capabilities.ts`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/game/capabilities.ts).
+- controls and visible affordances are derived from capability selectors in [`seki-web/frontend/src/game/capabilities/`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/game/capabilities/index.ts).
 
 ### Realtime transport
 
@@ -1115,6 +1115,7 @@ Accept/join/spectate flow:
 - once both seats are filled, the game proceeds directly into the normal move-0 `Black to play` / `White to play` flow
 - unstarted games remain a distinct pre-first-move state in one important respect: either player may still abort until the first move is played
 - open/challenge popovers should distinguish between joining as a player and spectating
+- join button visibility should follow the server-provided join capability for the current user/game state
 - users cannot join an open game as a spectator through the join action itself; spectating requires selecting the dedicated `Spectate` option in the open/challenge popover
 - if a join fails because the seat was taken first, the UI should fall back to spectating rather than hard-failing the interaction
 
@@ -1614,7 +1615,7 @@ This spec is informed by the current frontend implementation, primarily:
 - [`seki-web/frontend/src/layouts/analysis.tsx`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/layouts/analysis.tsx)
 - [`seki-web/frontend/src/game/state.ts`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/game/state.ts)
 - [`seki-web/frontend/src/game/messages.ts`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/game/messages.ts)
-- [`seki-web/frontend/src/game/capabilities.ts`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/game/capabilities.ts)
+- [`seki-web/frontend/src/game/capabilities/`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/game/capabilities/index.ts)
 - [`seki-web/frontend/src/ws.ts`](/var/home/sqwxl/Projects/seki/seki-web/frontend/src/ws.ts)
 
 If implementation and this document diverge, this document defines the intended frontend behavior.

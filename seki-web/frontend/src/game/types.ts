@@ -150,6 +150,7 @@ export type InitialGameProps = {
   result: string | null;
   settled_territory?: SettledTerritoryData;
   nigiri?: boolean;
+  can_join_game?: boolean;
   has_valid_access_token?: boolean;
   access_token?: string;
   can_start_presentation?: boolean;

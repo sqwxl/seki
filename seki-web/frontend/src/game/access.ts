@@ -31,6 +31,23 @@ export function requiresInviteTokenToJoin(
   return settings.invite_only;
 }
 
+export function canJoinGameFromProps(input: {
+  isPlayer: boolean;
+  hasOpenSlot: boolean;
+  settings: Pick<GameSettings, "is_private" | "invite_only">;
+  hasValidAccessToken?: boolean;
+  serverCanJoinGame?: boolean;
+}): boolean {
+  return (
+    input.serverCanJoinGame ??
+    (!input.isPlayer &&
+      input.hasOpenSlot &&
+      (!requiresAccessTokenToJoin(input.settings) ||
+        !!input.hasValidAccessToken) &&
+      !requiresInviteTokenToJoin(input.settings))
+  );
+}
+
 export function gameAccessBadges(
   settings: Pick<GameSettings, "is_private" | "invite_only">,
   stage: GameStage,

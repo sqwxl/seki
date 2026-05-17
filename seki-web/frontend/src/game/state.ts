@@ -53,6 +53,7 @@ export const initialProps = signal<InitialGameProps>({
   moves: [],
   current_turn_stone: 0,
   result: null,
+  can_join_game: false,
 });
 
 // ---------------------------------------------------------------------------

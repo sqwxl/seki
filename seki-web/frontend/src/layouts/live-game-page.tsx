@@ -205,6 +205,7 @@ function LiveGameStatusSlot(
               : undefined
           }
           pendingAction={pendingLobbyAction}
+          canJoin={status.canJoinGame}
           showAbort={liveGameControlsState.value.canAbort}
           isSpectating={
             props.isSpectatingPopover &&

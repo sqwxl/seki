@@ -10,7 +10,7 @@ use crate::models::message::Message;
 use crate::models::rating::RatingProfile;
 use crate::services::engine_builder;
 use crate::services::live::{self, LiveGameItem, build_live_items};
-use crate::services::{game_joiner, presentation_actions, state_serializer};
+use crate::services::{game_joiner, presentation_actions, rating, state_serializer};
 use crate::session::CurrentUser;
 use crate::templates::games_show::InitialGameProps;
 
@@ -410,6 +410,7 @@ async fn build_game_props(
     .await;
 
     let is_creator = gwp.game.creator_id == Some(current_user.id);
+    let can_join_game = can_join_game(&state.db, current_user, gwp, has_valid_access_token).await?;
 
     Ok(InitialGameProps {
         state: engine.game_state(),
@@ -429,6 +430,7 @@ async fn build_game_props(
         settled_territory,
         nigiri: gwp.game.nigiri,
         can_start_presentation: can_start_pres,
+        can_join_game,
         has_valid_access_token,
         access_token: if is_creator || gwp.has_player(current_user.id) || has_valid_access_token {
             gwp.game.access_token.clone()
@@ -436,4 +438,38 @@ async fn build_game_props(
             None
         },
     })
+}
+
+async fn can_join_game(
+    pool: &crate::db::DbPool,
+    current_user: &CurrentUser,
+    gwp: &GameWithPlayers,
+    has_valid_access_token: bool,
+) -> Result<bool, AppError> {
+    let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
+
+    if gwp.has_player(current_user.id) || !has_open_slot {
+        return Ok(false);
+    }
+
+    if gwp.game.requires_access_token_to_join() && !has_valid_access_token {
+        return Ok(false);
+    }
+
+    if gwp.game.requires_invite_token_to_join() {
+        return Ok(false);
+    }
+
+    if gwp.game.open_to.as_deref() == Some("registered") && !current_user.is_registered() {
+        return Ok(false);
+    }
+
+    if gwp.game.ranked {
+        let profile = RatingProfile::find(pool, current_user.id).await?;
+        if rating::can_join_ranked(&current_user.user, profile.as_ref()).is_err() {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
 }

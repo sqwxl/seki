@@ -16,6 +16,7 @@ export function LobbyPopover({
   rated = false,
   yourColor,
   pendingAction,
+  canJoin = true,
   showAbort = false,
   isSpectating = false,
   onAccept,
@@ -39,6 +40,7 @@ export function LobbyPopover({
   rated?: boolean;
   yourColor?: "Black" | "White" | "Random";
   pendingAction?: "accept" | "decline" | "abort" | "join";
+  canJoin?: boolean;
   showAbort?: boolean;
   isSpectating?: boolean;
   onAccept?: () => void;
@@ -108,7 +110,7 @@ export function LobbyPopover({
           {(variant === "visitor-open" || variant === "visitor-challenge") &&
             !isSpectating && (
               <>
-                {variant === "visitor-open" && (
+                {variant === "visitor-open" && canJoin && (
                   <button
                     class="btn-success"
                     disabled={disableActions}

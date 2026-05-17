@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canJoinGameFromProps,
   gameAccessBadges,
   requiresAccessTokenToJoin,
   requiresAccessTokenToView,
@@ -56,5 +57,16 @@ describe("game access semantics", () => {
           "Both seats are assigned. The invited player must accept or decline.",
       },
     ]);
+  });
+
+  it("uses server-authored join capability when present", () => {
+    expect(
+      canJoinGameFromProps({
+        isPlayer: false,
+        hasOpenSlot: true,
+        settings: baseSettings,
+        serverCanJoinGame: false,
+      }),
+    ).toBe(false);
   });
 });

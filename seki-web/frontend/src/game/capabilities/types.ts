@@ -144,6 +144,7 @@ export type LiveGamePanelState = Pick<
 
 export type LiveGameStatusState = Pick<
   UiCapabilities,
+  | "canJoinGame"
   | "statusText"
   | "presentationStatusSuffix"
   | "disconnectCountdown"

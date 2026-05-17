@@ -1,6 +1,7 @@
 import { computed } from "@preact/signals";
 import { getStatusText } from "../../components/game-status";
 import {
+  canJoinGameFromProps,
   requiresAccessTokenToJoin,
   requiresInviteTokenToJoin,
 } from "../access";
@@ -108,6 +109,13 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
     isChallenge && isPlayer && myId != null && myId !== props.creator_id;
   const opponentName =
     b?.id === props.creator_id ? w?.display_name : b?.display_name;
+  const canJoinGame = canJoinGameFromProps({
+    isPlayer,
+    hasOpenSlot,
+    settings: props.settings,
+    hasValidAccessToken,
+    serverCanJoinGame: props.can_join_game,
+  });
 
   if (isChallengee) {
     lobbyPopover = {
@@ -171,6 +179,7 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
   }
 
   return {
+    canJoinGame,
     statusText,
     presentationStatusSuffix,
     disconnectCountdown,
