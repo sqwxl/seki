@@ -17,7 +17,7 @@ frontend-hot:
     pnpm --dir seki-web/frontend run dev
 
 serve-hot:
-    watchexec -r -i .claude -i target -i node_modules -i seki-web/static/wasm -- env DATABASE_URL=sqlite://seki.db cargo run -p seki-web --bin seki-web
+    watchexec -r -- env DATABASE_URL=sqlite://seki.db cargo run -p seki-web --bin seki-web
 
 serve:
     env DATABASE_URL=sqlite://seki.db cargo run -p seki-web --bin seki-web

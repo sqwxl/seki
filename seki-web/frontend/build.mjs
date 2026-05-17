@@ -38,6 +38,9 @@ const appConfig = {
   minify: true,
   external: ["/static/wasm/*", "/static/images/*"],
   logLevel: "info",
+  define: {
+    __DEV__: "false",
+  },
 };
 
 const swConfig = {
@@ -47,6 +50,9 @@ const swConfig = {
   format: "esm",
   minify: !watchMode,
   logLevel: "info",
+  define: {
+    __DEV__: watchMode ? "true" : "false",
+  },
 };
 
 async function collectSourceEntries(dir = srcDir) {
@@ -199,6 +205,11 @@ async function finalizeDevBuild() {
   await writeVendorFiles();
   await rewriteJsImports(devDir);
   await writeDevEntryShim();
+
+  const port = process.env.PORT || "3000";
+  fetch(`http://localhost:${port}/__reload`, { method: "POST" }).catch(
+    () => {},
+  );
 }
 
 async function createDevContext() {
@@ -213,6 +224,9 @@ async function createDevContext() {
     format: "esm",
     sourcemap: true,
     logLevel: "info",
+    define: {
+      __DEV__: "true",
+    },
     plugins: [
       {
         name: "finalize-dev-modules",

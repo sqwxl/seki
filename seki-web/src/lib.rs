@@ -4,6 +4,7 @@ use axum::http::{HeaderName, HeaderValue, header};
 use axum::routing::{get, patch, post};
 use rand::RngExt;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use tokio::sync::broadcast;
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
@@ -12,6 +13,9 @@ use tower_http::set_header::SetResponseHeaderLayer;
 use tower_sessions::cookie::time::Duration;
 use tower_sessions::{Expiry, SessionManagerLayer};
 use tower_sessions_sqlx_store::SqliteStore;
+
+#[cfg(debug_assertions)]
+pub static RELOADER: OnceLock<tower_livereload::Reloader> = OnceLock::new();
 
 pub mod db;
 pub mod error;

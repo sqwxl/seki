@@ -3,12 +3,19 @@ const CACHE_NAME = "seki-v4";
 const NETWORK_ONLY_PATHS = ["/static/css/", "/static/dist/", "/static/wasm/"];
 const CACHE_FIRST_PATHS = ["/static/images/", "/static/sounds/"];
 
+declare const __DEV__: string;
+
 self.addEventListener("install", () => {
   // The SPA shell embeds user-specific bootstrap data, so do not precache it.
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
+  if (__DEV__) {
+    event.waitUntil(self.registration.unregister());
+    return;
+  }
+
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
@@ -64,6 +71,11 @@ self.addEventListener("fetch", (event) => {
       }),
     );
 
+    return;
+  }
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(fetch(event.request));
     return;
   }
 
