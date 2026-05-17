@@ -3,12 +3,6 @@
 // Unrated: full opponent list, all settings editable; derived settings still previewed when opponent selected
 
 import { useEffect, useRef, useState } from "preact/hooks";
-import {
-  IconBell,
-  IconPrivate,
-  IconSettings,
-  IconUndo,
-} from "../../components/icons";
 import { UserLabel } from "../../components/user-label";
 import type { RankData } from "../../game/types";
 import { fullRankText } from "../../utils/rating";
@@ -17,6 +11,13 @@ import {
   inferSettingsFromRanks,
   rankedSettingsFromGap,
 } from "./direct-challenge/time-control";
+import {
+  AllowUndoField,
+  PrivateSpectatorsField,
+  RankedGameField,
+  SettingsFieldset,
+  type GameSettingsSetter,
+} from "./shared";
 
 export { inferSettingsFromRanks, rankedSettingsFromGap };
 
@@ -52,10 +53,7 @@ export const CHALLENGE_DEFAULTS: ChallengeSettings = {
 
 type Props = {
   s: ChallengeSettings;
-  set: <K extends keyof ChallengeSettings>(
-    key: K,
-    value: ChallengeSettings[K],
-  ) => void;
+  set: GameSettingsSetter<ChallengeSettings>;
   isRegistered?: boolean;
   currentUserRank?: RankData | null;
   rankedUnavailableReason?: string | null;
@@ -245,32 +243,20 @@ export function DirectChallengeForm({
   const displayResults = searchQuery ? searchResults : recentOpponents;
 
   return (
-    <fieldset>
-      <legend>
-        <IconSettings /> Settings
-      </legend>
-
-      <div>
-        <label for="challenge_ranked">
-          <IconBell /> Ranked game
-        </label>
-        <input
-          type="checkbox"
-          name="ranked"
-          id="challenge_ranked"
-          value="true"
-          checked={s.ranked}
-          onChange={(e) => set("ranked", e.currentTarget.checked)}
-          disabled={!isRegistered || rankedDisabled}
-        />
-        <p class="form-help">
-          {rankedDisabled
+    <SettingsFieldset>
+      <RankedGameField
+        id="challenge_ranked"
+        checked={s.ranked}
+        onChange={(checked) => set("ranked", checked)}
+        disabled={!isRegistered || rankedDisabled}
+        help={
+          rankedDisabled
             ? rankedBlockedReason
             : currentRatingText
               ? `Your current rating is ${currentRatingText}.`
-              : "Your first ranked game starts from a provisional rating."}
-        </p>
-      </div>
+              : "Your first ranked game starts from a provisional rating."
+        }
+      />
 
       {!hideOpponentSelect && (
         <fieldset>
@@ -320,41 +306,11 @@ export function DirectChallengeForm({
 
       <BoardParameterFields s={s} set={set} derived={derived} />
 
-      <div>
-        <label for="allow_undo">
-          <IconUndo /> Allow takebacks
-        </label>
-        <input
-          type="checkbox"
-          name="allow_undo"
-          id="allow_undo"
-          value="true"
-          checked={s.allowUndo}
-          onChange={(e) => set("allowUndo", e.currentTarget.checked)}
-        />
-      </div>
+      <AllowUndoField s={s} set={set} />
 
       {showPrivate && (
-        <div>
-          <label for="is_private">
-            <IconPrivate /> Private spectators
-          </label>
-          <input
-            type="checkbox"
-            name="is_private"
-            id="is_private"
-            value="true"
-            checked={s.isPrivate}
-            disabled={s.ranked}
-            onChange={(e) => set("isPrivate", e.currentTarget.checked)}
-          />
-          {s.ranked && <input type="hidden" name="is_private" value="false" />}
-          <p class="form-help">
-            Hide this game from public lists. Non-participants need the invite
-            link to view it.
-          </p>
-        </div>
+        <PrivateSpectatorsField s={s} set={set} locked={s.ranked} />
       )}
-    </fieldset>
+    </SettingsFieldset>
   );
 }

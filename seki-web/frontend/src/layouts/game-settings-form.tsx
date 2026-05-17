@@ -52,26 +52,143 @@ type AllSettings = {
   email: EmailInviteSettings;
 };
 
+type CommonSettingKey =
+  | "cols"
+  | "handicap"
+  | "komi"
+  | "color"
+  | "allowUndo"
+  | "isPrivate";
+
+type SyncableVariant = Exclude<Variant, "email">;
+
+const COMMON_SETTING_KEYS: CommonSettingKey[] = [
+  "cols",
+  "handicap",
+  "komi",
+  "color",
+  "allowUndo",
+  "isPrivate",
+];
+
+function isCommonSettingKey(key: string): key is CommonSettingKey {
+  return COMMON_SETTING_KEYS.includes(key as CommonSettingKey);
+}
+
+function applyCommonSetting(
+  all: AllSettings,
+  source: Variant,
+  key: CommonSettingKey,
+  value: OpenGameSettings[CommonSettingKey],
+): AllSettings {
+  const open = { ...all.open };
+  const challenge = { ...all.challenge };
+  const email = { ...all.email };
+
+  if (key === "cols") {
+    open.cols = value as number;
+    challenge.cols = value as number;
+    email.cols = value as number;
+  } else if (key === "handicap") {
+    open.handicap = value as number;
+    challenge.handicap = value as number;
+    email.handicap = value as number;
+  } else if (key === "komi") {
+    open.komi = value as number;
+    challenge.komi = value as number;
+    email.komi = value as number;
+  } else if (key === "color") {
+    open.color = value as string;
+    challenge.color = value as string;
+    email.color = value as string;
+  } else if (key === "allowUndo") {
+    open.allowUndo = value as boolean;
+    challenge.allowUndo = value as boolean;
+    email.allowUndo = value as boolean;
+  } else if (key === "isPrivate") {
+    const isPrivate = value as boolean;
+    open.isPrivate = open.ranked ? false : isPrivate;
+    challenge.isPrivate = challenge.ranked ? false : isPrivate;
+    email.isPrivate = isPrivate;
+  }
+
+  if (source === "open") {
+    return { ...all, open, challenge, email };
+  }
+
+  if (source === "challenge") {
+    return { ...all, challenge, open, email };
+  }
+
+  return { ...all, email, open, challenge };
+}
+
+function applyRankedSetting(
+  all: AllSettings,
+  source: SyncableVariant,
+  ranked: boolean,
+): AllSettings {
+  const open = {
+    ...all.open,
+    ranked,
+    isPrivate: ranked ? false : all.open.isPrivate,
+  };
+  const challenge = {
+    ...all.challenge,
+    ranked,
+    isPrivate: ranked ? false : all.challenge.isPrivate,
+  };
+
+  if (source === "open") {
+    return { ...all, open, challenge };
+  }
+
+  return { ...all, challenge, open };
+}
+
+function syncFromVariant(all: AllSettings, source: Variant): AllSettings {
+  const sourceSettings = all[source];
+  const withCommonSettings = COMMON_SETTING_KEYS.reduce(
+    (next, key) => applyCommonSetting(next, source, key, sourceSettings[key]),
+    all,
+  );
+
+  if (source === "email") {
+    return withCommonSettings;
+  }
+
+  const ranked =
+    source === "open"
+      ? withCommonSettings.open.ranked
+      : withCommonSettings.challenge.ranked;
+
+  return applyRankedSetting(withCommonSettings, source, ranked);
+}
+
+function normalizeSettings(all: AllSettings): AllSettings {
+  return syncFromVariant(all, all.shared.variant);
+}
+
 function loadSettings(): AllSettings {
   try {
     const saved = storage.getJson<Partial<AllSettings>>(GAME_SETTINGS);
 
     if (saved) {
-      return {
+      return normalizeSettings({
         shared: { ...SHARED_DEFAULTS, ...saved.shared },
         open: { ...OPEN_DEFAULTS, ...saved.open },
         challenge: { ...CHALLENGE_DEFAULTS, ...saved.challenge },
         email: { ...EMAIL_DEFAULTS, ...saved.email },
-      };
+      });
     }
   } catch {}
 
-  return {
+  return normalizeSettings({
     shared: { ...SHARED_DEFAULTS },
     open: { ...OPEN_DEFAULTS },
     challenge: { ...CHALLENGE_DEFAULTS },
     email: { ...EMAIL_DEFAULTS },
-  };
+  });
 }
 
 type Props = {
@@ -107,7 +224,11 @@ export function GameSettingsForm({
         opponentRank?.status === "unranked";
 
       if (canRank && isRegistered && !rankedUnavailableReason) {
-        saved.challenge.ranked = true;
+        return applyRankedSetting(
+          { ...saved, shared: { ...saved.shared, variant: "challenge" } },
+          "challenge",
+          true,
+        );
       }
     }
 
@@ -122,7 +243,11 @@ export function GameSettingsForm({
   const shared = all.shared;
 
   function setVariant(v: Variant) {
-    setAll((prev) => ({ ...prev, shared: { ...prev.shared, variant: v } }));
+    setAll((prev) => {
+      const synced = syncFromVariant(prev, prev.shared.variant);
+
+      return { ...synced, shared: { ...synced.shared, variant: v } };
+    });
   }
 
   function setShared<K extends keyof SharedSettings>(
@@ -137,11 +262,21 @@ export function GameSettingsForm({
     value: OpenGameSettings[K],
   ) {
     setAll((prev) => {
-      const next = { ...prev.open, [key]: value };
-
-      if (key === "ranked" && value) {
-        next.isPrivate = false;
+      if (key === "ranked") {
+        return applyRankedSetting(prev, "open", Boolean(value));
       }
+
+      const commonKey = String(key);
+      if (isCommonSettingKey(commonKey)) {
+        return applyCommonSetting(
+          prev,
+          "open",
+          commonKey,
+          value as OpenGameSettings[CommonSettingKey],
+        );
+      }
+
+      const next = { ...prev.open, [key]: value };
 
       return { ...prev, open: next };
     });
@@ -152,14 +287,21 @@ export function GameSettingsForm({
     value: ChallengeSettings[K],
   ) {
     setAll((prev) => {
-      const next = { ...prev.challenge, [key]: value };
-
-      if (key === "ranked" && value) {
-        next.isPrivate = false;
-        next.cols = 19;
-        next.handicap = 0;
-        next.komi = 6.5;
+      if (key === "ranked") {
+        return applyRankedSetting(prev, "challenge", Boolean(value));
       }
+
+      const commonKey = String(key);
+      if (isCommonSettingKey(commonKey)) {
+        return applyCommonSetting(
+          prev,
+          "challenge",
+          commonKey,
+          value as OpenGameSettings[CommonSettingKey],
+        );
+      }
+
+      const next = { ...prev.challenge, [key]: value };
 
       return { ...prev, challenge: next };
     });
@@ -169,7 +311,19 @@ export function GameSettingsForm({
     key: K,
     value: EmailInviteSettings[K],
   ) {
-    setAll((prev) => ({ ...prev, email: { ...prev.email, [key]: value } }));
+    setAll((prev) => {
+      const commonKey = String(key);
+      if (isCommonSettingKey(commonKey)) {
+        return applyCommonSetting(
+          prev,
+          "email",
+          commonKey,
+          value as OpenGameSettings[CommonSettingKey],
+        );
+      }
+
+      return { ...prev, email: { ...prev.email, [key]: value } };
+    });
   }
 
   useEffect(() => {
