@@ -215,10 +215,6 @@ pub fn user_data_for_game_player(
 }
 
 fn rank_from_game_snapshot(game: &Game, is_black: bool) -> Option<RankDto> {
-    if !game.ranked {
-        return None;
-    }
-
     let (rating, deviation, volatility) = if is_black {
         (
             game.black_rating_before?,

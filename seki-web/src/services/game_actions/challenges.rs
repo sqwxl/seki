@@ -90,8 +90,7 @@ pub async fn accept_challenge(
     };
     Game::set_stage(&state.db, game_id, start_stage).await?;
 
-    if gwp.game.ranked
-        && black_id.is_some()
+    if black_id.is_some()
         && white_id.is_some()
         && let Err(e) = rating::capture_ranked_snapshot(
             &state.db,
@@ -99,6 +98,7 @@ pub async fn accept_challenge(
             black_id.unwrap(),
             white_id.unwrap(),
             gwp.game.max_handicap,
+            gwp.game.ranked,
         )
         .await
     {

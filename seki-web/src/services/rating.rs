@@ -195,34 +195,65 @@ pub async fn capture_ranked_snapshot(
     black_id: i64,
     white_id: i64,
     max_handicap: Option<i32>,
+    ranked: bool,
 ) -> Result<(), AppError> {
-    let (black_profile, white_profile) = tokio::try_join!(
-        RatingProfile::get_or_create(pool, black_id),
-        RatingProfile::get_or_create(pool, white_id),
-    )?;
+    if ranked {
+        let (black_profile, white_profile) = tokio::try_join!(
+            RatingProfile::get_or_create(pool, black_id),
+            RatingProfile::get_or_create(pool, white_id),
+        )?;
 
-    let policy = RatingCalibrationPolicy::default();
-    let mut settings = policy.ranked_settings(black_profile.rating, white_profile.rating);
-    if let Some(max) = max_handicap {
-        settings.handicap = settings.handicap.min(max);
+        let policy = RatingCalibrationPolicy::default();
+        let mut settings = policy.ranked_settings(black_profile.rating, white_profile.rating);
+        if let Some(max) = max_handicap {
+            settings.handicap = settings.handicap.min(max);
+        }
+
+        let snapshot = RankedGameSnapshotUpdate {
+            ranked: true,
+            black_rating_before: Some(black_profile.rating),
+            white_rating_before: Some(white_profile.rating),
+            black_deviation_before: Some(black_profile.deviation),
+            white_deviation_before: Some(white_profile.deviation),
+            black_volatility_before: Some(black_profile.volatility),
+            white_volatility_before: Some(white_profile.volatility),
+            derived_handicap: Some(settings.handicap),
+            derived_komi: Some(settings.komi),
+            derived_color_reason: Some(settings.color_reason),
+            calibration_policy_version: Some(settings.calibration_policy_version),
+            max_handicap,
+        };
+
+        Game::set_ranked_snapshot(pool, game_id, &snapshot).await?;
+    } else {
+        let (black_profile, white_profile) = tokio::try_join!(
+            RatingProfile::find(pool, black_id),
+            RatingProfile::find(pool, white_id),
+        )?;
+
+        let (black_profile, white_profile) = match (black_profile, white_profile) {
+            (Some(bp), Some(wp)) => (bp, wp),
+            _ => return Ok(()),
+        };
+
+        let snapshot = RankedGameSnapshotUpdate {
+            ranked: false,
+            black_rating_before: Some(black_profile.rating),
+            white_rating_before: Some(white_profile.rating),
+            black_deviation_before: Some(black_profile.deviation),
+            white_deviation_before: Some(white_profile.deviation),
+            black_volatility_before: Some(black_profile.volatility),
+            white_volatility_before: Some(white_profile.volatility),
+            derived_handicap: None,
+            derived_komi: None,
+            derived_color_reason: None,
+            calibration_policy_version: None,
+            max_handicap: None,
+        };
+
+        Game::set_ranked_snapshot(pool, game_id, &snapshot).await?;
     }
 
-    let snapshot = RankedGameSnapshotUpdate {
-        ranked: true,
-        black_rating_before: Some(black_profile.rating),
-        white_rating_before: Some(white_profile.rating),
-        black_deviation_before: Some(black_profile.deviation),
-        white_deviation_before: Some(white_profile.deviation),
-        black_volatility_before: Some(black_profile.volatility),
-        white_volatility_before: Some(white_profile.volatility),
-        derived_handicap: Some(settings.handicap),
-        derived_komi: Some(settings.komi),
-        derived_color_reason: Some(settings.color_reason),
-        calibration_policy_version: Some(settings.calibration_policy_version),
-        max_handicap,
-    };
-
-    Game::set_ranked_snapshot(pool, game_id, &snapshot).await?;
     Ok(())
 }
 

@@ -175,8 +175,7 @@ pub async fn create_game(
     )
     .await?;
 
-    if params.ranked
-        && black_id.is_some()
+    if black_id.is_some()
         && white_id.is_some()
         && let Err(e) = rating::capture_ranked_snapshot(
             pool,
@@ -184,6 +183,7 @@ pub async fn create_game(
             black_id.unwrap(),
             white_id.unwrap(),
             None,
+            params.ranked,
         )
         .await
     {
