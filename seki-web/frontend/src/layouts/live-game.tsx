@@ -1,4 +1,4 @@
-import { effect } from "@preact/signals";
+import { effect, untracked } from "@preact/signals";
 import { createRef, render } from "preact";
 import type { ChatEntry } from "../components/chat";
 import { createGameChannel } from "../game/channel";
@@ -156,6 +156,7 @@ export function liveGame(
     } else {
       toAnalysis();
     }
+    mobileTab.value = "analysis";
     const saved = loadSavedAnalysisTree(board.value, analysisKey, moves.value);
     if (restorePosition) {
       restoreAnalysisPosition(board.value, saved);
@@ -178,7 +179,7 @@ export function liveGame(
       }
     } else {
       toLive();
-      board.value?.navigate("main-end");
+      board.value?.restoreBaseMoves();
     }
     mobileTab.value = "board";
     board.value?.render();
@@ -380,6 +381,7 @@ export function liveGame(
     onVertexClick: handleVertexClick,
     onStonePlay: playStoneSound,
     onPass: playPassSound,
+    branchAtBaseTip: true,
     onRender: (engine, territoryInfo) => {
       onRenderCallback(engine, territoryInfo, {
         board,
@@ -609,9 +611,9 @@ export function liveGame(
     effect(() => {
       const tab = mobileTab.value;
       if (tab === "analysis" && !analysisMode.peek()) {
-        enterAnalysis();
+        untracked(() => enterAnalysis());
       } else if (tab === "board" && analysisMode.peek()) {
-        exitAnalysis();
+        untracked(() => exitAnalysis());
       }
     }),
   );
