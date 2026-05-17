@@ -92,17 +92,21 @@ export function BoardSizeField<T extends BaseGameSettings>({
       <label for="cols">
         <IconGrid4x4 /> Board size
       </label>
-      <input
-        type="number"
+      {/*
+        Keep the select on one of the supported board sizes so older saved
+        values don't leave the control in an invalid state.
+      */}
+      <select
         name="cols"
         id="cols"
-        min={5}
-        max={19}
-        step={2}
-        value={locked ? 19 : s.cols}
+        value={locked ? 19 : normalizeBoardSize(s.cols)}
         disabled={locked}
         onChange={(e) => set("cols", parseInt(e.currentTarget.value, 10) || 19)}
-      />
+      >
+        <option value={19}>19x19</option>
+        <option value={13}>13x13</option>
+        <option value={9}>9x9</option>
+      </select>
       {locked && <input type="hidden" name="cols" value={19} />}
     </div>
   );
@@ -114,6 +118,14 @@ export function maxHandicapForBoard(size: number): number {
   }
 
   return size >= 13 ? 9 : 5;
+}
+
+function normalizeBoardSize(size: number): 19 | 13 | 9 {
+  if (size === 13 || size === 9) {
+    return size;
+  }
+
+  return 19;
 }
 
 export function HandicapSelectField<T extends BaseGameSettings>({
