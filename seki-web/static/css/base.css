@@ -521,7 +521,6 @@ a.nav-dropdown-item {
 /* Tab bar */
 .mobile-tab-bar {
   display: flex;
-  gap: 0.5em;
   padding: 0;
   flex-shrink: 0;
   align-self: stretch;
@@ -537,10 +536,10 @@ a.nav-dropdown-item {
   justify-content: center;
   font-family: monospace;
   font-size: 1.1em;
-  height: 2em;
-  min-width: 2em;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  border-bottom: none;
+  height: 3em;
+  border-radius: initial;
+  border: none;
+  box-shadow: none;
 }
 
 .game-status-slot {
