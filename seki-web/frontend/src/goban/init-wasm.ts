@@ -29,6 +29,10 @@ export async function ensureWasm(): Promise<
   return wasm;
 }
 
+export function getWasm(): typeof import("/static/wasm/go_engine_wasm.js") {
+  return wasmModule!;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

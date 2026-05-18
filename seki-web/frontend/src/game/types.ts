@@ -108,6 +108,7 @@ export type PregameSettingsData = {
   black_approved: boolean;
   white_approved: boolean;
   expires_at?: string;
+  max_handicap: number;
 };
 
 export type SettledTerritoryData = {

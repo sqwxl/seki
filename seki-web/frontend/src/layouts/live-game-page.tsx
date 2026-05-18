@@ -216,6 +216,18 @@ function LiveGameStatusSlot(
           disabled={playerStone.value === 0}
           playerStone={playerStone.value}
           isCreator={currentUserId.value === initialProps.value.creator_id}
+          creatorName={
+            (black.value?.id === initialProps.value.creator_id
+              ? black.value
+              : white.value
+            )?.display_name
+          }
+          joinerName={
+            (black.value?.id === initialProps.value.creator_id
+              ? white.value
+              : black.value
+            )?.display_name
+          }
           pendingAction={pendingPregameAction}
           onUpdate={(settings) => props.channel.updatePregameSettings(settings)}
           onAccept={() => {

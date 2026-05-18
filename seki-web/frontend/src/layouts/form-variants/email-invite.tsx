@@ -39,7 +39,7 @@ type Props = {
 export function EmailInviteForm({ s, set }: Props) {
   return (
     <SettingsFieldset>
-      <BoardSettingsFields s={s} set={set} colorLabel="Color" maxHandicap={9} />
+      <BoardSettingsFields s={s} set={set} colorLabel="Color" />
       <AllowUndoField s={s} set={set} />
 
       <PrivateSpectatorsField s={s} set={set} />

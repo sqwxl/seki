@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { HandicapSelect } from "../../components/controls-shared";
 import {
   IconBalance,
   IconGrid4x4,
@@ -14,6 +15,7 @@ import {
 } from "../../components/icons";
 import { UserLabel } from "../../components/user-label";
 import type { RankData } from "../../game/types";
+import { getWasm } from "../../goban/init-wasm";
 
 export type BaseGameSettings = {
   cols: number;
@@ -329,14 +331,6 @@ export function BoardSizeField<T extends BaseGameSettings>({
   );
 }
 
-export function maxHandicapForBoard(size: number): number {
-  if (size % 2 === 0 || size < 7) {
-    return 0;
-  }
-
-  return size >= 13 ? 9 : 5;
-}
-
 function normalizeBoardSize(size: number): 19 | 13 | 9 {
   if (size === 13 || size === 9) {
     return size;
@@ -348,7 +342,7 @@ function normalizeBoardSize(size: number): 19 | 13 | 9 {
 export function HandicapSelectField<T extends BaseGameSettings>({
   s,
   set,
-  max = maxHandicapForBoard(s.cols),
+  max = getWasm().max_handicap_for_board(s.cols, s.cols),
   value = s.handicap,
   disabled,
 }: {
@@ -363,29 +357,17 @@ export function HandicapSelectField<T extends BaseGameSettings>({
       <label for="handicap">
         <IconPlus /> Handicap
       </label>
-      <select
-        name="handicap"
-        id="handicap"
+      <HandicapSelect
         value={value}
+        max={max}
         disabled={disabled}
-        onChange={(e) => {
-          const handicap = parseInt(e.currentTarget.value, 10);
+        onChange={(handicap) => {
           set("handicap", handicap);
           if (handicap >= 2) {
             set("komi", 0.5 as T["komi"]);
           }
         }}
-      >
-        <option value={0}>None</option>
-        {Array.from({ length: Math.max(0, max - 1) }, (_, i) => {
-          const v = i + 2;
-          return (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          );
-        })}
-      </select>
+      />
       {disabled && <input type="hidden" name="handicap" value={value} />}
     </div>
   );

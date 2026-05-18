@@ -70,7 +70,6 @@ export function DirectChallengeForm({
       <BoardSettingsFields
         s={s}
         set={set}
-        maxHandicap={9}
         handicapValue={handicapValue}
         komiValue={komiValue}
         colorValue={colorValue}

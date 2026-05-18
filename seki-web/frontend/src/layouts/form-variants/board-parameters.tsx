@@ -17,7 +17,6 @@ export function BoardSettingsFields<T extends BaseGameSettings>({
   s,
   set,
   colorLabel,
-  maxHandicap,
   handicapValue = s.handicap,
   komiValue = s.komi,
   colorValue = s.color,
@@ -29,7 +28,6 @@ export function BoardSettingsFields<T extends BaseGameSettings>({
   s: T;
   set: GameSettingsSetter<T>;
   colorLabel?: string;
-  maxHandicap?: number;
   handicapValue?: number;
   komiValue?: number;
   colorValue?: string;
@@ -51,7 +49,6 @@ export function BoardSettingsFields<T extends BaseGameSettings>({
       <HandicapSelectField
         s={s}
         set={set}
-        max={maxHandicap}
         value={handicapValue}
         disabled={handicapDisabled}
       />

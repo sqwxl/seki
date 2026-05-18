@@ -33,17 +33,22 @@ pub struct PregameSettingsData {
     pub black_approved: bool,
     pub white_approved: bool,
     pub expires_at: Option<String>,
+    pub max_handicap: u8,
 }
 
-impl From<&PregameSettingsNegotiation> for PregameSettingsData {
-    fn from(value: &PregameSettingsNegotiation) -> Self {
+impl PregameSettingsData {
+    fn from_settings(settings: &PregameSettingsNegotiation, engine: &Engine) -> Self {
         Self {
-            handicap: value.handicap,
-            komi: value.komi,
-            color: value.color.clone(),
-            black_approved: value.black_approved,
-            white_approved: value.white_approved,
-            expires_at: value.expires_at.map(|dt| dt.to_rfc3339()),
+            handicap: settings.handicap,
+            komi: settings.komi,
+            color: settings.color.clone(),
+            black_approved: settings.black_approved,
+            white_approved: settings.white_approved,
+            expires_at: settings.expires_at.map(|dt| dt.to_rfc3339()),
+            max_handicap: go_engine::handicap::max_handicap(
+                engine.goban().cols(),
+                engine.goban().rows(),
+            ),
         }
     }
 }
@@ -145,7 +150,8 @@ pub fn serialize_state(
     }
     if let Some(settings) = pregame_settings {
         negotiations["pregame_settings"] =
-            serde_json::to_value(PregameSettingsData::from(settings)).unwrap_or_default();
+            serde_json::to_value(PregameSettingsData::from_settings(settings, engine))
+                .unwrap_or_default();
     }
 
     let moves: Vec<_> = engine

@@ -342,6 +342,12 @@ impl WasmEngine {
     }
 }
 
+/// Returns the maximum allowed handicap stones for the given board dimensions.
+#[wasm_bindgen]
+pub fn max_handicap_for_board(cols: u8, rows: u8) -> u8 {
+    go_engine::handicap::max_handicap(cols, rows)
+}
+
 fn parse_dead_stones(json: &str) -> HashSet<Point> {
     serde_json::from_str::<Vec<[u8; 2]>>(json)
         .unwrap_or_default()

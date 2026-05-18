@@ -1,6 +1,7 @@
+import { ensureWasm } from "./goban/init-wasm";
 import { mountApp } from "./app";
 
-mountApp();
+ensureWasm().then(mountApp);
 
 if (__DEV__) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {

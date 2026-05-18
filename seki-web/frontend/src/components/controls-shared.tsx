@@ -349,3 +349,33 @@ export function ModalConfirmPopover(
     </ConfirmModal>
   );
 }
+
+export function HandicapSelect({
+  value,
+  max,
+  disabled,
+  onChange,
+}: {
+  value: number;
+  max: number;
+  disabled?: boolean;
+  onChange: (handicap: number) => void;
+}) {
+  return (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(parseInt(e.currentTarget.value, 10))}
+    >
+      <option value={0}>None</option>
+      {Array.from({ length: Math.max(0, max - 1) }, (_, i) => {
+        const v = i + 2;
+        return (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        );
+      })}
+    </select>
+  );
+}

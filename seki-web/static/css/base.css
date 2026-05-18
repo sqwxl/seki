@@ -314,8 +314,37 @@ a:visited {
 
   to {
     opacity: 0;
-    transform: translateY(-0.5rem);
+    transform: translateY(-0.25rem);
   }
+}
+
+@keyframes form-sync-flash {
+  0% {
+    opacity: 0;
+  }
+
+  30% {
+    opacity: 0.3;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.form-value-sync {
+  position: relative;
+}
+
+.form-value-sync::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background-color: var(--aqua);
+  opacity: 0;
+  pointer-events: none;
+  animation: form-sync-flash 350ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {

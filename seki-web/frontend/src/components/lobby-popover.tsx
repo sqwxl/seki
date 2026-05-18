@@ -1,10 +1,11 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { GameSettings, PregameSettingsData } from "../game/types";
 import { formatSize, formatTimeControl } from "../utils/format";
 import {
   ButtonContent,
   ConfirmModal,
   CopyInviteLinkButton,
+  HandicapSelect,
 } from "./controls-shared";
 import { IconStonesBw } from "./icons";
 
@@ -197,6 +198,8 @@ export function PregameSettingsPopover({
   disabled,
   playerStone,
   isCreator,
+  creatorName,
+  joinerName,
   pendingAction,
   onUpdate,
   onAccept,
@@ -209,6 +212,8 @@ export function PregameSettingsPopover({
   disabled: boolean;
   playerStone: number;
   isCreator: boolean;
+  creatorName?: string;
+  joinerName?: string;
   pendingAction?: "accept" | "reject";
   onUpdate: (settings: {
     handicap: number;
@@ -242,12 +247,18 @@ export function PregameSettingsPopover({
   const acceptDisabled =
     disabled || pendingAction != null || currentPlayerApproved;
   const rejectDisabled = disabled || pendingAction != null;
+  const lastSubmittedKomi = useRef(pregame.komi);
+  const lastSubmittedHandicap = useRef(pregame.handicap);
+  const lastSubmittedColor = useRef(pregame.color);
+
   const submit = (patch: Partial<PregameSettingsData>) => {
-    onUpdate({
-      handicap: patch.handicap ?? pregame.handicap,
-      komi: patch.komi ?? pregame.komi,
-      color: patch.color ?? pregame.color,
-    });
+    const komi = patch.komi ?? pregame.komi;
+    const handicap = patch.handicap ?? pregame.handicap;
+    const color = patch.color ?? pregame.color;
+    lastSubmittedKomi.current = komi;
+    lastSubmittedHandicap.current = handicap;
+    lastSubmittedColor.current = color;
+    onUpdate({ handicap, komi, color });
   };
   const colorLabel = (value: "black" | "white" | "random") => {
     if (value === "random") {
@@ -258,6 +269,46 @@ export function PregameSettingsPopover({
     }
     return value === "black" ? "Black" : "White";
   };
+
+  const prevKomi = useRef(pregame.komi);
+  const prevHandicap = useRef(pregame.handicap);
+  const prevColor = useRef(pregame.color);
+  const [komiFlash, setKomiFlash] = useState(false);
+  const [handicapFlash, setHandicapFlash] = useState(false);
+  const [colorFlash, setColorFlash] = useState(false);
+  useEffect(() => {
+    if (prevKomi.current !== pregame.komi) {
+      if (pregame.komi !== lastSubmittedKomi.current) {
+        setKomiFlash(true);
+        const t = setTimeout(() => setKomiFlash(false), 350);
+        prevKomi.current = pregame.komi;
+        return () => clearTimeout(t);
+      }
+    }
+    prevKomi.current = pregame.komi;
+  }, [pregame.komi]);
+  useEffect(() => {
+    if (prevHandicap.current !== pregame.handicap) {
+      if (pregame.handicap !== lastSubmittedHandicap.current) {
+        setHandicapFlash(true);
+        const t = setTimeout(() => setHandicapFlash(false), 350);
+        prevHandicap.current = pregame.handicap;
+        return () => clearTimeout(t);
+      }
+    }
+    prevHandicap.current = pregame.handicap;
+  }, [pregame.handicap]);
+  useEffect(() => {
+    if (prevColor.current !== pregame.color) {
+      if (pregame.color !== lastSubmittedColor.current) {
+        setColorFlash(true);
+        const t = setTimeout(() => setColorFlash(false), 350);
+        prevColor.current = pregame.color;
+        return () => clearTimeout(t);
+      }
+    }
+    prevColor.current = pregame.color;
+  }, [pregame.color]);
 
   return (
     <ConfirmModal open dismissible={false}>
@@ -272,45 +323,73 @@ export function PregameSettingsPopover({
           <dt>Board</dt>
           <dd>{size}</dd>
           <dt>Komi</dt>
-          <dd>
-            <input
-              type="number"
-              min={-99.5}
-              step={1}
-              value={pregame.komi}
-              disabled={disabled}
-              onChange={(e) => submit({ komi: Number(e.currentTarget.value) })}
-            />
+          <dd class={komiFlash ? "form-value-sync" : undefined}>
+            {playerStone === 0 ? (
+              pregame.komi
+            ) : (
+              <input
+                type="number"
+                min={-99.5}
+                step={1}
+                value={pregame.komi}
+                disabled={disabled}
+                onChange={(e) =>
+                  submit({ komi: Number(e.currentTarget.value) })
+                }
+              />
+            )}
           </dd>
           <dt>Handicap</dt>
-          <dd>
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={pregame.handicap}
-              disabled={disabled}
-              onChange={(e) =>
-                submit({ handicap: parseInt(e.currentTarget.value, 10) || 0 })
-              }
-            />
+          <dd class={handicapFlash ? "form-value-sync" : undefined}>
+            {playerStone === 0 ? (
+              pregame.handicap || "None"
+            ) : (
+              <HandicapSelect
+                value={pregame.handicap}
+                max={pregame.max_handicap}
+                disabled={disabled}
+                onChange={(handicap) => {
+                  submit(
+                    handicap >= 2 ? { handicap, komi: 0.5 } : { handicap },
+                  );
+                }}
+              />
+            )}
           </dd>
-          <dt>Your color</dt>
-          <dd>
-            <select
-              value={pregame.color}
-              disabled={disabled}
-              onChange={(e) =>
-                submit({
-                  color: e.currentTarget.value as "black" | "white" | "random",
-                })
-              }
-            >
-              <option value="black">{colorLabel("black")}</option>
-              <option value="white">{colorLabel("white")}</option>
-              <option value="random">{colorLabel("random")}</option>
-            </select>
-          </dd>
+          {playerStone === 0 ? (
+            <>
+              <dt>Black</dt>
+              <dd class={colorFlash ? "form-value-sync" : undefined}>
+                {pregame.color === "black"
+                  ? (creatorName ?? "?")
+                  : pregame.color === "white"
+                    ? (joinerName ?? "?")
+                    : "?"}
+              </dd>
+            </>
+          ) : (
+            <>
+              <dt>Your color</dt>
+              <dd class={colorFlash ? "form-value-sync" : undefined}>
+                <select
+                  value={pregame.color}
+                  disabled={disabled}
+                  onChange={(e) =>
+                    submit({
+                      color: e.currentTarget.value as
+                        | "black"
+                        | "white"
+                        | "random",
+                    })
+                  }
+                >
+                  <option value="black">{colorLabel("black")}</option>
+                  <option value="white">{colorLabel("white")}</option>
+                  <option value="random">{colorLabel("random")}</option>
+                </select>
+              </dd>
+            </>
+          )}
           <dt>Time</dt>
           <dd>{tc || "Unlimited"}</dd>
           <dt>Takebacks</dt>
