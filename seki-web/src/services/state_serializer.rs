@@ -5,6 +5,7 @@ use serde::Serialize;
 use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
+use crate::models::pregame_settings::PregameSettingsNegotiation;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::live;
 
@@ -22,6 +23,29 @@ pub struct SettledTerritoryData {
     pub ownership: Vec<i8>,
     pub dead_stones: Vec<(u8, u8)>,
     pub score: go_engine::territory::GameScore,
+}
+
+#[derive(Serialize)]
+pub struct PregameSettingsData {
+    pub handicap: i32,
+    pub komi: f64,
+    pub color: String,
+    pub black_approved: bool,
+    pub white_approved: bool,
+    pub expires_at: Option<String>,
+}
+
+impl From<&PregameSettingsNegotiation> for PregameSettingsData {
+    fn from(value: &PregameSettingsNegotiation) -> Self {
+        Self {
+            handicap: value.handicap,
+            komi: value.komi,
+            color: value.color.clone(),
+            black_approved: value.black_approved,
+            white_approved: value.white_approved,
+            expires_at: value.expires_at.map(|dt| dt.to_rfc3339()),
+        }
+    }
 }
 
 /// Build a `SettledTerritoryData` from raw DB tuple (dead_stones JSON, bt, bc, wt, wc).
@@ -88,6 +112,7 @@ pub fn serialize_state(
     undo_requested: bool,
     territory: Option<&TerritoryData>,
     settled_territory: Option<&SettledTerritoryData>,
+    pregame_settings: Option<&PregameSettingsNegotiation>,
     clock: Option<(&ClockState, &TimeControl)>,
 ) -> serde_json::Value {
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
@@ -117,6 +142,10 @@ pub fn serialize_state(
 
     if undo_requested {
         negotiations["undo_request"] = json!({});
+    }
+    if let Some(settings) = pregame_settings {
+        negotiations["pregame_settings"] =
+            serde_json::to_value(PregameSettingsData::from(settings)).unwrap_or_default();
     }
 
     let moves: Vec<_> = engine

@@ -24,6 +24,7 @@ import {
   opponentDisconnected,
   pendingAction,
   playerStone,
+  pregameSettings,
   presenterId,
   removePendingChatMessage,
   result,
@@ -102,6 +103,22 @@ function reconcilePendingActionFromState(): void {
         (playerStone.value === -1 && territory.value?.white_approved)
       ) {
         clearPendingAction("accept-territory");
+      }
+
+      break;
+    case "accept-pregame-settings":
+      if (
+        gameStage.value !== GameStage.Unstarted ||
+        (playerStone.value === 1 && pregameSettings.value?.black_approved) ||
+        (playerStone.value === -1 && pregameSettings.value?.white_approved)
+      ) {
+        clearPendingAction("accept-pregame-settings");
+      }
+
+      break;
+    case "reject-pregame-settings":
+      if (playerStone.value === 0 || !pregameSettings.value) {
+        clearPendingAction("reject-pregame-settings");
       }
 
       break;

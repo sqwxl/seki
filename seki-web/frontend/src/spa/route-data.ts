@@ -94,6 +94,23 @@ async function fetchRouteData<T>(url: string): Promise<T> {
   return request;
 }
 
+async function refreshRouteData<T>(url: string): Promise<T> {
+  const request = fetchJson<T>(url)
+    .then((data) => {
+      routeDataCache.set(url, data);
+      inflightRouteData.delete(url);
+      return data;
+    })
+    .catch((err) => {
+      inflightRouteData.delete(url);
+      throw err;
+    });
+
+  inflightRouteData.set(url, request as Promise<unknown>);
+
+  return request;
+}
+
 export function prefetchRouteData(url: string | undefined): void {
   if (!url || routeDataCache.has(url) || inflightRouteData.has(url)) {
     return;
@@ -114,7 +131,7 @@ export function useRouteData<T>(url: string) {
 
     setData(cached);
     setError(undefined);
-    fetchRouteData<T>(url)
+    refreshRouteData<T>(url)
       .then((next) => {
         if (!cancelled) {
           setData(next);

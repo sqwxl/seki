@@ -56,6 +56,16 @@ export function GameInfo(props: GameInfoProps) {
   const ratingMode = ratingDisplayPreference.value;
   const blackRank = primaryRankText(props.black?.rank, ratingMode);
   const whiteRank = primaryRankText(props.white?.rank, ratingMode);
+  const showRatingRange =
+    settings.rating_range_mode != null && props.stage === GameStage.Unstarted;
+  const ratingRangeText =
+    settings.rating_difference_lower_unlimited &&
+    settings.rating_difference_higher_unlimited
+      ? "Unlimited"
+      : settings.max_rating_difference_lower ===
+          settings.max_rating_difference_higher
+        ? String(settings.max_rating_difference_lower)
+        : `${settings.max_rating_difference_lower ?? "Unlimited"} / ${settings.max_rating_difference_higher ?? "Unlimited"}`;
 
   // Compact bar parts
   const parts = [size];
@@ -140,7 +150,7 @@ export function GameInfo(props: GameInfoProps) {
         <span>{parts.join(" · ")}</span>
       </button>
       {open && (
-        <div class="game-info-popover" ref={popoverRef}>
+        <div class="game-info-popover popover-surface" ref={popoverRef}>
           <div class="game-info-popover-header">
             <IconInfo />
           </div>
@@ -148,21 +158,27 @@ export function GameInfo(props: GameInfoProps) {
             {statusText && <Row label="Status" value={statusText} />}
             <Row label="Board" value={size} />
             <Row label="Rated" value={settings.ranked ? "Yes" : "No"} />
-            <Row label="Komi" value={String(komi)} />
-            {settings.handicap >= 2 && (
-              <Row label="Handicap" value={String(settings.handicap)} />
-            )}
-            {settings.color_reason && (
-              <Row
-                label="Auto settings"
-                value={
-                  settings.color_reason === "lower_rating_black"
-                    ? "Lower rating plays Black"
-                    : settings.color_reason === "exact_rating_random"
-                      ? "Equal rating random color"
-                      : settings.color_reason
-                }
-              />
+            {showRatingRange ? (
+              <Row label="Max rating difference" value={ratingRangeText} />
+            ) : (
+              <>
+                <Row label="Komi" value={String(komi)} />
+                {settings.handicap >= 2 && (
+                  <Row label="Handicap" value={String(settings.handicap)} />
+                )}
+                {settings.color_reason && (
+                  <Row
+                    label="Auto settings"
+                    value={
+                      settings.color_reason === "lower_rating_black"
+                        ? "Lower rating plays Black"
+                        : settings.color_reason === "exact_rating_random"
+                          ? "Equal rating random color"
+                          : settings.color_reason
+                    }
+                  />
+                )}
+              </>
             )}
             {tcDetail && <Row label="Time" value={tcDetail} />}
             <Row

@@ -1,12 +1,10 @@
 // Open game variant.
-// Rated: board locked to 19×19, komi/color absent, max handicap slider shown
-// Unrated: full settings editable
+// Open games defer handicap/komi/color until an opponent joins.
 
-import { BoardSettingsFields } from "./board-parameters";
 import {
   AllowUndoField,
   BoardSizeField,
-  MaxHandicapField,
+  MaxRatingDifferenceField,
   PrivateSpectatorsField,
   SettingsFieldset,
   type GameSettingsSetter,
@@ -15,23 +13,23 @@ import {
 export type OpenGameSettings = {
   cols: number;
   handicap: number;
-  maxHandicap: number;
+  komi: number;
+  color: string;
+  maxRatingDifference: number;
   allowUndo: boolean;
   isPrivate: boolean;
   ranked: boolean;
-  color: string;
-  komi: number;
 };
 
 export const OPEN_DEFAULTS: OpenGameSettings = {
   cols: 19,
   handicap: 0,
-  maxHandicap: 4,
+  komi: 6.5,
+  color: "black",
+  maxRatingDifference: 40,
   allowUndo: false,
   isPrivate: false,
   ranked: false,
-  color: "black",
-  komi: 6.5,
 };
 
 type Props = {
@@ -42,14 +40,8 @@ type Props = {
 export function OpenGameForm({ s, set }: Props) {
   return (
     <SettingsFieldset>
-      {s.ranked ? (
-        <>
-          <BoardSizeField s={s} set={set} locked />
-          <MaxHandicapField s={s} set={set} />
-        </>
-      ) : (
-        <BoardSettingsFields s={s} set={set} />
-      )}
+      <BoardSizeField s={s} set={set} />
+      <MaxRatingDifferenceField s={s} set={set} />
 
       <AllowUndoField s={s} set={set} />
 

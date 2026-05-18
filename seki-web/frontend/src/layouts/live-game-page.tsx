@@ -3,7 +3,10 @@ import { Chat } from "../components/chat";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
 import { LobbyControls } from "../components/lobby-controls";
-import { LobbyPopover } from "../components/lobby-popover";
+import {
+  LobbyPopover,
+  PregameSettingsPopover,
+} from "../components/lobby-popover";
 import { PlayerPanel } from "../components/player-panel";
 import { TabBar } from "../components/tab-bar";
 import {
@@ -36,6 +39,7 @@ import {
   nigiri,
   onlineUsers,
   playerStone,
+  pregameSettings,
   result,
   setGameFlashMessage,
   setPendingAction,
@@ -47,7 +51,6 @@ import { GameStage } from "../game/types";
 import { readUserData } from "../game/util";
 import { formatResult } from "../utils/format";
 import type { MoveConfirmState } from "../utils/move-confirm";
-import { requestSpaNavigation } from "../utils/spa-navigation";
 import { postForm, type WebRequestError } from "../utils/web-client";
 import { Controls } from "./controls";
 import { GamePageLayout } from "./game-page-layout";
@@ -131,6 +134,11 @@ function LiveGameStatusSlot(
         : isPendingAction("join-game")
           ? "join"
           : undefined;
+  const pendingPregameAction = isPendingAction("accept-pregame-settings")
+    ? "accept"
+    : isPendingAction("reject-pregame-settings")
+      ? "reject"
+      : undefined;
   const finalizedScore =
     boardFinalized.value && boardFinalizedScore.value
       ? boardFinalizedScore.value
@@ -146,6 +154,18 @@ function LiveGameStatusSlot(
     estimateMode.value || boardFinalized.value
       ? (estimateScore.value ?? finalizedScore)
       : undefined;
+  useEffect(() => {
+    const expiresAt = pregameSettings.value?.expires_at;
+    if (!expiresAt) {
+      return;
+    }
+    const delay = Math.max(0, new Date(expiresAt).getTime() - Date.now() + 250);
+    const id = window.setTimeout(
+      () => props.channel.pregameSettingsTimeoutFlag(),
+      delay,
+    );
+    return () => window.clearTimeout(id);
+  }, [pregameSettings.value?.expires_at, props.channel]);
 
   return (
     <>
@@ -187,7 +207,32 @@ function LiveGameStatusSlot(
           },
         )}
       />
-      {status.lobbyPopover && (
+      {pregameSettings.value && gameStage.value === GameStage.Unstarted ? (
+        <PregameSettingsPopover
+          title="Confirm game settings"
+          settings={initialProps.value.settings}
+          pregame={pregameSettings.value}
+          allowUndo={allowUndo.value}
+          disabled={playerStone.value === 0}
+          playerStone={playerStone.value}
+          pendingAction={pendingPregameAction}
+          onUpdate={(settings) => props.channel.updatePregameSettings(settings)}
+          onAccept={() => {
+            clearGameFlashMessage();
+            if (!setPendingAction("accept-pregame-settings")) {
+              return;
+            }
+            props.channel.acceptPregameSettings();
+          }}
+          onReject={() => {
+            clearGameFlashMessage();
+            if (!setPendingAction("reject-pregame-settings")) {
+              return;
+            }
+            props.channel.rejectPregameSettings();
+          }}
+        />
+      ) : status.lobbyPopover ? (
         <LobbyPopover
           variant={status.lobbyPopover.variant}
           title={status.lobbyPopover.title}
@@ -249,12 +294,14 @@ function LiveGameStatusSlot(
             const url = `/games/${gameId.value}/join${accessToken ? `?access_token=${accessToken}` : ""}`;
 
             void postForm(url, new FormData())
-              .then((result) => {
-                if (typeof result.redirect === "string") {
-                  requestSpaNavigation(result.redirect, {
-                    replace: true,
-                    reload: true,
-                  });
+              .then(() => {
+                clearPendingAction("join-game");
+                if (accessToken) {
+                  window.history.replaceState(
+                    null,
+                    "",
+                    `/games/${gameId.value}`,
+                  );
                 }
               })
               .catch((err: WebRequestError) => {
@@ -278,7 +325,7 @@ function LiveGameStatusSlot(
               : undefined
           }
         />
-      )}
+      ) : null}
     </>
   );
 }

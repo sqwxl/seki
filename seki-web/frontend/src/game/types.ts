@@ -101,6 +101,15 @@ export type TerritoryData = {
   expires_at?: string;
 };
 
+export type PregameSettingsData = {
+  handicap: number;
+  komi: number;
+  color: "black" | "white" | "random";
+  black_approved: boolean;
+  white_approved: boolean;
+  expires_at?: string;
+};
+
 export type SettledTerritoryData = {
   ownership: number[];
   dead_stones: [number, number][];
@@ -111,6 +120,11 @@ export type GameSettings = {
   cols: number;
   rows: number;
   handicap: number;
+  rating_range_mode?: "unlimited" | "absolute" | "asymmetric";
+  max_rating_difference_lower?: number | null;
+  max_rating_difference_higher?: number | null;
+  rating_difference_lower_unlimited?: boolean;
+  rating_difference_higher_unlimited?: boolean;
   ranked?: boolean;
   rating_status?: "ranked" | "unranked";
   color_reason?: string;
@@ -168,7 +182,10 @@ export type StateMessage = {
   kind: "state" | "state_sync";
   stage: GameStage;
   state: GameState;
-  negotiations?: Record<string, unknown>;
+  negotiations?: {
+    undo_request?: Record<string, never>;
+    pregame_settings?: PregameSettingsData;
+  };
   current_turn_stone: number | null;
   moves: TurnData[];
   black: UserData | null;

@@ -27,23 +27,28 @@ async fn create_and_join_stage_transitions() {
 }
 
 #[tokio::test]
-async fn handicap_open_game_with_white_creator_stays_unstarted() {
+async fn unrated_open_game_waits_for_pregame_settings_after_join() {
     let server = TestServer::start().await;
 
     let game_id = server
-        .create_game_with(serde_json::json!({
-            "cols": 13,
-            "komi": 0.5,
-            "handicap": 5,
-            "color": "white"
-        }))
+        .create_game_with(serde_json::json!({"cols": 13}))
         .await;
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/join", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success());
 
     let mut spectator = server.ws_spectator().await;
     let _init = spectator.recv_kind("init").await;
     let state = spectator.join_game(game_id).await;
 
     assert_eq!(state["stage"], "unstarted");
+    assert!(state["negotiations"]["pregame_settings"].is_object());
 }
 
 #[tokio::test]
@@ -74,6 +79,24 @@ async fn abort_before_first_move() {
     let state_w = white.recv_kind("state").await;
     assert_eq!(state_w["stage"], "aborted");
     assert_eq!(state_w["result"], "Aborted");
+}
+
+#[tokio::test]
+async fn white_can_abort_started_game_before_first_move() {
+    let server = TestServer::start().await;
+    let game_id = server.create_and_join().await;
+
+    let mut white = server.ws_white().await;
+    let _init = white.recv_kind("init").await;
+
+    let state = white.join_game(game_id).await;
+    assert_eq!(state["stage"], "black_to_play");
+
+    white.abort(game_id).await;
+
+    let state = white.recv_kind("state").await;
+    assert_eq!(state["stage"], "aborted");
+    assert_eq!(state["result"], "Aborted");
 }
 
 #[tokio::test]

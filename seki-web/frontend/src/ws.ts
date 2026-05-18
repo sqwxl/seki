@@ -81,25 +81,23 @@ function connect() {
       return;
     }
 
-    const gameId = data.game_id as number | undefined;
-
-    // Route game-specific messages to the game handler
-    if (gameId != null) {
-      const handler = gameHandlers.get(gameId);
-
-      if (handler) {
-        handler(data);
-      }
-
-      return;
-    }
-
-    // Route by kind (lobby events)
     const kind = data.kind as string;
     const kindHandlers = handlers.get(kind);
 
     if (kindHandlers) {
       for (const handler of kindHandlers) {
+        handler(data);
+      }
+    }
+
+    const gameId = data.game_id as number | undefined;
+
+    // Route game-specific messages to the game handler. Some lobby messages
+    // such as game_removed also carry a game_id, so kind handlers run first.
+    if (gameId != null) {
+      const handler = gameHandlers.get(gameId);
+
+      if (handler) {
         handler(data);
       }
     }

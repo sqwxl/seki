@@ -112,6 +112,7 @@ export function ConfirmPopover({
   pending,
   closeOnCancel = true,
   children,
+  popoverRef,
 }: {
   icon: preact.ComponentType<{ title?: string }>;
   message: string;
@@ -120,12 +121,13 @@ export function ConfirmPopover({
   pending?: "confirm" | "cancel";
   closeOnCancel?: boolean;
   children?: preact.ComponentChildren;
+  popoverRef?: preact.Ref<HTMLDivElement>;
 }) {
   const Icon = icon;
   const disableActions = pending != null;
 
   return (
-    <div class="confirm-popover">
+    <div class="confirm-popover" ref={popoverRef}>
       <Icon />
       <p>{message}</p>
       {children}
@@ -199,6 +201,7 @@ export function ConfirmButton({
   const Icon = icon;
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const wasPendingRef = useRef(false);
   const isPending = confirm.pending != null;
 
@@ -221,6 +224,10 @@ export function ConfirmButton({
       const target = event.target as Node;
 
       if (buttonRef.current?.contains(target)) {
+        return;
+      }
+
+      if (popoverRef.current?.contains(target)) {
         return;
       }
 
@@ -254,6 +261,7 @@ export function ConfirmButton({
           onConfirm={confirm.onConfirm}
           onCancel={closeOnCancelHandler(setOpen)}
           pending={confirm.pending}
+          popoverRef={popoverRef}
         >
           {children}
         </ConfirmPopover>

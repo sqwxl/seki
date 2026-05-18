@@ -75,6 +75,11 @@ pub struct Game {
     pub calibration_policy_version: Option<String>,
     pub rating_result: Option<String>,
     pub max_handicap: Option<i32>,
+    pub rating_range_mode: String,
+    pub max_rating_difference_lower: Option<i32>,
+    pub max_rating_difference_higher: Option<i32>,
+    pub rating_difference_lower_unlimited: bool,
+    pub rating_difference_higher_unlimited: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -354,14 +359,20 @@ impl Game {
         open_to: Option<&str>,
         invite_only: bool,
         ranked: bool,
-        max_handicap: Option<i32>,
+        rating_range_mode: &str,
+        max_rating_difference_lower: Option<i32>,
+        max_rating_difference_higher: Option<i32>,
+        rating_difference_lower_unlimited: bool,
+        rating_difference_higher_unlimited: bool,
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, \
              is_private, allow_undo, access_token, invite_token, time_control, main_time_secs, \
              increment_secs, byoyomi_time_secs, byoyomi_periods, \
-             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, open_to, invite_only, ranked, max_handicap)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, open_to, invite_only, ranked, \
+             rating_range_mode, max_rating_difference_lower, max_rating_difference_higher, \
+             rating_difference_lower_unlimited, rating_difference_higher_unlimited)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
              RETURNING *",
         )
         .bind(creator_id)
@@ -388,7 +399,11 @@ impl Game {
         .bind(open_to)
         .bind(invite_only)
         .bind(ranked)
-        .bind(max_handicap)
+        .bind(rating_range_mode)
+        .bind(max_rating_difference_lower)
+        .bind(max_rating_difference_higher)
+        .bind(rating_difference_lower_unlimited)
+        .bind(rating_difference_higher_unlimited)
         .fetch_one(executor)
         .await
     }
@@ -416,6 +431,44 @@ impl Game {
             .bind(game_id)
             .execute(executor)
             .await?;
+        Ok(())
+    }
+
+    pub async fn clear_white(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        game_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET white_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+        )
+        .bind(game_id)
+        .execute(executor)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn update_rules(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        game_id: i64,
+        handicap: i32,
+        komi: f64,
+        black_id: Option<i64>,
+        white_id: Option<i64>,
+        stage: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET handicap = $2, komi = $3, black_id = $4, white_id = $5, \
+             nigiri = false, stage = $6, cached_engine_state = NULL, updated_at = CURRENT_TIMESTAMP \
+             WHERE id = $1",
+        )
+        .bind(game_id)
+        .bind(handicap)
+        .bind(komi)
+        .bind(black_id)
+        .bind(white_id)
+        .bind(stage)
+        .execute(executor)
+        .await?;
         Ok(())
     }
 
@@ -649,6 +702,21 @@ impl Game {
         .fetch_all(executor)
         .await
     }
+
+    pub async fn find_expired_pregame_settings(
+        executor: impl sqlx::SqliteExecutor<'_>,
+    ) -> Result<Vec<Game>, sqlx::Error> {
+        sqlx::query_as::<_, Game>(
+            "SELECT games.* FROM games \
+             JOIN pregame_setting_negotiations ON pregame_setting_negotiations.game_id = games.id \
+             WHERE games.result IS NULL \
+             AND games.stage = 'unstarted' \
+             AND pregame_setting_negotiations.expires_at IS NOT NULL \
+             AND pregame_setting_negotiations.expires_at < CURRENT_TIMESTAMP",
+        )
+        .fetch_all(executor)
+        .await
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -664,7 +732,6 @@ pub struct RankedGameSnapshotUpdate {
     pub derived_komi: Option<f64>,
     pub derived_color_reason: Option<String>,
     pub calibration_policy_version: Option<String>,
-    pub max_handicap: Option<i32>,
 }
 
 impl Game {

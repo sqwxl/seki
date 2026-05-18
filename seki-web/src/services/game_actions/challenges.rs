@@ -97,7 +97,6 @@ pub async fn accept_challenge(
             game_id,
             black_id.unwrap(),
             white_id.unwrap(),
-            gwp.game.max_handicap,
             gwp.game.ranked,
         )
         .await

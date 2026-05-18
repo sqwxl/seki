@@ -2,6 +2,7 @@ pub mod app_credential;
 pub mod game;
 pub mod game_read;
 pub mod message;
+pub mod pregame_settings;
 pub mod push_destination;
 pub mod rating;
 pub mod turn;

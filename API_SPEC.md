@@ -69,7 +69,9 @@ Expected behavior:
 
 - ranked games must be open or direct challenges (not private or invite-only)
 - ranked games are restricted to registered users who participate in ranking
-- submitted manual handicap and komi values are rejected or ignored for ranked games; the server derives these from rating context
+- open-game creation does not accept manual handicap, komi, or color values; the server derives or negotiates these after an opponent joins
+- open games store a rating-range preference as directional lower/higher limits plus explicit unlimited flags
+- submitted manual handicap and komi values are rejected or ignored for ranked games; the server derives these from the active rating policy
 - rated results are applied via Glicko-2 exactly once per game (idempotent finalization)
 - rating adjustments are stored as durable audit rows with before/after values
 - current rating state (rating, deviation, volatility) is maintained per user in a separate rating profile

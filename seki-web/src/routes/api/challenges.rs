@@ -6,6 +6,7 @@ use utoipa::ToSchema;
 use crate::AppState;
 use crate::error::{ApiError, AppError};
 use crate::models::game::Game;
+use crate::services::game_creator::RatingRangePreference;
 use crate::services::{game_actions, game_creator};
 use crate::session::ApiUser;
 
@@ -118,7 +119,8 @@ pub(super) async fn rematch_game(
         byoyomi_periods: gwp.game.byoyomi_periods,
         open_to: None,
         ranked: false,
-        max_handicap: None,
+        rating_range: RatingRangePreference::Unlimited,
+        open_game: false,
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;

@@ -329,9 +329,6 @@ async fn ranked_games_require_time_control() {
         .header("Authorization", "Bearer test-black-api-token-12345")
         .json(&json!({
             "cols": 9,
-            "komi": 6.5,
-            "handicap": 0,
-            "color": "black",
             "ranked": true,
             "open_to": "registered"
         }))

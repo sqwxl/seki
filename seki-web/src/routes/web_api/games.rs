@@ -251,8 +251,20 @@ pub(crate) async fn load_game_show(
         let game = Game::find_by_id(&state.db, id).await?;
         let engine = engine_builder::build_engine(&state.db, &game).await?;
         let updated_gwp = Game::find_with_players(&state.db, id).await?;
-        let game_state =
-            state_serializer::serialize_state(&updated_gwp, &engine, false, None, None, None);
+        let pregame_settings =
+            crate::models::pregame_settings::PregameSettingsNegotiation::find(&state.db, id)
+                .await
+                .ok()
+                .flatten();
+        let game_state = state_serializer::serialize_state(
+            &updated_gwp,
+            &engine,
+            false,
+            None,
+            None,
+            pregame_settings.as_ref(),
+            None,
+        );
         state.registry.broadcast(id, &game_state.to_string()).await;
         crate::services::live::notify_game_created(state, &updated_gwp);
 
@@ -464,10 +476,33 @@ async fn can_join_game(
         return Ok(false);
     }
 
-    if gwp.game.ranked {
-        let profile = RatingProfile::find(pool, current_user.id).await?;
-        if rating::can_join_ranked(&current_user.user, profile.as_ref()).is_err() {
+    let has_finite_rating_range =
+        !gwp.game.rating_difference_lower_unlimited || !gwp.game.rating_difference_higher_unlimited;
+    if gwp.game.ranked || has_finite_rating_range {
+        let joiner_profile = RatingProfile::find(pool, current_user.id).await?;
+        if gwp.game.ranked
+            && rating::can_join_ranked(&current_user.user, joiner_profile.as_ref()).is_err()
+        {
             return Ok(false);
+        }
+
+        if has_finite_rating_range {
+            let Some(creator_id) = gwp.game.creator_id else {
+                return Ok(false);
+            };
+            let creator_profile = RatingProfile::find(pool, creator_id).await?;
+            let (Some(joiner_profile), Some(creator_profile)) =
+                (joiner_profile.as_ref(), creator_profile.as_ref())
+            else {
+                return Ok(!gwp.game.ranked);
+            };
+            if !rating::game_rating_range_allows(
+                &gwp.game,
+                creator_profile.rating,
+                joiner_profile.rating,
+            ) {
+                return Ok(false);
+            }
         }
     }
 

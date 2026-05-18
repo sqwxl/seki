@@ -144,6 +144,7 @@ pub(crate) async fn build_game_response(
         false,
         territory.as_ref(),
         settled_territory.as_ref(),
+        None,
         clock_ref,
     );
 

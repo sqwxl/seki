@@ -11,7 +11,7 @@ use crate::models::game::{Game, TimeControlType};
 use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
-use crate::services::game_creator::{self, CreateGameParams};
+use crate::services::game_creator::{self, CreateGameParams, RatingRangePreference};
 use crate::services::game_joiner;
 use crate::services::state_serializer;
 use crate::session::CurrentUser;
@@ -19,8 +19,8 @@ use crate::session::CurrentUser;
 #[derive(Deserialize)]
 pub struct CreateGameForm {
     pub cols: i32,
-    pub komi: f64,
-    pub handicap: i32,
+    pub komi: Option<f64>,
+    pub handicap: Option<i32>,
     pub is_private: Option<String>,
     pub allow_undo: Option<String>,
     pub color: Option<String>,
@@ -34,7 +34,8 @@ pub struct CreateGameForm {
     pub correspondence_days: Option<i32>,
     pub open_to: Option<String>,
     pub ranked: Option<String>,
-    pub max_handicap: Option<i32>,
+    pub rating_range_mode: Option<String>,
+    pub max_rating_difference: Option<i32>,
     pub variant: Option<String>,
 }
 
@@ -78,6 +79,7 @@ pub async fn create_game(
     let invite_email = form.invite_email.clone();
     let variant = form.variant.as_deref().unwrap_or("open");
     let is_ranked = form.ranked.as_deref() == Some("true");
+    let is_open = variant == "open";
     let is_email = variant == "email";
     let invite_username = form
         .invite_username
@@ -98,14 +100,47 @@ pub async fn create_game(
     } else {
         invite_email.clone()
     };
+    let komi = if is_open {
+        6.5
+    } else {
+        form.komi
+            .ok_or_else(|| AppError::UnprocessableEntity("Missing komi".to_string()))?
+    };
+    let handicap = if is_open {
+        0
+    } else {
+        form.handicap
+            .ok_or_else(|| AppError::UnprocessableEntity("Missing handicap".to_string()))?
+    };
+    if is_open && (form.komi.is_some() || form.handicap.is_some() || form.color.is_some()) {
+        return Err(AppError::UnprocessableEntity(
+            "Open games derive handicap, komi, and color after an opponent joins".to_string(),
+        ));
+    }
+    let rating_range = if is_open && form.rating_range_mode.as_deref() == Some("absolute") {
+        RatingRangePreference::Absolute(form.max_rating_difference.ok_or_else(|| {
+            AppError::UnprocessableEntity("Missing max_rating_difference".to_string())
+        })?)
+    } else if is_open && form.max_rating_difference.is_some() {
+        RatingRangePreference::Absolute(form.max_rating_difference.unwrap())
+    } else {
+        RatingRangePreference::Unlimited
+    };
+    let color = if is_open {
+        "black".to_string()
+    } else {
+        form.color
+            .clone()
+            .ok_or_else(|| AppError::UnprocessableEntity("Missing color".to_string()))?
+    };
     let params = CreateGameParams {
         cols,
         rows: cols,
-        komi: form.komi,
-        handicap: form.handicap,
+        komi,
+        handicap,
         is_private: form.is_private.as_deref() == Some("true"),
         allow_undo: form.allow_undo.as_deref() == Some("true"),
-        color: form.color.unwrap_or_else(|| "black".to_string()),
+        color,
         invite_email: email_to_send,
         invite_username,
         time_control,
@@ -115,11 +150,8 @@ pub async fn create_game(
         byoyomi_periods,
         open_to: form.open_to,
         ranked: is_ranked && !is_email,
-        max_handicap: if is_ranked && variant == "open" {
-            form.max_handicap.filter(|&h| (0..=9).contains(&h))
-        } else {
-            None
-        },
+        rating_range,
+        open_game: is_open,
     };
 
     match game_creator::create_game(&state.db, &current_user, params).await {
@@ -245,7 +277,20 @@ pub async fn join_game(
     };
     let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
 
-    let game_state = state_serializer::serialize_state(&gwp, &engine, false, None, None, clock_ref);
+    let pregame_settings =
+        crate::models::pregame_settings::PregameSettingsNegotiation::find(&state.db, id)
+            .await
+            .ok()
+            .flatten();
+    let game_state = state_serializer::serialize_state(
+        &gwp,
+        &engine,
+        false,
+        None,
+        None,
+        pregame_settings.as_ref(),
+        clock_ref,
+    );
     state.registry.broadcast(id, &game_state.to_string()).await;
 
     crate::services::live::notify_game_created(&state, &gwp);
@@ -319,7 +364,8 @@ pub async fn rematch_game(
         byoyomi_periods: gwp.game.byoyomi_periods,
         open_to: None,
         ranked: false,
-        max_handicap: None,
+        rating_range: RatingRangePreference::Unlimited,
+        open_game: false,
     };
 
     let game = game_creator::create_game(&state.db, &current_user, params).await?;

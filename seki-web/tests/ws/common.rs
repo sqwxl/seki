@@ -210,9 +210,6 @@ impl TestServer {
             .header("Authorization", "Bearer test-black-api-token-12345")
             .json(&json!({
                 "cols": 9,
-                "komi": 6.5,
-                "handicap": 0,
-                "color": "black",
             }))
             .send()
             .await
@@ -240,16 +237,35 @@ impl TestServer {
             "join_game failed: {}",
             resp.status()
         );
-        resp.json().await.unwrap()
+        let body = resp.json().await.unwrap();
+        self.finalize_pregame_settings_if_present(game_id).await;
+        body
     }
 
     pub async fn create_game_with(&self, opts: Value) -> i64 {
-        let mut body = json!({
-            "cols": 9, "komi": 6.5, "handicap": 0, "color": "black",
-        });
+        let mut body = json!({ "cols": 9 });
         if let Some(obj) = opts.as_object() {
             for (k, v) in obj {
                 body[k] = v.clone();
+            }
+        }
+        if (body.get("komi").is_some()
+            || body.get("handicap").is_some()
+            || body.get("color").is_some())
+            && body.get("invite_username").is_none()
+            && body.get("invite_email").is_none()
+        {
+            body["invite_username"] = json!("test-white");
+        }
+        if body.get("invite_username").is_some() || body.get("invite_email").is_some() {
+            if body.get("komi").is_none() {
+                body["komi"] = json!(6.5);
+            }
+            if body.get("handicap").is_none() {
+                body["handicap"] = json!(0);
+            }
+            if body.get("color").is_none() {
+                body["color"] = json!("black");
             }
         }
         if body["ranked"].as_bool() == Some(true) && body.get("time_control").is_none() {
@@ -284,6 +300,64 @@ impl TestServer {
         let game_id = self.create_game_with(opts).await;
         self.join_game(game_id).await;
         game_id
+    }
+
+    async fn finalize_pregame_settings_if_present(&self, game_id: i64) {
+        let Some((handicap, komi, color)): Option<(i32, f64, String)> = sqlx::query_as(
+            "SELECT handicap, komi, color FROM pregame_setting_negotiations WHERE game_id = $1",
+        )
+        .bind(game_id)
+        .fetch_optional(&self.pool)
+        .await
+        .unwrap() else {
+            return;
+        };
+
+        let (creator_id, black_id, white_id): (Option<i64>, Option<i64>, Option<i64>) =
+            sqlx::query_as("SELECT creator_id, black_id, white_id FROM games WHERE id = $1")
+                .bind(game_id)
+                .fetch_one(&self.pool)
+                .await
+                .unwrap();
+        let creator_id = creator_id.unwrap();
+        let opponent_id = if black_id == Some(creator_id) {
+            white_id
+        } else {
+            black_id
+        }
+        .unwrap();
+        let (final_black, final_white) = if color == "white" {
+            (opponent_id, creator_id)
+        } else {
+            (creator_id, opponent_id)
+        };
+        let stage = if handicap >= 2 {
+            "white_to_play"
+        } else {
+            "black_to_play"
+        };
+
+        let mut tx = self.pool.begin().await.unwrap();
+        sqlx::query(
+            "UPDATE games SET handicap = $2, komi = $3, black_id = $4, white_id = $5, \
+             nigiri = false, stage = $6, cached_engine_state = NULL, updated_at = CURRENT_TIMESTAMP \
+             WHERE id = $1",
+        )
+        .bind(game_id)
+        .bind(handicap)
+        .bind(komi)
+        .bind(final_black)
+        .bind(final_white)
+        .bind(stage)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+        sqlx::query("DELETE FROM pregame_setting_negotiations WHERE game_id = $1")
+            .bind(game_id)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
     }
 
     pub async fn create_challenge(&self) -> i64 {
@@ -366,12 +440,29 @@ impl TestServer {
     }
 
     pub async fn try_create_game_with(&self, opts: Value) -> reqwest::Response {
-        let mut body = json!({
-            "cols": 9, "komi": 6.5, "handicap": 0, "color": "black",
-        });
+        let mut body = json!({ "cols": 9 });
         if let Some(obj) = opts.as_object() {
             for (k, v) in obj {
                 body[k] = v.clone();
+            }
+        }
+        if (body.get("komi").is_some()
+            || body.get("handicap").is_some()
+            || body.get("color").is_some())
+            && body.get("invite_username").is_none()
+            && body.get("invite_email").is_none()
+        {
+            body["invite_username"] = json!("test-white");
+        }
+        if body.get("invite_username").is_some() || body.get("invite_email").is_some() {
+            if body.get("komi").is_none() {
+                body["komi"] = json!(6.5);
+            }
+            if body.get("handicap").is_none() {
+                body["handicap"] = json!(0);
+            }
+            if body.get("color").is_none() {
+                body["color"] = json!("black");
             }
         }
         if body["ranked"].as_bool() == Some(true) && body.get("time_control").is_none() {

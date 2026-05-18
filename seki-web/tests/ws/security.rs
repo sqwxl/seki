@@ -121,8 +121,8 @@ async fn cannot_join_private_game_with_wrong_token() {
 async fn only_creator_can_abort_pending_challenge() {
     let server = TestServer::start().await;
 
-    // Black creates, white joins
-    let game_id = server.create_and_join().await;
+    // Black creates a pending direct challenge.
+    let game_id = server.create_challenge().await;
 
     // White (non-creator) tries to abort via WS
     let mut ws_white = server.ws_white().await;
@@ -141,8 +141,8 @@ async fn only_creator_can_abort_pending_challenge() {
 async fn creator_can_abort_pending_challenge() {
     let server = TestServer::start().await;
 
-    // Black creates, white joins
-    let game_id = server.create_and_join().await;
+    // Black creates a pending direct challenge.
+    let game_id = server.create_challenge().await;
 
     // Black (creator) can abort
     let mut ws_black = server.ws_black().await;

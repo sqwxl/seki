@@ -5,6 +5,7 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::models::game::Game;
+use crate::models::pregame_settings::PregameSettingsNegotiation;
 use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::push::{PushNotificationData, PushPayload, PushService};
@@ -99,6 +100,14 @@ pub async fn send_initial_state(
     };
 
     let clock_ref = clock_data.as_ref().map(|(clock, tc)| (clock, tc));
+    let pregame_settings = if gwp.game.stage == "unstarted" {
+        PregameSettingsNegotiation::find(&state.db, game_id)
+            .await
+            .ok()
+            .flatten()
+    } else {
+        None
+    };
 
     // Load settled territory for finished games
     let settled_territory = if gwp.game.result.is_some() && territory.is_none() {
@@ -117,6 +126,7 @@ pub async fn send_initial_state(
         undo_requested,
         territory.as_ref(),
         settled_territory.as_ref(),
+        pregame_settings.as_ref(),
         clock_ref,
     );
 
@@ -231,10 +241,22 @@ pub async fn handle_message(
         "respond_to_undo" => handle_respond_to_undo(state, game_id, player_id, data).await,
         "toggle_chain" => handle_toggle_chain(state, game_id, player_id, data).await,
         "approve_territory" => game_actions::approve_territory(state, game_id, player_id).await,
+        "update_pregame_settings" => {
+            handle_update_pregame_settings(state, game_id, player_id, data).await
+        }
+        "accept_pregame_settings" => {
+            game_actions::accept_pregame_settings(state, game_id, player_id).await
+        }
+        "reject_pregame_settings" => {
+            game_actions::reject_pregame_settings(state, game_id, player_id).await
+        }
         "claim_victory" => game_actions::claim_victory(state, game_id, player_id).await,
         "timeout_flag" => game_actions::handle_timeout_flag(state, game_id, player_id).await,
         "territory_timeout_flag" => {
             game_actions::handle_territory_timeout_flag(state, game_id, player_id).await
+        }
+        "pregame_settings_timeout_flag" => {
+            game_actions::handle_pregame_settings_timeout_flag(state, game_id, player_id).await
         }
         "start_presentation" => {
             presentation_actions::start_presentation(state, game_id, player_id).await
@@ -285,6 +307,30 @@ pub async fn handle_message(
             .to_string(),
         );
     }
+}
+
+async fn handle_update_pregame_settings(
+    state: &AppState,
+    game_id: i64,
+    player_id: i64,
+    data: &serde_json::Value,
+) -> Result<(), crate::error::AppError> {
+    let handicap = data
+        .get("handicap")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| {
+            crate::error::AppError::UnprocessableEntity("Missing handicap".to_string())
+        })? as i32;
+    let komi = data
+        .get("komi")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing komi".to_string()))?;
+    let color = data
+        .get("color")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing color".to_string()))?
+        .to_string();
+    game_actions::update_pregame_settings(state, game_id, player_id, handicap, komi, color).await
 }
 
 async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i64, action: &str) {

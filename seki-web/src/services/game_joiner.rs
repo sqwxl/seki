@@ -4,6 +4,7 @@ use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::game::GameWithPlayers;
+use crate::models::pregame_settings::PregameSettingsNegotiation;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::services::rating::{self, RatingCalibrationPolicy};
@@ -19,10 +20,18 @@ pub async fn join_open_game(
         ));
     }
 
-    if gwp.game.ranked {
+    let joiner_profile = if gwp.game.ranked
+        || !gwp.game.rating_difference_lower_unlimited
+        || !gwp.game.rating_difference_higher_unlimited
+    {
         let profile = RatingProfile::find(pool, user.id).await?;
-        rating::can_join_ranked(user, profile.as_ref())?;
-    }
+        if gwp.game.ranked {
+            rating::can_join_ranked(user, profile.as_ref())?;
+        }
+        profile
+    } else {
+        None
+    };
 
     if gwp.game.open_to.as_deref() == Some("registered") && !user.is_registered() {
         return Err(AppError::UnprocessableEntity(
@@ -43,8 +52,58 @@ pub async fn join_open_game(
         gwp.game.white_id
     };
 
+    if !gwp.game.ranked
+        && (!gwp.game.rating_difference_lower_unlimited
+            || !gwp.game.rating_difference_higher_unlimited)
+        && let Some(creator_id) = gwp.game.creator_id
+        && let (Some(creator_profile), Some(joiner_profile)) = (
+            RatingProfile::find(pool, creator_id).await?,
+            joiner_profile.as_ref(),
+        )
+        && !rating::game_rating_range_allows(
+            &gwp.game,
+            creator_profile.rating,
+            joiner_profile.rating,
+        )
+    {
+        return Err(AppError::UnprocessableEntity(
+            "This game is outside the allowed rating range".to_string(),
+        ));
+    }
+
     let mut swap_for_ranked = false;
     let ranked_settings = if gwp.game.ranked {
+        if !gwp.game.rating_difference_lower_unlimited
+            || !gwp.game.rating_difference_higher_unlimited
+        {
+            let Some(creator_id) = gwp.game.creator_id else {
+                return Err(AppError::UnprocessableEntity(
+                    "Ranked open games require a creator".to_string(),
+                ));
+            };
+            let creator_profile = RatingProfile::find(pool, creator_id).await?;
+            let Some(joiner_profile) = joiner_profile.as_ref() else {
+                return Err(AppError::UnprocessableEntity(
+                    "Ranked games require player ratings".to_string(),
+                ));
+            };
+            let Some(creator_profile) = creator_profile.as_ref() else {
+                return Err(AppError::UnprocessableEntity(
+                    "Ranked games require player ratings".to_string(),
+                ));
+            };
+
+            if !rating::game_rating_range_allows(
+                &gwp.game,
+                creator_profile.rating,
+                joiner_profile.rating,
+            ) {
+                return Err(AppError::UnprocessableEntity(
+                    "This game is outside the allowed rating range".to_string(),
+                ));
+            }
+        }
+
         let (black_id, white_id) = match (black_after_join, white_after_join) {
             (Some(black_id), Some(white_id)) => (black_id, white_id),
             _ => {
@@ -88,7 +147,7 @@ pub async fn join_open_game(
         Game::swap_players(&mut *tx, gwp.game.id).await?;
     }
 
-    if gwp.game.stage == "unstarted" {
+    if gwp.game.stage == "unstarted" && gwp.game.ranked {
         let handicap = ranked_settings
             .as_ref()
             .map_or(gwp.game.handicap, |settings| settings.handicap);
@@ -98,20 +157,19 @@ pub async fn join_open_game(
             "black_to_play"
         };
         Game::set_stage(&mut *tx, gwp.game.id, start_stage).await?;
+    } else if gwp.game.stage == "unstarted" {
+        let (handicap, komi, color) =
+            initial_unrated_pregame_settings(pool, &gwp.game, black_after_join, white_after_join)
+                .await?;
+        PregameSettingsNegotiation::upsert_initial(&mut *tx, gwp.game.id, handicap, komi, &color)
+            .await?;
     }
 
     tx.commit().await?;
 
     if let (Some(b_id), Some(w_id)) = (black_after_join, white_after_join)
-        && let Err(e) = rating::capture_ranked_snapshot(
-            pool,
-            gwp.game.id,
-            b_id,
-            w_id,
-            gwp.game.max_handicap,
-            gwp.game.ranked,
-        )
-        .await
+        && let Err(e) =
+            rating::capture_ranked_snapshot(pool, gwp.game.id, b_id, w_id, gwp.game.ranked).await
     {
         tracing::warn!(
             game_id = gwp.game.id,
@@ -121,4 +179,34 @@ pub async fn join_open_game(
     }
 
     Ok(())
+}
+
+async fn initial_unrated_pregame_settings(
+    pool: &DbPool,
+    game: &Game,
+    black_id: Option<i64>,
+    white_id: Option<i64>,
+) -> Result<(i32, f64, String), AppError> {
+    let (Some(black_id), Some(white_id)) = (black_id, white_id) else {
+        return Ok((0, 6.5, "black".to_string()));
+    };
+    let (black_profile, white_profile) = tokio::try_join!(
+        RatingProfile::find(pool, black_id),
+        RatingProfile::find(pool, white_id),
+    )?;
+    let (Some(black_profile), Some(white_profile)) = (black_profile, white_profile) else {
+        return Ok((0, 6.5, "black".to_string()));
+    };
+
+    let settings = RatingCalibrationPolicy::default()
+        .ranked_settings(black_profile.rating, white_profile.rating);
+    let creator_is_black = game.creator_id == Some(black_id);
+    let color = match settings.color_reason.as_str() {
+        "exact_rating_random" => "random".to_string(),
+        "lower_rating_black" | "higher_rating_black" if creator_is_black => "black".to_string(),
+        "lower_rating_black" | "higher_rating_black" => "white".to_string(),
+        _ => "black".to_string(),
+    };
+
+    Ok((settings.handicap, settings.komi, color))
 }

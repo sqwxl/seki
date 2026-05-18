@@ -124,8 +124,8 @@ pub async fn abort(state: &AppState, game_id: i64, player_id: i64) -> Result<(),
         ));
     }
 
-    // Only creator can abort before first move
-    if gwp.game.creator_id != Some(player_id) {
+    let started = gwp.game.stage == "black_to_play" || gwp.game.stage == "white_to_play";
+    if !started && gwp.game.creator_id != Some(player_id) {
         return Err(AppError::UnprocessableEntity(
             "Only the game creator can abort".to_string(),
         ));

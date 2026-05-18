@@ -28,7 +28,33 @@ pub struct CreateGameParams {
     pub byoyomi_periods: Option<i32>,
     pub open_to: Option<String>,
     pub ranked: bool,
-    pub max_handicap: Option<i32>,
+    pub rating_range: RatingRangePreference,
+    pub open_game: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RatingRangePreference {
+    Unlimited,
+    Absolute(i32),
+}
+
+impl RatingRangePreference {
+    pub fn validate(&self) -> Result<(), AppError> {
+        match self {
+            Self::Unlimited => Ok(()),
+            Self::Absolute(value) if *value >= 0 => Ok(()),
+            Self::Absolute(_) => Err(AppError::UnprocessableEntity(
+                "Max rating difference cannot be negative".to_string(),
+            )),
+        }
+    }
+
+    pub fn db_values(&self) -> (&'static str, Option<i32>, Option<i32>, bool, bool) {
+        match self {
+            Self::Unlimited => ("unlimited", None, None, true, true),
+            Self::Absolute(value) => ("absolute", Some(*value), Some(*value), false, false),
+        }
+    }
 }
 
 pub async fn create_game(
@@ -42,6 +68,8 @@ pub async fn create_game(
             "Komi must be a half-integer (e.g. 0.5, 6.5, -3.5)".to_string(),
         ));
     }
+
+    params.rating_range.validate()?;
 
     // Board size validation
     if params.cols < 2 || params.cols > 41 {
@@ -159,6 +187,14 @@ pub async fn create_game(
     );
     let initial_clock = ClockState::new(&tc);
 
+    let (
+        rating_range_mode,
+        max_rating_difference_lower,
+        max_rating_difference_higher,
+        lower_unlimited,
+        higher_unlimited,
+    ) = params.rating_range.db_values();
+
     let game = Game::create(
         pool,
         creator.id,
@@ -185,7 +221,11 @@ pub async fn create_game(
         params.open_to.as_deref(),
         invite_only,
         params.ranked,
-        params.max_handicap,
+        rating_range_mode,
+        max_rating_difference_lower,
+        max_rating_difference_higher,
+        lower_unlimited,
+        higher_unlimited,
     )
     .await?;
 
@@ -196,7 +236,6 @@ pub async fn create_game(
             game.id,
             black_id.unwrap(),
             white_id.unwrap(),
-            None,
             params.ranked,
         )
         .await

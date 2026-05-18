@@ -14,6 +14,7 @@ import type {
   GameStage,
   GameState,
   InitialGameProps,
+  PregameSettingsData,
   PresentationStartedMessage,
   ScoreData,
   SettledTerritoryData,
@@ -72,6 +73,9 @@ export const black = signal<UserData | undefined>(undefined);
 export const white = signal<UserData | undefined>(undefined);
 export const result = signal<string | null>(null);
 export const territory = signal<TerritoryData | undefined>(undefined);
+export const pregameSettings = signal<PregameSettingsData | undefined>(
+  undefined,
+);
 export const settledTerritory = signal<SettledTerritoryData | undefined>(
   undefined,
 );
@@ -92,6 +96,8 @@ export type PendingActionId =
   | "accept-challenge"
   | "decline-challenge"
   | "join-game"
+  | "accept-pregame-settings"
+  | "reject-pregame-settings"
   | "start-presentation"
   | "end-presentation"
   | "give-control"
@@ -253,6 +259,7 @@ export function initGameState(
 export function resetGameRuntimeState(): void {
   batch(() => {
     territory.value = undefined;
+    pregameSettings.value = undefined;
     settledTerritory.value = undefined;
     onlineUsers.value = new Map();
     nigiri.value = false;
@@ -364,6 +371,7 @@ export function applyGameStateMessage(data: StateMessage): void {
 
     result.value = data.result;
     territory.value = data.territory;
+    pregameSettings.value = data.negotiations?.pregame_settings;
     settledTerritory.value = data.settled_territory;
 
     if (data.can_start_presentation != null) {

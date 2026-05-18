@@ -159,6 +159,56 @@ impl RatingCalibrationPolicy {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RatingDirection {
+    Lower,
+    Higher,
+}
+
+pub fn directional_rank_steps(creator_rating: f64, joiner_rating: f64) -> (RatingDirection, i32) {
+    let direction = if joiner_rating < creator_rating {
+        RatingDirection::Lower
+    } else {
+        RatingDirection::Higher
+    };
+    let steps = RatingCalibrationPolicy::default().handicap_steps(joiner_rating - creator_rating);
+    (direction, steps)
+}
+
+pub fn ranked_open_join_allowed(
+    creator_rating: f64,
+    joiner_rating: f64,
+    lower_unlimited: bool,
+    lower_limit: Option<i32>,
+    higher_unlimited: bool,
+    higher_limit: Option<i32>,
+) -> bool {
+    let (direction, steps) = directional_rank_steps(creator_rating, joiner_rating);
+    match direction {
+        RatingDirection::Lower => {
+            lower_unlimited || lower_limit.is_some_and(|limit| steps <= limit)
+        }
+        RatingDirection::Higher => {
+            higher_unlimited || higher_limit.is_some_and(|limit| steps <= limit)
+        }
+    }
+}
+
+pub fn game_rating_range_allows(game: &Game, creator_rating: f64, joiner_rating: f64) -> bool {
+    if game.rating_difference_lower_unlimited && game.rating_difference_higher_unlimited {
+        return true;
+    }
+
+    ranked_open_join_allowed(
+        creator_rating,
+        joiner_rating,
+        game.rating_difference_lower_unlimited,
+        game.max_rating_difference_lower,
+        game.rating_difference_higher_unlimited,
+        game.max_rating_difference_higher,
+    )
+}
+
 pub fn profile_to_rating(profile: &RatingProfile) -> Glicko2Rating {
     Glicko2Rating {
         rating: profile.rating,
@@ -194,7 +244,6 @@ pub async fn capture_ranked_snapshot(
     game_id: i64,
     black_id: i64,
     white_id: i64,
-    max_handicap: Option<i32>,
     ranked: bool,
 ) -> Result<(), AppError> {
     if ranked {
@@ -204,10 +253,7 @@ pub async fn capture_ranked_snapshot(
         )?;
 
         let policy = RatingCalibrationPolicy::default();
-        let mut settings = policy.ranked_settings(black_profile.rating, white_profile.rating);
-        if let Some(max) = max_handicap {
-            settings.handicap = settings.handicap.min(max);
-        }
+        let settings = policy.ranked_settings(black_profile.rating, white_profile.rating);
 
         let snapshot = RankedGameSnapshotUpdate {
             ranked: true,
@@ -221,7 +267,6 @@ pub async fn capture_ranked_snapshot(
             derived_komi: Some(settings.komi),
             derived_color_reason: Some(settings.color_reason),
             calibration_policy_version: Some(settings.calibration_policy_version),
-            max_handicap,
         };
 
         Game::set_ranked_snapshot(pool, game_id, &snapshot).await?;
@@ -248,7 +293,6 @@ pub async fn capture_ranked_snapshot(
             derived_komi: None,
             derived_color_reason: None,
             calibration_policy_version: None,
-            max_handicap: None,
         };
 
         Game::set_ranked_snapshot(pool, game_id, &snapshot).await?;
@@ -518,5 +562,49 @@ mod tests {
         assert_eq!(even.komi, 6.5);
         assert_eq!(handicap.handicap, 3);
         assert_eq!(handicap.komi, 0.5);
+    }
+
+    #[test]
+    fn ranked_open_join_allowed_uses_rank_steps() {
+        assert!(ranked_open_join_allowed(
+            1500.0,
+            1500.0,
+            false,
+            Some(0),
+            false,
+            Some(0)
+        ));
+        assert!(ranked_open_join_allowed(
+            1500.0,
+            1599.0,
+            false,
+            Some(0),
+            false,
+            Some(0)
+        ));
+        assert!(ranked_open_join_allowed(
+            1500.0,
+            1599.0,
+            false,
+            Some(0),
+            false,
+            Some(1)
+        ));
+        assert!(!ranked_open_join_allowed(
+            1500.0,
+            1700.0,
+            false,
+            Some(9),
+            false,
+            Some(1)
+        ));
+        assert!(ranked_open_join_allowed(
+            1500.0,
+            1700.0,
+            false,
+            Some(0),
+            true,
+            None
+        ));
     }
 }

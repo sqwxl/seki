@@ -10,6 +10,14 @@ export type GameChannel = {
   acceptUndo(): void;
   rejectUndo(): void;
   approveTerritory(): void;
+  updatePregameSettings(settings: {
+    handicap: number;
+    komi: number;
+    color: "black" | "white" | "random";
+  }): void;
+  acceptPregameSettings(): void;
+  rejectPregameSettings(): void;
+  pregameSettingsTimeoutFlag(): void;
   abort(): void;
   claimVictory(): void;
   acceptChallenge(): void;
@@ -75,6 +83,18 @@ export function createGameChannel(
     },
     approveTerritory() {
       gameSend({ action: "approve_territory" });
+    },
+    updatePregameSettings(settings) {
+      gameSend({ action: "update_pregame_settings", ...settings });
+    },
+    acceptPregameSettings() {
+      gameSend({ action: "accept_pregame_settings" });
+    },
+    rejectPregameSettings() {
+      gameSend({ action: "reject_pregame_settings" });
+    },
+    pregameSettingsTimeoutFlag() {
+      gameSend({ action: "pregame_settings_timeout_flag" });
     },
     abort() {
       gameSend({ action: "abort" });

@@ -501,30 +501,45 @@ export function ColorPreviewField({
   );
 }
 
-export function MaxHandicapField<
-  T extends BaseGameSettings & { maxHandicap: number },
+export function MaxRatingDifferenceField<
+  T extends BaseGameSettings & { maxRatingDifference: number },
 >({ s, set }: { s: T; set: GameSettingsSetter<T> }) {
   return (
     <div>
-      <label for="max_handicap">
-        <IconPlus /> Max handicap
+      <label for="max_rating_difference">
+        <IconPlus /> Max rating difference
       </label>
       <input
         type="range"
-        name="max_handicap"
-        id="max_handicap"
+        id="max_rating_difference"
         min={0}
-        max={9}
+        max={40}
         step={1}
-        value={s.maxHandicap}
-        onChange={(e) =>
+        value={s.maxRatingDifference}
+        onInput={(e) =>
           set(
-            "maxHandicap",
-            parseInt(e.currentTarget.value, 10) as T["maxHandicap"],
+            "maxRatingDifference",
+            parseInt(e.currentTarget.value, 10) as T["maxRatingDifference"],
           )
         }
       />
-      <span class="form-help">{s.maxHandicap} stones</span>
+      <input
+        type="hidden"
+        name="rating_range_mode"
+        value={s.maxRatingDifference >= 40 ? "unlimited" : "absolute"}
+      />
+      {s.maxRatingDifference < 40 && (
+        <input
+          type="hidden"
+          name="max_rating_difference"
+          value={s.maxRatingDifference}
+        />
+      )}
+      <span class="form-help">
+        {s.maxRatingDifference >= 40
+          ? "Unlimited"
+          : `${s.maxRatingDifference} rank steps`}
+      </span>
     </div>
   );
 }

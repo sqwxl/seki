@@ -19,9 +19,6 @@ async fn ranked_api_create_persists_ranked_status_and_profile() {
         .header("Authorization", "Bearer test-black-api-token-12345")
         .json(&json!({
             "cols": 9,
-            "komi": 6.5,
-            "handicap": 0,
-            "color": "black",
             "ranked": true,
             "open_to": "registered",
             "time_control": "fischer",
@@ -910,7 +907,7 @@ async fn game_list_filters_by_rating_range() {
 }
 
 #[tokio::test]
-async fn ranked_open_game_caps_handicap_by_max_handicap() {
+async fn ranked_open_game_rejects_out_of_range_joiner() {
     let server = common::TestServer::start().await;
 
     sqlx::query(
@@ -935,23 +932,25 @@ async fn ranked_open_game_caps_handicap_by_max_handicap() {
     let game_id = server
         .create_game_with(json!({"ranked": true, "open_to": "registered"}))
         .await;
-    sqlx::query("UPDATE games SET max_handicap = 3 WHERE id = $1")
-        .bind(game_id)
-        .execute(&server.pool)
+    sqlx::query(
+        "UPDATE games SET rating_range_mode = 'absolute', \
+         max_rating_difference_lower = 3, max_rating_difference_higher = 3, \
+         rating_difference_lower_unlimited = false, rating_difference_higher_unlimited = false \
+         WHERE id = $1",
+    )
+    .bind(game_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/join", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .json(&serde_json::json!({}))
+        .send()
         .await
         .unwrap();
 
-    server.join_game(game_id).await;
-
-    let handicap: i32 =
-        sqlx::query_scalar("SELECT COALESCE(derived_handicap, handicap) FROM games WHERE id = $1")
-            .bind(game_id)
-            .fetch_one(&server.pool)
-            .await
-            .unwrap();
-
-    assert!(
-        handicap <= 3,
-        "handicap {handicap} should be capped at max_handicap 3"
-    );
+    assert_eq!(resp.status(), 422);
 }

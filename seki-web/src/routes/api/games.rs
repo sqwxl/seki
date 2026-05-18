@@ -7,6 +7,7 @@ use utoipa::ToSchema;
 use crate::AppState;
 use crate::error::{ApiError, ApiErrorResponse, AppError};
 use crate::models::game::Game;
+use crate::services::game_creator::RatingRangePreference;
 use crate::services::live::build_live_items;
 use crate::services::{game_creator, game_joiner};
 use crate::session::{ApiUser, OptionalApiUser};
@@ -53,14 +54,17 @@ pub(crate) struct CreateGameRequest {
     cols: i32,
     #[serde(default)]
     rows: Option<i32>,
-    komi: f64,
-    handicap: i32,
+    #[serde(default)]
+    komi: Option<f64>,
+    #[serde(default)]
+    handicap: Option<i32>,
     /// Hide the game from non-participants unless they have the access token.
     #[serde(default)]
     is_private: bool,
     #[serde(default = "default_true")]
     allow_undo: bool,
-    color: String,
+    #[serde(default)]
+    color: Option<String>,
     /// Send an invite link by email. If the email matches an account, this becomes a direct challenge.
     #[serde(default)]
     invite_email: Option<String>,
@@ -81,6 +85,10 @@ pub(crate) struct CreateGameRequest {
     open_to: Option<String>,
     #[serde(default)]
     ranked: bool,
+    #[serde(default)]
+    rating_range_mode: Option<String>,
+    #[serde(default)]
+    max_rating_difference: Option<i32>,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -132,14 +140,53 @@ pub(super) async fn create_game(
     Json(body): Json<CreateGameRequest>,
 ) -> Result<(axum::http::StatusCode, Json<GameResponse>), ApiError> {
     let invite_email = body.invite_email.clone();
+    let is_open = body
+        .invite_email
+        .as_ref()
+        .is_none_or(|email| email.is_empty())
+        && body
+            .invite_username
+            .as_ref()
+            .is_none_or(|username| username.is_empty());
+    if is_open && (body.komi.is_some() || body.handicap.is_some() || body.color.is_some()) {
+        return Err(AppError::UnprocessableEntity(
+            "Open games derive handicap, komi, and color after an opponent joins".to_string(),
+        )
+        .into());
+    }
+    let rating_range = if is_open && body.rating_range_mode.as_deref() == Some("absolute") {
+        RatingRangePreference::Absolute(body.max_rating_difference.ok_or_else(|| {
+            AppError::UnprocessableEntity("Missing max_rating_difference".to_string())
+        })?)
+    } else if is_open && body.max_rating_difference.is_some() {
+        RatingRangePreference::Absolute(body.max_rating_difference.unwrap())
+    } else {
+        RatingRangePreference::Unlimited
+    };
+
     let params = game_creator::CreateGameParams {
         cols: body.cols,
         rows: body.rows.unwrap_or(body.cols),
-        komi: body.komi,
-        handicap: body.handicap,
+        komi: if is_open {
+            6.5
+        } else {
+            body.komi
+                .ok_or_else(|| AppError::UnprocessableEntity("Missing komi".to_string()))?
+        },
+        handicap: if is_open {
+            0
+        } else {
+            body.handicap
+                .ok_or_else(|| AppError::UnprocessableEntity("Missing handicap".to_string()))?
+        },
         is_private: body.is_private,
         allow_undo: body.allow_undo,
-        color: body.color,
+        color: if is_open {
+            "black".to_string()
+        } else {
+            body.color
+                .ok_or_else(|| AppError::UnprocessableEntity("Missing color".to_string()))?
+        },
         invite_email: body.invite_email,
         invite_username: body.invite_username,
         time_control: body.time_control.unwrap_or_default(),
@@ -149,7 +196,8 @@ pub(super) async fn create_game(
         byoyomi_periods: body.byoyomi_periods,
         open_to: body.open_to,
         ranked: body.ranked,
-        max_handicap: None,
+        rating_range,
+        open_game: is_open,
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;

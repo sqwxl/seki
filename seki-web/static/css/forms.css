@@ -88,7 +88,6 @@ input[type="radio"] {
   align-items: center;
   gap: 0.25em;
   text-align: center;
-  max-width: 16em;
   z-index: 250;
 }
 
@@ -114,7 +113,12 @@ input[type="radio"] {
   padding: 1rem;
 }
 
+.popover-surface,
 .confirm-popover-modal > .confirm-popover {
+  width: max-content;
+  max-width: calc(100vw - (var(--viewport-padding) * 2));
+  max-height: calc(100vh - (var(--viewport-padding) * 2));
+  overflow: auto;
   pointer-events: auto;
   padding: 0.75em;
   border: 1px solid var(--border);
