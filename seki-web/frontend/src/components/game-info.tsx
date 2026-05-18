@@ -82,13 +82,17 @@ export function GameInfo(props: GameInfoProps) {
   }
 
   // Detail popover rows
-  const statusText = getStatusText({
+  let statusText = getStatusText({
     stage: props.stage,
     result: props.result,
     komi,
     estimateScore: props.estimateScore,
     territoryScore: props.territory?.score,
   });
+
+  if (props.stage === GameStage.Aborted) {
+    statusText = `${statusText} (no effect on rating)`;
+  }
 
   const score =
     props.estimateScore ??

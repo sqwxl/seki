@@ -154,23 +154,30 @@ function LiveGameStatusSlot(
     estimateMode.value || boardFinalized.value
       ? (estimateScore.value ?? finalizedScore)
       : undefined;
+
   useEffect(() => {
     const expiresAt = pregameSettings.value?.expires_at;
+
     if (!expiresAt) {
       return;
     }
+
     const delay = Math.max(0, new Date(expiresAt).getTime() - Date.now() + 250);
     const id = window.setTimeout(
       () => props.channel.pregameSettingsTimeoutFlag(),
       delay,
     );
+
     return () => window.clearTimeout(id);
   }, [pregameSettings.value?.expires_at, props.channel]);
 
   return (
     <>
       {fullStatusText && (
-        <GameStatus text={fullStatusText}>
+        <GameStatus
+          text={fullStatusText}
+          warn={infoStage === GameStage.Aborted}
+        >
           <GameInfo
             settings={initialProps.value.settings}
             komi={initialProps.value.komi}

@@ -1,3 +1,4 @@
+import classNames from "classnames";
 import type { ComponentChildren, ComponentType } from "preact";
 import type { ScoreData } from "../game/types";
 import { GameStage } from "../game/types";
@@ -7,13 +8,16 @@ export type GameStatusProps = {
   icon?: ComponentType;
   text: string;
   children?: ComponentChildren;
+  warn?: boolean;
 };
 
 export function GameStatus(props: GameStatusProps) {
   const Icon = props.icon;
 
+  const cl = classNames("game-status", props.warn ? "fg-red" : null);
+
   return (
-    <div class="game-status">
+    <div class={cl}>
       {Icon && <Icon />}
       <span>{props.text}</span>
       {props.children}
