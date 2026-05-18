@@ -8,6 +8,26 @@ export function isPushSupported(): boolean {
   return "serviceWorker" in navigator && "PushManager" in window;
 }
 
+async function getServiceWorkerRegistration(): Promise<
+  ServiceWorkerRegistration | undefined
+> {
+  if (!("serviceWorker" in navigator)) {
+    return undefined;
+  }
+
+  const existing = await navigator.serviceWorker.getRegistration("/");
+
+  if (existing) {
+    return existing;
+  }
+
+  try {
+    return await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  } catch {
+    return undefined;
+  }
+}
+
 export async function getVapidPublicKey(): Promise<string | undefined> {
   try {
     const response = await fetch("/api/web/vapid-public-key", {
@@ -39,7 +59,12 @@ export async function subscribeToPush(): Promise<
     return undefined;
   }
 
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getServiceWorkerRegistration();
+
+  if (!registration) {
+    return undefined;
+  }
+
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(vapidKey),
@@ -80,9 +105,12 @@ export async function unsubscribePush(
   subscriptionId?: number,
 ): Promise<boolean> {
   if (isPushSupported()) {
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    await subscription?.unsubscribe();
+    const registration = await getServiceWorkerRegistration();
+
+    if (registration) {
+      const subscription = await registration.pushManager.getSubscription();
+      await subscription?.unsubscribe();
+    }
   }
 
   if (!subscriptionId) {

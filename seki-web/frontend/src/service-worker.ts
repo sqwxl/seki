@@ -3,8 +3,6 @@ const CACHE_NAME = "seki-v4";
 const NETWORK_ONLY_PATHS = ["/static/css/", "/static/dist/", "/static/wasm/"];
 const CACHE_FIRST_PATHS = ["/static/images/", "/static/sounds/"];
 
-declare const __DEV__: string;
-
 self.addEventListener("install", () => {
   // The SPA shell embeds user-specific bootstrap data, so do not precache it.
   self.skipWaiting();

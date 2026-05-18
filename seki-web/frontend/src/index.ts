@@ -2,8 +2,6 @@ import { mountApp } from "./app";
 
 mountApp();
 
-declare const __DEV__: string;
-
 if (__DEV__) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     for (const reg of registrations) {
