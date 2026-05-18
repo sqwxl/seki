@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/seki-web/frontend"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-$ROOT_DIR/dist/deploy}"
+PACKAGE_OUTPUT_FILE="${PACKAGE_OUTPUT_FILE:-}"
 BUILD_TARGET="aarch64-unknown-linux-gnu"
 TOOLBOX_CONTAINER="seki-build"
 GIT_SHA="$(git -C "$ROOT_DIR" rev-parse --short HEAD)"
@@ -85,5 +86,9 @@ cp "$BIN_PATH" "$STAGE_DIR/bin/seki-web"
 cp -R "$ROOT_DIR/seki-web/static" "$STAGE_DIR/static"
 
 tar -C "$STAGE_DIR" -czf "$ARTIFACTS_DIR/$ARCHIVE_BASENAME.tar.gz" .
+
+if [[ -n "$PACKAGE_OUTPUT_FILE" ]]; then
+    printf '%s\n' "$ARTIFACTS_DIR/$ARCHIVE_BASENAME.tar.gz" >"$PACKAGE_OUTPUT_FILE"
+fi
 
 echo "$ARTIFACTS_DIR/$ARCHIVE_BASENAME.tar.gz"

@@ -6,16 +6,15 @@ APP_DIR="${APP_DIR:-}"
 SERVICE_NAME="${SERVICE_NAME:-seki}"
 REMOTE_TMP_DIR="${REMOTE_TMP_DIR:-seki-deploy}"
 DEPLOY_HOST="${DEPLOY_HOST:-nilueps@pi.local}"
-PACKAGE_OUTPUT_FILE="$(mktemp)"
+PACKAGE_OUTPUT_FILE="$(mktemp /tmp/seki-package-output.XXXXXX)"
 trap 'rm -f "$PACKAGE_OUTPUT_FILE"' EXIT
 
-if ! "$ROOT_DIR/scripts/package-release.sh" >"$PACKAGE_OUTPUT_FILE"; then
+if ! PACKAGE_OUTPUT_FILE="$PACKAGE_OUTPUT_FILE" "$ROOT_DIR/scripts/package-release.sh"; then
     echo "Release packaging failed" >&2
     exit 1
 fi
 
-mapfile -t PACKAGE_OUTPUT <"$PACKAGE_OUTPUT_FILE"
-ARCHIVE_PATH="${PACKAGE_OUTPUT[-1]:-}"
+ARCHIVE_PATH="$(<"$PACKAGE_OUTPUT_FILE")"
 if [[ -z "$ARCHIVE_PATH" || ! -f "$ARCHIVE_PATH" ]]; then
     echo "Failed to resolve release archive path from package-release.sh output" >&2
     exit 1
@@ -35,12 +34,16 @@ scp \
     "$ARCHIVE_PATH" \
     "$ROOT_DIR/scripts/setup-runtime-service.sh" \
     "$ROOT_DIR/scripts/install-release.sh" \
+    "$ROOT_DIR/scripts/verify-release.sh" \
     "$DEPLOY_HOST:$REMOTE_TMP_DIR/"
 
 echo "Installing release on $DEPLOY_HOST"
 ssh "$DEPLOY_HOST" \
-    "chmod +x '$REMOTE_TMP_DIR/setup-runtime-service.sh' '$REMOTE_TMP_DIR/install-release.sh' && \
+    "chmod +x '$REMOTE_TMP_DIR/setup-runtime-service.sh' '$REMOTE_TMP_DIR/install-release.sh' '$REMOTE_TMP_DIR/verify-release.sh' && \
      $REMOTE_ENV_PREFIX bash '$REMOTE_TMP_DIR/setup-runtime-service.sh' && \
      $REMOTE_ENV_PREFIX RELEASE_ID='$RELEASE_ID' bash '$REMOTE_TMP_DIR/install-release.sh' '$REMOTE_ARCHIVE_PATH'"
+
+echo "Verifying release $RELEASE_ID on $DEPLOY_HOST"
+ssh "$DEPLOY_HOST" "bash '$REMOTE_TMP_DIR/verify-release.sh' '$RELEASE_ID'"
 
 echo "Deployed release $RELEASE_ID to $DEPLOY_HOST"

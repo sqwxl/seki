@@ -1,5 +1,4 @@
 use axum::extract::Request;
-use axum::routing::post;
 use std::net::SocketAddr;
 use tower::Layer as _;
 use tower_http::normalize_path::NormalizePathLayer;
@@ -35,8 +34,10 @@ async fn main() {
     let app = {
         let reload_layer = tower_livereload::LiveReloadLayer::new();
         seki_web::RELOADER.set(reload_layer.reloader()).ok();
-        app.layer(reload_layer)
-            .route("/__reload", post(seki_web::routes::reload::trigger))
+        app.layer(reload_layer).route(
+            "/__reload",
+            axum::routing::post(seki_web::routes::reload::trigger),
+        )
     };
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());

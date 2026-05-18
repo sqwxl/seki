@@ -22,6 +22,7 @@ Type=simple
 WorkingDirectory=$APP_DIR/current
 Environment=STATIC_DIR=$APP_DIR/current/static
 EnvironmentFile=$ENV_FILE
+EnvironmentFile=-$APP_DIR/current/release.env
 ExecStart=$APP_DIR/current/bin/seki-web
 Restart=always
 RestartSec=3

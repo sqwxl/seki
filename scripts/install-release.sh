@@ -10,6 +10,9 @@ CURRENT_LINK="$APP_DIR/current"
 
 mkdir -p "$RELEASE_DIR"
 tar -xzf "$ARCHIVE_PATH" -C "$RELEASE_DIR"
+cat >"$RELEASE_DIR/release.env" <<EOF
+RELEASE_ID=$RELEASE_ID
+EOF
 ln -sfn "$RELEASE_DIR" "$CURRENT_LINK"
 
 if systemctl --user is-active --quiet "$SERVICE_NAME.service"; then

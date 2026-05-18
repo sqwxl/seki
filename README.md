@@ -68,6 +68,7 @@ Notes:
 - The deploy build always targets the Pi's `aarch64-unknown-linux-gnu` architecture.
 - The Rust release build always runs inside the `seki-build` Ubuntu 24.04 toolbox, and the script will create it if needed.
 - The script provisions `crossbuild-essential-arm64` and `pkg-config` inside the toolbox automatically and runs `rustup target add aarch64-unknown-linux-gnu` there.
+- After install, the deploy script waits for `/up` to report the new `RELEASE_ID`, which avoids a false success if an older process is still serving traffic.
 - The frontend, WASM, and tarball packaging steps still run on the host, so your host still needs `pnpm` and `wasm-pack`.
 - On Bluefin, the intended deploy command is now just: `./scripts/deploy-prebuilt.sh`
 
