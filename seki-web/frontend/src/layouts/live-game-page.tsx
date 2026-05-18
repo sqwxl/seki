@@ -215,6 +215,7 @@ function LiveGameStatusSlot(
           allowUndo={allowUndo.value}
           disabled={playerStone.value === 0}
           playerStone={playerStone.value}
+          isCreator={currentUserId.value === initialProps.value.creator_id}
           pendingAction={pendingPregameAction}
           onUpdate={(settings) => props.channel.updatePregameSettings(settings)}
           onAccept={() => {

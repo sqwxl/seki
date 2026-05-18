@@ -196,6 +196,7 @@ export function PregameSettingsPopover({
   allowUndo,
   disabled,
   playerStone,
+  isCreator,
   pendingAction,
   onUpdate,
   onAccept,
@@ -207,6 +208,7 @@ export function PregameSettingsPopover({
   allowUndo: boolean;
   disabled: boolean;
   playerStone: number;
+  isCreator: boolean;
   pendingAction?: "accept" | "reject";
   onUpdate: (settings: {
     handicap: number;
@@ -247,6 +249,15 @@ export function PregameSettingsPopover({
       color: patch.color ?? pregame.color,
     });
   };
+  const colorLabel = (value: "black" | "white" | "random") => {
+    if (value === "random") {
+      return "Random";
+    }
+    if (!isCreator) {
+      return value === "black" ? "White" : "Black";
+    }
+    return value === "black" ? "Black" : "White";
+  };
 
   return (
     <ConfirmModal open dismissible={false}>
@@ -284,7 +295,7 @@ export function PregameSettingsPopover({
               }
             />
           </dd>
-          <dt>Color</dt>
+          <dt>Your color</dt>
           <dd>
             <select
               value={pregame.color}
@@ -295,9 +306,9 @@ export function PregameSettingsPopover({
                 })
               }
             >
-              <option value="black">Creator Black</option>
-              <option value="white">Creator White</option>
-              <option value="random">Random</option>
+              <option value="black">{colorLabel("black")}</option>
+              <option value="white">{colorLabel("white")}</option>
+              <option value="random">{colorLabel("random")}</option>
             </select>
           </dd>
           <dt>Time</dt>
