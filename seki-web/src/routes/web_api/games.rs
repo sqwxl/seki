@@ -258,6 +258,14 @@ pub(crate) async fn load_game_show(
                 .await
                 .ok()
                 .flatten();
+        let black_profile = match updated_gwp.black.as_ref() {
+            Some(u) => RatingProfile::find(&state.db, u.id).await.ok().flatten(),
+            None => None,
+        };
+        let white_profile = match updated_gwp.white.as_ref() {
+            Some(u) => RatingProfile::find(&state.db, u.id).await.ok().flatten(),
+            None => None,
+        };
         let game_state = state_serializer::serialize_state(
             &updated_gwp,
             &engine,
@@ -266,6 +274,8 @@ pub(crate) async fn load_game_show(
             None,
             pregame_settings.as_ref(),
             None,
+            black_profile.as_ref(),
+            white_profile.as_ref(),
         );
         state.registry.broadcast(id, &game_state.to_string()).await;
         crate::services::live::notify_game_created(state, &updated_gwp);

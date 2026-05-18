@@ -76,7 +76,22 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
         None
     };
 
-    let mut game_state = state_serializer::serialize_state(
+    let black_profile = match gwp.black.as_ref() {
+        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
+            .await
+            .ok()
+            .flatten(),
+        None => None,
+    };
+    let white_profile = match gwp.white.as_ref() {
+        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
+            .await
+            .ok()
+            .flatten(),
+        None => None,
+    };
+
+    let game_state = state_serializer::serialize_state(
         gwp,
         engine,
         undo_requested,
@@ -84,20 +99,9 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
         None,
         pregame_settings.as_ref(),
         clock_ref,
+        black_profile.as_ref(),
+        white_profile.as_ref(),
     );
-
-    if let Some(ref black) = gwp.black
-        && let Ok(profile) = crate::models::rating::RatingProfile::find(&state.db, black.id).await
-    {
-        let user_data = crate::templates::UserData::from_user_with_rank(black, profile.as_ref());
-        game_state["black"] = serde_json::to_value(&user_data).unwrap_or_default();
-    }
-    if let Some(ref white) = gwp.white
-        && let Ok(profile) = crate::models::rating::RatingProfile::find(&state.db, white.id).await
-    {
-        let user_data = crate::templates::UserData::from_user_with_rank(white, profile.as_ref());
-        game_state["white"] = serde_json::to_value(&user_data).unwrap_or_default();
-    }
 
     state
         .registry

@@ -470,7 +470,13 @@ pub fn primary_rank_text(rank: &RankDto, mode: RatingDisplayMode) -> Option<Stri
     match rank.status {
         RankStatus::Anonymous => None,
         RankStatus::NotParticipating => Some("(-)".to_string()),
-        RankStatus::Unranked => Some("(?)".to_string()),
+        RankStatus::Unranked => match mode {
+            RatingDisplayMode::Rating => rank.rating.map(|r| {
+                let val = format!("{:.0}", r);
+                format!("({}{})", val, if rank.uncertain { "?" } else { "" })
+            }),
+            RatingDisplayMode::KyuDan => Some("(?)".to_string()),
+        },
         RankStatus::Ranked => {
             let value = match mode {
                 RatingDisplayMode::KyuDan => rank.qualifier.clone()?,

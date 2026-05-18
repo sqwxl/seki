@@ -6,6 +6,7 @@ use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
 use crate::models::pregame_settings::PregameSettingsNegotiation;
+use crate::models::rating::RatingProfile;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::live;
 
@@ -111,6 +112,7 @@ pub fn compute_territory_data(
 }
 
 /// Serialize the full game state for sending to WebSocket clients.
+#[allow(clippy::too_many_arguments)]
 pub fn serialize_state(
     gwp: &GameWithPlayers,
     engine: &Engine,
@@ -119,6 +121,8 @@ pub fn serialize_state(
     settled_territory: Option<&SettledTerritoryData>,
     pregame_settings: Option<&PregameSettingsNegotiation>,
     clock: Option<(&ClockState, &TimeControl)>,
+    black_profile: Option<&RatingProfile>,
+    white_profile: Option<&RatingProfile>,
 ) -> serde_json::Value {
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
     // for terminal states (done), challenges, and started-but-no-moves games.
@@ -186,8 +190,8 @@ pub fn serialize_state(
         "negotiations": negotiations,
         "current_turn_stone": current_turn_stone,
         "moves": moves,
-        "black": gwp.black.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, true, None)),
-        "white": gwp.white.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, false, None)),
+        "black": gwp.black.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, true, black_profile)),
+        "white": gwp.white.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, false, white_profile)),
         "komi": gwp.game.komi,
         "result": gwp.game.result,
         "undo_rejected": gwp.game.undo_rejected,

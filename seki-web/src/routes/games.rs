@@ -282,6 +282,20 @@ pub async fn join_game(
             .await
             .ok()
             .flatten();
+    let black_profile = match gwp.black.as_ref() {
+        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
+            .await
+            .ok()
+            .flatten(),
+        None => None,
+    };
+    let white_profile = match gwp.white.as_ref() {
+        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
+            .await
+            .ok()
+            .flatten(),
+        None => None,
+    };
     let game_state = state_serializer::serialize_state(
         &gwp,
         &engine,
@@ -290,6 +304,8 @@ pub async fn join_game(
         None,
         pregame_settings.as_ref(),
         clock_ref,
+        black_profile.as_ref(),
+        white_profile.as_ref(),
     );
     state.registry.broadcast(id, &game_state.to_string()).await;
 

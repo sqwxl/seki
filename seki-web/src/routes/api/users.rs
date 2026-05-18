@@ -146,6 +146,8 @@ pub(crate) async fn build_game_response(
         settled_territory.as_ref(),
         None,
         clock_ref,
+        None,
+        None,
     );
 
     let territory_json = serialized.get("territory").cloned();

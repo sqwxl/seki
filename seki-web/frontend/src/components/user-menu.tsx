@@ -123,6 +123,7 @@ export function UserMenu({
         {userData ? (
           <UserLabel
             user={userData}
+            noLink
             options={{ rank: { displayMode: ratingDisplay } }}
           />
         ) : (

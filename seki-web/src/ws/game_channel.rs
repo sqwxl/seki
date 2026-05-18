@@ -120,6 +120,21 @@ pub async fn send_initial_state(
         None
     };
 
+    let black_profile = match gwp.black.as_ref() {
+        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
+            .await
+            .ok()
+            .flatten(),
+        None => None,
+    };
+    let white_profile = match gwp.white.as_ref() {
+        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
+            .await
+            .ok()
+            .flatten(),
+        None => None,
+    };
+
     let mut game_state = state_serializer::serialize_state(
         &gwp,
         &engine,
@@ -128,6 +143,8 @@ pub async fn send_initial_state(
         settled_territory.as_ref(),
         pregame_settings.as_ref(),
         clock_ref,
+        black_profile.as_ref(),
+        white_profile.as_ref(),
     );
 
     // Full sync (join/reconnect) — distinct from live "state" updates after moves
