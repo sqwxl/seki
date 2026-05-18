@@ -381,12 +381,15 @@ export function applyGameStateMessage(data: StateMessage): void {
     black.value = data.black ?? undefined;
     white.value = data.white ?? undefined;
 
-    // Re-derive playerStone from updated black/white (nigiri swap may have changed them)
+    // Re-derive playerStone from updated black/white. If the user is no longer
+    // seated, clear back to spectator so lobby state can recover.
     if (currentUserId.value) {
       if (data.black?.id === currentUserId.value) {
         playerStone.value = 1;
       } else if (data.white?.id === currentUserId.value) {
         playerStone.value = -1;
+      } else {
+        playerStone.value = 0;
       }
     }
 

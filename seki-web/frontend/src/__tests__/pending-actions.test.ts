@@ -13,6 +13,7 @@ import {
   currentUserId,
   gameFlashMessage,
   gameStage,
+  initialProps,
   pendingAction,
   playerStone,
   replaceChatMessages,
@@ -207,6 +208,37 @@ describe("pending action reconciliation", () => {
     );
 
     expect(pendingAction.value).toBeUndefined();
+  });
+
+  it("clears a stale player seat when the server removes the user from the game", () => {
+    batch(() => {
+      currentUserId.value = 2;
+      playerStone.value = -1;
+      gameStage.value = GameStage.Unstarted;
+      black.value = { ...alice, id: 1 };
+      white.value = undefined;
+      initialProps.value = {
+        ...initialProps.value,
+        creator_id: 1,
+      };
+    });
+
+    handleGameMessage(
+      {
+        kind: "state",
+        stage: GameStage.Unstarted,
+        state: defaultState,
+        current_turn_stone: null,
+        moves: [],
+        black: alice,
+        white: null,
+        result: null,
+        undo_rejected: false,
+      },
+      buildDeps(),
+    );
+
+    expect(playerStone.value).toBe(0);
   });
 
   it("clears pending state and sets a flash message on error", () => {

@@ -5,7 +5,6 @@ import { UserLabel } from "./user-label";
 
 export type PlayerPanelProps = {
   userData?: UserData;
-  fallbackName?: string;
   captures: number;
   komi?: number;
   territory?: number;
@@ -20,16 +19,19 @@ export function PlayerPanel(props: PlayerPanelProps) {
   return (
     <>
       <span class="player-name-group">
-        <UserLabel
-          user={props.userData}
-          fallback={props.fallbackName ?? "..."}
-          options={{
-            stone: props.stone,
-            showPresence: props.isOnline !== undefined,
-            presence: props.isOnline,
-            rank: { value: props.rank },
-          }}
-        />
+        {props.userData ? (
+          <UserLabel
+            user={props.userData}
+            options={{
+              stone: props.stone,
+              showPresence: props.isOnline !== undefined,
+              presence: props.isOnline,
+              rank: { value: props.rank },
+            }}
+          />
+        ) : (
+          <span class="user-label">...</span>
+        )}
       </span>
       <span class={`player-clock${props.clockLowTime ? " low-time" : ""}`}>
         {props.clock ?? ""}

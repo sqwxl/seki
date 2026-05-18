@@ -1,4 +1,3 @@
-import { gameAccessBadges } from "../game/access";
 import { GameStage, type GameSettings, type UserData } from "../game/types";
 import { buildDescriptionParts } from "../utils/format";
 import { UserLabel } from "./user-label";
@@ -75,15 +74,6 @@ export function GameListItem({
     >
       <a href={`/games/${game.id}`}>
         <GameDescription {...game} dismissed={dismissed} />
-        {gameAccessBadges(game.settings, game.stage).map((badge) => (
-          <span
-            key={`${game.id}-${badge.label}`}
-            class="game-access-badge"
-            title={badge.title}
-          >
-            {badge.label}
-          </span>
-        ))}
       </a>
     </li>
   );
@@ -101,6 +91,23 @@ function activeStone(stage: GameStage): "black" | "white" | undefined {
   return undefined;
 }
 
+function playerLabel(
+  user: UserData | undefined,
+  fallback: string,
+  stone: "black" | "white",
+  strong?: boolean,
+) {
+  if (!user) {
+    return (
+      <span class={`user-label${strong ? " active-turn" : ""}`}>
+        {fallback}
+      </span>
+    );
+  }
+
+  return <UserLabel user={user} noLink options={{ stone, strong }} />;
+}
+
 export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
   const active = activeStone(props.stage);
 
@@ -112,17 +119,8 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
     return (
       <>
         <span class="dismissed-content">
-          <UserLabel
-            user={props.black}
-            fallback="Black"
-            options={{ stone: "black" }}
-          />{" "}
-          vs{" "}
-          <UserLabel
-            user={props.white}
-            fallback="White"
-            options={{ stone: "white" }}
-          />
+          {playerLabel(props.black, "Black", "black")} vs{" "}
+          {playerLabel(props.white, "White", "white")}
           {partsWithoutResult.length > 0 &&
             ` - ${partsWithoutResult.join(" - ")}`}
         </span>
@@ -134,18 +132,9 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
 
   return (
     <>
-      <UserLabel
-        user={props.black}
-        fallback="Black"
-        options={{ stone: "black", strong: active === "black" }}
-      />{" "}
-      vs{" "}
-      <UserLabel
-        user={props.white}
-        fallback="White"
-        options={{ stone: "white", strong: active === "white" }}
-      />{" "}
-      - {parts.join(" - ")}
+      {playerLabel(props.black, "Black", "black", active === "black")} vs{" "}
+      {playerLabel(props.white, "White", "white", active === "white")} -{" "}
+      {parts.join(" - ")}
     </>
   );
 }

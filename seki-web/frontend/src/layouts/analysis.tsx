@@ -1,6 +1,5 @@
 import { effect } from "@preact/signals";
 import { createRef, render } from "preact";
-import type { PlayerPanelProps } from "../components/player-panel";
 import { buildPlayerPanels } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { mobileTab, showCoordinates } from "../game/state";
@@ -34,6 +33,7 @@ import {
   analysisSize,
   analysisTerritoryInfo,
   resetAnalysisRuntimeState,
+  type AnalysisPanelData,
 } from "./analysis-state";
 
 const VALID_SIZES = [9, 13, 19];
@@ -93,8 +93,8 @@ export function initAnalysis(root: HTMLElement) {
   function buildAnalysisPanels(
     board: NonNullable<typeof analysisBoard.value>,
   ): {
-    top: PlayerPanelProps;
-    bottom: PlayerPanelProps;
+    top: AnalysisPanelData;
+    bottom: AnalysisPanelData;
   } {
     const engine = board.engine;
     const meta = analysisMeta.value;
@@ -150,13 +150,13 @@ export function initAnalysis(root: HTMLElement) {
     return {
       top: {
         ...panels.white,
-        fallbackName: whiteName,
+        label: whiteName,
         stone: "white",
         clock: wClock,
       },
       bottom: {
         ...panels.black,
-        fallbackName: blackName,
+        label: blackName,
         stone: "black",
         clock: bClock,
       },

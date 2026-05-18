@@ -1,3 +1,5 @@
+use serde_json::json;
+
 use crate::common::TestServer;
 
 #[tokio::test]
@@ -49,6 +51,50 @@ async fn unrated_open_game_waits_for_pregame_settings_after_join() {
 
     assert_eq!(state["stage"], "unstarted");
     assert!(state["negotiations"]["pregame_settings"].is_object());
+}
+
+#[tokio::test]
+async fn creator_can_reject_pregame_settings_and_return_to_waiting() {
+    let server = TestServer::start().await;
+
+    let game_id = server.create_game_with(json!({"cols": 13})).await;
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/join", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .json(&json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success());
+
+    let mut black = server.ws_black().await;
+    let mut white = server.ws_white().await;
+    let _init_b = black.recv_kind("init").await;
+    let _init_w = white.recv_kind("init").await;
+
+    let state_b = black.join_game(game_id).await;
+    assert!(state_b["negotiations"]["pregame_settings"].is_object());
+
+    let state_w = white.join_game(game_id).await;
+    assert!(state_w["negotiations"]["pregame_settings"].is_object());
+
+    black
+        .send(json!({"action": "reject_pregame_settings", "game_id": game_id}))
+        .await;
+
+    let state_b = black.recv_kind("state").await;
+    let state_w = white.recv_kind("state").await;
+
+    assert_eq!(state_b["stage"], "unstarted");
+    assert!(state_b["negotiations"]["pregame_settings"].is_null());
+    assert_eq!(state_b["black"]["id"], server.black_id);
+    assert!(state_b["white"].is_null());
+
+    assert_eq!(state_w["stage"], "unstarted");
+    assert!(state_w["negotiations"]["pregame_settings"].is_null());
+    assert_eq!(state_w["black"]["id"], server.black_id);
+    assert!(state_w["white"].is_null());
 }
 
 #[tokio::test]

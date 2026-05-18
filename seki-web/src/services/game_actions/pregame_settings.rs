@@ -82,23 +82,21 @@ pub async fn reject_pregame_settings(
 ) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
     require_pregame_settings(&gwp)?;
-    if gwp.game.creator_id == Some(player_id) {
-        return Err(AppError::UnprocessableEntity(
-            "Only the joining player can reject pre-game settings".to_string(),
-        ));
-    }
+    let creator_id = gwp
+        .game
+        .creator_id
+        .ok_or_else(|| AppError::UnprocessableEntity("Game does not have a creator".to_string()))?;
 
     let mut tx = state.db.begin().await?;
     PregameSettingsNegotiation::delete(&mut *tx, game_id).await?;
-    if gwp.game.white_id == Some(player_id) {
+    if gwp.game.black_id == Some(creator_id) {
         Game::clear_white(&mut *tx, game_id).await?;
-    } else if gwp.game.black_id == Some(player_id) {
-        sqlx::query(
-            "UPDATE games SET black_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-        )
-        .bind(game_id)
-        .execute(&mut *tx)
-        .await?;
+    } else if gwp.game.white_id == Some(creator_id) {
+        Game::clear_black(&mut *tx, game_id).await?;
+    } else {
+        return Err(AppError::UnprocessableEntity(
+            "Game creator is not seated in this game".to_string(),
+        ));
     }
     tx.commit().await?;
 

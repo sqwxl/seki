@@ -176,27 +176,33 @@ export function GameInfo(props: GameInfoProps) {
             <Row
               label="Black"
               value={
-                <>
-                  <UserLabel
-                    user={props.black}
-                    fallback="?"
-                    options={{ stone: "black" }}
-                  />{" "}
-                  {blackSymbol()} {props.capturesBlack} caps
-                </>
+                props.black ? (
+                  <>
+                    <UserLabel
+                      user={props.black}
+                      options={{ stone: "black" }}
+                    />{" "}
+                    {blackSymbol()} {props.capturesBlack} caps
+                  </>
+                ) : (
+                  "Open"
+                )
               }
             />
             <Row
               label="White"
               value={
-                <>
-                  <UserLabel
-                    user={props.white}
-                    fallback="?"
-                    options={{ stone: "white" }}
-                  />{" "}
-                  {whiteSymbol()} {props.capturesWhite} caps
-                </>
+                props.white ? (
+                  <>
+                    <UserLabel
+                      user={props.white}
+                      options={{ stone: "white" }}
+                    />{" "}
+                    {whiteSymbol()} {props.capturesWhite} caps
+                  </>
+                ) : (
+                  "Open"
+                )
               }
             />
             <Row label="Moves" value={String(props.moveCount)} />

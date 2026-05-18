@@ -447,6 +447,19 @@ impl Game {
         Ok(())
     }
 
+    pub async fn clear_black(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        game_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET black_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+        )
+        .bind(game_id)
+        .execute(executor)
+        .await?;
+        Ok(())
+    }
+
     pub async fn update_rules(
         executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,

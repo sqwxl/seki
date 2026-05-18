@@ -84,13 +84,16 @@ function SenderLabel(props: {
     );
   }
 
-  return (
-    <UserLabel
-      user={entry.user_data}
-      fallback="Unknown"
-      options={{ showPresence: true, presence }}
-    />
-  );
+  if (entry.user_data) {
+    return (
+      <UserLabel
+        user={entry.user_data}
+        options={{ showPresence: true, presence }}
+      />
+    );
+  }
+
+  return <span class="user-label">Unknown</span>;
 }
 
 export function Chat({

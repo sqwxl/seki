@@ -1,12 +1,13 @@
 import type { ControlsProps } from "../components/controls-shared";
 import { GameStatus } from "../components/game-status";
-import { PlayerPanel } from "../components/player-panel";
+import { CapturesBlack, CapturesWhite, IconGrid3x3 } from "../components/icons";
 import { TabBar } from "../components/tab-bar";
 import type { AnalysisCapabilities } from "../game/capabilities";
 import { analysisCapabilities } from "../game/capabilities";
 import { playStoneSound } from "../game/sound";
 import {
   blackSymbol,
+  formatN,
   formatSgfTime,
   formatSize,
   whiteSymbol,
@@ -152,14 +153,54 @@ function buildAnalysisControls(
   return controlsProps;
 }
 
+function AnalysisPanel({
+  panel,
+}: {
+  panel: (typeof analysisPanelState.value)["top"];
+}) {
+  if (!panel) {
+    return null;
+  }
+
+  return (
+    <>
+      <span class="player-name-group">
+        <span class="user-label">{panel.label}</span>
+      </span>
+      <span class={`player-clock${panel.clockLowTime ? " low-time" : ""}`}>
+        {panel.clock ?? ""}
+      </span>
+      <span class="player-captures">
+        <>
+          {panel.territory != null && (
+            <>
+              {panel.territory}
+              <span class="territory-icon">
+                <IconGrid3x3 title="Territory" />
+              </span>
+            </>
+          )}
+          {formatN(panel.captures)}
+          {panel.komi ? `+${formatN(panel.komi)}` : ""}
+          <span class="captures-icon">
+            {panel.stone === "black" ? (
+              <CapturesBlack title="Captures" />
+            ) : (
+              <CapturesWhite title="Captures" />
+            )}
+          </span>
+        </>
+      </span>
+    </>
+  );
+}
+
 function AnalysisTopPanel() {
-  const panel = analysisPanelState.value.top;
-  return panel ? <PlayerPanel {...panel} /> : null;
+  return <AnalysisPanel panel={analysisPanelState.value.top} />;
 }
 
 function AnalysisBottomPanel() {
-  const panel = analysisPanelState.value.bottom;
-  return panel ? <PlayerPanel {...panel} /> : null;
+  return <AnalysisPanel panel={analysisPanelState.value.bottom} />;
 }
 
 function AnalysisControlsSlot(props: AnalysisPageProps) {

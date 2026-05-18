@@ -1,11 +1,9 @@
-import type { ComponentChildren } from "preact";
 import type { UserData } from "../game/types";
 import { IconNigiri, IconUser, StoneBlack, StoneWhite } from "./icons";
 import { UserRank, type UserRankProps } from "./user-rank";
 
 export type UserLabelOptions = {
   stone?: "black" | "white" | "nigiri";
-  link?: boolean;
   showPresence?: boolean;
   presence?: boolean;
   showRegistered?: boolean;
@@ -15,9 +13,9 @@ export type UserLabelOptions = {
 };
 
 type UserLabelProps = {
-  user?: UserData | null;
+  user: UserData;
+  noLink?: boolean;
   options?: UserLabelOptions;
-  fallback?: ComponentChildren;
 };
 
 function StoneIcon({ stone }: { stone: "black" | "white" | "nigiri" }) {
@@ -38,11 +36,7 @@ function labelClass(options: UserLabelOptions): string {
     .join(" ");
 }
 
-export function UserLabel({ user, options = {}, fallback }: UserLabelProps) {
-  if (!user) {
-    return <span class={labelClass(options)}>{fallback ?? "..."}</span>;
-  }
-
+export function UserLabel({ user, noLink, options = {} }: UserLabelProps) {
   const rank = {
     value: user.rank,
     ...options.rank,
@@ -64,9 +58,9 @@ export function UserLabel({ user, options = {}, fallback }: UserLabelProps) {
     </span>
   );
 
-  if (options.link) {
-    return <a href={`/users/${user.display_name}`}>{el}</a>;
+  if (noLink) {
+    return el;
   }
 
-  return el;
+  return <a href={`/users/${user.display_name}`}>{el}</a>;
 }

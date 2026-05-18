@@ -120,11 +120,14 @@ export function UserMenu({
         class="user-menu-trigger"
         onClick={() => setOpen(!open)}
       >
-        <UserLabel
-          user={userData}
-          fallback="Guest"
-          options={{ rank: { displayMode: ratingDisplay } }}
-        />
+        {userData ? (
+          <UserLabel
+            user={userData}
+            options={{ rank: { displayMode: ratingDisplay } }}
+          />
+        ) : (
+          "Guest"
+        )}
       </button>
       {open && (
         <div class="nav-dropdown">

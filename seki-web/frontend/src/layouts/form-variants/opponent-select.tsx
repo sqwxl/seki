@@ -215,15 +215,19 @@ export function OpponentSelect({
     <div>
       {selected ? (
         <span class="selected-opponent" onClick={clearOpponent}>
-          <UserLabel
-            user={selected.user_data}
-            fallback={opponentName(selected)}
-            options={{
-              showPresence: true,
-              presence: selected.is_online,
-              rank: { value: getOpponentRank(selected), showBoth: true },
-            }}
-          />
+          {selected.user_data ? (
+            <UserLabel
+              user={selected.user_data}
+              noLink
+              options={{
+                showPresence: true,
+                presence: selected.is_online,
+                rank: { value: getOpponentRank(selected), showBoth: true },
+              }}
+            />
+          ) : (
+            opponentName(selected)
+          )}
         </span>
       ) : (
         <>
@@ -241,6 +245,7 @@ export function OpponentSelect({
                 <li key={r.user_data.id} onClick={() => selectOpponent(r)}>
                   <UserLabel
                     user={r.user_data}
+                    noLink
                     options={{
                       showPresence: true,
                       presence: r.is_online,

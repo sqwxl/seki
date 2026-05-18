@@ -76,7 +76,7 @@ export type ProfileRatingData = {
 
 export type ProfileData = {
   profile_username: string;
-  profile_user?: UserData;
+  profile_user: UserData;
   rating?: ProfileRatingData | null;
   initial_games: UserGamesInitialData;
   is_own_profile: boolean;

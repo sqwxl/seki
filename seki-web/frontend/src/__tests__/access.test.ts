@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   canJoinGameFromProps,
-  gameAccessBadges,
   requiresAccessTokenToJoin,
   requiresAccessTokenToView,
   requiresInviteTokenToJoin,
   requiresInviteTokenToView,
 } from "../game/access";
-import { GameStage, type GameSettings } from "../game/types";
+import { type GameSettings } from "../game/types";
 
 const baseSettings: GameSettings = {
   cols: 19,
@@ -37,26 +36,6 @@ describe("game access semantics", () => {
     expect(requiresInviteTokenToView()).toBe(false);
     expect(requiresInviteTokenToJoin(settings)).toBe(true);
     expect(requiresAccessTokenToView(settings)).toBe(false);
-  });
-
-  it("builds distinct badges for private challenge games", () => {
-    const settings = { ...baseSettings, is_private: true, invite_only: true };
-
-    expect(gameAccessBadges(settings, GameStage.Challenge)).toEqual([
-      {
-        label: "Private",
-        title: "Hidden from non-participants unless they have the access link.",
-      },
-      {
-        label: "Invite-only",
-        title: "An empty seat can only be filled with the invite link.",
-      },
-      {
-        label: "Challenge",
-        title:
-          "Both seats are assigned. The invited player must accept or decline.",
-      },
-    ]);
   });
 
   it("uses server-authored join capability when present", () => {

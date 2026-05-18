@@ -141,16 +141,20 @@ export function ProfileScreen({
   return (
     <>
       <h1>
-        <UserLabel user={data.profile_user} fallback={data.profile_username} />
+        <UserLabel user={data.profile_user} noLink />
       </h1>
       {!data.is_own_profile && (
-        <a
-          href={`/games/challenge/${encodeURIComponent(data.profile_username)}`}
+        <button
+          type="button"
           class="btn"
-          style={{ fontSize: "0.85em" }}
+          onClick={() =>
+            navigate(
+              `/games/challenge/${encodeURIComponent(data.profile_username)}`,
+            )
+          }
         >
           Challenge
-        </a>
+        </button>
       )}
       {data.rating && <RatingProfileSummary rating={data.rating} />}
       <h2>Games</h2>

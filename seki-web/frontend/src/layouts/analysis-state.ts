@@ -1,5 +1,4 @@
 import { signal } from "@preact/signals";
-import type { PlayerPanelProps } from "../components/player-panel";
 import type { Board, TerritoryInfo } from "../goban/create-board";
 import type { Point } from "../goban/types";
 import type { SgfMeta } from "../utils/sgf";
@@ -22,9 +21,19 @@ export const analysisNavState = signal({
   boardTurnStone: 1,
   boardLastMoveWasPass: false,
 });
+export type AnalysisPanelData = {
+  label: string;
+  captures: number;
+  komi?: number;
+  territory?: number;
+  stone: "black" | "white";
+  clock?: string;
+  clockLowTime?: boolean;
+};
+
 export const analysisPanelState = signal<{
-  top?: PlayerPanelProps;
-  bottom?: PlayerPanelProps;
+  top?: AnalysisPanelData;
+  bottom?: AnalysisPanelData;
 }>({});
 
 export function resetAnalysisRuntimeState(): void {

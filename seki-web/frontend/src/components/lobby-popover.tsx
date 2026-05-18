@@ -231,6 +231,7 @@ export function PregameSettingsPopover({
   const size = formatSize(settings.cols, settings.rows);
   const tc = formatTimeControl(settings);
   const [now, setNow] = useState(() => Date.now());
+  const opponent = isCreator ? joiner : creator;
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
@@ -326,12 +327,7 @@ export function PregameSettingsPopover({
           {playerStone !== 0 && (
             <>
               <dt>Opponent</dt>
-              <dd>
-                <UserLabel
-                  user={isCreator ? joiner : creator}
-                  fallback="Opponent"
-                />
-              </dd>
+              <dd>{opponent ? <UserLabel user={opponent} /> : "Opponent"}</dd>
             </>
           )}
           <dt>Rated</dt>
