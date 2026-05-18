@@ -69,6 +69,8 @@ export function GameInfo(props: GameInfoProps) {
 
   if (settings.ranked) {
     parts.push("Ranked");
+  } else {
+    parts.push("Unranked");
   }
 
   if (settings.handicap >= 2) {
