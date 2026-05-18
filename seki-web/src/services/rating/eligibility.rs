@@ -1,4 +1,5 @@
 use crate::error::AppError;
+use crate::models::game::TimeControlType;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 
@@ -9,6 +10,7 @@ pub struct RankedCreateEligibility {
     pub has_direct_opponent: bool,
     pub handicap: i32,
     pub komi: f64,
+    pub time_control: TimeControlType,
 }
 
 pub fn can_participate_in_ranking(user: &User, profile: Option<&RatingProfile>) -> bool {
@@ -38,6 +40,11 @@ pub fn can_create_ranked(
     if eligibility.invite_only {
         return Err(AppError::UnprocessableEntity(
             "Raw invite-only games cannot be ranked".to_string(),
+        ));
+    }
+    if eligibility.time_control == TimeControlType::None {
+        return Err(AppError::UnprocessableEntity(
+            "Ranked games require a time control".to_string(),
         ));
     }
     let is_open_game = !eligibility.has_direct_opponent && !eligibility.invite_only;

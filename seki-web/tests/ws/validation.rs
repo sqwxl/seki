@@ -288,3 +288,80 @@ async fn allow_undo_defaults_to_true() {
     let body: serde_json::Value = resp.json().await.unwrap();
     assert_eq!(body["allow_undo"], true);
 }
+
+#[tokio::test]
+async fn web_direct_challenge_requires_opponent() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .client_black
+        .post(format!("http://{}/games", server.addr))
+        .header("Accept", "application/json")
+        .form(&[
+            ("variant", "challenge"),
+            ("cols", "19"),
+            ("komi", "6.5"),
+            ("handicap", "0"),
+            ("color", "black"),
+            ("invite_username", ""),
+        ])
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 422);
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Direct challenges require an opponent")
+    );
+}
+
+#[tokio::test]
+async fn ranked_games_require_time_control() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .client_black
+        .post(format!("http://{}/api/games", server.addr))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .json(&json!({
+            "cols": 9,
+            "komi": 6.5,
+            "handicap": 0,
+            "color": "black",
+            "ranked": true,
+            "open_to": "registered"
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 422);
+    assert!(
+        api_error_message(resp)
+            .await
+            .contains("Ranked games require a time control")
+    );
+}
+
+#[tokio::test]
+async fn correspondence_games_reject_more_than_thirty_days_per_move() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .try_create_game_with(json!({
+            "time_control": "correspondence",
+            "main_time_secs": 31 * 86_400
+        }))
+        .await;
+
+    assert_eq!(resp.status(), 422);
+    assert!(
+        api_error_message(resp)
+            .await
+            .contains("at most 30 days per move")
+    );
+}

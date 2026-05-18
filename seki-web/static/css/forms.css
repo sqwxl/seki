@@ -180,6 +180,10 @@ input[type="radio"] {
   cursor: pointer;
 }
 
+.color-picker input[type="radio"]:disabled + label {
+  cursor: default;
+}
+
 .color-picker input[type="radio"]:checked + label {
   border-color: Highlight;
   border-color: AccentColor;

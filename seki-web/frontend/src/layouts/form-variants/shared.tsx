@@ -1,4 +1,5 @@
 import type { ComponentChildren } from "preact";
+import { useEffect, useRef, useState } from "preact/hooks";
 import {
   IconBell,
   IconGrid4x4,
@@ -11,6 +12,8 @@ import {
   StoneBlack,
   StoneWhite,
 } from "../../components/icons";
+import { UserLabel } from "../../components/user-label";
+import type { RankData } from "../../game/types";
 
 export type BaseGameSettings = {
   cols: number;
@@ -32,9 +35,37 @@ type RankedGameFieldProps = {
   id: string;
   checked: boolean;
   disabled?: boolean;
-  help: string | undefined;
+  hidden?: boolean;
+  help?: string;
   onChange?: (checked: boolean) => void;
 };
+
+export type OpponentSearchResult = {
+  username: string;
+  is_registered: boolean;
+  is_online: boolean;
+  is_recent: boolean;
+  rank?: RankData | null;
+};
+
+type OpponentSelectProps = {
+  selectedOpponent: string;
+  setSelectedOpponent: (username: string) => void;
+  opponentRank?: RankData | null;
+  rated?: boolean;
+  onSelectOpponent?: (result: OpponentSearchResult | null) => void;
+};
+
+function canSelectRatedOpponent(result: OpponentSearchResult): boolean {
+  return result.rank?.status === "ranked" || result.rank?.status === "unranked";
+}
+
+function filterOpponentResults(
+  results: OpponentSearchResult[],
+  rated: boolean,
+): OpponentSearchResult[] {
+  return rated ? results.filter(canSelectRatedOpponent) : results;
+}
 
 export function SettingsFieldset({
   children,
@@ -44,8 +75,7 @@ export function SettingsFieldset({
   return (
     <fieldset>
       <legend>
-        <IconSettings />
-        Settings
+        <IconSettings /> Settings
       </legend>
       {children}
     </fieldset>
@@ -60,9 +90,9 @@ export function RankedGameField({
   onChange,
 }: RankedGameFieldProps) {
   return (
-    <div>
+    <div title={help}>
       <label for={id}>
-        <IconBell /> Ranked game
+        <IconBell /> Rated?
       </label>
       <input
         type="checkbox"
@@ -73,7 +103,194 @@ export function RankedGameField({
         disabled={disabled}
         onChange={(e) => onChange?.(e.currentTarget.checked)}
       />
-      {help && <p class="form-help">{help}</p>}
+    </div>
+  );
+}
+
+export function OpponentSelect({
+  selectedOpponent,
+  setSelectedOpponent,
+  opponentRank,
+  rated = false,
+  onSelectOpponent,
+}: OpponentSelectProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<OpponentSearchResult[]>(
+    [],
+  );
+  const [recentOpponents, setRecentOpponents] = useState<
+    OpponentSearchResult[]
+  >([]);
+  const [selected, setSelected] = useState<OpponentSearchResult | null>(() => {
+    if (selectedOpponent) {
+      return {
+        username: selectedOpponent,
+        is_registered:
+          opponentRank?.status === "ranked" ||
+          opponentRank?.status === "unranked",
+        is_online: false,
+        is_recent: false,
+        rank: opponentRank,
+      };
+    }
+
+    return null;
+  });
+  const abortRef = useRef<AbortController | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedOpponent) {
+      setSelected(null);
+
+      return;
+    }
+
+    setSelected((prev) => {
+      if (prev?.username === selectedOpponent && prev.rank === opponentRank) {
+        return prev;
+      }
+
+      return {
+        username: selectedOpponent,
+        is_registered:
+          opponentRank?.status === "ranked" ||
+          opponentRank?.status === "unranked",
+        is_online: prev?.username === selectedOpponent ? prev.is_online : false,
+        is_recent: prev?.username === selectedOpponent ? prev.is_recent : false,
+        rank: opponentRank,
+      };
+    });
+  }, [selectedOpponent, opponentRank]);
+
+  useEffect(() => {
+    fetch("/users/search")
+      .then((r) => r.json())
+      .then((data: OpponentSearchResult[]) =>
+        setRecentOpponents(filterOpponentResults(data, rated)),
+      )
+      .catch(() => {});
+  }, [rated]);
+
+  useEffect(() => {
+    if (!rated || !selected) {
+      return;
+    }
+
+    if (!canSelectRatedOpponent(selected)) {
+      setSelected(null);
+      setSelectedOpponent("");
+      onSelectOpponent?.(null);
+      setSearchQuery("");
+      setSearchResults([]);
+    }
+  }, [rated, selected, setSelectedOpponent, onSelectOpponent]);
+
+  useEffect(() => {
+    if (!searchQuery) {
+      setSearchResults([]);
+
+      return;
+    }
+
+    doSearch(searchQuery, rated);
+  }, [rated]);
+
+  function doSearch(query: string, ratedSearch = rated) {
+    abortRef.current?.abort();
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    fetch(`/users/search?q=${encodeURIComponent(query)}`, {
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((data: OpponentSearchResult[]) =>
+        setSearchResults(filterOpponentResults(data, ratedSearch)),
+      )
+      .catch(() => {});
+  }
+
+  function onSearchInput(value: string) {
+    setSearchQuery(value);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    if (!value) {
+      setSearchResults([]);
+
+      return;
+    }
+
+    debounceRef.current = setTimeout(() => doSearch(value), 300);
+  }
+
+  function selectOpponent(r: OpponentSearchResult) {
+    setSelected(r);
+    setSelectedOpponent(r.username);
+    onSelectOpponent?.(r);
+    setSearchQuery(r.username);
+    setSearchResults([]);
+  }
+
+  function clearOpponent() {
+    setSelected(null);
+    setSelectedOpponent("");
+    onSelectOpponent?.(null);
+    setSearchQuery("");
+    setSearchResults([]);
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  }
+
+  const displayResults = searchQuery ? searchResults : recentOpponents;
+
+  return (
+    <div>
+      {selected ? (
+        <span class="selected-opponent" onClick={clearOpponent}>
+          <UserLabel
+            name={selected.username}
+            rank={{ value: selected.rank, showBoth: true }}
+          />
+        </span>
+      ) : (
+        <>
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search by username..."
+            value={searchQuery}
+            onInput={(e) => onSearchInput(e.currentTarget.value)}
+            autocomplete="off"
+          />
+          {displayResults.length > 0 && (
+            <ul class="opponent-search-results">
+              {displayResults.map((r) => (
+                <li key={r.username} onClick={() => selectOpponent(r)}>
+                  <UserLabel
+                    name={r.username}
+                    rank={{ value: r.rank, showBoth: true }}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -210,10 +427,14 @@ export function ColorPickerField<T extends BaseGameSettings>({
   s,
   set,
   label = "Your color",
+  value = s.color,
+  disabled,
 }: {
   s: T;
   set: GameSettingsSetter<T>;
   label?: string;
+  value?: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -224,7 +445,8 @@ export function ColorPickerField<T extends BaseGameSettings>({
           name="color"
           value="black"
           id="color_black"
-          checked={s.color === "black"}
+          checked={value === "black"}
+          disabled={disabled}
           onChange={() => set("color", "black" as T["color"])}
         />
         <label for="color_black" title="Black">
@@ -235,7 +457,8 @@ export function ColorPickerField<T extends BaseGameSettings>({
           name="color"
           value="white"
           id="color_white"
-          checked={s.color === "white"}
+          checked={value === "white"}
+          disabled={disabled}
           onChange={() => set("color", "white" as T["color"])}
         />
         <label for="color_white" title="White">
@@ -246,13 +469,15 @@ export function ColorPickerField<T extends BaseGameSettings>({
           name="color"
           value="nigiri"
           id="color_nigiri"
-          checked={s.color === "nigiri"}
+          checked={value === "nigiri"}
+          disabled={disabled}
           onChange={() => set("color", "nigiri" as T["color"])}
         />
         <label for="color_nigiri" title="Random">
           <IconNigiri />
         </label>
       </div>
+      {disabled && value && <input type="hidden" name="color" value={value} />}
     </div>
   );
 }
@@ -304,27 +529,6 @@ export function MaxHandicapField<
   );
 }
 
-export function EditableBoardSettings<T extends BaseGameSettings>({
-  s,
-  set,
-  colorLabel,
-  maxHandicap,
-}: {
-  s: T;
-  set: GameSettingsSetter<T>;
-  colorLabel?: string;
-  maxHandicap?: number;
-}) {
-  return (
-    <>
-      <BoardSizeField s={s} set={set} />
-      <HandicapSelectField s={s} set={set} max={maxHandicap} />
-      <KomiField value={s.komi} set={set} />
-      <ColorPickerField s={s} set={set} label={colorLabel} />
-    </>
-  );
-}
-
 export function AllowUndoField<T extends BaseGameSettings>({
   s,
   set,
@@ -360,10 +564,14 @@ export function PrivateSpectatorsField<T extends BaseGameSettings>({
   set: GameSettingsSetter<T>;
   locked?: boolean;
 }) {
+  if (locked) {
+    return <input type="hidden" name="is_private" value="false" />;
+  }
+
   return (
-    <div>
+    <div title="Hide this game from public lists. Non-participants need the invite link to view it.">
       <label for="is_private">
-        <IconPrivate /> Private spectators
+        <IconPrivate /> Private
       </label>
       <input
         type="checkbox"
@@ -376,11 +584,6 @@ export function PrivateSpectatorsField<T extends BaseGameSettings>({
           set("isPrivate", e.currentTarget.checked as T["isPrivate"])
         }
       />
-      {locked && <input type="hidden" name="is_private" value="false" />}
-      <p class="form-help">
-        Hide this game from public lists. Non-participants need the invite link
-        to view it.
-      </p>
     </div>
   );
 }

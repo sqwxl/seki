@@ -8,6 +8,9 @@ use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::rating;
 
+const MAX_CORRESPONDENCE_DAYS: i32 = 30;
+const SECS_PER_DAY: i32 = 86_400;
+
 pub struct CreateGameParams {
     pub cols: i32,
     pub rows: i32,
@@ -72,6 +75,16 @@ pub async fn create_game(
         )));
     }
 
+    if params.time_control == TimeControlType::Correspondence
+        && params
+            .main_time_secs
+            .is_some_and(|secs| secs > MAX_CORRESPONDENCE_DAYS * SECS_PER_DAY)
+    {
+        return Err(AppError::UnprocessableEntity(
+            "Correspondence games support at most 30 days per move".to_string(),
+        ));
+    }
+
     let friend = if let Some(ref username) = params.invite_username {
         if !username.is_empty() {
             Some(
@@ -113,6 +126,7 @@ pub async fn create_game(
                 has_direct_opponent: friend.is_some(),
                 handicap: params.handicap,
                 komi: params.komi,
+                time_control: params.time_control,
             },
         )?;
         if let Some(opponent) = friend.as_ref() {

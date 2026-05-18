@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { IconBell, IconTimer } from "../components/icons";
+import { IconBell, IconTimer, IconUser } from "../components/icons";
 import type { RankData } from "../game/types";
+import { fullRankText } from "../utils/rating";
 import { GAME_SETTINGS, storage } from "../utils/storage";
 import {
   CHALLENGE_DEFAULTS,
   DirectChallengeForm,
+  inferSettingsFromRanks,
   type ChallengeSettings,
 } from "./form-variants/direct-challenge";
 import {
@@ -17,6 +19,11 @@ import {
   OpenGameForm,
   type OpenGameSettings,
 } from "./form-variants/open-game";
+import {
+  OpponentSelect,
+  RankedGameField,
+  type OpponentSearchResult,
+} from "./form-variants/shared";
 
 type TimeControl = "none" | "fischer" | "byoyomi" | "correspondence";
 type Variant = "open" | "challenge" | "email";
@@ -128,6 +135,13 @@ function applyRankedSetting(
   source: SyncableVariant,
   ranked: boolean,
 ): AllSettings {
+  const shared = {
+    ...all.shared,
+    timeControl:
+      ranked && all.shared.timeControl === "none"
+        ? ("fischer" as TimeControl)
+        : all.shared.timeControl,
+  };
   const open = {
     ...all.open,
     ranked,
@@ -140,10 +154,10 @@ function applyRankedSetting(
   };
 
   if (source === "open") {
-    return { ...all, open, challenge };
+    return { ...all, shared, open, challenge };
   }
 
-  return { ...all, challenge, open };
+  return { ...all, shared, challenge, open };
 }
 
 function syncFromVariant(all: AllSettings, source: Variant): AllSettings {
@@ -192,9 +206,6 @@ function loadSettings(): AllSettings {
 }
 
 type Props = {
-  showNotifications?: boolean;
-  showPrivate?: boolean;
-  submitLabel?: string;
   opponent?: string;
   opponentRank?: RankData | null;
   isRegistered?: boolean;
@@ -203,9 +214,6 @@ type Props = {
 };
 
 export function GameSettingsForm({
-  showNotifications = true,
-  showPrivate = true,
-  submitLabel = "Create Game",
   opponent,
   opponentRank,
   isRegistered,
@@ -234,6 +242,8 @@ export function GameSettingsForm({
 
     return saved;
   });
+  const [selectedChallengeOpponentRank, setSelectedChallengeOpponentRank] =
+    useState<RankData | null | undefined>(opponentRank);
 
   const settingsRef = useRef(all);
   settingsRef.current = all;
@@ -241,6 +251,38 @@ export function GameSettingsForm({
 
   const variant = all.shared.variant;
   const shared = all.shared;
+  const challengeOpponentRank = opponent
+    ? opponentRank
+    : selectedChallengeOpponentRank;
+  const currentRatingText = fullRankText(currentUserRank);
+  const selectedOpponentCannotRank =
+    variant === "challenge" &&
+    all.challenge.selectedOpponent &&
+    (challengeOpponentRank?.status === "anonymous" ||
+      challengeOpponentRank?.status === "not_participating");
+  const rankedBlockedReason =
+    variant === "email"
+      ? "Email invites are always unrated."
+      : !isRegistered
+        ? (rankedUnavailableReason ??
+          "Register or sign in to create ranked games.")
+        : (rankedUnavailableReason ??
+          (variant === "open" && all.open.isPrivate
+            ? "Ranked games must be public."
+            : undefined) ??
+          (variant === "challenge" && all.challenge.isPrivate
+            ? "Ranked games must be public."
+            : undefined) ??
+          (selectedOpponentCannotRank
+            ? "Opponent is not participating in ranking."
+            : undefined));
+  const rankedDisabled = Boolean(rankedBlockedReason);
+  const rankedChecked =
+    variant === "email"
+      ? false
+      : variant === "open"
+        ? all.open.ranked
+        : all.challenge.ranked;
 
   function setVariant(v: Variant) {
     setAll((prev) => {
@@ -250,10 +292,22 @@ export function GameSettingsForm({
     });
   }
 
+  function setRanked(checked: boolean) {
+    if (variant === "email") {
+      return;
+    }
+
+    setAll((prev) => applyRankedSetting(prev, variant, checked));
+  }
+
   function setShared<K extends keyof SharedSettings>(
     key: K,
     value: SharedSettings[K],
   ) {
+    if (key === "timeControl" && value === "none" && rankedChecked) {
+      return;
+    }
+
     setAll((prev) => ({ ...prev, shared: { ...prev.shared, [key]: value } }));
   }
 
@@ -326,6 +380,27 @@ export function GameSettingsForm({
     });
   }
 
+  function setChallengeOpponent(result: OpponentSearchResult | null) {
+    setSelectedChallengeOpponentRank(result?.rank ?? null);
+    setAll((prev) => {
+      const challenge = {
+        ...prev.challenge,
+        selectedOpponent: result?.username ?? "",
+      };
+      const inferred = result
+        ? inferSettingsFromRanks(currentUserRank, result.rank)
+        : null;
+
+      if (inferred) {
+        challenge.handicap = inferred.handicap;
+        challenge.komi = inferred.komi;
+        challenge.color = inferred.color;
+      }
+
+      return { ...prev, challenge };
+    });
+  }
+
   useEffect(() => {
     const form = rootRef.current?.closest("form");
 
@@ -371,13 +446,33 @@ export function GameSettingsForm({
       ? "Challenge"
       : opponent
         ? "Challenge"
-        : submitLabel;
+        : "Create Game";
+  const submitDisabled =
+    variant === "challenge" && !all.challenge.selectedOpponent;
 
   return (
     <div ref={rootRef}>
+      <fieldset>
+        <RankedGameField
+          id="game_ranked"
+          checked={rankedChecked}
+          onChange={setRanked}
+          disabled={!isRegistered || rankedDisabled}
+          help={
+            rankedBlockedReason
+              ? rankedBlockedReason
+              : currentRatingText
+                ? `Your current rating is ${currentRatingText}.`
+                : "Your first ranked game starts from a provisional rating."
+          }
+        />
+      </fieldset>
+
       {!opponent && (
         <fieldset>
-          <legend>Game type</legend>
+          <legend>
+            <IconUser /> Opponent
+          </legend>
           <div class="opponent-mode-radios">
             <label>
               <input
@@ -407,57 +502,91 @@ export function GameSettingsForm({
               Email invite
             </label>
           </div>
+          {variant === "challenge" && (
+            <OpponentSelect
+              selectedOpponent={all.challenge.selectedOpponent}
+              setSelectedOpponent={(username) =>
+                setChallenge("selectedOpponent", username)
+              }
+              opponentRank={challengeOpponentRank}
+              rated={all.challenge.ranked}
+              onSelectOpponent={setChallengeOpponent}
+            />
+          )}
+          {variant === "email" && (
+            <>
+              <div>
+                <label for="invite_email">Email address</label>
+                <input
+                  type="email"
+                  name="invite_email"
+                  id="invite_email"
+                  placeholder="friend@email.com"
+                  value={all.email.inviteEmail}
+                  required
+                  onInput={(e) =>
+                    setEmail("inviteEmail", e.currentTarget.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <label for="invite_message">Message (optional)</label>
+                <textarea
+                  name="invite_message"
+                  id="invite_message"
+                  placeholder="Hey, let's play Go!"
+                  value={all.email.inviteMessage}
+                  onInput={(e) =>
+                    setEmail("inviteMessage", e.currentTarget.value)
+                  }
+                  rows={3}
+                />
+              </div>
+            </>
+          )}
         </fieldset>
       )}
-      <input type="hidden" name="variant" value={variant} />
 
-      {variant === "open" && (
-        <OpenGameForm
-          s={all.open}
-          set={setOpen}
-          isRegistered={isRegistered}
-          currentUserRank={currentUserRank}
-          rankedUnavailableReason={rankedUnavailableReason}
-          showPrivate={showPrivate}
+      <input type="hidden" name="variant" value={variant} />
+      {variant === "challenge" && (
+        <input
+          type="hidden"
+          name="invite_username"
+          value={all.challenge.selectedOpponent}
         />
       )}
+
+      {variant === "open" && <OpenGameForm s={all.open} set={setOpen} />}
 
       {variant === "challenge" && (
         <DirectChallengeForm
           s={all.challenge}
           set={setChallenge}
-          isRegistered={isRegistered}
           currentUserRank={currentUserRank}
-          rankedUnavailableReason={rankedUnavailableReason}
-          opponentRank={opponentRank}
-          hideOpponentSelect={!!opponent}
-          showPrivate={showPrivate}
+          opponentRank={challengeOpponentRank}
         />
       )}
 
-      {variant === "email" && (
-        <EmailInviteForm
-          s={all.email}
-          set={setEmail}
-          showPrivate={showPrivate}
-        />
-      )}
+      {variant === "email" && <EmailInviteForm s={all.email} set={setEmail} />}
 
       <fieldset>
         <legend>
           <IconTimer /> Time control
         </legend>
         <div class="new-game-form-time-controls">
-          <label>
-            <input
-              type="radio"
-              name="_time_control"
-              value="none"
-              checked={tcActive("none")}
-              onChange={() => setShared("timeControl", "none")}
-            />{" "}
-            None
-          </label>
+          {!rankedChecked && (
+            <label>
+              <input
+                type="radio"
+                name="_time_control"
+                value="none"
+                checked={tcActive("none")}
+                onChange={() => setShared("timeControl", "none")}
+              />{" "}
+              None
+            </label>
+          )}
           <label>
             <input
               type="radio"
@@ -604,7 +733,7 @@ export function GameSettingsForm({
               name="correspondence_days"
               id="correspondence_days"
               min={1}
-              max={14}
+              max={30}
               value={shared.correspondenceDays}
               disabled={!tcActive("correspondence")}
               onChange={(e) =>
@@ -618,7 +747,7 @@ export function GameSettingsForm({
         </div>
       </fieldset>
 
-      {showNotifications && !opponent && tcActive("correspondence") && (
+      {!opponent && tcActive("correspondence") && (
         <fieldset>
           <legend>
             <IconBell /> Notifications
@@ -639,7 +768,9 @@ export function GameSettingsForm({
         </fieldset>
       )}
 
-      <button type="submit">{submitText}</button>
+      <button type="submit" disabled={submitDisabled}>
+        {submitText}
+      </button>
     </div>
   );
 }

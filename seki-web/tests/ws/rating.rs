@@ -23,7 +23,10 @@ async fn ranked_api_create_persists_ranked_status_and_profile() {
             "handicap": 0,
             "color": "black",
             "ranked": true,
-            "open_to": "registered"
+            "open_to": "registered",
+            "time_control": "fischer",
+            "main_time_secs": 600,
+            "increment_secs": 5
         }))
         .send()
         .await
@@ -443,7 +446,10 @@ async fn ranked_api_create_allows_direct_email_challenge_for_existing_user() {
             "handicap": 0,
             "color": "black",
             "ranked": true,
-            "invite_email": "white@example.com"
+            "invite_email": "white@example.com",
+            "time_control": "fischer",
+            "main_time_secs": 600,
+            "increment_secs": 5
         }))
         .send()
         .await

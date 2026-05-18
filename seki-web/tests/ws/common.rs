@@ -252,6 +252,11 @@ impl TestServer {
                 body[k] = v.clone();
             }
         }
+        if body["ranked"].as_bool() == Some(true) && body.get("time_control").is_none() {
+            body["time_control"] = json!("fischer");
+            body["main_time_secs"] = json!(600);
+            body["increment_secs"] = json!(5);
+        }
         let resp = self
             .client_black
             .post(format!("http://{}/api/games", self.addr))
@@ -368,6 +373,11 @@ impl TestServer {
             for (k, v) in obj {
                 body[k] = v.clone();
             }
+        }
+        if body["ranked"].as_bool() == Some(true) && body.get("time_control").is_none() {
+            body["time_control"] = json!("fischer");
+            body["main_time_secs"] = json!(600);
+            body["increment_secs"] = json!(5);
         }
         self.client_black
             .post(format!("http://{}/api/games", self.addr))

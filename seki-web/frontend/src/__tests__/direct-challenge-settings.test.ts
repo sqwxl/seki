@@ -4,7 +4,7 @@ import type { RankData } from "../game/types";
 import {
   inferSettingsFromRanks,
   rankedSettingsFromGap,
-} from "../layouts/form-variants/direct-challenge";
+} from "../layouts/form-variants/direct-challenge/ranked-settings";
 
 function rank(rating: number): RankData {
   return {

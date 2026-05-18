@@ -79,6 +79,20 @@ pub async fn create_game(
     let variant = form.variant.as_deref().unwrap_or("open");
     let is_ranked = form.ranked.as_deref() == Some("true");
     let is_email = variant == "email";
+    let invite_username = form
+        .invite_username
+        .as_deref()
+        .map(str::trim)
+        .filter(|username| !username.is_empty())
+        .map(str::to_string);
+    if variant == "challenge" && invite_username.is_none() {
+        return create_game_error_response(
+            &session,
+            json,
+            AppError::UnprocessableEntity("Direct challenges require an opponent".to_string()),
+        )
+        .await;
+    }
     let email_to_send = if is_email {
         form.invite_email.clone()
     } else {
@@ -93,7 +107,7 @@ pub async fn create_game(
         allow_undo: form.allow_undo.as_deref() == Some("true"),
         color: form.color.unwrap_or_else(|| "black".to_string()),
         invite_email: email_to_send,
-        invite_username: form.invite_username,
+        invite_username,
         time_control,
         main_time_secs,
         increment_secs,
@@ -133,25 +147,31 @@ pub async fn create_game(
                 Ok(Redirect::to(&url).into_response())
             }
         }
-        Err(e) => {
-            if json {
-                return Ok((
-                    StatusCode::UNPROCESSABLE_ENTITY,
-                    axum::Json(serde_json::json!({ "error": e.to_string() })),
-                )
-                    .into_response());
-            }
-            set_flash(
-                &session,
-                FlashMessage {
-                    message: e.to_string(),
-                    severity: FlashSeverity::Error,
-                },
-            )
-            .await?;
-            Ok(Redirect::to("/games/new").into_response())
-        }
+        Err(e) => create_game_error_response(&session, json, e).await,
     }
+}
+
+async fn create_game_error_response(
+    session: &Session,
+    json: bool,
+    e: AppError,
+) -> Result<Response, AppError> {
+    if json {
+        return Ok((
+            StatusCode::UNPROCESSABLE_ENTITY,
+            axum::Json(serde_json::json!({ "error": e.to_string() })),
+        )
+            .into_response());
+    }
+    set_flash(
+        session,
+        FlashMessage {
+            message: e.to_string(),
+            severity: FlashSeverity::Error,
+        },
+    )
+    .await?;
+    Ok(Redirect::to("/games/new").into_response())
 }
 
 #[derive(Deserialize)]
