@@ -69,7 +69,10 @@ describe("rating formatting", () => {
     expect(
       primaryRankText({ status: "not_participating", uncertain: false }),
     ).toBe("(-)");
-    expect(primaryRankText({ status: "anonymous", uncertain: false })).toBe("");
+    expect(primaryRankText({ status: "anonymous", uncertain: false })).toBe(
+      "(-)",
+    );
+    expect(fullRankText({ status: "anonymous", uncertain: false })).toBe("(-)");
   });
 
   it("renders rank primary text and alternate title with UserRank", () => {
@@ -122,6 +125,16 @@ describe("rating formatting", () => {
     expect(view.props.class).toBe("player-rank");
     expect(view.props.children).toBe("1560 (3k)");
   });
+
+  it("renders anonymous ranks like non-participating ranks", () => {
+    const view = UserRank({
+      value: { status: "anonymous", uncertain: false },
+    }) as any;
+
+    expect(view.props.class).toBe("player-rank");
+    expect(view.props.children).toBe("(-)");
+  });
+
   it("formats (unrated) in game descriptions when ranked is false", () => {
     const parts = (() => {
       // Simulate the buildDescriptionParts logic inline to test the (unrated) addition

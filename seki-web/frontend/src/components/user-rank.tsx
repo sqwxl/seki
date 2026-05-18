@@ -22,7 +22,7 @@ export function UserRank({
 }: UserRankProps) {
   const mode = displayMode ?? ratingDisplayPreference.value;
 
-  if (!rank || rank.status === "anonymous") {
+  if (!rank) {
     return bare ? null : <span class="player-rank">{""}</span>;
   }
 

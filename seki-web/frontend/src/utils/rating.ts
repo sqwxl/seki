@@ -24,7 +24,7 @@ export function formatNumericRating(rating: number): string {
 }
 
 export function fullRankText(rank: RankData | undefined | null): string {
-  if (!rank || rank.status === "anonymous") {
+  if (!rank) {
     return "";
   }
 
@@ -59,11 +59,11 @@ export function primaryRankText(
   rank: RankData | undefined | null,
   mode: RatingDisplayMode = "kyu_dan",
 ): string {
-  if (!rank || rank.status === "anonymous") {
+  if (!rank) {
     return "";
   }
 
-  if (rank.status === "not_participating") {
+  if (rank.status === "anonymous" || rank.status === "not_participating") {
     return "(-)";
   }
 
