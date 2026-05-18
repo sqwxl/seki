@@ -33,18 +33,14 @@ form:not(nav form) {
       flex-direction: row;
       flex-wrap: wrap;
       gap: 0.5rem;
-
-      label:has(> input[type="radio"]) {
-        display: flex;
-        gap: 0.25rem;
-        align-items: start;
-      }
-
-      label > input[type="radio"] {
-        margin: 0;
-      }
     }
   }
+}
+
+label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
 }
 
 .inline-form {
@@ -69,6 +65,7 @@ input[type="number"],
 input[type="email"],
 input[type="text"],
 input[type="password"],
+textarea,
 select {
   padding: 0.5em;
   border: 1px solid var(--border);
@@ -82,7 +79,6 @@ select {
 
 input[type="checkbox"],
 input[type="radio"] {
-  margin-right: 0.35em;
   vertical-align: middle;
 }
 
@@ -217,16 +213,6 @@ input[type="radio"] {
   gap: 0.5rem;
 }
 
-.opponent-mode-radios label:has(> input[type="radio"]) {
-  display: flex;
-  gap: 0.25rem;
-  align-items: start;
-}
-
-.opponent-mode-radios label > input[type="radio"] {
-  margin: 0;
-}
-
 .opponent-open-options {
   flex-direction: column;
   gap: 0.25em;
@@ -276,13 +262,6 @@ input[type="radio"] {
   display: flex;
   flex-direction: column;
   gap: 0.75em;
-}
-
-.notif-os-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.35em;
-  cursor: pointer;
 }
 
 .notif-table {

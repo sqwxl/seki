@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { NotificationSettings } from "../components/notification-settings";
+import { RatingParticipationSettings } from "../components/rating-participation-settings";
 import { UserGames } from "../layouts/user-games";
 import { clearFlash, setFlash } from "../utils/flash";
 import { formatNumericRating, fullRankText } from "../utils/rating";
@@ -156,6 +157,12 @@ export function ProfileScreen({
           <h2>Settings</h2>
           {data.user_is_registered ? (
             <>
+              <h3>Rating</h3>
+              <RatingParticipationSettings
+                ratingParticipating={
+                  data.profile_user?.preferences.rating_participating
+                }
+              />
               <h3>Username</h3>
               <form
                 key={`username-${data.profile_username}`}
@@ -191,12 +198,7 @@ export function ProfileScreen({
                 </button>
               </form>
               <h3>Notifications</h3>
-              <NotificationSettings
-                hasEmail={!!data.user_email}
-                ratingParticipating={
-                  data.profile_user?.preferences.rating_participating
-                }
-              />
+              <NotificationSettings hasEmail={!!data.user_email} />
               <h3>API Token</h3>
               <p>
                 Use this token to authenticate with the API via{" "}

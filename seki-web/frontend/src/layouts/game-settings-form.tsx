@@ -480,7 +480,7 @@ export function GameSettingsForm({
                 name="_variant"
                 checked={variant === "open"}
                 onChange={() => setVariant("open")}
-              />{" "}
+              />
               Open game
             </label>
             <label>
@@ -489,7 +489,7 @@ export function GameSettingsForm({
                 name="_variant"
                 checked={variant === "challenge"}
                 onChange={() => setVariant("challenge")}
-              />{" "}
+              />
               Direct challenge
             </label>
             <label>
@@ -498,7 +498,7 @@ export function GameSettingsForm({
                 name="_variant"
                 checked={variant === "email"}
                 onChange={() => setVariant("email")}
-              />{" "}
+              />
               Email invite
             </label>
           </div>
@@ -583,7 +583,7 @@ export function GameSettingsForm({
                 value="none"
                 checked={tcActive("none")}
                 onChange={() => setShared("timeControl", "none")}
-              />{" "}
+              />
               None
             </label>
           )}
@@ -594,7 +594,7 @@ export function GameSettingsForm({
               value="fischer"
               checked={tcActive("fischer")}
               onChange={() => setShared("timeControl", "fischer")}
-            />{" "}
+            />
             Fischer
           </label>
           <label>
@@ -604,7 +604,7 @@ export function GameSettingsForm({
               value="byoyomi"
               checked={tcActive("byoyomi")}
               onChange={() => setShared("timeControl", "byoyomi")}
-            />{" "}
+            />
             Byo-yomi
           </label>
           <label>
@@ -614,7 +614,7 @@ export function GameSettingsForm({
               value="correspondence"
               checked={tcActive("correspondence")}
               onChange={() => setShared("timeControl", "correspondence")}
-            />{" "}
+            />
             Correspondence
           </label>
         </div>

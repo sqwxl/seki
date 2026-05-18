@@ -1,11 +1,11 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  IconBell,
+  IconBalance,
   IconGrid4x4,
-  IconHandicap,
   IconKomi,
   IconNigiri,
+  IconPlus,
   IconPrivate,
   IconSettings,
   IconUndo,
@@ -92,17 +92,17 @@ export function RankedGameField({
   return (
     <div title={help}>
       <label for={id}>
-        <IconBell /> Rated?
+        <IconBalance /> Rated?
+        <input
+          type="checkbox"
+          name="ranked"
+          id={id}
+          value="true"
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange?.(e.currentTarget.checked)}
+        />
       </label>
-      <input
-        type="checkbox"
-        name="ranked"
-        id={id}
-        value="true"
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange?.(e.currentTarget.checked)}
-      />
     </div>
   );
 }
@@ -361,7 +361,7 @@ export function HandicapSelectField<T extends BaseGameSettings>({
   return (
     <div>
       <label for="handicap">
-        <IconHandicap /> Handicap
+        <IconPlus /> Handicap
       </label>
       <select
         name="handicap"
@@ -507,7 +507,7 @@ export function MaxHandicapField<
   return (
     <div>
       <label for="max_handicap">
-        <IconHandicap /> Max handicap
+        <IconPlus /> Max handicap
       </label>
       <input
         type="range"
@@ -524,7 +524,7 @@ export function MaxHandicapField<
           )
         }
       />
-      <span class="form-help">Max {s.maxHandicap} stones</span>
+      <span class="form-help">{s.maxHandicap} stones</span>
     </div>
   );
 }
@@ -539,18 +539,18 @@ export function AllowUndoField<T extends BaseGameSettings>({
   return (
     <div>
       <label for="allow_undo">
-        <IconUndo /> Allow takebacks
+        <IconUndo /> Allow undo
+        <input
+          type="checkbox"
+          name="allow_undo"
+          id="allow_undo"
+          value="true"
+          checked={s.allowUndo}
+          onChange={(e) =>
+            set("allowUndo", e.currentTarget.checked as T["allowUndo"])
+          }
+        />
       </label>
-      <input
-        type="checkbox"
-        name="allow_undo"
-        id="allow_undo"
-        value="true"
-        checked={s.allowUndo}
-        onChange={(e) =>
-          set("allowUndo", e.currentTarget.checked as T["allowUndo"])
-        }
-      />
     </div>
   );
 }
@@ -569,21 +569,21 @@ export function PrivateSpectatorsField<T extends BaseGameSettings>({
   }
 
   return (
-    <div title="Hide this game from public lists. Non-participants need the invite link to view it.">
+    <div title="Hide this game from public lists. Non-participants will need an invite link to view it.">
       <label for="is_private">
         <IconPrivate /> Private
+        <input
+          type="checkbox"
+          name="is_private"
+          id="is_private"
+          value="true"
+          checked={s.isPrivate}
+          disabled={locked}
+          onChange={(e) =>
+            set("isPrivate", e.currentTarget.checked as T["isPrivate"])
+          }
+        />
       </label>
-      <input
-        type="checkbox"
-        name="is_private"
-        id="is_private"
-        value="true"
-        checked={s.isPrivate}
-        disabled={locked}
-        onChange={(e) =>
-          set("isPrivate", e.currentTarget.checked as T["isPrivate"])
-        }
-      />
     </div>
   );
 }

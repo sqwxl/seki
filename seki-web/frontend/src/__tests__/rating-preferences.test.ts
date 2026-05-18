@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { initialRatingParticipation } from "../components/notification-settings";
+import { initialRatingParticipation } from "../components/rating-participation-settings";
 import { writeUserData } from "../game/util";
 import {
   initPreferences,

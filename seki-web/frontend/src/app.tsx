@@ -406,7 +406,7 @@ function App() {
     <>
       <nav ref={navRef}>
         <div>
-          <a href="/games/new" title="New game">
+          <a href="/games/new" title="New game" class="nav-icon">
             <IconPlus />
           </a>
           <a href="/games">Games</a>

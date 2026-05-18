@@ -45,20 +45,7 @@ function isNotifSupported(): boolean {
   return "Notification" in window;
 }
 
-export function initialRatingParticipation(
-  prefs: UserPreferences,
-  ratingParticipating?: boolean,
-): boolean {
-  return ratingParticipating ?? prefs.rating_participating ?? true;
-}
-
-export function NotificationSettings({
-  hasEmail,
-  ratingParticipating,
-}: {
-  hasEmail: boolean;
-  ratingParticipating?: boolean;
-}) {
+export function NotificationSettings({ hasEmail }: { hasEmail: boolean }) {
   const userData = readUserData();
   const prefs = userData?.preferences ?? {};
 
@@ -75,10 +62,6 @@ export function NotificationSettings({
     return init;
   });
 
-  const [participating, setParticipating] = useState(
-    initialRatingParticipation(prefs, ratingParticipating),
-  );
-
   function toggle(key: keyof UserPreferences) {
     const next = !values[key];
 
@@ -86,25 +69,10 @@ export function NotificationSettings({
     savePref(key, next);
   }
 
-  function toggleParticipation() {
-    const next = !participating;
-
-    setParticipating(next);
-    savePref("rating_participating", next);
-  }
-
   return (
     <div class="notification-settings">
-      <label class="notif-os-toggle">
-        <input
-          type="checkbox"
-          checked={participating}
-          onChange={toggleParticipation}
-        />
-        Ranked games
-      </label>
       {isNotifSupported() && (
-        <label class="notif-os-toggle">
+        <label>
           <input
             type="checkbox"
             checked={osNotificationsEnabled.value}
