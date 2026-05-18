@@ -43,6 +43,31 @@ function isApiRequest(url: URL): boolean {
   return url.pathname.startsWith("/api/");
 }
 
+function isSameTarget(clientUrl: string, targetUrl: URL): boolean {
+  const url = new URL(clientUrl);
+
+  return (
+    url.origin === targetUrl.origin &&
+    url.pathname === targetUrl.pathname &&
+    (!targetUrl.search || url.search === targetUrl.search)
+  );
+}
+
+async function hasActiveTargetClient(targetUrl: URL): Promise<boolean> {
+  const clients = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+
+  return clients.some((client) => {
+    if (!isSameTarget(client.url, targetUrl)) {
+      return false;
+    }
+
+    return client.focused || client.visibilityState === "visible";
+  });
+}
+
 async function fetchAndCache(request: Request): Promise<Response> {
   const response = await fetch(request);
 
@@ -129,12 +154,23 @@ self.addEventListener("push", (event) => {
     };
 
     event.waitUntil(
-      self.registration.showNotification(payload.title, {
-        body: payload.body,
-        icon: payload.icon ?? "/static/images/icon-192.png",
-        badge: payload.badge ?? "/static/images/icon-192.png",
-        data: payload.data,
-      }),
+      (async () => {
+        const targetUrl = new URL(
+          payload.data?.url ?? "/",
+          self.location.origin,
+        );
+
+        if (await hasActiveTargetClient(targetUrl)) {
+          return;
+        }
+
+        await self.registration.showNotification(payload.title, {
+          body: payload.body,
+          icon: payload.icon ?? "/static/images/icon-192.png",
+          badge: payload.badge ?? "/static/images/icon-192.png",
+          data: payload.data,
+        });
+      })(),
     );
   } catch {
     // Ignore malformed payloads
