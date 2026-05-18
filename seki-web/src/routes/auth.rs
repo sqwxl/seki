@@ -13,6 +13,7 @@ use tower_sessions::Session;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::app_credential::AppCredential;
+use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::services::jwt;
@@ -317,9 +318,17 @@ pub async fn issue_token(
         .await
         .map_err(AppError::Database)?;
 
+    let rating_profile = if current_user.is_registered() {
+        RatingProfile::find(&state.db, current_user.id).await?
+    } else {
+        None
+    };
+    let user_data = UserData::from_user_with_rank(&current_user.user, rating_profile.as_ref());
+
     Ok(Json(json!({
         "token": token,
         "expires_at": expires_at,
+        "user": user_data,
     })))
 }
 
@@ -399,7 +408,12 @@ pub async fn restore_session(
             .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
     }
 
-    let user_data = UserData::from(&user);
+    let rating_profile = if user.is_registered() {
+        RatingProfile::find(&state.db, user.id).await?
+    } else {
+        None
+    };
+    let user_data = UserData::from_user_with_rank(&user, rating_profile.as_ref());
     Ok(Json(json!({
         "user": user_data,
         "token": new_token,

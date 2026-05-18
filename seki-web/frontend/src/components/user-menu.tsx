@@ -9,11 +9,7 @@ import {
 import { readUserData } from "../game/util";
 import { analysisBoard } from "../layouts/analysis-state";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
-import {
-  ratingDisplayPreference,
-  readRatingDisplayPreference,
-  savePref,
-} from "../utils/preferences";
+import { ratingDisplayPreference, savePref } from "../utils/preferences";
 import type { RatingDisplayMode } from "../utils/rating";
 import {
   MOVE_CONFIRMATION,
@@ -87,13 +83,10 @@ export function UserMenu({
   const userData = readUserData();
   const username = userData?.display_name ?? "Guest";
   const isRegistered = userData?.is_registered ?? false;
-  const [ratingDisplay, setRatingDisplay] = useState<RatingDisplayMode>(() =>
-    readRatingDisplayPreference(),
-  );
+  const ratingDisplay = ratingDisplayPreference.value;
 
   function handleRatingDisplayToggle() {
     const next = nextRatingDisplay(ratingDisplayPreference.value);
-    setRatingDisplay(next);
     savePref("rating_display", next);
   }
 

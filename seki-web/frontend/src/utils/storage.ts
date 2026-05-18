@@ -30,6 +30,7 @@ export const SHOW_MOVE_TREE = "seki:show_move_tree";
 export const THEME = "seki:theme";
 export const APP_CREDENTIAL = "seki:app_credential";
 export const PUSH_SUBSCRIPTION_ID = "seki:push_subscription_id";
+export const USER_DATA = "seki:user_data";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -6,35 +6,44 @@ use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
+use crate::routes::web_api::BootstrapPayload;
 use crate::routes::web_api::bootstrap_for_location;
-use crate::routes::{FlashMessage, FlashSeverity, serialize_user_data, set_flash, take_flash};
-use crate::session::CurrentUser;
+use crate::routes::{FlashMessage, FlashSeverity, set_flash, take_flash};
+use crate::session::{CurrentUser, OptionalCurrentUser};
 use crate::templates::shell::SpaShellTemplate;
 
 pub async fn shell(
     State(state): State<AppState>,
     OriginalUri(uri): OriginalUri,
     session: Session,
-    current_user: CurrentUser,
+    optional_user: OptionalCurrentUser,
 ) -> Result<Response, AppError> {
-    let bootstrap = match bootstrap_for_location(&state, &current_user, &uri).await {
-        Ok(payload) => payload,
-        Err(error) => {
-            if let Some(target) =
-                redirect_target_for_navigation_error(&session, &uri, &error).await?
-            {
-                return Ok(Redirect::to(&target).into_response());
+    let bootstrap = if let Some(user) = optional_user.user {
+        let current_user = CurrentUser { user };
+
+        match bootstrap_for_location(&state, &current_user, &uri).await {
+            Ok(payload) => payload,
+            Err(error) => {
+                if let Some(target) =
+                    redirect_target_for_navigation_error(&session, &uri, &error).await?
+                {
+                    return Ok(Redirect::to(&target).into_response());
+                }
+                return Err(error);
             }
-            return Err(error);
+        }
+    } else {
+        BootstrapPayload {
+            url: None,
+            data: None,
+            flash: None,
         }
     };
+
     let mut bootstrap = bootstrap;
     bootstrap.flash = take_flash(&session).await?;
     let bootstrap_json = serde_json::to_string(&bootstrap)?;
-    let tmpl = SpaShellTemplate {
-        user_data: serialize_user_data(&state.db, &current_user).await,
-        bootstrap_json,
-    };
+    let tmpl = SpaShellTemplate { bootstrap_json };
     Ok(Html(tmpl.render()?).into_response())
 }
 

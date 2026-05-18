@@ -62,6 +62,40 @@ impl FromRequestParts<crate::AppState> for CurrentUser {
     }
 }
 
+pub struct OptionalCurrentUser {
+    pub user: Option<User>,
+}
+
+impl FromRequestParts<crate::AppState> for OptionalCurrentUser {
+    type Rejection = AppError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &crate::AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let session = Session::from_request_parts(parts, state)
+            .await
+            .map_err(|_| AppError::Internal("Session not available".to_string()))?;
+
+        let Some(token) = session
+            .get::<String>(USER_ID_KEY)
+            .await
+            .map_err(|e| AppError::Internal(format!("Session get error: {e}")))?
+        else {
+            return Ok(OptionalCurrentUser { user: None });
+        };
+
+        if let Some(user) = User::find_by_session_token(&state.db, &token).await? {
+            return Ok(OptionalCurrentUser { user: Some(user) });
+        }
+
+        tracing::warn!("Stale session token: {}", token);
+        let _ = session.remove::<String>(USER_ID_KEY).await;
+
+        Ok(OptionalCurrentUser { user: None })
+    }
+}
+
 pub struct ApiUser {
     pub user: User,
 }

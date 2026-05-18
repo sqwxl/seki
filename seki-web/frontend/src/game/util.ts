@@ -1,3 +1,4 @@
+import { USER_DATA, storage } from "../utils/storage";
 import type { UserData } from "./types";
 
 declare global {
@@ -9,6 +10,14 @@ declare global {
 export function readUserData(): UserData | undefined {
   if (window.__sekiUserData) {
     return window.__sekiUserData;
+  }
+
+  const stored = storage.getJson<UserData>(USER_DATA);
+
+  if (stored?.id) {
+    window.__sekiUserData = stored;
+
+    return stored;
   }
 
   const el = document.getElementById("user-data");
@@ -26,6 +35,12 @@ export function readUserData(): UserData | undefined {
 
 export function writeUserData(userData: UserData | undefined): void {
   window.__sekiUserData = userData;
+
+  if (userData) {
+    storage.setJson(USER_DATA, userData);
+  } else {
+    storage.remove(USER_DATA);
+  }
 
   const el = document.getElementById("user-data");
 

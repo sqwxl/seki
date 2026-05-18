@@ -36,30 +36,33 @@ import {
   setAppCredential,
 } from "./utils/storage";
 import { initTheme } from "./utils/theme";
-import { ensureConnected } from "./ws";
 import { IconPlus } from "./components/icons";
+import { ensureConnected } from "./ws";
 
-function warmBoardWasm(): void {
-  void import("./goban/create-board")
-    .then(({ ensureWasm }) => ensureWasm())
-    .catch(() => {
-      // Board screens surface their own load errors when the engine is needed.
-    });
-}
+type AuthTokenResponse = {
+  token: string;
+  user?: UserData;
+};
 
 function App() {
   const navRef = useRef<HTMLElement>(null);
+
   const [locationState, setLocationState] = useState(() => ({
     key: `${window.location.pathname}${window.location.search}`,
     version: 0,
   }));
+
   const [currentUser, setCurrentUser] = useState<UserData | undefined>(() =>
     readUserData(),
   );
+
+  const [authReady, setAuthReady] = useState(false);
   const [offline, setOffline] = useState(!navigator.onLine);
+
   const initialFlash = useRef<FlashMessage | undefined>(
     getBootstrapData()?.flash ?? readFlashFromUrl(currentUrl()),
   );
+
   const seededInitialFlash = useRef(false);
   const preserveFlashForNextNavigation = useRef(false);
   const preserveFlashAfterUrlCleanup = useRef(false);
@@ -68,30 +71,8 @@ function App() {
     initPreferences();
     initTheme();
     initUnreadTracking();
-    ensureConnected();
-    warmBoardWasm();
 
-    const userData = readUserData();
-
-    if (!userData?.is_registered && !getAppCredential()) {
-      fetchToken();
-    }
-  }, []);
-
-  useEffect(() => {
-    const credential = getAppCredential();
-
-    if (!credential) {
-      return;
-    }
-
-    const userData = readUserData();
-
-    if (userData?.is_registered) {
-      return;
-    }
-
-    restoreCredential(credential);
+    void initializeAuth();
   }, []);
 
   useEffect(() => {
@@ -162,19 +143,43 @@ function App() {
     clearRouteDataCache();
   }
 
+  async function initializeAuth() {
+    const credential = getAppCredential();
+    let restored = false;
+
+    if (credential) {
+      restored = await restoreCredential(credential);
+    }
+
+    if (!restored) {
+      await fetchToken();
+    }
+
+    setAuthReady(true);
+    ensureConnected();
+  }
+
   async function fetchToken() {
     try {
-      const result = await fetchJson<{ token: string }>("/api/auth/token");
+      const result = await fetchJson<AuthTokenResponse>("/api/auth/token");
 
       if (result.token) {
         setAppCredential(result.token);
+      }
+
+      if (result.user) {
+        writeUserData(result.user);
+        setCurrentUser(result.user);
+        initPreferences();
+        initTheme();
+        clearRouteDataCache();
       }
     } catch {
       // Silently ignore — user may not have a session
     }
   }
 
-  async function restoreCredential(credential: string) {
+  async function restoreCredential(credential: string): Promise<boolean> {
     try {
       const response = await fetch("/api/auth/restore", {
         headers: {
@@ -186,7 +191,7 @@ function App() {
       if (!response.ok) {
         clearAppCredential();
 
-        return;
+        return false;
       }
 
       const result = (await response.json()) as {
@@ -205,10 +210,14 @@ function App() {
         initPreferences();
         initTheme();
         clearRouteDataCache();
+
+        return true;
       }
     } catch {
-      clearAppCredential();
+      // Keep the cached credential; the next startup can retry restoration.
     }
+
+    return false;
   }
 
   const navigate = (
@@ -323,6 +332,10 @@ function App() {
     };
 
     const onPrefetch = (event: MouseEvent | FocusEvent | TouchEvent) => {
+      if (!authReady) {
+        return;
+      }
+
       const target = event.target as HTMLElement | null;
       const link = target?.closest("a");
 
@@ -370,7 +383,7 @@ function App() {
       document.removeEventListener("focusin", onPrefetch);
       document.removeEventListener("touchstart", onPrefetch, true);
     };
-  }, [locationState.key]);
+  }, [authReady, locationState.key]);
 
   const route = useMemo(
     () => parseRoute(currentUrl()),
@@ -397,7 +410,10 @@ function App() {
       headers: { Accept: "application/json" },
     });
 
-    await refreshSession();
+    writeUserData(undefined);
+    setCurrentUser(undefined);
+    clearRouteDataCache();
+    await fetchToken();
 
     navigate("/", true);
   }
@@ -425,13 +441,15 @@ function App() {
         </div>
       )}
       <main>
-        <Screen
-          route={route}
-          currentUser={currentUser}
-          navigate={navigate}
-          refreshSession={refreshSession}
-          key={`${locationState.key}:${locationState.version}`}
-        />
+        {authReady && (
+          <Screen
+            route={route}
+            currentUser={currentUser}
+            navigate={navigate}
+            refreshSession={refreshSession}
+            key={`${locationState.key}:${locationState.version}`}
+          />
+        )}
       </main>
     </>
   );

@@ -1,6 +1,8 @@
 import { ensureWasm } from "./goban/init-wasm";
 import { mountApp } from "./app";
 
+void import("./goban/create-board");
+
 ensureWasm().then(mountApp);
 
 if (__DEV__) {
