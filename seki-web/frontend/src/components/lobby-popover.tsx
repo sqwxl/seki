@@ -280,7 +280,7 @@ export function PregameSettingsPopover({
     if (prevKomi.current !== pregame.komi) {
       if (pregame.komi !== lastSubmittedKomi.current) {
         setKomiFlash(true);
-        const t = setTimeout(() => setKomiFlash(false), 350);
+        const t = setTimeout(() => setKomiFlash(false), 500);
         prevKomi.current = pregame.komi;
         return () => clearTimeout(t);
       }
@@ -291,7 +291,7 @@ export function PregameSettingsPopover({
     if (prevHandicap.current !== pregame.handicap) {
       if (pregame.handicap !== lastSubmittedHandicap.current) {
         setHandicapFlash(true);
-        const t = setTimeout(() => setHandicapFlash(false), 350);
+        const t = setTimeout(() => setHandicapFlash(false), 500);
         prevHandicap.current = pregame.handicap;
         return () => clearTimeout(t);
       }
@@ -302,7 +302,7 @@ export function PregameSettingsPopover({
     if (prevColor.current !== pregame.color) {
       if (pregame.color !== lastSubmittedColor.current) {
         setColorFlash(true);
-        const t = setTimeout(() => setColorFlash(false), 350);
+        const t = setTimeout(() => setColorFlash(false), 500);
         prevColor.current = pregame.color;
         return () => clearTimeout(t);
       }

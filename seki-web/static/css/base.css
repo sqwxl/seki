@@ -341,10 +341,10 @@ a:visited {
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background-color: var(--aqua);
+  background-color: var(--blue);
   opacity: 0;
   pointer-events: none;
-  animation: form-sync-flash 350ms ease-out;
+  animation: form-sync-flash 1s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
