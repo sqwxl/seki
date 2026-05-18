@@ -419,11 +419,12 @@ export function applyUndo(
 
 /** Append a chat entry (immutable). */
 export function addChatMessage(entry: ChatEntry): void {
+  const senderId = entry.user_data?.id;
   upsertChatMessages(entry);
   if (
     entry.status !== "pending" &&
-    entry.user_id != null &&
-    entry.user_id !== currentUserId.value &&
+    senderId != null &&
+    senderId !== currentUserId.value &&
     mobileTab.value !== "chat"
   ) {
     hasUnreadChat.value = true;

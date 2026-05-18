@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { GameSettings, PregameSettingsData } from "../game/types";
+import type {
+  GameSettings,
+  PregameSettingsData,
+  UserData,
+} from "../game/types";
 import { formatSize, formatTimeControl } from "../utils/format";
 import {
   ButtonContent,
@@ -8,6 +12,7 @@ import {
   HandicapSelect,
 } from "./controls-shared";
 import { IconStonesBw } from "./icons";
+import { UserLabel } from "./user-label";
 
 export function LobbyPopover({
   variant,
@@ -198,8 +203,8 @@ export function PregameSettingsPopover({
   disabled,
   playerStone,
   isCreator,
-  creatorName,
-  joinerName,
+  creator,
+  joiner,
   pendingAction,
   onUpdate,
   onAccept,
@@ -212,8 +217,8 @@ export function PregameSettingsPopover({
   disabled: boolean;
   playerStone: number;
   isCreator: boolean;
-  creatorName?: string;
-  joinerName?: string;
+  creator: UserData | undefined;
+  joiner: UserData | undefined;
   pendingAction?: "accept" | "reject";
   onUpdate: (settings: {
     handicap: number;
@@ -235,7 +240,7 @@ export function PregameSettingsPopover({
       ? undefined
       : Math.max(
           0,
-          Math.ceil((new Date(pregame.expires_at).getTime() - now) / 1000),
+          Math.round((new Date(pregame.expires_at).getTime() - now) / 1000),
         );
   const currentPlayerApproved =
     (playerStone === 1 && pregame.black_approved) ||
@@ -280,7 +285,7 @@ export function PregameSettingsPopover({
     if (prevKomi.current !== pregame.komi) {
       if (pregame.komi !== lastSubmittedKomi.current) {
         setKomiFlash(true);
-        const t = setTimeout(() => setKomiFlash(false), 500);
+        const t = setTimeout(() => setKomiFlash(false), 1000);
         prevKomi.current = pregame.komi;
         return () => clearTimeout(t);
       }
@@ -291,7 +296,7 @@ export function PregameSettingsPopover({
     if (prevHandicap.current !== pregame.handicap) {
       if (pregame.handicap !== lastSubmittedHandicap.current) {
         setHandicapFlash(true);
-        const t = setTimeout(() => setHandicapFlash(false), 500);
+        const t = setTimeout(() => setHandicapFlash(false), 1000);
         prevHandicap.current = pregame.handicap;
         return () => clearTimeout(t);
       }
@@ -302,7 +307,7 @@ export function PregameSettingsPopover({
     if (prevColor.current !== pregame.color) {
       if (pregame.color !== lastSubmittedColor.current) {
         setColorFlash(true);
-        const t = setTimeout(() => setColorFlash(false), 500);
+        const t = setTimeout(() => setColorFlash(false), 1000);
         prevColor.current = pregame.color;
         return () => clearTimeout(t);
       }
@@ -318,6 +323,17 @@ export function PregameSettingsPopover({
           <strong>{title}</strong>
         </p>
         <dl class="game-info-details" style="margin-top: 0.5em">
+          {playerStone !== 0 && (
+            <>
+              <dt>Opponent</dt>
+              <dd>
+                <UserLabel
+                  user={isCreator ? joiner : creator}
+                  fallback="Opponent"
+                />
+              </dd>
+            </>
+          )}
           <dt>Rated</dt>
           <dd>No</dd>
           <dt>Board</dt>
@@ -361,9 +377,9 @@ export function PregameSettingsPopover({
               <dt>Black</dt>
               <dd class={colorFlash ? "form-value-sync" : undefined}>
                 {pregame.color === "black"
-                  ? (creatorName ?? "?")
+                  ? (creator?.display_name ?? "?")
                   : pregame.color === "white"
-                    ? (joinerName ?? "?")
+                    ? (joiner?.display_name ?? "?")
                     : "?"}
               </dd>
             </>

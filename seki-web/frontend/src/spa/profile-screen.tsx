@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { NotificationSettings } from "../components/notification-settings";
 import { RatingParticipationSettings } from "../components/rating-participation-settings";
+import { UserLabel } from "../components/user-label";
 import { UserGames } from "../layouts/user-games";
 import { clearFlash, setFlash } from "../utils/flash";
 import { formatNumericRating, fullRankText } from "../utils/rating";
@@ -139,7 +140,9 @@ export function ProfileScreen({
 
   return (
     <>
-      <h1>{data.profile_username}</h1>
+      <h1>
+        <UserLabel user={data.profile_user} fallback={data.profile_username} />
+      </h1>
       {!data.is_own_profile && (
         <a
           href={`/games/challenge/${encodeURIComponent(data.profile_username)}`}

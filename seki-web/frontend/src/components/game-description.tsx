@@ -102,8 +102,6 @@ function activeStone(stage: GameStage): "black" | "white" | undefined {
 }
 
 export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
-  const b = props.black?.display_name ?? "?";
-  const w = props.white?.display_name ?? "?";
   const active = activeStone(props.stage);
 
   const parts = buildDescriptionParts(props);
@@ -115,15 +113,15 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
       <>
         <span class="dismissed-content">
           <UserLabel
-            name={b}
-            stone="black"
-            rank={{ value: props.black?.rank }}
+            user={props.black}
+            fallback="Black"
+            options={{ stone: "black" }}
           />{" "}
           vs{" "}
           <UserLabel
-            name={w}
-            stone="white"
-            rank={{ value: props.white?.rank }}
+            user={props.white}
+            fallback="White"
+            options={{ stone: "white" }}
           />
           {partsWithoutResult.length > 0 &&
             ` - ${partsWithoutResult.join(" - ")}`}
@@ -137,17 +135,15 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
   return (
     <>
       <UserLabel
-        name={b}
-        stone="black"
-        bold={active === "black"}
-        rank={{ value: props.black?.rank }}
+        user={props.black}
+        fallback="Black"
+        options={{ stone: "black", strong: active === "black" }}
       />{" "}
       vs{" "}
       <UserLabel
-        name={w}
-        stone="white"
-        bold={active === "white"}
-        rank={{ value: props.white?.rank }}
+        user={props.white}
+        fallback="White"
+        options={{ stone: "white", strong: active === "white" }}
       />{" "}
       - {parts.join(" - ")}
     </>

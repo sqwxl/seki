@@ -51,10 +51,6 @@ export function derivePlayerPanel(opts: {
     cd,
     isNigiriPending,
   } = opts;
-  const bName = blackUser ? blackUser.display_name : "...";
-  const wName = whiteUser ? whiteUser.display_name : "...";
-  const bUrl = blackUser ? `/users/${blackUser.display_name}` : undefined;
-  const wUrl = whiteUser ? `/users/${whiteUser.display_name}` : undefined;
   const bOnline = blackUser ? online.has(blackUser.id) : false;
   const wOnline = whiteUser ? online.has(whiteUser.id) : false;
 
@@ -62,21 +58,19 @@ export function derivePlayerPanel(opts: {
 
   const blackPanel: PlayerPanelProps = {
     ...panels.black,
-    name: bName,
+    userData: blackUser,
     stone: isNigiriPending ? "nigiri" : "black",
     clock: cd.blackText || undefined,
     clockLowTime: cd.blackLow,
-    profileUrl: bUrl,
     isOnline: bOnline,
     rank: blackUser?.rank,
   };
   const whitePanel: PlayerPanelProps = {
     ...panels.white,
-    name: wName,
+    userData: whiteUser,
     stone: isNigiriPending ? "nigiri" : "white",
     clock: cd.whiteText || undefined,
     clockLowTime: cd.whiteLow,
-    profileUrl: wUrl,
     isOnline: wOnline,
     rank: whiteUser?.rank,
   };

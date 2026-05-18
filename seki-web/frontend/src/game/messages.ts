@@ -242,8 +242,7 @@ export function handleGameMessage(
     case "chat": {
       addChatMessage({
         id: data.id,
-        user_id: data.player_id,
-        display_name: data.display_name,
+        user_data: data.user_data,
         client_message_id: data.client_message_id,
         text: data.text,
         move_number: data.move_number,

@@ -150,13 +150,13 @@ export function initAnalysis(root: HTMLElement) {
     return {
       top: {
         ...panels.white,
-        name: whiteName,
+        fallbackName: whiteName,
         stone: "white",
         clock: wClock,
       },
       bottom: {
         ...panels.black,
-        name: blackName,
+        fallbackName: blackName,
         stone: "black",
         clock: bClock,
       },

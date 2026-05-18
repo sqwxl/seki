@@ -217,8 +217,7 @@ export type PresenceStateMessage = {
 export type ChatMessage = {
   kind: "chat";
   id?: number;
-  player_id?: number;
-  display_name?: string;
+  user_data?: UserData | null;
   client_message_id?: string;
   text: string;
   move_number?: number;

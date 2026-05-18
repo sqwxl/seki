@@ -19,19 +19,15 @@ async fn player_sends_chat() {
 
     assert_eq!(msg_b["text"], "hello");
     assert_eq!(msg_b["game_id"], game_id);
-    assert!(
-        !msg_b["player_id"].is_null(),
-        "player chat should have non-null player_id"
-    );
-    assert_eq!(msg_b["display_name"], "test-black");
+    assert!(msg_b["player_id"].is_null());
+    assert!(msg_b["display_name"].is_null());
+    assert_eq!(msg_b["user_data"]["display_name"], "test-black");
 
     assert_eq!(msg_w["text"], "hello");
     assert_eq!(msg_w["game_id"], game_id);
-    assert!(
-        !msg_w["player_id"].is_null(),
-        "player chat should have non-null player_id"
-    );
-    assert_eq!(msg_w["display_name"], "test-black");
+    assert!(msg_w["player_id"].is_null());
+    assert!(msg_w["display_name"].is_null());
+    assert_eq!(msg_w["user_data"]["display_name"], "test-black");
 }
 
 /// 12.2 — Empty message rejected: sender gets error, opponent gets nothing.

@@ -1,17 +1,17 @@
-import type { RankData } from "../game/types";
+import type { RankData, UserData } from "../game/types";
 import { formatN } from "../utils/format";
 import { CapturesBlack, CapturesWhite, IconGrid3x3 } from "./icons";
 import { UserLabel } from "./user-label";
 
 export type PlayerPanelProps = {
-  name: string;
+  userData?: UserData;
+  fallbackName?: string;
   captures: number;
   komi?: number;
   territory?: number;
   stone: "black" | "white" | "nigiri";
   clock?: string;
   clockLowTime?: boolean;
-  profileUrl?: string;
   isOnline?: boolean;
   rank?: RankData | null;
 };
@@ -21,11 +21,14 @@ export function PlayerPanel(props: PlayerPanelProps) {
     <>
       <span class="player-name-group">
         <UserLabel
-          name={props.name}
-          stone={props.stone}
-          profileUrl={props.profileUrl}
-          isOnline={props.isOnline}
-          rank={{ value: props.rank }}
+          user={props.userData}
+          fallback={props.fallbackName ?? "..."}
+          options={{
+            stone: props.stone,
+            showPresence: props.isOnline !== undefined,
+            presence: props.isOnline,
+            rank: { value: props.rank },
+          }}
         />
       </span>
       <span class={`player-clock${props.clockLowTime ? " low-time" : ""}`}>

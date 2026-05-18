@@ -11,8 +11,9 @@ use crate::error::AppError;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
-use crate::services::rating::{RankDto, rank_for_user};
+use crate::services::rating::rank_for_user;
 use crate::session::CurrentUser;
+use crate::templates::UserData;
 
 #[derive(Deserialize)]
 pub struct SearchQuery {
@@ -21,12 +22,9 @@ pub struct SearchQuery {
 
 #[derive(Serialize)]
 pub struct SearchResult {
-    pub username: String,
-    pub is_registered: bool,
+    pub user_data: UserData,
     pub is_online: bool,
     pub is_recent: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rank: Option<RankDto>,
 }
 
 // GET /users/search?q=<optional>
@@ -89,12 +87,22 @@ pub async fn search_users(
 
     let mut results: Vec<SearchResult> = rows
         .into_iter()
-        .map(|r| SearchResult {
-            username: r.username.clone(),
-            is_registered: r.is_registered(),
-            is_online: online_ids.contains(&r.id),
-            is_recent: r.is_recent,
-            rank: rank_map.get(&r.id).cloned(),
+        .map(|r| {
+            let rank = rank_map.get(&r.id).cloned();
+            let user_data = UserData {
+                id: r.id,
+                display_name: r.username.clone(),
+                is_registered: r.is_registered(),
+                email: r.email.clone(),
+                preferences: r.preferences.clone(),
+                rank: rank.clone(),
+            };
+
+            SearchResult {
+                user_data,
+                is_online: online_ids.contains(&r.id),
+                is_recent: r.is_recent,
+            }
         })
         .collect();
 

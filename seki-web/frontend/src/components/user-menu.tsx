@@ -121,8 +121,9 @@ export function UserMenu({
         onClick={() => setOpen(!open)}
       >
         <UserLabel
-          name={username}
-          rank={{ value: userData?.rank, displayMode: ratingDisplay }}
+          user={userData}
+          fallback="Guest"
+          options={{ rank: { displayMode: ratingDisplay } }}
         />
       </button>
       {open && (

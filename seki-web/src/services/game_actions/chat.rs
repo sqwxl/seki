@@ -6,9 +6,11 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
 use crate::models::message::Message;
+use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::live;
+use crate::templates::UserData;
 
 use super::{
     ChatSent, broadcast_game_state, broadcast_system_chat, current_move_number, load_or_init_clock,
@@ -44,6 +46,12 @@ pub async fn send_chat(
     }
 
     let user = User::find_by_id(&state.db, player_id).await?;
+    let profile = if user.is_registered() {
+        RatingProfile::find(&state.db, user.id).await?
+    } else {
+        None
+    };
+    let user_data = UserData::from_user_with_rank(&user, profile.as_ref());
 
     let move_number = current_move_number(state, &gwp.game).await;
 
@@ -65,8 +73,7 @@ pub async fn send_chat(
                 "kind": "chat",
                 "game_id": game_id,
                 "id": msg.id,
-                "player_id": player_id,
-                "display_name": user.display_name(),
+                "user_data": user_data,
                 "client_message_id": client_message_id,
                 "text": msg.text,
                 "move_number": msg.move_number,

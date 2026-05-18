@@ -633,14 +633,14 @@ describe("navigation", () => {
 describe("player panels", () => {
   it("opponent on top for black player", () => {
     setupPlayingGame(); // we are black
-    expect(caps().topPanel.name).toBe("Bob"); // white on top
-    expect(caps().bottomPanel.name).toBe("Alice"); // us (black) on bottom
+    expect(caps().topPanel.userData?.display_name).toBe("Bob"); // white on top
+    expect(caps().bottomPanel.userData?.display_name).toBe("Alice"); // us (black) on bottom
   });
 
   it("opponent on top for white player", () => {
     setupPlayingAsWhite();
-    expect(caps().topPanel.name).toBe("Alice"); // black on top
-    expect(caps().bottomPanel.name).toBe("Bob"); // us (white) on bottom
+    expect(caps().topPanel.userData?.display_name).toBe("Alice"); // black on top
+    expect(caps().bottomPanel.userData?.display_name).toBe("Bob"); // us (white) on bottom
   });
 
   it("nigiri stones when pending", () => {

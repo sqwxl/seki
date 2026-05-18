@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type {
   GameSettings,
@@ -13,10 +14,9 @@ import {
   formatTimeControl,
   whiteSymbol,
 } from "../utils/format";
-import { ratingDisplayPreference } from "../utils/preferences";
-import { primaryRankText } from "../utils/rating";
 import { getStatusText } from "./game-status";
 import { IconInfo } from "./icons";
+import { UserLabel } from "./user-label";
 
 export type GameInfoProps = {
   settings: GameSettings;
@@ -34,7 +34,7 @@ export type GameInfoProps = {
   copyInviteLink: () => void;
 };
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: ComponentChildren }) {
   return (
     <>
       <dt>{label}</dt>
@@ -53,9 +53,6 @@ export function GameInfo(props: GameInfoProps) {
   const { settings, komi } = props;
   const size = formatSize(settings.cols, settings.rows);
   const tc = formatTimeControl(settings);
-  const ratingMode = ratingDisplayPreference.value;
-  const blackRank = primaryRankText(props.black?.rank, ratingMode);
-  const whiteRank = primaryRankText(props.white?.rank, ratingMode);
   const showRatingRange =
     settings.rating_range_mode != null && props.stage === GameStage.Unstarted;
   const ratingRangeText =
@@ -99,11 +96,6 @@ export function GameInfo(props: GameInfoProps) {
   const tcLabel =
     settings.time_control !== "none" ? settings.time_control : undefined;
   const tcDetail = tc ? (tcLabel ? `${tc} (${tcLabel})` : tc) : undefined;
-
-  const bName = props.black?.display_name ?? "?";
-  const wName = props.white?.display_name ?? "?";
-  const bLabel = blackRank ? `${bName} ${blackRank}` : bName;
-  const wLabel = whiteRank ? `${wName} ${whiteRank}` : wName;
 
   const isDone =
     props.stage === GameStage.Completed || props.stage === GameStage.Aborted;
@@ -183,11 +175,29 @@ export function GameInfo(props: GameInfoProps) {
             {tcDetail && <Row label="Time" value={tcDetail} />}
             <Row
               label="Black"
-              value={`${bLabel} ${blackSymbol()} ${props.capturesBlack} caps`}
+              value={
+                <>
+                  <UserLabel
+                    user={props.black}
+                    fallback="?"
+                    options={{ stone: "black" }}
+                  />{" "}
+                  {blackSymbol()} {props.capturesBlack} caps
+                </>
+              }
             />
             <Row
               label="White"
-              value={`${wLabel} ${whiteSymbol()} ${props.capturesWhite} caps`}
+              value={
+                <>
+                  <UserLabel
+                    user={props.white}
+                    fallback="?"
+                    options={{ stone: "white" }}
+                  />{" "}
+                  {whiteSymbol()} {props.capturesWhite} caps
+                </>
+              }
             />
             <Row label="Moves" value={String(props.moveCount)} />
             {score && (

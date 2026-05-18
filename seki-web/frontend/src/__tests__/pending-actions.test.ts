@@ -22,13 +22,21 @@ import {
   undoRequest,
   white,
 } from "../game/state";
-import { GameStage, type GameState } from "../game/types";
+import { GameStage, type GameState, type UserData } from "../game/types";
 
 const defaultState: GameState = {
   board: Array(361).fill(0),
   cols: 19,
   rows: 19,
   captures: { black: 0, white: 0 },
+};
+
+const alice: UserData = {
+  id: 12,
+  display_name: "alice",
+  is_registered: true,
+  preferences: {},
+  rank: null,
 };
 
 function buildDeps(): GameMessageDeps {
@@ -225,8 +233,7 @@ describe("pending action reconciliation", () => {
   it("reconciles a pending local chat message by client_message_id", () => {
     addPendingChatMessage({
       client_message_id: "local-1",
-      user_id: 12,
-      display_name: "alice",
+      user_data: alice,
       text: "hello",
     });
 
@@ -234,8 +241,7 @@ describe("pending action reconciliation", () => {
       {
         kind: "chat",
         id: 99,
-        player_id: 12,
-        display_name: "alice",
+        user_data: alice,
         client_message_id: "local-1",
         text: "hello",
         sent_at: "2026-03-25T22:00:00Z",
@@ -246,8 +252,7 @@ describe("pending action reconciliation", () => {
     expect(chatMessages.value).toEqual([
       {
         id: 99,
-        user_id: 12,
-        display_name: "alice",
+        user_data: alice,
         client_message_id: "local-1",
         text: "hello",
         move_number: undefined,
@@ -259,8 +264,7 @@ describe("pending action reconciliation", () => {
   it("removes the matching pending local chat message on error", () => {
     addPendingChatMessage({
       client_message_id: "local-2",
-      user_id: 12,
-      display_name: "alice",
+      user_data: alice,
       text: "hello",
     });
 
@@ -283,8 +287,7 @@ describe("pending action reconciliation", () => {
     deps.channel.say = say;
     addPendingChatMessage({
       client_message_id: "local-3",
-      user_id: 12,
-      display_name: "alice",
+      user_data: alice,
       text: "retry me",
     });
 

@@ -216,17 +216,15 @@ function LiveGameStatusSlot(
           disabled={playerStone.value === 0}
           playerStone={playerStone.value}
           isCreator={currentUserId.value === initialProps.value.creator_id}
-          creatorName={
-            (black.value?.id === initialProps.value.creator_id
+          creator={
+            black.value?.id === initialProps.value.creator_id
               ? black.value
               : white.value
-            )?.display_name
           }
-          joinerName={
-            (black.value?.id === initialProps.value.creator_id
+          joiner={
+            black.value?.id === initialProps.value.creator_id
               ? white.value
               : black.value
-            )?.display_name
           }
           pendingAction={pendingPregameAction}
           onUpdate={(settings) => props.channel.updatePregameSettings(settings)}
@@ -390,8 +388,7 @@ function LiveGameChat({ channel }: Pick<LiveGamePageProps, "channel">) {
         : `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     addPendingChatMessage({
       client_message_id: clientMessageId,
-      user_id: currentUserId.value || userData?.id,
-      display_name: userData?.display_name,
+      user_data: userData ?? null,
       text,
     });
 

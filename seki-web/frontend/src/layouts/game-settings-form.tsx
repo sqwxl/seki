@@ -381,14 +381,15 @@ export function GameSettingsForm({
   }
 
   function setChallengeOpponent(result: OpponentSearchResult | null) {
-    setSelectedChallengeOpponentRank(result?.rank ?? null);
+    const opponentRank = result?.user_data.rank ?? null;
+    setSelectedChallengeOpponentRank(opponentRank);
     setAll((prev) => {
       const challenge = {
         ...prev.challenge,
-        selectedOpponent: result?.username ?? "",
+        selectedOpponent: result?.user_data.display_name ?? "",
       };
       const inferred = result
-        ? inferSettingsFromRanks(currentUserRank, result.rank)
+        ? inferSettingsFromRanks(currentUserRank, opponentRank)
         : null;
 
       if (inferred) {

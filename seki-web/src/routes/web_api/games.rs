@@ -8,10 +8,12 @@ use crate::models::game::{Game, GameWithPlayers};
 use crate::models::game_read::GameListRatingFilters;
 use crate::models::message::Message;
 use crate::models::rating::RatingProfile;
+use crate::models::user::User;
 use crate::services::engine_builder;
 use crate::services::live::{self, LiveGameItem, build_live_items};
 use crate::services::{game_joiner, presentation_actions, rating, state_serializer};
 use crate::session::CurrentUser;
+use crate::templates::UserData;
 use crate::templates::games_show::InitialGameProps;
 
 #[derive(Serialize)]
@@ -278,13 +280,16 @@ pub(crate) async fn load_game_show(
         ));
     }
 
-    let messages = Message::find_by_game_id_with_sender(&state.db, id).await?;
+    let messages = Message::find_by_game_id(&state.db, id).await?;
+    let sender_ids: Vec<i64> = messages.iter().filter_map(|msg| msg.user_id).collect();
+    let sender_data = user_data_for_ids(&state.db, &sender_ids).await?;
     let chat_log = messages
         .into_iter()
         .map(|msg| GameChatEntry {
             id: msg.id,
-            user_id: msg.user_id,
-            display_name: msg.display_name,
+            user_data: msg
+                .user_id
+                .and_then(|user_id| sender_data.get(&user_id).cloned()),
             text: msg.text,
             move_number: msg.move_number,
             sent_at: msg.created_at,
@@ -338,11 +343,53 @@ pub(crate) struct ShowGameQuery {
 #[derive(Serialize)]
 pub(crate) struct GameChatEntry {
     pub id: i64,
-    pub user_id: Option<i64>,
-    pub display_name: Option<String>,
+    pub user_data: Option<UserData>,
     pub text: String,
     pub move_number: Option<i32>,
     pub sent_at: chrono::DateTime<chrono::Utc>,
+}
+
+async fn user_data_for_ids(
+    db: &sqlx::SqlitePool,
+    user_ids: &[i64],
+) -> Result<std::collections::HashMap<i64, UserData>, AppError> {
+    if user_ids.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    let ids_json = serde_json::to_string(user_ids).unwrap_or_default();
+    let profiles: Vec<(i64, f64, f64, f64, bool)> = sqlx::query_as(
+        "SELECT user_id, rating, deviation, volatility, participating FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))",
+    )
+    .bind(&ids_json)
+    .fetch_all(db)
+    .await
+    .unwrap_or_default();
+
+    let users = User::find_by_ids(db, user_ids).await?;
+    let mut result = std::collections::HashMap::new();
+    for user in users {
+        let profile = profiles
+            .iter()
+            .find(|(uid, ..)| *uid == user.id)
+            .map(|(_, r, d, v, p)| RatingProfile {
+                user_id: user.id,
+                rating: *r,
+                deviation: *d,
+                volatility: *v,
+                participating: *p,
+                rated_games: 0,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            });
+
+        result.insert(
+            user.id,
+            UserData::from_user_with_rank(&user, profile.as_ref()),
+        );
+    }
+
+    Ok(result)
 }
 
 #[derive(Serialize)]

@@ -5,8 +5,7 @@ import { UserLabel } from "./user-label";
 
 export type ChatEntry = {
   id?: number;
-  user_id?: number | null;
-  display_name?: string | null;
+  user_data?: UserData | null;
   client_message_id?: string;
   text: string;
   move_number?: number;
@@ -50,44 +49,47 @@ function formatPrefix(entry: ChatEntry): string {
   return "";
 }
 
+function entryUserId(entry: ChatEntry): number | null {
+  return entry.user_data?.id ?? null;
+}
+
 function SenderLabel(props: {
   entry: ChatEntry;
   black: UserData | undefined;
   white: UserData | undefined;
-  isOnline: boolean;
+  presence: boolean;
 }) {
-  const { entry, black, white, isOnline } = props;
+  const { entry, black, white, presence } = props;
+  const userId = entryUserId(entry);
 
-  if (entry.user_id == null) {
+  if (userId == null) {
     return <>⚑</>;
   }
 
-  if (black?.id === entry.user_id) {
+  if (black?.id === userId) {
     return (
       <UserLabel
-        name={black.display_name}
-        stone="black"
-        profileUrl={`/users/${black.display_name}`}
-        isOnline={isOnline}
+        user={black}
+        options={{ stone: "black", showPresence: true, presence }}
       />
     );
   }
 
-  if (white?.id === entry.user_id) {
+  if (white?.id === userId) {
     return (
       <UserLabel
-        name={white.display_name}
-        stone="white"
-        profileUrl={`/users/${white.display_name}`}
-        isOnline={isOnline}
+        user={white}
+        options={{ stone: "white", showPresence: true, presence }}
       />
     );
   }
-
-  const name = entry.display_name ?? "?";
 
   return (
-    <UserLabel name={name} profileUrl={`/users/${name}`} isOnline={isOnline} />
+    <UserLabel
+      user={entry.user_data}
+      fallback="Unknown"
+      options={{ showPresence: true, presence }}
+    />
   );
 }
 
@@ -131,8 +133,8 @@ export function Chat({
     <>
       <div class="chat-box" ref={boxRef}>
         {messages.map((entry, i) => {
-          const isOnline =
-            entry.user_id != null && onlineUsers.has(entry.user_id);
+          const userId = entryUserId(entry);
+          const presence = userId != null && onlineUsers.has(userId);
           return (
             <p
               key={entry.id ?? entry.client_message_id ?? `${entry.text}-${i}`}
@@ -144,7 +146,7 @@ export function Chat({
                   entry={entry}
                   black={black}
                   white={white}
-                  isOnline={isOnline}
+                  presence={presence}
                 />
               </strong>
               : {entry.text}
