@@ -39,6 +39,9 @@ function ensureConnected() {
   }
 }
 
+const DISCONNECT_TIMEOUT_MS = 10000;
+const RECONNECT_TIMEOUT_MS = 2000;
+
 function connect() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   const url = `${proto}//${location.host}/ws`;
@@ -116,14 +119,14 @@ function connect() {
         }
 
         disconnectTimer = undefined;
-      }, 3000);
+      }, DISCONNECT_TIMEOUT_MS);
     }
 
     ws = undefined;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = undefined;
       connect();
-    }, 2000);
+    }, RECONNECT_TIMEOUT_MS);
   };
 
   ws.onerror = () => {
