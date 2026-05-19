@@ -320,6 +320,36 @@ async fn web_direct_challenge_requires_opponent() {
 }
 
 #[tokio::test]
+async fn web_direct_challenge_accepts_handicap_submission() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .client_black
+        .post(format!("http://{}/games", server.addr))
+        .header("Accept", "application/json")
+        .form(&[
+            ("variant", "challenge"),
+            ("cols", "19"),
+            ("komi", "6.5"),
+            ("handicap", "0"),
+            ("color", "black"),
+            ("invite_username", "test-white"),
+        ])
+        .send()
+        .await
+        .unwrap();
+
+    assert!(resp.status().is_success(), "direct challenge should create");
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert!(
+        body["redirect"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("/games/")
+    );
+}
+
+#[tokio::test]
 async fn ranked_games_require_time_control() {
     let server = TestServer::start().await;
 

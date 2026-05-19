@@ -29,6 +29,7 @@ pub enum TimeControlType {
 pub struct Game {
     pub id: i64,
     pub creator_id: Option<i64>,
+    pub opponent_id: Option<i64>,
     pub black_id: Option<i64>,
     pub white_id: Option<i64>,
     pub undo_rejected: bool,
@@ -129,7 +130,12 @@ impl Game {
         let mut games = Self::list_public(pool).await?;
 
         if let Some(id) = exclude_id {
-            games.retain(|g| g.black_id != Some(id) && g.white_id != Some(id))
+            games.retain(|g| {
+                g.creator_id != Some(id)
+                    && g.opponent_id != Some(id)
+                    && g.black_id != Some(id)
+                    && g.white_id != Some(id)
+            })
         }
 
         Self::batch_with_players(pool, games).await
@@ -188,7 +194,7 @@ impl Game {
                     id.and_then(|uid| rating_map.get(&uid))
                         .is_some_and(|&rating| rating >= min && rating <= max)
                 };
-                in_range(g.black_id) || in_range(g.white_id)
+                in_range(g.creator_id) || in_range(g.opponent_id)
             });
         }
 
@@ -200,7 +206,7 @@ impl Game {
         user_id: i64,
     ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
         let games = sqlx::query_as::<_, Game>(
-            "SELECT * FROM games WHERE (black_id = $1 OR white_id = $1) \
+            "SELECT * FROM games WHERE (creator_id = $1 OR opponent_id = $1 OR black_id = $1 OR white_id = $1) \
              AND COALESCE(result, '') != 'Aborted' \
              AND COALESCE(result, '') != 'Declined' \
              AND (result IS NULL OR updated_at >= datetime('now', '-5 minutes')) \
@@ -218,7 +224,7 @@ impl Game {
         user_id: i64,
     ) -> Result<Vec<GameWithPlayers>, sqlx::Error> {
         let games = sqlx::query_as::<_, Game>(
-            "SELECT * FROM games WHERE (black_id = $1 OR white_id = $1) \
+            "SELECT * FROM games WHERE (creator_id = $1 OR opponent_id = $1 OR black_id = $1 OR white_id = $1) \
              ORDER BY updated_at DESC",
         )
         .bind(user_id)
@@ -236,7 +242,11 @@ impl Game {
         // Collect all unique user IDs
         let mut user_ids: Vec<i64> = games
             .iter()
-            .flat_map(|g| [g.creator_id, g.black_id, g.white_id].into_iter().flatten())
+            .flat_map(|g| {
+                [g.creator_id, g.opponent_id, g.black_id, g.white_id]
+                    .into_iter()
+                    .flatten()
+            })
             .collect();
         user_ids.sort_unstable();
         user_ids.dedup();
@@ -256,11 +266,13 @@ impl Game {
             .into_iter()
             .map(|game| {
                 let creator = game.creator_id.and_then(|id| users_map.get(&id).cloned());
+                let opponent = game.opponent_id.and_then(|id| users_map.get(&id).cloned());
                 let black = game.black_id.and_then(|id| users_map.get(&id).cloned());
                 let white = game.white_id.and_then(|id| users_map.get(&id).cloned());
                 GameWithPlayers {
                     game,
                     creator,
+                    opponent,
                     black,
                     white,
                 }
@@ -307,10 +319,15 @@ impl Game {
     pub async fn find_with_players(pool: &DbPool, id: i64) -> Result<GameWithPlayers, sqlx::Error> {
         let game = Self::find_by_id(pool, id).await?;
 
-        let mut user_ids: Vec<i64> = [game.creator_id, game.black_id, game.white_id]
-            .into_iter()
-            .flatten()
-            .collect();
+        let mut user_ids: Vec<i64> = [
+            game.creator_id,
+            game.opponent_id,
+            game.black_id,
+            game.white_id,
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
         user_ids.sort_unstable();
         user_ids.dedup();
 
@@ -326,6 +343,7 @@ impl Game {
 
         Ok(GameWithPlayers {
             creator: game.creator_id.and_then(|id| users_map.get(&id).cloned()),
+            opponent: game.opponent_id.and_then(|id| users_map.get(&id).cloned()),
             black: game.black_id.and_then(|id| users_map.get(&id).cloned()),
             white: game.white_id.and_then(|id| users_map.get(&id).cloned()),
             game,
@@ -336,6 +354,7 @@ impl Game {
     pub async fn create(
         executor: impl sqlx::SqliteExecutor<'_>,
         creator_id: i64,
+        opponent_id: Option<i64>,
         black_id: Option<i64>,
         white_id: Option<i64>,
         cols: i32,
@@ -366,16 +385,17 @@ impl Game {
         rating_difference_higher_unlimited: bool,
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
-            "INSERT INTO games (creator_id, black_id, white_id, cols, rows, komi, handicap, \
+            "INSERT INTO games (creator_id, opponent_id, black_id, white_id, cols, rows, komi, handicap, \
              is_private, allow_undo, access_token, invite_token, time_control, main_time_secs, \
              increment_secs, byoyomi_time_secs, byoyomi_periods, \
              clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, open_to, invite_only, ranked, \
              rating_range_mode, max_rating_difference_lower, max_rating_difference_higher, \
              rating_difference_lower_unlimited, rating_difference_higher_unlimited)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
              RETURNING *",
         )
         .bind(creator_id)
+        .bind(opponent_id)
         .bind(black_id)
         .bind(white_id)
         .bind(cols)
@@ -406,6 +426,21 @@ impl Game {
         .bind(rating_difference_higher_unlimited)
         .fetch_one(executor)
         .await
+    }
+
+    pub async fn set_opponent(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        game_id: i64,
+        user_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET opponent_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+        )
+        .bind(user_id)
+        .bind(game_id)
+        .execute(executor)
+        .await?;
+        Ok(())
     }
 
     pub async fn set_black(
@@ -440,6 +475,19 @@ impl Game {
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             "UPDATE games SET white_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+        )
+        .bind(game_id)
+        .execute(executor)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn clear_opponent(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        game_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET opponent_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
         )
         .bind(game_id)
         .execute(executor)
@@ -750,10 +798,15 @@ pub struct RankedGameSnapshotUpdate {
 impl Game {
     /// Build a GameWithPlayers from an already-loaded Game, fetching only the users.
     pub async fn with_players(self, pool: &DbPool) -> Result<GameWithPlayers, sqlx::Error> {
-        let mut user_ids: Vec<i64> = [self.creator_id, self.black_id, self.white_id]
-            .into_iter()
-            .flatten()
-            .collect();
+        let mut user_ids: Vec<i64> = [
+            self.creator_id,
+            self.opponent_id,
+            self.black_id,
+            self.white_id,
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
         user_ids.sort_unstable();
         user_ids.dedup();
 
@@ -769,6 +822,7 @@ impl Game {
 
         Ok(GameWithPlayers {
             creator: self.creator_id.and_then(|id| users_map.get(&id).cloned()),
+            opponent: self.opponent_id.and_then(|id| users_map.get(&id).cloned()),
             black: self.black_id.and_then(|id| users_map.get(&id).cloned()),
             white: self.white_id.and_then(|id| users_map.get(&id).cloned()),
             game: self,
@@ -781,11 +835,20 @@ impl Game {
 pub struct GameWithPlayers {
     pub game: Game,
     pub creator: Option<User>,
+    pub opponent: Option<User>,
     pub black: Option<User>,
     pub white: Option<User>,
 }
 
 impl GameWithPlayers {
+    pub fn participant_by_id(&self, user_id: i64) -> Option<&User> {
+        self.creator
+            .as_ref()
+            .filter(|p| p.id == user_id)
+            .or_else(|| self.opponent.as_ref().filter(|p| p.id == user_id))
+            .or_else(|| self.player_by_id(user_id))
+    }
+
     pub fn player_by_id(&self, user_id: i64) -> Option<&User> {
         self.black
             .as_ref()
@@ -794,8 +857,7 @@ impl GameWithPlayers {
     }
 
     pub fn has_player(&self, user_id: i64) -> bool {
-        self.black.as_ref().is_some_and(|p| p.id == user_id)
-            || self.white.as_ref().is_some_and(|p| p.id == user_id)
+        self.participant_by_id(user_id).is_some()
     }
 
     pub fn player_stone(&self, user_id: i64) -> i32 {
@@ -809,7 +871,11 @@ impl GameWithPlayers {
     }
 
     pub fn is_open(&self) -> bool {
-        self.black.is_none() || self.white.is_none()
+        self.creator.is_none() || self.opponent.is_none()
+    }
+
+    pub fn colors_assigned(&self) -> bool {
+        self.black.is_some() && self.white.is_some()
     }
 
     /// The user whose turn it is.
@@ -826,6 +892,12 @@ impl GameWithPlayers {
     }
 
     pub fn opponent_of(&self, user_id: i64) -> Option<&User> {
+        if self.creator.as_ref().is_some_and(|p| p.id == user_id) {
+            return self.opponent.as_ref();
+        }
+        if self.opponent.as_ref().is_some_and(|p| p.id == user_id) {
+            return self.creator.as_ref();
+        }
         if self.black.as_ref().is_some_and(|p| p.id == user_id) {
             self.white.as_ref()
         } else if self.white.as_ref().is_some_and(|p| p.id == user_id) {

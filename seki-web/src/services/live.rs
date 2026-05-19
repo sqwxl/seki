@@ -47,6 +47,8 @@ pub struct GameSettings {
 pub struct LiveGameItem {
     pub id: i64,
     pub creator_id: Option<i64>,
+    pub creator: Option<UserData>,
+    pub opponent: Option<UserData>,
     pub stage: String,
     pub result: Option<String>,
     pub black: Option<UserData>,
@@ -72,6 +74,14 @@ impl LiveGameItem {
         Self {
             id: gwp.game.id,
             creator_id: gwp.game.creator_id,
+            creator: gwp
+                .creator
+                .as_ref()
+                .map(|user| UserData::from_user_with_rank(user, profiles.get(&user.id))),
+            opponent: gwp
+                .opponent
+                .as_ref()
+                .map(|user| UserData::from_user_with_rank(user, profiles.get(&user.id))),
             stage: gwp.game.stage.clone(),
             result: gwp.game.result.clone(),
             black: gwp.black.as_ref().map(|user| {
@@ -98,6 +108,12 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
         .unwrap_or_default();
     let mut user_ids = std::collections::HashSet::new();
     for gwp in games {
+        if let Some(ref u) = gwp.creator {
+            user_ids.insert(u.id);
+        }
+        if let Some(ref u) = gwp.opponent {
+            user_ids.insert(u.id);
+        }
         if let Some(ref u) = gwp.black {
             user_ids.insert(u.id);
         }
@@ -131,6 +147,8 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
 #[derive(Serialize)]
 struct GameUpdate {
     id: i64,
+    creator: Option<UserData>,
+    opponent: Option<UserData>,
     stage: String,
     result: Option<String>,
     black: Option<UserData>,
@@ -170,6 +188,14 @@ pub fn notify_game_updated(
             id: gwp.game.id,
             stage: stage.to_string(),
             result: gwp.game.result.clone(),
+            creator: gwp
+                .creator
+                .as_ref()
+                .map(|user| UserData::from_user_with_rank(user, profiles.get(&user.id))),
+            opponent: gwp
+                .opponent
+                .as_ref()
+                .map(|user| UserData::from_user_with_rank(user, profiles.get(&user.id))),
             black: gwp.black.as_ref().map(|user| {
                 user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))
             }),

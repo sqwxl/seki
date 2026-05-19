@@ -149,6 +149,8 @@ export function formatSize(cols: number, rows: number): string {
 
 export type DescriptionInput = {
   creator_id: number | undefined;
+  creator?: UserData | undefined;
+  opponent?: UserData | undefined;
   black: UserData | undefined;
   white: UserData | undefined;
   settings: GameSettings;
@@ -188,8 +190,12 @@ export function buildDescriptionParts(g: DescriptionInput): string[] {
 }
 
 export function formatGameDescription(g: DescriptionInput): string {
-  const b = g.black?.display_name ?? "?";
-  const w = g.white?.display_name ?? "?";
+  const b = g.black?.display_name ?? g.creator?.display_name ?? "?";
+  const w = g.white?.display_name ?? g.opponent?.display_name ?? "?";
+
+  if (!g.black || !g.white) {
+    return [`${b} vs ${w}`, ...buildDescriptionParts(g)].join(" - ");
+  }
 
   const creatorIsWhite = g.creator_id != null && g.white?.id === g.creator_id;
   const first = creatorIsWhite

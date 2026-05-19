@@ -553,6 +553,20 @@ export function GameSettingsForm({
       {variant === "challenge" && (
         <input
           type="hidden"
+          name="handicap"
+          value={String(all.challenge.handicap)}
+        />
+      )}
+      {variant === "email" && (
+        <input
+          type="hidden"
+          name="handicap"
+          value={String(all.email.handicap)}
+        />
+      )}
+      {variant === "challenge" && (
+        <input
+          type="hidden"
           name="invite_username"
           value={all.challenge.selectedOpponent}
         />

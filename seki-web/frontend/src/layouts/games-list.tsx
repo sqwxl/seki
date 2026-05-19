@@ -131,7 +131,10 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
 
   const isMyGame = (g: LiveGameItem) =>
     playerId !== undefined &&
-    (g.black?.id === playerId || g.white?.id === playerId);
+    (g.creator?.id === playerId ||
+      g.opponent?.id === playerId ||
+      g.black?.id === playerId ||
+      g.white?.id === playerId);
 
   const isDismissed = (g: LiveGameItem) =>
     g.result === "Aborted" || g.result === "Declined";
@@ -151,15 +154,11 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
       !g.settings.is_private &&
       !g.settings.invite_only &&
       !isDismissed(g) &&
-      (!g.black || !g.white),
+      !g.opponent,
   );
   const publicGames = allGames.filter(
     (g) =>
-      !isMyGame(g) &&
-      !g.settings.is_private &&
-      !isDismissed(g) &&
-      g.black &&
-      g.white,
+      !isMyGame(g) && !g.settings.is_private && !isDismissed(g) && g.opponent,
   );
 
   return (

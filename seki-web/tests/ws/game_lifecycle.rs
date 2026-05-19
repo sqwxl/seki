@@ -14,18 +14,32 @@ async fn create_and_join_stage_transitions() {
     let _init = black.recv_kind("init").await;
     let state = black.join_game(game_id).await;
 
-    // Game has only one player, so it should still be unstarted.
     assert_eq!(state["stage"], "unstarted");
+    assert_eq!(state["creator"]["id"], server.black_id);
+    assert!(state["opponent"].is_null());
+    assert!(state["black"].is_null());
+    assert!(state["white"].is_null());
 
-    // White joins via the API — this doesn't broadcast state to WS game room.
-    server.join_game(game_id).await;
+    // White joins via the API and enters pre-game settings negotiation.
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/join", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .json(&json!({}))
+        .send()
+        .await
+        .unwrap();
+    assert!(resp.status().is_success());
 
-    // White connects WS and joins the game room. Now that both players are
-    // present, the game transitions to black_to_play.
     let mut white = server.ws_white().await;
     let _init_w = white.recv_kind("init").await;
     let state = white.join_game(game_id).await;
-    assert_eq!(state["stage"], "black_to_play");
+    assert_eq!(state["stage"], "unstarted");
+    assert_eq!(state["creator"]["id"], server.black_id);
+    assert_eq!(state["opponent"]["id"], server.white_id);
+    assert!(state["black"].is_null());
+    assert!(state["white"].is_null());
+    assert!(state["negotiations"]["pregame_settings"].is_object());
 }
 
 #[tokio::test]
@@ -88,12 +102,16 @@ async fn creator_can_reject_pregame_settings_and_return_to_waiting() {
 
     assert_eq!(state_b["stage"], "unstarted");
     assert!(state_b["negotiations"]["pregame_settings"].is_null());
-    assert_eq!(state_b["black"]["id"], server.black_id);
+    assert_eq!(state_b["creator"]["id"], server.black_id);
+    assert!(state_b["opponent"].is_null());
+    assert!(state_b["black"].is_null());
     assert!(state_b["white"].is_null());
 
     assert_eq!(state_w["stage"], "unstarted");
     assert!(state_w["negotiations"]["pregame_settings"].is_null());
-    assert_eq!(state_w["black"]["id"], server.black_id);
+    assert_eq!(state_w["creator"]["id"], server.black_id);
+    assert!(state_w["opponent"].is_null());
+    assert!(state_w["black"].is_null());
     assert!(state_w["white"].is_null());
 }
 

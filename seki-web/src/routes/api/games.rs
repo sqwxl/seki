@@ -34,6 +34,7 @@ pub(crate) struct GameResponse {
     pub(crate) black: Option<UserResponse>,
     pub(crate) white: Option<UserResponse>,
     pub(crate) creator: Option<UserResponse>,
+    pub(crate) opponent: Option<UserResponse>,
     pub(crate) created_at: DateTime<Utc>,
     pub(crate) started_at: Option<DateTime<Utc>>,
     pub(crate) ended_at: Option<DateTime<Utc>>,

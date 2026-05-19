@@ -9,6 +9,7 @@ use crate::models::pregame_settings::PregameSettingsNegotiation;
 use crate::models::rating::RatingProfile;
 use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::live;
+use crate::templates::UserData;
 
 pub struct TerritoryData {
     pub ownership: Vec<i8>,
@@ -190,6 +191,8 @@ pub fn serialize_state(
         "negotiations": negotiations,
         "current_turn_stone": current_turn_stone,
         "moves": moves,
+        "creator": gwp.creator.as_ref().map(UserData::from),
+        "opponent": gwp.opponent.as_ref().map(UserData::from),
         "black": gwp.black.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, true, black_profile)),
         "white": gwp.white.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, false, white_profile)),
         "komi": gwp.game.komi,

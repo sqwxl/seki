@@ -167,11 +167,15 @@ pub async fn create_game(
     let friend_id = friend.as_ref().map(|f| f.id);
 
     let nigiri = !matches!(params.color.as_str(), "black" | "white");
-    let (black_id, white_id) = match params.color.as_str() {
-        "black" => (Some(creator.id), friend_id),
-        "white" => (friend_id, Some(creator.id)),
-        // Nigiri: assign deterministically now, randomize when game starts
-        _ => (Some(creator.id), friend_id),
+    let (black_id, white_id) = if params.open_game {
+        (None, None)
+    } else {
+        match params.color.as_str() {
+            "black" => (Some(creator.id), friend_id),
+            "white" => (friend_id, Some(creator.id)),
+            // Random colors are finalized when the game actually starts.
+            _ => (None, None),
+        }
     };
 
     let access_token = generate_game_token();
@@ -198,6 +202,7 @@ pub async fn create_game(
     let game = Game::create(
         pool,
         creator.id,
+        friend_id,
         black_id,
         white_id,
         params.cols,

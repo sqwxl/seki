@@ -17,6 +17,7 @@ import {
   boardFinalized,
   canStartPresentation,
   controlRequest,
+  creator,
   currentTurn,
   currentUserId,
   estimateScore,
@@ -29,6 +30,7 @@ import {
   navState,
   nigiri,
   onlineUsers,
+  opponent,
   opponentDisconnected,
   originatorId,
   playerStone,
@@ -81,6 +83,8 @@ function resetAllSignals() {
     moves.value = [];
     black.value = undefined;
     white.value = undefined;
+    creator.value = undefined;
+    opponent.value = undefined;
     result.value = null;
     territory.value = undefined;
     settledTerritory.value = undefined;
@@ -92,6 +96,8 @@ function resetAllSignals() {
     initialProps.value = {
       state: defaultState,
       creator_id: 1,
+      creator: null,
+      opponent: null,
       black: null,
       white: null,
       komi: 6.5,
@@ -679,6 +685,21 @@ describe("player panels", () => {
     // Black is online, white is not
     expect(caps().bottomPanel.isOnline).toBe(true); // black (us) on bottom
     expect(caps().topPanel.isOnline).toBe(false); // white on top
+  });
+
+  it("keeps panels empty before colors are assigned", () => {
+    batch(() => {
+      gameStage.value = GameStage.Unstarted;
+      creator.value = userBlack;
+      opponent.value = userWhite;
+      black.value = undefined;
+      white.value = undefined;
+      playerStone.value = 0;
+      currentUserId.value = 1;
+    });
+
+    expect(caps().topPanel.userData).toBeUndefined();
+    expect(caps().bottomPanel.userData).toBeUndefined();
   });
 });
 

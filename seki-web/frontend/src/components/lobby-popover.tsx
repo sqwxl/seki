@@ -201,7 +201,6 @@ export function PregameSettingsPopover({
   pregame,
   allowUndo,
   disabled,
-  playerStone,
   isCreator,
   creator,
   joiner,
@@ -215,7 +214,6 @@ export function PregameSettingsPopover({
   pregame: PregameSettingsData;
   allowUndo: boolean;
   disabled: boolean;
-  playerStone: number;
   isCreator: boolean;
   creator: UserData | undefined;
   joiner: UserData | undefined;
@@ -243,9 +241,9 @@ export function PregameSettingsPopover({
           0,
           Math.round((new Date(pregame.expires_at).getTime() - now) / 1000),
         );
-  const currentPlayerApproved =
-    (playerStone === 1 && pregame.black_approved) ||
-    (playerStone === -1 && pregame.white_approved);
+  const currentPlayerApproved = isCreator
+    ? pregame.black_approved
+    : pregame.white_approved;
   const anyPlayerApproved = pregame.black_approved || pregame.white_approved;
   const acceptLabel = anyPlayerApproved
     ? `Accepted${remaining == null ? "" : ` (${remaining}s)`}`
@@ -324,7 +322,7 @@ export function PregameSettingsPopover({
           <strong>{title}</strong>
         </p>
         <dl class="game-info-details" style="margin-top: 0.5em">
-          {playerStone !== 0 && (
+          {!disabled && (
             <>
               <dt>Opponent</dt>
               <dd>{opponent ? <UserLabel user={opponent} /> : "Opponent"}</dd>
@@ -336,7 +334,7 @@ export function PregameSettingsPopover({
           <dd>{size}</dd>
           <dt>Komi</dt>
           <dd class={komiFlash ? "form-value-sync" : undefined}>
-            {playerStone === 0 ? (
+            {disabled ? (
               pregame.komi
             ) : (
               <input
@@ -353,7 +351,7 @@ export function PregameSettingsPopover({
           </dd>
           <dt>Handicap</dt>
           <dd class={handicapFlash ? "form-value-sync" : undefined}>
-            {playerStone === 0 ? (
+            {disabled ? (
               pregame.handicap || "None"
             ) : (
               <HandicapSelect
@@ -368,7 +366,7 @@ export function PregameSettingsPopover({
               />
             )}
           </dd>
-          {playerStone === 0 ? (
+          {disabled ? (
             <>
               <dt>Black</dt>
               <dd class={colorFlash ? "form-value-sync" : undefined}>

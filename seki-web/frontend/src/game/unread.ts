@@ -21,6 +21,8 @@ export type UnreadGame = {
   id: number;
   creator_id?: number;
   stage: string;
+  creator?: UserData;
+  opponent?: UserData;
   black: UserData | undefined;
   white: UserData | undefined;
 };
@@ -53,6 +55,8 @@ function addUnread(game: UnreadGame): void {
     id: game.id,
     creator_id: game.creator_id,
     stage: game.stage,
+    creator: game.creator,
+    opponent: game.opponent,
     black: game.black,
     white: game.white,
   });
@@ -102,6 +106,8 @@ export function initUnreadTracking(): void {
           id: g.id,
           creator_id: g.creator_id,
           stage: g.stage,
+          creator: g.creator,
+          opponent: g.opponent,
           black: g.black,
           white: g.white,
         });

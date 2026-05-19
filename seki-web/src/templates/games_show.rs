@@ -10,6 +10,8 @@ use super::UserData;
 pub struct InitialGameProps {
     pub state: GameState,
     pub creator_id: Option<i64>,
+    pub creator: Option<UserData>,
+    pub opponent: Option<UserData>,
     pub black: Option<UserData>,
     pub white: Option<UserData>,
     pub komi: f64,

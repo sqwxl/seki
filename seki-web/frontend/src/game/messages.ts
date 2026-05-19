@@ -109,8 +109,8 @@ function reconcilePendingActionFromState(): void {
     case "accept-pregame-settings":
       if (
         gameStage.value !== GameStage.Unstarted ||
-        (playerStone.value === 1 && pregameSettings.value?.black_approved) ||
-        (playerStone.value === -1 && pregameSettings.value?.white_approved)
+        pregameSettings.value?.black_approved ||
+        pregameSettings.value?.white_approved
       ) {
         clearPendingAction("accept-pregame-settings");
       }

@@ -16,6 +16,7 @@ import {
   initialProps,
   isPresenter,
   navState,
+  opponent,
   opponentDisconnected,
   playerStone,
   presenterDisplayName,
@@ -42,9 +43,15 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
   const w = white.value;
   const terr = territory.value;
   const oppDisconnected = opponentDisconnected.value;
-  const hasOpenSlot = !b || !w;
-  const challengee = b?.id !== props.creator_id ? b : w;
   const myId = currentUserId.value || undefined;
+  const isParticipant =
+    myId != null &&
+    (myId === props.creator_id ||
+      myId === opponent.value?.id ||
+      b?.id === myId ||
+      w?.id === myId);
+  const hasOpenSlot = !opponent.value && !(b && w);
+  const challengee = opponent.value ?? (b?.id !== props.creator_id ? b : w);
   const isReview = stage === GameStage.TerritoryReview;
   const inEstimate = phase.phase === "estimate";
   const inPresentation = phase.phase === "presentation";
@@ -106,11 +113,13 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
   const isChallenge = stage === GameStage.Challenge;
   const isCreator = myId != null && myId === props.creator_id;
   const isChallengee =
-    isChallenge && isPlayer && myId != null && myId !== props.creator_id;
+    isChallenge && isParticipant && myId != null && myId !== props.creator_id;
   const opponentName =
-    b?.id === props.creator_id ? w?.display_name : b?.display_name;
+    opponent.value?.display_name ??
+    challengee?.display_name ??
+    (b?.id === props.creator_id ? w?.display_name : b?.display_name);
   const canJoinGame = canJoinGameFromProps({
-    isPlayer,
+    isPlayer: isParticipant,
     hasOpenSlot,
     settings: props.settings,
     hasValidAccessToken,
@@ -133,7 +142,7 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
       title: "Waiting for opponent",
     };
   } else if (
-    !isPlayer &&
+    !isParticipant &&
     !isDone &&
     !res &&
     (isChallenge || hasOpenSlot) &&
@@ -184,6 +193,6 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
     presentationStatusSuffix,
     disconnectCountdown,
     lobbyPopover,
-    showInviteLink: !!props.access_token && isPlayer,
+    showInviteLink: !!props.access_token && isParticipant,
   };
 });

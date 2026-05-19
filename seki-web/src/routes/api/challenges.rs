@@ -127,6 +127,7 @@ pub(super) async fn rematch_game(
 
     if let Some(opp_id) = opponent_id {
         let mut tx = state.db.begin().await?;
+        Game::set_opponent(&mut *tx, game.id, opp_id).await?;
         if game.black_id.is_none() {
             Game::set_black(&mut *tx, game.id, opp_id).await?;
         } else if game.white_id.is_none() {

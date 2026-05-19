@@ -313,19 +313,14 @@ impl TestServer {
             return;
         };
 
-        let (creator_id, black_id, white_id): (Option<i64>, Option<i64>, Option<i64>) =
-            sqlx::query_as("SELECT creator_id, black_id, white_id FROM games WHERE id = $1")
+        let (creator_id, opponent_id): (Option<i64>, Option<i64>) =
+            sqlx::query_as("SELECT creator_id, opponent_id FROM games WHERE id = $1")
                 .bind(game_id)
                 .fetch_one(&self.pool)
                 .await
                 .unwrap();
         let creator_id = creator_id.unwrap();
-        let opponent_id = if black_id == Some(creator_id) {
-            white_id
-        } else {
-            black_id
-        }
-        .unwrap();
+        let opponent_id = opponent_id.unwrap();
         let (final_black, final_white) = if color == "white" {
             (opponent_id, creator_id)
         } else {

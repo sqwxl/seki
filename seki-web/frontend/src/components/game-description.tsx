@@ -6,6 +6,8 @@ export type GameUpdate = {
   id: number;
   stage: GameStage;
   result: string | undefined;
+  creator?: UserData | undefined;
+  opponent?: UserData | undefined;
   black: UserData | undefined;
   white: UserData | undefined;
   settings?: GameSettings;
@@ -15,6 +17,8 @@ export type GameUpdate = {
 export type LiveGameItem = {
   id: number;
   creator_id: number | undefined;
+  creator?: UserData | undefined;
+  opponent?: UserData | undefined;
   stage: GameStage;
   result: string | undefined;
   black: UserData | undefined;
@@ -28,6 +32,7 @@ export function isMyTurn(
   game: {
     stage: GameStage;
     creator_id?: number;
+    opponent?: { id: number };
     black?: { id: number };
     white?: { id: number };
   },
@@ -44,7 +49,9 @@ export function isMyTurn(
     case GameStage.Challenge:
       return (
         game.creator_id !== playerId &&
-        (game.black?.id === playerId || game.white?.id === playerId)
+        (game.opponent?.id === playerId ||
+          game.black?.id === playerId ||
+          game.white?.id === playerId)
       );
     default:
       return false;
@@ -94,7 +101,7 @@ function activeStone(stage: GameStage): "black" | "white" | undefined {
 function playerLabel(
   user: UserData | undefined,
   fallback: string,
-  stone: "black" | "white",
+  stone?: "black" | "white",
   strong?: boolean,
 ) {
   if (!user) {
@@ -110,7 +117,7 @@ function playerLabel(
 
 export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
   const active = activeStone(props.stage);
-
+  const colorsAssigned = !!props.black && !!props.white;
   const parts = buildDescriptionParts(props);
 
   if (props.dismissed && props.result) {
@@ -119,8 +126,13 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
     return (
       <>
         <span class="dismissed-content">
-          {playerLabel(props.black, "Black", "black")} vs{" "}
-          {playerLabel(props.white, "White", "white")}
+          {colorsAssigned
+            ? playerLabel(props.black, "???", "black")
+            : playerLabel(props.creator, "???")}{" "}
+          vs{" "}
+          {colorsAssigned
+            ? playerLabel(props.white, "???", "white")
+            : playerLabel(props.opponent, "???")}
           {partsWithoutResult.length > 0 &&
             ` - ${partsWithoutResult.join(" - ")}`}
         </span>
@@ -132,9 +144,14 @@ export function GameDescription(props: LiveGameItem & { dismissed?: boolean }) {
 
   return (
     <>
-      {playerLabel(props.black, "Black", "black", active === "black")} vs{" "}
-      {playerLabel(props.white, "White", "white", active === "white")} -{" "}
-      {parts.join(" - ")}
+      {colorsAssigned
+        ? playerLabel(props.black, "???", "black", active === "black")
+        : playerLabel(props.creator, "???")}{" "}
+      vs{" "}
+      {colorsAssigned
+        ? playerLabel(props.white, "???", "white", active === "white")
+        : playerLabel(props.opponent, "???")}{" "}
+      - {parts.join(" - ")}
     </>
   );
 }

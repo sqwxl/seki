@@ -242,7 +242,7 @@ pub(crate) async fn load_game_show(
         .zip(query.invite_token.as_deref())
         .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
 
-    let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
+    let has_open_slot = gwp.is_open();
     if !is_player
         && has_open_slot
         && gwp.game.requires_invite_token_to_join()
@@ -307,7 +307,7 @@ pub(crate) async fn load_game_show(
         .collect();
 
     let is_creator = gwp.game.creator_id == Some(current_user.id);
-    let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
+    let has_open_slot = gwp.is_open();
     let game_props = build_game_props(state, current_user, &gwp, has_valid_access_token).await?;
 
     let black_name = gwp
@@ -437,6 +437,14 @@ async fn build_game_props(
         Some(u) => RatingProfile::find(&state.db, u.id).await?,
         None => None,
     };
+    let creator_profile = match gwp.creator.as_ref() {
+        Some(u) => RatingProfile::find(&state.db, u.id).await?,
+        None => None,
+    };
+    let opponent_profile = match gwp.opponent.as_ref() {
+        Some(u) => RatingProfile::find(&state.db, u.id).await?,
+        None => None,
+    };
 
     let stage = if gwp.game.result.is_some() {
         gwp.game.stage.clone()
@@ -484,6 +492,14 @@ async fn build_game_props(
     Ok(InitialGameProps {
         state: engine.game_state(),
         creator_id: gwp.game.creator_id,
+        creator: gwp
+            .creator
+            .as_ref()
+            .map(|user| UserData::from_user_with_rank(user, creator_profile.as_ref())),
+        opponent: gwp
+            .opponent
+            .as_ref()
+            .map(|user| UserData::from_user_with_rank(user, opponent_profile.as_ref())),
         black: gwp.black.as_ref().map(|user| {
             live::user_data_for_game_player(user, &gwp.game, true, black_profile.as_ref())
         }),
@@ -515,7 +531,7 @@ async fn can_join_game(
     gwp: &GameWithPlayers,
     has_valid_access_token: bool,
 ) -> Result<bool, AppError> {
-    let has_open_slot = gwp.black.is_none() || gwp.white.is_none();
+    let has_open_slot = gwp.is_open();
 
     if gwp.has_player(current_user.id) || !has_open_slot {
         return Ok(false);

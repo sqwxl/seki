@@ -35,6 +35,8 @@ export const playerStone = signal(0);
 export const initialProps = signal<InitialGameProps>({
   state: { board: [], cols: 0, rows: 0, captures: { black: 0, white: 0 } },
   creator_id: undefined,
+  creator: null,
+  opponent: null,
   black: null,
   white: null,
   komi: 6.5,
@@ -69,6 +71,8 @@ export const gameState = signal<GameState>({
 export const gameStage = signal<GameStage>(GS.Unstarted);
 export const currentTurn = signal<number | null>(null);
 export const moves = signal<TurnData[]>([]);
+export const creator = signal<UserData | undefined>(undefined);
+export const opponent = signal<UserData | undefined>(undefined);
 export const black = signal<UserData | undefined>(undefined);
 export const white = signal<UserData | undefined>(undefined);
 export const result = signal<string | null>(null);
@@ -250,6 +254,8 @@ export function initGameState(
     settledTerritory.value = props.settled_territory;
     nigiri.value = props.nigiri ?? false;
     canStartPresentation.value = props.can_start_presentation ?? false;
+    creator.value = props.creator ?? undefined;
+    opponent.value = props.opponent ?? undefined;
     black.value = props.black ?? undefined;
     white.value = props.white ?? undefined;
   });
@@ -272,6 +278,8 @@ export function resetGameRuntimeState(): void {
     pendingMove.value = undefined;
     uiNowMs.value = Date.now();
     canStartPresentation.value = false;
+    creator.value = undefined;
+    opponent.value = undefined;
     presentationActive.value = false;
     presenterId.value = 0;
     originatorId.value = 0;
@@ -344,6 +352,12 @@ export function applyGameStateMessage(data: StateMessage): void {
     gameStage.value = data.stage;
     currentTurn.value = data.current_turn_stone;
     moves.value = data.moves ?? [];
+    if (data.creator !== undefined) {
+      creator.value = data.creator ?? undefined;
+    }
+    if (data.opponent !== undefined) {
+      opponent.value = data.opponent ?? undefined;
+    }
 
     // Server undo_rejected resets per-move; sync local undo state.
     // Always dismiss on game end so the popover doesn't linger.
@@ -397,6 +411,10 @@ export function applyGameStateMessage(data: StateMessage): void {
       chatMessages.value = [...chatMessages.value, ...approvalMessages];
     }
   });
+
+  if (data.opponent === null && data.stage === GS.Unstarted) {
+    initialProps.value = { ...initialProps.value, can_join_game: true };
+  }
 }
 
 /** Called from WS undo_accepted/undo_rejected handlers. */

@@ -72,6 +72,8 @@ export function updateTurnFlash(): void {
 export function updateTitle(): void {
   const desc = formatGameDescription({
     creator_id: initialProps.value.creator_id,
+    creator: initialProps.value.creator ?? undefined,
+    opponent: initialProps.value.opponent ?? undefined,
     black: black.value,
     white: white.value,
     settings: initialProps.value.settings,

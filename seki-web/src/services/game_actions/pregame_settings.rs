@@ -7,7 +7,7 @@ use crate::models::game::Game;
 use crate::models::pregame_settings::PregameSettingsNegotiation;
 use crate::services::engine_builder;
 
-use super::{broadcast_game_state, load_game_and_check_player, player_stone, require_both_players};
+use super::{broadcast_game_state, load_game_and_check_player, require_both_players};
 
 const ACCEPT_DEADLINE_SECS: i64 = 60;
 
@@ -39,17 +39,20 @@ pub async fn accept_pregame_settings(
     player_id: i64,
 ) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+
     require_pregame_settings(&gwp)?;
-    let stone = player_stone(&gwp, player_id)?;
+
+    let role = participant_role(&gwp, player_id)?;
+
     let mut negotiation = PregameSettingsNegotiation::find(&state.db, game_id)
         .await?
         .ok_or_else(|| {
             AppError::UnprocessableEntity("No pre-game settings to accept".to_string())
         })?;
 
-    match stone {
-        go_engine::Stone::Black => negotiation.black_approved = true,
-        go_engine::Stone::White => negotiation.white_approved = true,
+    match role {
+        ParticipantRole::Creator => negotiation.black_approved = true,
+        ParticipantRole::Opponent => negotiation.white_approved = true,
     }
 
     if negotiation.black_approved && negotiation.white_approved {
@@ -81,23 +84,15 @@ pub async fn reject_pregame_settings(
     player_id: i64,
 ) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
+
     require_pregame_settings(&gwp)?;
-    let creator_id = gwp
-        .game
-        .creator_id
-        .ok_or_else(|| AppError::UnprocessableEntity("Game does not have a creator".to_string()))?;
 
     let mut tx = state.db.begin().await?;
+
     PregameSettingsNegotiation::delete(&mut *tx, game_id).await?;
-    if gwp.game.black_id == Some(creator_id) {
-        Game::clear_white(&mut *tx, game_id).await?;
-    } else if gwp.game.white_id == Some(creator_id) {
-        Game::clear_black(&mut *tx, game_id).await?;
-    } else {
-        return Err(AppError::UnprocessableEntity(
-            "Game creator is not seated in this game".to_string(),
-        ));
-    }
+
+    Game::clear_opponent(&mut *tx, game_id).await?;
+
     tx.commit().await?;
 
     let updated = Game::find_with_players(&state.db, game_id).await?;
@@ -115,12 +110,13 @@ pub async fn handle_pregame_settings_timeout_flag(
     player_id: i64,
 ) -> Result<(), AppError> {
     let gwp = load_game_and_check_player(state, game_id, player_id).await?;
-    require_pregame_settings(&gwp)?;
-    let negotiation = PregameSettingsNegotiation::find(&state.db, game_id)
-        .await?
-        .ok_or_else(|| {
-            AppError::UnprocessableEntity("No pre-game settings to finalize".to_string())
-        })?;
+    if gwp.game.ranked || gwp.game.stage != "unstarted" || gwp.is_open() {
+        return Ok(());
+    }
+    let negotiation = match PregameSettingsNegotiation::find(&state.db, game_id).await? {
+        Some(n) => n,
+        None => return Ok(()),
+    };
     let Some(deadline) = negotiation.expires_at else {
         return Err(AppError::UnprocessableEntity(
             "Pre-game settings have no active timer".to_string(),
@@ -183,6 +179,23 @@ async fn finalize_pregame_settings(
     tx.commit().await?;
 
     let updated = Game::find_with_players(&state.db, gwp.game.id).await?;
+    if let (Some(b_id), Some(w_id)) = (black_id, white_id)
+        && let Err(e) = crate::services::rating::capture_ranked_snapshot(
+            &state.db,
+            gwp.game.id,
+            b_id,
+            w_id,
+            updated.game.ranked,
+        )
+        .await
+    {
+        tracing::warn!(
+            game_id = gwp.game.id,
+            error = %e,
+            "Failed to capture rating snapshot during pre-game finalization"
+        );
+    }
+
     let engine = engine_builder::build_engine(&state.db, &updated.game).await?;
     state
         .registry
@@ -200,6 +213,26 @@ fn require_pregame_settings(gwp: &crate::models::game::GameWithPlayers) -> Resul
         ));
     }
     Ok(())
+}
+
+enum ParticipantRole {
+    Creator,
+    Opponent,
+}
+
+fn participant_role(
+    gwp: &crate::models::game::GameWithPlayers,
+    player_id: i64,
+) -> Result<ParticipantRole, AppError> {
+    if gwp.game.creator_id == Some(player_id) {
+        Ok(ParticipantRole::Creator)
+    } else if gwp.game.opponent_id == Some(player_id) {
+        Ok(ParticipantRole::Opponent)
+    } else {
+        Err(AppError::UnprocessableEntity(
+            "You are not a user in this game".to_string(),
+        ))
+    }
 }
 
 fn validate_settings(game: &Game, handicap: i32, komi: f64, color: &str) -> Result<(), AppError> {

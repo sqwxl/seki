@@ -14,6 +14,7 @@ import {
   isPresenter,
   moves,
   navState,
+  opponent,
   opponentDisconnected,
   playerStone,
   result,
@@ -54,6 +55,10 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
   const undoState = undoRequest.value;
   const myId = currentUserId.value || undefined;
   const isCreator = myId != null && myId === props.creator_id;
+  const isParticipant =
+    isPlayer ||
+    (myId != null &&
+      (myId === props.creator_id || myId === opponent.value?.id));
   const onFinalized = boardFinalized.value;
   const myControlRequest = controlRequest.value?.userId === currentUserId.value;
 
@@ -98,7 +103,7 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
   const showResign = isPlayer && (isPlay || isChallenge);
 
   const canAbort =
-    isPlayer &&
+    isParticipant &&
     mvs.length === 0 &&
     !isDone &&
     !res &&

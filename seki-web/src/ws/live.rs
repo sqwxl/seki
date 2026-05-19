@@ -413,9 +413,11 @@ fn is_user_turn(game: &Game, user_id: i64) -> bool {
         "black_to_play" => game.black_id == Some(user_id),
         "white_to_play" => game.white_id == Some(user_id),
         "challenge" => {
-            // It's the invited player's turn to accept/decline
+            // It's the invited player's turn to accept/decline.
             game.creator_id != Some(user_id)
-                && (game.black_id == Some(user_id) || game.white_id == Some(user_id))
+                && (game.opponent_id == Some(user_id)
+                    || game.black_id == Some(user_id)
+                    || game.white_id == Some(user_id))
         }
         _ => false,
     }

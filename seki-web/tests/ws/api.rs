@@ -282,7 +282,68 @@ async fn create_game_via_api() {
     assert!(body["id"].is_i64());
     assert_eq!(body["cols"], 9);
     assert_eq!(body["rows"], 9);
-    assert!(body["black"].is_object());
+    assert!(body["creator"].is_object());
+    assert_eq!(body["creator"]["username"], "test-black");
+    assert!(body["opponent"].is_null());
+    assert!(body["black"].is_null());
+    assert!(body["white"].is_null());
+}
+
+#[tokio::test]
+async fn create_random_challenge_leaves_colors_unset_until_accept() {
+    let server = TestServer::start().await;
+
+    let resp = server
+        .client_black
+        .post(format!("http://{}/api/games", server.addr))
+        .header("Authorization", "Bearer test-black-api-token-12345")
+        .json(&json!({
+            "cols": 9,
+            "invite_username": "test-white",
+            "komi": 6.5,
+            "handicap": 0,
+            "color": "random",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 201);
+    let body: Value = resp.json().await.unwrap();
+    let game_id = body["id"].as_i64().expect("game id missing from response");
+    assert!(body["creator"].is_object());
+    assert!(body["opponent"].is_object());
+    assert!(body["black"].is_null());
+    assert!(body["white"].is_null());
+
+    let (black_id, white_id, stage): (Option<i64>, Option<i64>, String) =
+        sqlx::query_as("SELECT black_id, white_id, stage FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    assert!(black_id.is_none());
+    assert!(white_id.is_none());
+    assert_eq!(stage, "challenge");
+
+    let resp = server
+        .client_white
+        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
+        .header("Authorization", "Bearer test-white-api-token-67890")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+
+    let (black_id, white_id, stage): (Option<i64>, Option<i64>, String) =
+        sqlx::query_as("SELECT black_id, white_id, stage FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    assert!(black_id.is_some());
+    assert!(white_id.is_some());
+    assert_ne!(black_id, white_id);
+    assert!(stage == "black_to_play" || stage == "white_to_play");
 }
 
 #[tokio::test]
@@ -369,8 +430,10 @@ async fn join_game_via_api() {
         .unwrap();
     assert!(resp.status().is_success());
     let body: Value = resp.json().await.unwrap();
-    assert!(body["white"].is_object());
-    assert_eq!(body["white"]["username"], "test-white");
+    assert!(body["opponent"].is_object());
+    assert_eq!(body["opponent"]["username"], "test-white");
+    assert!(body["black"].is_null());
+    assert!(body["white"].is_null());
 }
 
 #[tokio::test]

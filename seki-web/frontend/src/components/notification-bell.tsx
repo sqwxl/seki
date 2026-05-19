@@ -103,6 +103,8 @@ export function gameLabel(g: {
   id: number;
   creator_id?: number;
   stage: string;
+  creator?: { id: number; display_name: string };
+  opponent?: { id: number; display_name: string };
   black?: { id: number; display_name: string };
   white?: { id: number; display_name: string };
 }): string {
@@ -120,10 +122,16 @@ export function gameLabel(g: {
 
 function resolveCreatorName(g: {
   creator_id?: number;
+  creator?: { id: number; display_name: string };
+  opponent?: { id: number; display_name: string };
   black?: { id: number; display_name: string };
   white?: { id: number; display_name: string };
 }): string {
   const currentUserId = readUserData()?.id;
+
+  if (g.creator?.display_name) {
+    return g.creator.display_name;
+  }
 
   if (g.creator_id != null) {
     if (g.black?.id === g.creator_id) {
@@ -133,6 +141,10 @@ function resolveCreatorName(g: {
     if (g.white?.id === g.creator_id) {
       return g.white.display_name;
     }
+  }
+
+  if (g.opponent?.display_name) {
+    return g.opponent.display_name;
   }
 
   if (currentUserId != null) {

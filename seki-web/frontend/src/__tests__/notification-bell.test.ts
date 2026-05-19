@@ -44,6 +44,20 @@ describe("notification bell labels", () => {
     ).toBe("Challenge from bob");
   });
 
+  it("uses participant names when challenge colors are not assigned yet", () => {
+    expect(
+      gameLabel({
+        id: 1,
+        creator_id: 1,
+        creator: { id: 1, display_name: "alice" },
+        opponent: { id: 2, display_name: "bob" },
+        stage: "challenge",
+        black: undefined,
+        white: undefined,
+      }),
+    ).toBe("Challenge from alice");
+  });
+
   it("keeps turn labels unchanged for live games", () => {
     expect(
       gameLabel({

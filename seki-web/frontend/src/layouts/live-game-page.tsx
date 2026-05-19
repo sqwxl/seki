@@ -26,6 +26,7 @@ import {
   chatMessages,
   clearGameFlashMessage,
   clearPendingAction,
+  creator,
   currentUserId,
   estimateMode,
   estimateScore,
@@ -38,6 +39,7 @@ import {
   moves,
   nigiri,
   onlineUsers,
+  opponent,
   playerStone,
   pregameSettings,
   result,
@@ -220,19 +222,13 @@ function LiveGameStatusSlot(
           settings={initialProps.value.settings}
           pregame={pregameSettings.value}
           allowUndo={allowUndo.value}
-          disabled={playerStone.value === 0}
-          playerStone={playerStone.value}
+          disabled={
+            currentUserId.value !== initialProps.value.creator_id &&
+            currentUserId.value !== opponent.value?.id
+          }
           isCreator={currentUserId.value === initialProps.value.creator_id}
-          creator={
-            black.value?.id === initialProps.value.creator_id
-              ? black.value
-              : white.value
-          }
-          joiner={
-            black.value?.id === initialProps.value.creator_id
-              ? white.value
-              : black.value
-          }
+          creator={creator.value}
+          joiner={opponent.value}
           pendingAction={pendingPregameAction}
           onUpdate={(settings) => props.channel.updatePregameSettings(settings)}
           onAccept={() => {

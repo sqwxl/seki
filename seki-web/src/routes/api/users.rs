@@ -166,6 +166,7 @@ pub(crate) async fn build_game_response(
         black: gwp.black.as_ref().map(UserResponse::from_user),
         white: gwp.white.as_ref().map(UserResponse::from_user),
         creator: gwp.creator.as_ref().map(UserResponse::from_user),
+        opponent: gwp.opponent.as_ref().map(UserResponse::from_user),
         created_at: gwp.game.created_at,
         started_at: gwp.game.started_at,
         ended_at: gwp.game.ended_at,

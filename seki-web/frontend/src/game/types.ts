@@ -155,6 +155,8 @@ export type GameSettings = {
 export type InitialGameProps = {
   state: GameState;
   creator_id: number | undefined;
+  creator?: UserData | null;
+  opponent?: UserData | null;
   black: UserData | null;
   white: UserData | null;
   komi: number;
@@ -189,6 +191,8 @@ export type StateMessage = {
   };
   current_turn_stone: number | null;
   moves: TurnData[];
+  creator?: UserData | null;
+  opponent?: UserData | null;
   black: UserData | null;
   white: UserData | null;
   komi?: number;
