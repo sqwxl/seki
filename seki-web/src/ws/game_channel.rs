@@ -388,7 +388,7 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
         "chat" => (
             "new_message",
             format!("New message from {actor_username}"),
-            format!("/games/{game_id}"),
+            format!("/games/{game_id}#chat"),
         ),
         _ => return,
     };

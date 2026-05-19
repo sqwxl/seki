@@ -102,6 +102,10 @@ export function liveGame(
   resetGameRuntimeState();
   initGameState(gameId, userData?.id ?? 0, pStone, initialProps);
 
+  if (window.location.hash === "#chat") {
+    mobileTab.value = "chat";
+  }
+
   const clockState: ClockState = {
     data: undefined,
     syncedAt: 0,
