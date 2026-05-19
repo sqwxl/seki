@@ -162,7 +162,7 @@ export function UserMenu({
               class="nav-dropdown-item"
               onClick={handleRatingDisplayToggle}
             >
-              Rating: {ratingDisplay === "kyu_dan" ? "Kyu/dan" : "Numeric"}
+              Ratings: {ratingDisplay === "kyu_dan" ? "Kyu/dan" : "Elo"}
             </button>
           </div>
           <div class="nav-dropdown-section">

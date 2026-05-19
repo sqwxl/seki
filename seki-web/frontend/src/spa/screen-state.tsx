@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { IconSpinner } from "../components/icons";
 
 const DYNAMIC_IMPORT_RELOAD_KEY = "seki:dynamic-import-reload";
 const DYNAMIC_IMPORT_ERROR_PATTERNS = [
@@ -12,7 +13,11 @@ export function ErrorState({ message }: { message: string }) {
 }
 
 export function LoadingState() {
-  return <p>Loading...</p>;
+  return (
+    <p class="flex-center-container">
+      <IconSpinner />
+    </p>
+  );
 }
 
 function isDynamicImportError(err: unknown) {
