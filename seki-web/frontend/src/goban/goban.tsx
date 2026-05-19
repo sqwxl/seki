@@ -112,7 +112,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
 
   onVertexClickRef.current = props.onVertexClick;
 
-  const OFFSET_PX = 76; // ~2cm in CSS pixels (consistent across DPI)
+  const OFFSET_Y_PX = 38; // ~1cm in CSS pixels (consistent across DPI)
 
   const touchToVertex = useCallback(
     (touch: Touch): Point | null => {
@@ -124,7 +124,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
 
       const rect = el.getBoundingClientRect();
       const x = touch.clientX - rect.left;
-      const y = touch.clientY - rect.top - OFFSET_PX;
+      const y = touch.clientY - rect.top - OFFSET_Y_PX;
       const vx = rect.width / cols;
       const col = Math.round(x / vx - 0.5);
       const row = Math.round(y / vx - 0.5);
@@ -146,7 +146,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
     }
 
     const rect = el.getBoundingClientRect();
-    const margin = 2 * OFFSET_PX;
+    const margin = 2 * OFFSET_Y_PX;
 
     return (
       touch.clientX < rect.left - margin ||
