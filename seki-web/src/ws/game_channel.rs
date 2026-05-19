@@ -369,20 +369,33 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
         return;
     };
 
+    let opponent_username = User::find_by_id(&state.db, target_id)
+        .await
+        .unwrap()
+        .username;
+
     let (event_type, title, url) = match action {
-        "play" | "pass" => ("your_turn", "Your turn", format!("/games/{game_id}")),
-        "accept_challenge" => (
-            "challenge_accepted",
-            "Challenge accepted",
+        "play" | "pass" => (
+            "your_turn",
+            format!("{opponent_username} played, it's your turn"),
             format!("/games/{game_id}"),
         ),
-        "chat" => ("new_message", "New message", format!("/games/{game_id}")),
+        "accept_challenge" => (
+            "challenge_accepted",
+            format!("{opponent_username} accepted your challenge"),
+            format!("/games/{game_id}"),
+        ),
+        "chat" => (
+            "new_message",
+            format!("New message from {opponent_username}"),
+            format!("/games/{game_id}"),
+        ),
         _ => return,
     };
 
     let payload = PushPayload {
         title: title.to_string(),
-        body: Some(format!("Game #{game_id}")),
+        body: None, // TODO: Revisit
         icon: None,
         badge: None,
         data: Some(PushNotificationData {
