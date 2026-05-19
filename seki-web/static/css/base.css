@@ -179,7 +179,7 @@ main {
 
 main:not(:has(.game-page)) {
   max-width: 50em;
-  margin: 0 auto;
+  margin: 0 auto 2em;
 }
 
 nav {
