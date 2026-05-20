@@ -1,5 +1,6 @@
 import { useEffect } from "preact/hooks";
 import type { UserData } from "../game/types";
+import { readUserData } from "../game/util";
 import { activeFlash, clearFlash, setFlash } from "../utils/flash";
 import { setAppCredential } from "../utils/storage";
 import { postForm } from "../utils/web-client";
@@ -65,7 +66,10 @@ export function AuthFormScreen({
       await refreshSession();
       await fetchAuthToken();
 
-      if (typeof result.redirect === "string") {
+      const botUser = readUserData();
+      if (botUser?.is_bot) {
+        navigate(`/users/${encodeURIComponent(botUser.display_name)}`, true);
+      } else if (typeof result.redirect === "string") {
         navigate(result.redirect, true);
       }
     } catch (err) {

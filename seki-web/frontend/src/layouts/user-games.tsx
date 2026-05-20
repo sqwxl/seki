@@ -22,6 +22,7 @@ const GAMES_PER_PAGE = 10;
 
 export function UserGames({ initial }: { initial?: UserGamesInitialData }) {
   const currentUserId = readUserData()?.id;
+  const noLink = readUserData()?.is_bot;
   const [games, setGames] = useState<Map<number, LiveGameItem>>(() => {
     const map = new Map<number, LiveGameItem>();
 
@@ -97,7 +98,12 @@ export function UserGames({ initial }: { initial?: UserGamesInitialData }) {
     <>
       <ul class="games-list">
         {visibleGames.map((g) => (
-          <GameListItem key={g.id} game={g} playerId={currentUserId} />
+          <GameListItem
+            key={g.id}
+            game={g}
+            playerId={currentUserId}
+            noLink={noLink}
+          />
         ))}
       </ul>
       {visibleCount < allGames.length && (

@@ -186,26 +186,30 @@ export function ProfileScreen({
                 />
                 <button type="submit">Update</button>
               </form>
-              <h3>Email</h3>
-              <form
-                key={`email-${data.profile_username}`}
-                action="/settings/email"
-                method="post"
-                class="inline-form"
-                onSubmit={submitEmail}
-              >
-                <input
-                  type="email"
-                  name="email"
-                  defaultValue={data.user_email ?? ""}
-                  placeholder="your@email.com"
-                />
-                <button type="submit">
-                  {data.user_email ? "Update" : "Save"}
-                </button>
-              </form>
-              <h3>Notifications</h3>
-              <NotificationSettings hasEmail={!!data.user_email} />
+              {!(data.profile_user?.is_bot && data.is_own_profile) && (
+                <>
+                  <h3>Email</h3>
+                  <form
+                    key={`email-${data.profile_username}`}
+                    action="/settings/email"
+                    method="post"
+                    class="inline-form"
+                    onSubmit={submitEmail}
+                  >
+                    <input
+                      type="email"
+                      name="email"
+                      defaultValue={data.user_email ?? ""}
+                      placeholder="your@email.com"
+                    />
+                    <button type="submit">
+                      {data.user_email ? "Update" : "Save"}
+                    </button>
+                  </form>
+                  <h3>Notifications</h3>
+                  <NotificationSettings hasEmail={!!data.user_email} />
+                </>
+              )}
               <h3>API Token</h3>
               <p>
                 Use this token to authenticate with the API via{" "}

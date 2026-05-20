@@ -284,6 +284,15 @@ pub(crate) async fn load_game_show(
         is_player = true;
     }
 
+    if current_user.is_bot
+        && !gwp.has_player(current_user.id)
+        && gwp.game.creator_id != Some(current_user.id)
+    {
+        return Err(AppError::Forbidden(
+            "Bot accounts can only view games they participate in.".to_string(),
+        ));
+    }
+
     if !crate::services::game_access::can_view_game(&gwp, Some(current_user.id), tokens) {
         return Err(AppError::Forbidden(
             "This game is protected. You need a valid token to view it.".to_string(),

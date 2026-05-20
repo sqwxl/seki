@@ -137,26 +137,30 @@ export function UserMenu({
           <div class="nav-dropdown-section">
             <div class="nav-dropdown-section-label">Settings</div>
             <ThemeButton />
-            <ToggleButton
-              on={moveConfirmEnabled.value}
-              label="Move confirmation"
-              onToggle={handleMoveConfirmToggle}
-            />
-            <ToggleButton
-              on={showCoordinates.value}
-              label="Coordinates"
-              onToggle={handleCoordsToggle}
-            />
-            <ToggleButton
-              on={showMoveTree.value}
-              label="Move tree"
-              onToggle={handleMoveTreeToggle}
-            />
-            <ToggleButton
-              on={soundEnabled.value}
-              label="Sound"
-              onToggle={handleSoundToggle}
-            />
+            {!userData?.is_bot && (
+              <>
+                <ToggleButton
+                  on={moveConfirmEnabled.value}
+                  label="Move confirmation"
+                  onToggle={handleMoveConfirmToggle}
+                />
+                <ToggleButton
+                  on={showCoordinates.value}
+                  label="Coordinates"
+                  onToggle={handleCoordsToggle}
+                />
+                <ToggleButton
+                  on={showMoveTree.value}
+                  label="Move tree"
+                  onToggle={handleMoveTreeToggle}
+                />
+                <ToggleButton
+                  on={soundEnabled.value}
+                  label="Sound"
+                  onToggle={handleSoundToggle}
+                />
+              </>
+            )}
             <button
               type="button"
               class="nav-dropdown-item"

@@ -61,9 +61,11 @@ export function isMyTurn(
 export function GameListItem({
   game,
   playerId,
+  noLink,
 }: {
   game: LiveGameItem;
   playerId: number | undefined;
+  noLink?: boolean;
 }) {
   const dismissed = game.result === "Aborted" || game.result === "Declined";
   const classes = [
@@ -79,9 +81,13 @@ export function GameListItem({
       class={classes || undefined}
       title={isMyTurn(game, playerId) ? "Your turn" : undefined}
     >
-      <a href={`/games/${game.id}`}>
+      {noLink ? (
         <GameDescription {...game} dismissed={dismissed} />
-      </a>
+      ) : (
+        <a href={`/games/${game.id}`}>
+          <GameDescription {...game} dismissed={dismissed} />
+        </a>
+      )}
     </li>
   );
 }

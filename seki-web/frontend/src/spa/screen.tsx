@@ -1,4 +1,6 @@
+import { useEffect } from "preact/hooks";
 import type { UserData } from "../game/types";
+import { setFlash } from "../utils/flash";
 import {
   AuthFormScreen,
   NotFoundScreen,
@@ -25,6 +27,37 @@ export function Screen({
   navigate: NavigateFn;
   refreshSession: () => Promise<void>;
 }) {
+  useEffect(() => {
+    if (!currentUser?.is_bot) {
+      return;
+    }
+
+    const displayName = currentUser.display_name;
+    const profileRoute = `/users/${encodeURIComponent(displayName)}`;
+
+    switch (route.kind) {
+      case "games":
+      case "new-game":
+      case "challenge":
+      case "analysis":
+      case "game":
+        if (
+          `${window.location.pathname}${window.location.search}` !==
+          profileRoute
+        ) {
+          setFlash("Bot accounts are limited to their own profile.");
+          navigate(profileRoute, true);
+        }
+        break;
+      case "profile":
+        if (route.username !== displayName) {
+          setFlash("Bot accounts are limited to their own profile.");
+          navigate(profileRoute, true);
+        }
+        break;
+    }
+  }, [route.kind, currentUser, navigate]);
+
   switch (route.kind) {
     case "games":
       return <GamesScreen />;

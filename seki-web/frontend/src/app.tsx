@@ -422,15 +422,19 @@ function App() {
     <>
       <nav ref={navRef}>
         <div>
-          <a href="/games/new" title="New game" class="nav-icon">
-            <IconPlus />
-          </a>
-          <a href="/games">Games</a>
-          <a href="/analysis">Analysis</a>
+          {!currentUser?.is_bot && (
+            <>
+              <a href="/games/new" title="New game" class="nav-icon">
+                <IconPlus />
+              </a>
+              <a href="/games">Games</a>
+              <a href="/analysis">Analysis</a>
+            </>
+          )}
         </div>
         <div>
           <ConnectionStatus />
-          <NotificationBell />
+          {!currentUser?.is_bot && <NotificationBell />}
           <UserMenu onLogout={handleLogout} />
         </div>
       </nav>
