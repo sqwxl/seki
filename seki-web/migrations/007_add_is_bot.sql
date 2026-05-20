@@ -1,0 +1,1 @@
+alter table users add column is_bot integer not null default 0;

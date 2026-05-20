@@ -78,6 +78,7 @@ export type UserData = {
   display_name: string;
   is_registered: boolean;
   email?: string;
+  is_bot?: boolean;
   rank?: RankData | null;
   preferences: UserPreferences;
 };

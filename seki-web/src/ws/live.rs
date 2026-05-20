@@ -1,8 +1,8 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket};
-use axum::extract::{State, WebSocketUpgrade};
+use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::Response;
 use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
@@ -14,19 +14,41 @@ use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::game_read::GameRead;
 use crate::models::turn::TurnRow;
+use crate::models::user::User;
 use crate::services::clock::TimeControl;
 use crate::services::live::build_live_items;
 use crate::services::presentation_actions;
-use crate::session::CurrentUser;
+use crate::session::OptionalCurrentUser;
 use crate::ws::game_channel;
 
 /// WebSocket upgrade handler: GET /live
 pub async fn ws_upgrade(
     State(state): State<AppState>,
-    current_user: CurrentUser,
+    current_user: OptionalCurrentUser,
     ws: WebSocketUpgrade,
+    Query(params): Query<HashMap<String, String>>,
 ) -> Result<Response, AppError> {
-    Ok(ws.on_upgrade(move |socket| handle_live_socket(socket, state, current_user.id)))
+    let user_id = if let Some(token) = params.get("token") {
+        let user = User::find_by_api_token(&state.db, token)
+            .await?
+            .filter(|u| u.is_registered())
+            .ok_or_else(|| AppError::Unauthorized("Invalid API token".to_string()))?;
+
+        if !user.is_bot {
+            return Err(AppError::Forbidden(
+                "Only bot accounts can use token-based WebSocket authentication".to_string(),
+            ));
+        }
+
+        user.id
+    } else if let Some(user) = current_user.user {
+        user.id
+    } else {
+        return Err(AppError::Unauthorized(
+            "Authentication required".to_string(),
+        ));
+    };
+    Ok(ws.on_upgrade(move |socket| handle_live_socket(socket, state, user_id)))
 }
 
 async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {

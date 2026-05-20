@@ -64,6 +64,8 @@ pub struct RegisterForm {
     pub username: String,
     pub password: String,
     pub password_confirmation: String,
+    #[serde(default)]
+    pub is_bot: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -138,6 +140,8 @@ pub async fn register(
         return redirect_with_flash(&session, "/register", msg).await;
     }
 
+    let is_bot = form.is_bot.as_deref() == Some("true");
+
     // Hash password
     let salt = SaltString::generate(&mut OsRng);
     let password_hash = Argon2::default()
@@ -145,7 +149,14 @@ pub async fn register(
         .map_err(|e| AppError::Internal(format!("Password hash error: {e}")))?
         .to_string();
 
-    User::set_credentials(&state.db, current_user.id, &username, &password_hash).await?;
+    User::set_credentials(
+        &state.db,
+        current_user.id,
+        &username,
+        &password_hash,
+        is_bot,
+    )
+    .await?;
 
     // Ensure rating profile exists for the newly registered user
     crate::models::rating::RatingProfile::get_or_create(&state.db, current_user.id).await?;

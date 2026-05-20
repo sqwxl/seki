@@ -95,6 +95,7 @@ pub async fn search_users(
                 is_registered: r.is_registered(),
                 email: r.email.clone(),
                 preferences: r.preferences.clone(),
+                is_bot: if r.is_bot { Some(true) } else { None },
                 rank: rank.clone(),
             };
 

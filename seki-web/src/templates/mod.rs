@@ -15,6 +15,8 @@ pub struct UserData {
     pub email: Option<String>,
     pub preferences: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_bot: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rank: Option<RankDto>,
 }
 
@@ -31,6 +33,7 @@ impl UserData {
             is_registered: user.is_registered(),
             email: user.email.clone(),
             preferences,
+            is_bot: if user.is_bot { Some(true) } else { None },
             rank: Some(rank_for_user(user, profile)),
         }
     }
@@ -44,6 +47,7 @@ impl From<&User> for UserData {
             is_registered: user.is_registered(),
             email: user.email.clone(),
             preferences: user.preferences_with_defaults(),
+            is_bot: if user.is_bot { Some(true) } else { None },
             rank: None,
         }
     }

@@ -118,6 +118,14 @@ export function AuthFormScreen({
             />
           </div>
         )}
+        {mode === "register" && (
+          <div>
+            <label>
+              <input type="checkbox" name="is_bot" value="true" /> This user is
+              a bot
+            </label>
+          </div>
+        )}
         <button type="submit">
           {mode === "login" ? "Log in" : "Register"}
         </button>

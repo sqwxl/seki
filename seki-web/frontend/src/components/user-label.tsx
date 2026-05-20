@@ -1,5 +1,5 @@
 import type { UserData } from "../game/types";
-import { IconNigiri, IconUser, StoneBlack, StoneWhite } from "./icons";
+import { IconBot, IconNigiri, IconUser, StoneBlack, StoneWhite } from "./icons";
 import { UserRank, type UserRankProps } from "./user-rank";
 
 export type UserLabelOptions = {
@@ -50,6 +50,7 @@ export function UserLabel({ user, noLink, options = {} }: UserLabelProps) {
         </span>
       )}
       {options.showRegistered && <IconUser />}
+      {user.is_bot && <IconBot />}
       <span class="player-name">{user.display_name}</span>{" "}
       <UserRank {...rank} />
       {options.showPresence && (

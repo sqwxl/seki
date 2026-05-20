@@ -37,6 +37,7 @@ pub struct User {
     pub password_hash: Option<String>,
     pub api_token: Option<String>,
     pub preferences: serde_json::Value,
+    pub is_bot: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -166,13 +167,15 @@ impl User {
         user_id: i64,
         username: &str,
         password_hash: &str,
+        is_bot: bool,
     ) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>(
-            "UPDATE users SET username = $1, password_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *",
+            "UPDATE users SET username = $1, password_hash = $2, is_bot = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *",
         )
         .bind(username)
         .bind(password_hash)
         .bind(user_id)
+        .bind(is_bot)
         .fetch_one(executor)
         .await
     }
@@ -343,6 +346,7 @@ pub struct UserSearchRow {
     pub password_hash: Option<String>,
     pub api_token: Option<String>,
     pub preferences: serde_json::Value,
+    pub is_bot: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub is_recent: bool,
