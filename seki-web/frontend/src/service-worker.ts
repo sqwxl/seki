@@ -41,29 +41,15 @@ function isApiRequest(url: URL): boolean {
   return url.pathname.startsWith("/api/");
 }
 
-function isSameTarget(clientUrl: string, targetUrl: URL): boolean {
-  const url = new URL(clientUrl);
-
-  return (
-    url.origin === targetUrl.origin &&
-    url.pathname === targetUrl.pathname &&
-    (!targetUrl.search || url.search === targetUrl.search)
-  );
-}
-
-async function hasActiveTargetClient(targetUrl: URL): Promise<boolean> {
+async function hasActiveClient(): Promise<boolean> {
   const clients = await self.clients.matchAll({
     type: "window",
     includeUncontrolled: true,
   });
 
-  return clients.some((client) => {
-    if (!isSameTarget(client.url, targetUrl)) {
-      return false;
-    }
-
-    return client.focused || client.visibilityState === "visible";
-  });
+  return clients.some(
+    (client) => client.focused || client.visibilityState === "visible",
+  );
 }
 
 async function fetchAndCache(request: Request): Promise<Response> {
@@ -153,12 +139,7 @@ self.addEventListener("push", (event) => {
 
     event.waitUntil(
       (async () => {
-        const targetUrl = new URL(
-          payload.data?.url ?? "/",
-          self.location.origin,
-        );
-
-        if (await hasActiveTargetClient(targetUrl)) {
+        if (await hasActiveClient()) {
           return;
         }
 
