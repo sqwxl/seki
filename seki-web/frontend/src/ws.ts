@@ -31,7 +31,7 @@ let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let disconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSends: string[] = [];
 
-export const localDisconnected = signal(false);
+export const localDisconnected = signal(true);
 
 function ensureConnected() {
   if (!ws && !reconnectTimer) {

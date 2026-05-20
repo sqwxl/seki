@@ -73,6 +73,7 @@ function App() {
     initUnreadTracking();
 
     void initializeAuth();
+    ensureConnected();
   }, []);
 
   useEffect(() => {
@@ -156,7 +157,6 @@ function App() {
     }
 
     setAuthReady(true);
-    ensureConnected();
   }
 
   async function fetchToken() {

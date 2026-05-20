@@ -46,4 +46,7 @@ ssh "$DEPLOY_HOST" \
 echo "Verifying release $RELEASE_ID on $DEPLOY_HOST"
 ssh "$DEPLOY_HOST" "bash '$REMOTE_TMP_DIR/verify-release.sh' '$RELEASE_ID'"
 
+echo "Refreshing Tailscale Funnel relay"
+ssh "$DEPLOY_HOST" "tailscale funnel reset && tailscale funnel --bg 3000"
+
 echo "Deployed release $RELEASE_ID to $DEPLOY_HOST"

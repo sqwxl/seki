@@ -73,6 +73,8 @@ impl Bot {
                             warn!("WebSocket channel closed, reconnecting...");
                             ws_handle = ws::connect_with_retry(&bot.config).await;
                             bot.ws_tx = ws_handle.tx.clone();
+                            bot.joined_games.clear();
+                            bot.games.clear();
                         }
                     }
                 }
