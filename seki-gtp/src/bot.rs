@@ -243,7 +243,7 @@ impl Bot {
             })
             .count();
         if active < self.config.max_concurrent_games {
-            info!("Accepting challenge game={game_id}");
+            info!("Challenge received, joining game game={game_id}");
             let _handle = tokio::spawn({
                 let tx = self.ws_tx.clone();
                 async move {
