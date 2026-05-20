@@ -112,7 +112,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
 
   onVertexClickRef.current = props.onVertexClick;
 
-  const OFFSET_Y_PX = 38; // ~1cm in CSS pixels (consistent across DPI)
+  const OFFSET_Y_PX = 57; // ~1.5cm in CSS pixels (consistent across DPI)
 
   const touchToVertex = useCallback(
     (touch: Touch): Point | null => {
