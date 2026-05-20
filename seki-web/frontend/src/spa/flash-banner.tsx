@@ -1,10 +1,31 @@
-import { useEffect, useState } from "preact/hooks";
-import { activeFlash } from "../utils/flash";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { activeFlash, clearFlash } from "../utils/flash";
 
 export function FlashBanner() {
   const flash = activeFlash.value;
   const [renderedFlash, setRenderedFlash] = useState(flash);
   const [leaving, setLeaving] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!renderedFlash) {
+      return;
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (bannerRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      clearFlash();
+    };
+
+    window.addEventListener("pointerdown", onPointerDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [renderedFlash]);
 
   useEffect(() => {
     if (flash) {
@@ -36,6 +57,7 @@ export function FlashBanner() {
 
   return (
     <div
+      ref={bannerRef}
       class={`flash-banner flash-banner-${renderedFlash.severity} ${leaving ? "flash-banner-leaving" : ""}`}
       role="alert"
       aria-live="assertive"

@@ -119,18 +119,10 @@ function App() {
       }
     };
 
-    const onPointerDown = () => {
-      if (activeFlash.value) {
-        clearFlash();
-      }
-    };
-
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("pointerdown", onPointerDown);
 
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("pointerdown", onPointerDown);
     };
   }, []);
 
