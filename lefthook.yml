@@ -1,6 +1,15 @@
 ---
 pre-commit:
   commands:
+    test-go-engine:
+      glob: 'go-engine/**/*.rs'
+      run: cargo test -p go-engine
+    test-seki-web:
+      glob: 'seki-web/src/**/*.rs'
+      run: cargo test -p seki-web
+    test-frontend:
+      glob: 'seki-web/frontend/src/**/*.{ts,tsx}'
+      run: pnpm --dir seki-web/frontend test
     rustfmt:
       glob: '*.rs'
       run: cargo fmt
