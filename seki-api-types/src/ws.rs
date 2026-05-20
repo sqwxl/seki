@@ -203,7 +203,7 @@ pub enum ServerMsg {
     UndoResponseNeeded {
         game_id: i64,
         #[serde(default)]
-        requesting_player: Option<i64>,
+        requesting_player: Option<String>,
     },
     PlayerDisconnected {
         game_id: i64,
@@ -219,6 +219,10 @@ pub enum ServerMsg {
     PlayerGone {
         game_id: i64,
         user_id: i64,
+    },
+    PresenceChanged {
+        user_id: i64,
+        online: bool,
     },
     PresenceState {
         users: std::collections::HashMap<String, bool>,

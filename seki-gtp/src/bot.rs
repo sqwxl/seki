@@ -72,6 +72,7 @@ impl Bot {
                         None => {
                             warn!("WebSocket channel closed, reconnecting...");
                             ws_handle = ws::connect_with_retry(&bot.config).await;
+                            bot.ws_tx = ws_handle.tx.clone();
                         }
                     }
                 }
@@ -176,7 +177,8 @@ impl Bot {
             | ServerMsg::PlayerDisconnected { .. }
             | ServerMsg::PlayerReconnected { .. }
             | ServerMsg::PlayerGone { .. }
-            | ServerMsg::PresenceState { .. } => {
+            | ServerMsg::PresenceState { .. }
+            | ServerMsg::PresenceChanged { .. } => {
                 // Logged by server, no action needed
             }
         }
