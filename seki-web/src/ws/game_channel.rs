@@ -370,10 +370,11 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
         return;
     };
 
-    let actor_username = User::find_by_id(&state.db, actor_id)
-        .await
-        .unwrap()
-        .username;
+    let Ok(actor) = User::find_by_id(&state.db, actor_id).await else {
+        tracing::warn!("push: actor {actor_id} not found");
+        return;
+    };
+    let actor_username = actor.username;
 
     let (event_type, title, url) = match action {
         "play" | "pass" => (
@@ -424,32 +425,8 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
 
     tracing::info!("push: sending {action} notification to user {target_id} for game {game_id}");
 
-    let destinations =
-        match crate::models::push_destination::PushDestination::find_by_user_and_enabled(
-            &state.db, target_id,
-        )
-        .await
-        {
-            Ok(d) => d,
-            Err(e) => {
-                tracing::error!("push: failed to load destinations for user {target_id}: {e}");
-                return;
-            }
-        };
-
-    tracing::info!(
-        "push: user {target_id} has {} enabled destinations",
-        destinations.len()
-    );
-
-    for destination in &destinations {
-        match service.send(destination, &payload).await {
-            Ok(()) => tracing::info!("push: delivered to destination {}", destination.id),
-            Err(e) => tracing::error!(
-                "push: failed to send to destination {}: {e}",
-                destination.id
-            ),
-        }
+    if let Err(e) = service.send_to_user(&state.db, target_id, &payload).await {
+        tracing::error!("push: failed to send notification to user {target_id}: {e}");
     }
 
     let fcm_payload = FcmPayload {

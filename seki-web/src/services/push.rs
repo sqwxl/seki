@@ -109,6 +109,14 @@ impl PushService {
                     PushDestination::record_failure(db, destination.id, &reason)
                         .await
                         .ok();
+                    if reason.contains("410") {
+                        tracing::info!(
+                            "push: disabling expired destination {} for user {}",
+                            destination.id,
+                            user_id
+                        );
+                        PushDestination::disable(db, destination.id).await.ok();
+                    }
                 }
             }
         }
