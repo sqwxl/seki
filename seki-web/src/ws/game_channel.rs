@@ -8,6 +8,7 @@ use crate::models::game::Game;
 use crate::models::pregame_settings::PregameSettingsNegotiation;
 use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
+use crate::services::fcm::{FcmPayload, FcmService};
 use crate::services::push::{PushNotificationData, PushPayload, PushService};
 use crate::services::state_serializer;
 use crate::services::{game_actions, presentation_actions};
@@ -449,6 +450,17 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
                 destination.id
             ),
         }
+    }
+
+    let fcm_payload = FcmPayload {
+        title: title.to_string(),
+        body: None,
+        url: Some(format!("/games/{game_id}")),
+    };
+    if let Ok(fcm_service) = FcmService::from_env() {
+        let _ = fcm_service
+            .send_to_user(&state.db, target_id, &fcm_payload)
+            .await;
     }
 }
 

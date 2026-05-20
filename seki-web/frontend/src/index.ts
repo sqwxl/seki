@@ -1,11 +1,15 @@
 import { ensureWasm } from "./goban/init-wasm";
 import { mountApp } from "./app";
 
+import { isNativeApp } from "./native/bridge";
+
 void import("./goban/create-board");
 
 ensureWasm().then(mountApp);
 
-if (__DEV__) {
+if (isNativeApp()) {
+  // Skip service worker — WebView doesn't support it
+} else if (__DEV__) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     for (const reg of registrations) {
       reg.unregister();

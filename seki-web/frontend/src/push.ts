@@ -1,3 +1,5 @@
+import { isNativeApp } from "./native/bridge";
+
 export type PushSubscriptionInfo = {
   id: number;
   user_agent: string;
@@ -5,6 +7,9 @@ export type PushSubscriptionInfo = {
 };
 
 export function isPushSupported(): boolean {
+  if (isNativeApp()) {
+    return false;
+  }
   return "serviceWorker" in navigator && "PushManager" in window;
 }
 

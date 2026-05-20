@@ -15,6 +15,7 @@ use utoipa_scalar::{Scalar, Servable};
 
 use crate::AppState;
 use crate::routes::auth;
+use crate::routes::fcm;
 use crate::routes::push;
 
 use self::challenges::{accept_challenge, decline_challenge, rematch_game};
@@ -127,6 +128,12 @@ pub fn router() -> Router<AppState> {
         .route(
             "/push-subscription/{id}",
             axum::routing::delete(push::disable_subscription),
+        )
+        // FCM tokens
+        .route("/fcm-token", post(fcm::register_fcm_token))
+        .route(
+            "/fcm-token/{id}",
+            axum::routing::delete(fcm::delete_fcm_token),
         )
         // Games
         .route("/games", get(list_games))

@@ -1,5 +1,6 @@
 pub mod api;
 pub mod auth;
+pub mod fcm;
 pub mod games;
 pub mod health;
 pub mod push;

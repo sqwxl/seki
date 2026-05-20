@@ -27,3 +27,13 @@ Thumbs.db
 .opencode
 .agents/
 .specify/
+
+# Android
+seki-web/android/.gradle/
+seki-web/android/build/
+seki-web/android/app/build/
+seki-web/android/app/google-services.json
+seki-web/android/app/seki-release.keystore
+seki-web/android/local.properties
+seki-web/android/captures/
+seki-web/android/.externalNativeBuild/

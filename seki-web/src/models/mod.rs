@@ -1,4 +1,5 @@
 pub mod app_credential;
+pub mod fcm_token;
 pub mod game;
 pub mod game_read;
 pub mod message;

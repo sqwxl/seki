@@ -1,4 +1,5 @@
 import { signal } from "@preact/signals";
+import { getFcmToken, isNativeApp, onBridgeReady } from "../native/bridge";
 import {
   registerSubscription,
   subscribeToPush,
@@ -6,6 +7,8 @@ import {
 } from "../push";
 import { savePref } from "./preferences";
 import { NOTIFICATIONS, PUSH_SUBSCRIPTION_ID, storage } from "./storage";
+
+const FCM_TOKEN_ID = "seki:fcm_token_id";
 
 function readPushSubscriptionId(): number | undefined {
   const value = storage.get(PUSH_SUBSCRIPTION_ID);
@@ -19,7 +22,23 @@ function readPushSubscriptionId(): number | undefined {
   return Number.isInteger(id) ? id : undefined;
 }
 
+function readFcmTokenId(): number | undefined {
+  const value = storage.get(FCM_TOKEN_ID);
+
+  if (!value) {
+    return undefined;
+  }
+
+  const id = Number(value);
+
+  return Number.isInteger(id) ? id : undefined;
+}
+
 function compute(): boolean {
+  if (isNativeApp()) {
+    return storage.get(NOTIFICATIONS) === "on";
+  }
+
   return (
     "Notification" in window &&
     storage.get(NOTIFICATIONS) === "on" &&
@@ -29,7 +48,67 @@ function compute(): boolean {
 
 export const osNotificationsEnabled = signal(compute());
 
+async function registerFcmToken(): Promise<void> {
+  const token = getFcmToken();
+
+  if (!token) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/fcm-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token,
+        device_type: "android",
+        user_agent: navigator.userAgent,
+      }),
+    });
+
+    if (response.ok) {
+      const data = (await response.json()) as { id: number };
+      storage.set(FCM_TOKEN_ID, String(data.id));
+    }
+  } catch {
+    // Token registration failed in background
+  }
+}
+
+async function unregisterFcmToken(): Promise<void> {
+  const id = readFcmTokenId();
+
+  if (!id) {
+    return;
+  }
+
+  try {
+    await fetch(`/api/fcm-token/${id}`, { method: "DELETE" });
+  } catch {
+    // Token unregistration failed in background
+  }
+
+  storage.remove(FCM_TOKEN_ID);
+}
+
 export async function toggleOsNotifications(): Promise<void> {
+  if (isNativeApp()) {
+    const next = storage.get(NOTIFICATIONS) === "on" ? "off" : "on";
+    storage.set(NOTIFICATIONS, next);
+    savePref("notifications", next);
+
+    if (next === "on") {
+      onBridgeReady(() => {
+        registerFcmToken();
+      });
+    } else {
+      await unregisterFcmToken();
+    }
+
+    osNotificationsEnabled.value = compute();
+    return;
+  }
+
   if (!("Notification" in window)) {
     return;
   }
@@ -74,4 +153,11 @@ export async function toggleOsNotifications(): Promise<void> {
   }
 
   osNotificationsEnabled.value = compute();
+}
+
+// On native, auto-register FCM token when bridge becomes ready AND notifications are enabled
+if (isNativeApp() && compute()) {
+  onBridgeReady(() => {
+    registerFcmToken();
+  });
 }
