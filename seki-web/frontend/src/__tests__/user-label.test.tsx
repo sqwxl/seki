@@ -68,7 +68,9 @@ describe("UserLabel", () => {
     const children = Array.isArray(view.props.children)
       ? view.props.children
       : [view.props.children];
-    const rank = children[4];
-    expect(rank.props.value.qualifier).toBe("1d");
+    const rank = children.find(
+      (c: any) => c && c.type && c.type.name === "UserRank",
+    );
+    expect(rank?.props?.value?.qualifier).toBe("1d");
   });
 });
