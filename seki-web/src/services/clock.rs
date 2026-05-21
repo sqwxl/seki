@@ -368,6 +368,20 @@ impl ClockState {
         self.total_remaining_ms(stone, active_stone, tc, now) <= 0
     }
 
+    /// True if the clock is flagged after applying lag grace.
+    /// `flag_grace_ms` is subtracted from `now` before checking, crediting
+    /// back lag compensation to avoid false flags.
+    pub fn is_flagged_with_grace(
+        &self,
+        active: Stone,
+        tc: &TimeControl,
+        now: DateTime<Utc>,
+        flag_grace_ms: i64,
+    ) -> bool {
+        let check_now = now - TimeDelta::milliseconds(flag_grace_ms);
+        self.is_flagged(active, Some(active), tc, check_now)
+    }
+
     /// Compute the absolute time at which the active user's clock expires.
     pub fn expiration(
         &self,

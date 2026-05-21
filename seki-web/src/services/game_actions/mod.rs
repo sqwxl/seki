@@ -1,6 +1,7 @@
 mod challenges;
 mod chat;
 mod disconnect;
+mod end_game;
 mod play;
 mod pregame_settings;
 mod rematch;
@@ -9,8 +10,9 @@ mod territory;
 mod undo;
 
 pub use challenges::{accept_challenge, decline_challenge};
-pub use chat::{end_game_on_time, handle_territory_timeout_flag, handle_timeout_flag, send_chat};
+pub use chat::{handle_territory_timeout_flag, handle_timeout_flag, send_chat};
 pub use disconnect::claim_victory;
+pub use end_game::end_game_on_time;
 pub use play::{pass, play_move};
 pub use pregame_settings::{
     accept_pregame_settings, finalize_expired_pregame_settings,
@@ -22,16 +24,16 @@ pub use territory::{approve_territory, settle_territory, toggle_chain};
 pub use undo::{request_undo, respond_to_undo};
 
 use chrono::Utc;
-use go_engine::{Engine, Stage, Stone};
+use go_engine::{Engine, Stone};
 use serde_json::json;
 
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
 use crate::models::message::Message;
-use crate::models::pregame_settings::PregameSettingsNegotiation;
+use crate::models::turn::ClockSnapshot;
 use crate::services::clock::{self, ClockState, TimeControl};
-use crate::services::{engine_builder, live, state_serializer};
+use crate::services::{engine_builder, live, state_assembly};
 
 pub struct ChatSent {
     pub message: Message,
@@ -43,71 +45,16 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
     let game_id = gwp.game.id;
     let undo_requested = state.registry.is_undo_requested(game_id).await;
 
-    let territory = if engine.stage() == Stage::TerritoryReview {
-        state
-            .registry
-            .get_territory_review(game_id)
-            .await
-            .map(|tr| {
-                state_serializer::compute_territory_data(
-                    engine,
-                    &tr.dead_stones,
-                    gwp.game.komi,
-                    tr.black_approved,
-                    tr.white_approved,
-                    gwp.game.territory_review_expires_at,
-                )
-            })
-    } else {
-        None
+    let Ok(loaded) =
+        state_assembly::load_game_state(state, gwp, engine, game_id, undo_requested).await
+    else {
+        tracing::error!(game_id, "Failed to load game state for broadcast");
+        return;
     };
-
-    let tc = TimeControl::from_game(&gwp.game);
-    let clock_data = if !tc.is_none() {
-        state.registry.get_clock(game_id).await.map(|c| (c, tc))
-    } else {
-        None
-    };
-    let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
-    let pregame_settings = if gwp.game.stage == "unstarted" {
-        PregameSettingsNegotiation::find(&state.db, game_id)
-            .await
-            .ok()
-            .flatten()
-    } else {
-        None
-    };
-
-    let black_profile = match gwp.black.as_ref() {
-        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
-            .await
-            .ok()
-            .flatten(),
-        None => None,
-    };
-    let white_profile = match gwp.white.as_ref() {
-        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
-            .await
-            .ok()
-            .flatten(),
-        None => None,
-    };
-
-    let game_state = state_serializer::serialize_state(
-        gwp,
-        engine,
-        undo_requested,
-        territory.as_ref(),
-        None,
-        pregame_settings.as_ref(),
-        clock_ref,
-        black_profile.as_ref(),
-        white_profile.as_ref(),
-    );
 
     state
         .registry
-        .broadcast(game_id, &game_state.to_string())
+        .broadcast(game_id, &loaded.value.to_string())
         .await;
 
     // Notify live subscribers (games list, etc.)
@@ -311,7 +258,28 @@ pub(super) async fn pause_clock(
     Ok(())
 }
 
-/// Load clock from registry cache, falling back to the game row.
+/// Capture a clock snapshot before persisting a move or pass.
+pub(super) async fn capture_clock_snapshot(
+    state: &AppState,
+    game_id: i64,
+    game: &Game,
+) -> Option<ClockSnapshot> {
+    let tc = TimeControl::from_game(game);
+    if !tc.is_none() {
+        load_or_init_clock(state, game_id, game)
+            .await
+            .ok()
+            .map(|c| ClockSnapshot {
+                black_ms: c.black_remaining_ms,
+                white_ms: c.white_remaining_ms,
+                black_periods: c.black_periods,
+                white_periods: c.white_periods,
+            })
+    } else {
+        None
+    }
+}
+
 pub(super) async fn load_or_init_clock(
     state: &AppState,
     game_id: i64,

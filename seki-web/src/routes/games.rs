@@ -9,12 +9,11 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
 use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
-use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
 use crate::services::game_actions;
 use crate::services::game_creator::{self, CreateGameParams, RatingRangePreference};
 use crate::services::game_joiner;
-use crate::services::state_serializer;
+use crate::services::state_assembly;
 use crate::session::CurrentUser;
 
 #[derive(Deserialize)]
@@ -235,30 +234,13 @@ pub async fn join_game(
         return Ok(Redirect::to(&url).into_response());
     }
 
-    let has_valid_access_token = gwp
-        .game
-        .access_token
-        .as_deref()
-        .zip(query.access_token.as_deref())
-        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
-    let has_valid_invite_token = gwp
-        .game
-        .invite_token
-        .as_deref()
-        .zip(query.invite_token.as_deref())
-        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
+    use crate::services::game_access;
 
-    if gwp.game.requires_access_token_to_join() && !has_valid_access_token {
-        return Err(AppError::UnprocessableEntity(
-            "This game requires a valid access token to join".to_string(),
-        ));
-    }
-
-    if gwp.game.requires_invite_token_to_join() && !has_valid_invite_token {
-        return Err(AppError::UnprocessableEntity(
-            "This game requires a valid invite token to join".to_string(),
-        ));
-    }
+    game_access::check_join_tokens(
+        &gwp,
+        query.access_token.as_deref(),
+        query.invite_token.as_deref(),
+    )?;
 
     if gwp.game.open_to.as_deref() == Some("registered") && !current_user.is_registered() {
         return Err(AppError::UnprocessableEntity(
@@ -273,45 +255,14 @@ pub async fn join_game(
     let engine = engine_builder::build_engine(&state.db, &game).await?;
     let gwp = Game::find_with_players(&state.db, id).await?;
 
-    let tc = TimeControl::from_game(&gwp.game);
-    let clock_data = if !tc.is_none() {
-        ClockState::from_game(&gwp.game).map(|c| (c, tc))
-    } else {
-        None
+    let Ok(loaded) = state_assembly::load_game_state(&state, &gwp, &engine, id, false).await else {
+        tracing::error!(id, "Failed to load game state after join");
+        return Err(AppError::Internal("Failed to load game state".to_string()));
     };
-    let clock_ref = clock_data.as_ref().map(|(c, tc)| (c, tc));
-
-    let pregame_settings =
-        crate::models::pregame_settings::PregameSettingsNegotiation::find(&state.db, id)
-            .await
-            .ok()
-            .flatten();
-    let black_profile = match gwp.black.as_ref() {
-        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
-            .await
-            .ok()
-            .flatten(),
-        None => None,
-    };
-    let white_profile = match gwp.white.as_ref() {
-        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
-            .await
-            .ok()
-            .flatten(),
-        None => None,
-    };
-    let game_state = state_serializer::serialize_state(
-        &gwp,
-        &engine,
-        false,
-        None,
-        None,
-        pregame_settings.as_ref(),
-        clock_ref,
-        black_profile.as_ref(),
-        white_profile.as_ref(),
-    );
-    state.registry.broadcast(id, &game_state.to_string()).await;
+    state
+        .registry
+        .broadcast(id, &loaded.value.to_string())
+        .await;
 
     crate::services::live::notify_game_created(&state, &gwp);
 

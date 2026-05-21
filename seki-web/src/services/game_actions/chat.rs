@@ -4,17 +4,15 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::error::AppError;
-use crate::models::game::{Game, GameWithPlayers};
+use crate::models::game::Game;
 use crate::models::message::Message;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
-use crate::services::clock::{self, ClockState, TimeControl};
-use crate::services::live;
+use crate::services::clock::{self, TimeControl};
 use crate::templates::UserData;
 
 use super::{
-    ChatSent, broadcast_game_state, broadcast_system_chat, current_move_number, load_or_init_clock,
-    persist_clock, settle_territory,
+    ChatSent, current_move_number, end_game_on_time, load_or_init_clock, settle_territory,
 };
 
 pub async fn send_chat(
@@ -120,9 +118,8 @@ pub async fn handle_timeout_flag(
         Some(pid) => state.registry.flag_grace_ms(game_id, pid).await,
         None => 0,
     };
-    let check_now = now - chrono::TimeDelta::milliseconds(grace_ms);
 
-    if !clock.is_flagged(active, Some(active), &tc, check_now) {
+    if !clock.is_flagged_with_grace(active, &tc, now, grace_ms) {
         return Ok(());
     }
 
@@ -167,71 +164,4 @@ pub async fn handle_territory_timeout_flag(
         .ok_or_else(|| AppError::Internal("Territory review state not found".to_string()))?;
 
     settle_territory(state, game_id, gwp, &engine, &tr.dead_stones).await
-}
-
-/// End a game due to time expiration. Used by both client flag and server sweep.
-pub async fn end_game_on_time(
-    state: &AppState,
-    mut gwp: GameWithPlayers,
-    flagged_stone: Stone,
-    mut clock: ClockState,
-    tc: &TimeControl,
-    now: chrono::DateTime<chrono::Utc>,
-) -> Result<(), AppError> {
-    let game_id = gwp.game.id;
-    let winner = flagged_stone.opp();
-    let result = match winner {
-        Stone::Black => "B+T",
-        Stone::White => "W+T",
-    };
-
-    clock.pause(Some(flagged_stone), now);
-
-    // Persist all DB writes in a transaction
-    let mut tx = state.db.begin().await?;
-    let ended = Game::set_ended(&mut *tx, game_id, result, "completed").await?;
-    persist_clock(state, &mut *tx, game_id, &clock, tc, None).await?;
-    tx.commit().await?;
-
-    if !ended {
-        // Another caller already ended this game — skip duplicate broadcasts.
-        return Ok(());
-    }
-
-    // Rating finalization (outside transaction to avoid locks)
-    if let Some(b_id) = gwp.game.black_id
-        && let Some(w_id) = gwp.game.white_id
-        && let Err(e) =
-            crate::services::rating::finalize_rating(&state.db, &gwp.game, result, b_id, w_id).await
-    {
-        tracing::error!(
-            game_id,
-            error = %e,
-            "Failed to finalize rating after timeout"
-        );
-    }
-
-    // Non-transactional post-actions
-    let _ = state
-        .registry
-        .with_engine_mut(game_id, |engine| {
-            engine.set_result(result.to_string());
-            Ok(())
-        })
-        .await;
-
-    gwp.game.result = Some(result.to_string());
-    gwp.game.stage = "completed".to_string();
-
-    let engine = state.registry.get_engine(game_id).await;
-    let move_number = engine.as_ref().map(|e| e.moves().len() as i32);
-    broadcast_system_chat(state, game_id, &format!("Game over. {result}"), move_number).await;
-
-    if let Some(engine) = engine {
-        broadcast_game_state(state, &gwp, &engine).await;
-    }
-
-    live::notify_game_removed(state, game_id);
-
-    Ok(())
 }

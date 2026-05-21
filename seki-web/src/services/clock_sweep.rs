@@ -49,9 +49,8 @@ async fn sweep(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
             Some(pid) => state.registry.flag_grace_ms(game.id, pid).await,
             None => 0,
         };
-        let check_now = now - chrono::TimeDelta::milliseconds(grace_ms);
 
-        if !clock.is_flagged(active, Some(active), &tc, check_now) {
+        if !clock.is_flagged_with_grace(active, &tc, now, grace_ms) {
             // clock_expires_at was approximate; not truly expired yet — update it
             let update = clock.to_update(Some(active), &tc);
             if update.expires_at.is_some() {

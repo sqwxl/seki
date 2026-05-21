@@ -1,5 +1,7 @@
 //! Persistence helpers for player rating state.
 
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use sqlx::FromRow;
 
@@ -59,6 +61,23 @@ impl RatingProfile {
             .bind(user_id)
             .fetch_optional(executor)
             .await
+    }
+
+    pub async fn find_batch(
+        pool: &DbPool,
+        user_ids: &[i64],
+    ) -> Result<HashMap<i64, Self>, sqlx::Error> {
+        if user_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let ids_json = serde_json::to_string(user_ids).unwrap_or_default();
+        let rows: Vec<Self> = sqlx::query_as(
+            "SELECT * FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))",
+        )
+        .bind(&ids_json)
+        .fetch_all(pool)
+        .await?;
+        Ok(rows.into_iter().map(|p| (p.user_id, p)).collect())
     }
 
     pub async fn get_or_create(pool: &DbPool, user_id: i64) -> Result<Self, sqlx::Error> {

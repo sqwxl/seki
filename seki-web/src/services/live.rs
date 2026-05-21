@@ -125,14 +125,9 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
         HashMap::new()
     } else {
         let ids: Vec<i64> = user_ids.into_iter().collect();
-        let rows: Vec<RatingProfile> = sqlx::query_as(
-            "SELECT * FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))",
-        )
-        .bind(serde_json::to_string(&ids).unwrap_or_default())
-        .fetch_all(pool)
-        .await
-        .unwrap_or_default();
-        rows.into_iter().map(|p| (p.user_id, p)).collect()
+        RatingProfile::find_batch(pool, &ids)
+            .await
+            .unwrap_or_default()
     };
     games
         .iter()

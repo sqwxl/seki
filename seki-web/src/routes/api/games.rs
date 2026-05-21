@@ -351,32 +351,11 @@ pub(super) async fn join_game(
         .into());
     }
 
-    let has_valid_access_token = gwp
-        .game
-        .access_token
-        .as_deref()
-        .zip(body.access_token.as_deref())
-        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
-    let has_valid_invite_token = gwp
-        .game
-        .invite_token
-        .as_deref()
-        .zip(body.invite_token.as_deref())
-        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
-
-    if gwp.game.requires_access_token_to_join() && !has_valid_access_token {
-        return Err(AppError::UnprocessableEntity(
-            "This game requires a valid access token to join".to_string(),
-        )
-        .into());
-    }
-
-    if gwp.game.requires_invite_token_to_join() && !has_valid_invite_token {
-        return Err(AppError::UnprocessableEntity(
-            "This game requires a valid invite token to join".to_string(),
-        )
-        .into());
-    }
+    crate::services::game_access::check_join_tokens(
+        &gwp,
+        body.access_token.as_deref(),
+        body.invite_token.as_deref(),
+    )?;
 
     game_joiner::join_open_game(&state.db, &gwp, &api_user).await?;
 

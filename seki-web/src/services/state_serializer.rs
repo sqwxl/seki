@@ -127,25 +127,7 @@ pub fn serialize_state(
 ) -> serde_json::Value {
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
     // for terminal states (done), challenges, and started-but-no-moves games.
-    let stage_str = if gwp.game.result.is_some() {
-        gwp.game.stage.clone()
-    } else if gwp.game.stage == "unstarted" {
-        "unstarted".to_string()
-    } else if gwp.game.stage == "challenge" {
-        "challenge".to_string()
-    } else if engine.stage() == go_engine::Stage::Unstarted
-        && gwp.game.stage != "unstarted"
-        && gwp.game.stage != "challenge"
-    {
-        // DB says game started but engine has no moves yet
-        if gwp.game.handicap >= 2 {
-            "white_to_play".to_string()
-        } else {
-            "black_to_play".to_string()
-        }
-    } else {
-        engine.stage().to_string()
-    };
+    let stage_str = resolve_stage(gwp, engine);
     let current_turn_stone = current_turn_stone(engine);
 
     let mut negotiations = json!({});
@@ -240,4 +222,27 @@ pub fn serialize_state(
 
 fn current_turn_stone(engine: &Engine) -> i32 {
     engine.current_turn_stone().to_int() as i32
+}
+
+/// Resolve the game stage, preferring DB state for terminal/challenge/started-but-no-moves
+/// edge cases and falling back to the engine's derived stage.
+pub fn resolve_stage(gwp: &GameWithPlayers, engine: &Engine) -> String {
+    if gwp.game.result.is_some() {
+        gwp.game.stage.clone()
+    } else if gwp.game.stage == "unstarted" {
+        "unstarted".to_string()
+    } else if gwp.game.stage == "challenge" {
+        "challenge".to_string()
+    } else if engine.stage() == go_engine::Stage::Unstarted
+        && gwp.game.stage != "unstarted"
+        && gwp.game.stage != "challenge"
+    {
+        if gwp.game.handicap >= 2 {
+            "white_to_play".to_string()
+        } else {
+            "black_to_play".to_string()
+        }
+    } else {
+        engine.stage().to_string()
+    }
 }

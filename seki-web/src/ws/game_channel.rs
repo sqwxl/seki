@@ -5,12 +5,10 @@ use serde_json::json;
 
 use crate::AppState;
 use crate::models::game::Game;
-use crate::models::pregame_settings::PregameSettingsNegotiation;
 use crate::models::user::User;
-use crate::services::clock::{ClockState, TimeControl};
 use crate::services::fcm::{FcmPayload, FcmService};
 use crate::services::push::{PushNotificationData, PushPayload, PushService};
-use crate::services::state_serializer;
+use crate::services::state_assembly;
 use crate::services::{game_actions, presentation_actions};
 use crate::ws::registry::WsSender;
 
@@ -58,97 +56,10 @@ pub async fn send_initial_state(
 
     let undo_requested = state.registry.is_undo_requested(game_id).await;
 
-    let territory = if !game_is_done && engine.stage() == Stage::TerritoryReview {
-        state
-            .registry
-            .get_territory_review(game_id)
-            .await
-            .map(|tr| {
-                state_serializer::compute_territory_data(
-                    &engine,
-                    &tr.dead_stones,
-                    gwp.game.komi,
-                    tr.black_approved,
-                    tr.white_approved,
-                    gwp.game.territory_review_expires_at,
-                )
-            })
-    } else {
-        None
-    };
+    let loaded =
+        state_assembly::load_game_state(state, &gwp, &engine, game_id, undo_requested).await?;
 
-    // Load clock data for timed games (from game row)
-    let tc = TimeControl::from_game(&gwp.game);
-    let clock_data = if !tc.is_none() {
-        let clock = match state.registry.get_clock(game_id).await {
-            Some(c) => c,
-            None => {
-                // Load from game row on first connect
-                ClockState::from_game(&gwp.game).unwrap_or_else(|| {
-                    tracing::warn!(
-                        game_id,
-                        "Clock columns NULL on timed game — resetting to fresh clock"
-                    );
-                    ClockState::new(&tc).unwrap()
-                })
-            }
-        };
-        // Ensure it's cached
-        state.registry.update_clock(game_id, clock.clone()).await;
-        Some((clock, tc))
-    } else {
-        None
-    };
-
-    let clock_ref = clock_data.as_ref().map(|(clock, tc)| (clock, tc));
-    let pregame_settings = if gwp.game.stage == "unstarted" {
-        PregameSettingsNegotiation::find(&state.db, game_id)
-            .await
-            .ok()
-            .flatten()
-    } else {
-        None
-    };
-
-    // Load settled territory for finished games
-    let settled_territory = if gwp.game.result.is_some() && territory.is_none() {
-        Game::load_settled_territory(&state.db, game_id)
-            .await
-            .ok()
-            .flatten()
-            .map(|raw| state_serializer::build_settled_territory(&engine, gwp.game.komi, raw))
-    } else {
-        None
-    };
-
-    let black_profile = match gwp.black.as_ref() {
-        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
-            .await
-            .ok()
-            .flatten(),
-        None => None,
-    };
-    let white_profile = match gwp.white.as_ref() {
-        Some(u) => crate::models::rating::RatingProfile::find(&state.db, u.id)
-            .await
-            .ok()
-            .flatten(),
-        None => None,
-    };
-
-    let mut game_state = state_serializer::serialize_state(
-        &gwp,
-        &engine,
-        undo_requested,
-        territory.as_ref(),
-        settled_territory.as_ref(),
-        pregame_settings.as_ref(),
-        clock_ref,
-        black_profile.as_ref(),
-        white_profile.as_ref(),
-    );
-
-    // Full sync (join/reconnect) — distinct from live "state" updates after moves
+    let mut game_state = loaded.value;
     game_state["kind"] = serde_json::json!("state_sync");
 
     let can_start_pres = presentation_actions::can_start_presentation(

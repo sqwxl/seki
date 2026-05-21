@@ -12,4 +12,5 @@ pub mod mailer;
 pub mod presentation_actions;
 pub mod push;
 pub mod rating;
+pub mod state_assembly;
 pub mod state_serializer;

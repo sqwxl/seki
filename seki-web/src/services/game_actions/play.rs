@@ -3,12 +3,11 @@ use go_engine::{Engine, Stage};
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
-use crate::models::turn::{ClockSnapshot, TurnRow};
-use crate::services::clock::TimeControl;
+use crate::models::turn::TurnRow;
 
 use super::{
-    ClockMoveParams, apply_engine_mutation, broadcast_game_state, load_game_and_check_player,
-    load_or_init_clock, pause_clock, persist_stage, player_stone, process_clock_after_move,
+    ClockMoveParams, apply_engine_mutation, broadcast_game_state, capture_clock_snapshot,
+    load_game_and_check_player, pause_clock, persist_stage, player_stone, process_clock_after_move,
     require_both_players, require_not_challenge, rollback_engine,
 };
 
@@ -55,22 +54,7 @@ pub async fn play_move(
     .await?;
 
     // Capture clock state before processing the move
-    let clock_snapshot = {
-        let tc = TimeControl::from_game(&gwp.game);
-        if !tc.is_none() {
-            load_or_init_clock(state, game_id, &gwp.game)
-                .await
-                .ok()
-                .map(|c| ClockSnapshot {
-                    black_ms: c.black_remaining_ms,
-                    white_ms: c.white_remaining_ms,
-                    black_periods: c.black_periods,
-                    white_periods: c.white_periods,
-                })
-        } else {
-            None
-        }
-    };
+    let clock_snapshot = capture_clock_snapshot(state, game_id, &gwp.game).await;
 
     // Persist all DB writes in a transaction
     let mut tx = state.db.begin().await?;
@@ -162,22 +146,7 @@ pub async fn pass(
     .await?;
 
     // Capture clock state before processing the move
-    let clock_snapshot = {
-        let tc = TimeControl::from_game(&gwp.game);
-        if !tc.is_none() {
-            load_or_init_clock(state, game_id, &gwp.game)
-                .await
-                .ok()
-                .map(|c| ClockSnapshot {
-                    black_ms: c.black_remaining_ms,
-                    white_ms: c.white_remaining_ms,
-                    black_periods: c.black_periods,
-                    white_periods: c.white_periods,
-                })
-        } else {
-            None
-        }
-    };
+    let clock_snapshot = capture_clock_snapshot(state, game_id, &gwp.game).await;
 
     // Persist all DB writes in a transaction
     let mut tx = state.db.begin().await?;

@@ -11,7 +11,9 @@ use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::services::engine_builder;
 use crate::services::live::{self, LiveGameItem, build_live_items};
-use crate::services::{game_joiner, presentation_actions, rating, state_serializer};
+use crate::services::{
+    game_joiner, presentation_actions, rating, state_assembly, state_serializer,
+};
 use crate::session::CurrentUser;
 use crate::templates::UserData;
 use crate::templates::games_show::InitialGameProps;
@@ -262,31 +264,14 @@ pub(crate) async fn load_game_show(
         let game = Game::find_by_id(&state.db, id).await?;
         let engine = engine_builder::build_engine(&state.db, &game).await?;
         let updated_gwp = Game::find_with_players(&state.db, id).await?;
-        let pregame_settings =
-            crate::models::pregame_settings::PregameSettingsNegotiation::find(&state.db, id)
-                .await
-                .ok()
-                .flatten();
-        let black_profile = match updated_gwp.black.as_ref() {
-            Some(u) => RatingProfile::find(&state.db, u.id).await.ok().flatten(),
-            None => None,
-        };
-        let white_profile = match updated_gwp.white.as_ref() {
-            Some(u) => RatingProfile::find(&state.db, u.id).await.ok().flatten(),
-            None => None,
-        };
-        let game_state = state_serializer::serialize_state(
-            &updated_gwp,
-            &engine,
-            false,
-            None,
-            None,
-            pregame_settings.as_ref(),
-            None,
-            black_profile.as_ref(),
-            white_profile.as_ref(),
-        );
-        state.registry.broadcast(id, &game_state.to_string()).await;
+        if let Ok(loaded) =
+            state_assembly::load_game_state(state, &updated_gwp, &engine, id, false).await
+        {
+            state
+                .registry
+                .broadcast(id, &loaded.value.to_string())
+                .await;
+        }
         crate::services::live::notify_game_created(state, &updated_gwp);
 
         gwp = updated_gwp;
@@ -385,36 +370,12 @@ async fn user_data_for_ids(
         return Ok(std::collections::HashMap::new());
     }
 
-    let ids_json = serde_json::to_string(user_ids).unwrap_or_default();
-    let profiles: Vec<(i64, f64, f64, f64, bool)> = sqlx::query_as(
-        "SELECT user_id, rating, deviation, volatility, participating FROM rating_profiles WHERE user_id IN (SELECT value FROM json_each($1))",
-    )
-    .bind(&ids_json)
-    .fetch_all(db)
-    .await
-    .unwrap_or_default();
-
+    let profiles = RatingProfile::find_batch(db, user_ids).await?;
     let users = User::find_by_ids(db, user_ids).await?;
     let mut result = std::collections::HashMap::new();
     for user in users {
-        let profile = profiles
-            .iter()
-            .find(|(uid, ..)| *uid == user.id)
-            .map(|(_, r, d, v, p)| RatingProfile {
-                user_id: user.id,
-                rating: *r,
-                deviation: *d,
-                volatility: *v,
-                participating: *p,
-                rated_games: 0,
-                created_at: chrono::Utc::now(),
-                updated_at: chrono::Utc::now(),
-            });
-
-        result.insert(
-            user.id,
-            UserData::from_user_with_rank(&user, profile.as_ref()),
-        );
+        let profile = profiles.get(&user.id);
+        result.insert(user.id, UserData::from_user_with_rank(&user, profile));
     }
 
     Ok(result)
@@ -464,24 +425,7 @@ async fn build_game_props(
         None => None,
     };
 
-    let stage = if gwp.game.result.is_some() {
-        gwp.game.stage.clone()
-    } else if gwp.game.stage == "unstarted" {
-        "unstarted".to_string()
-    } else if gwp.game.stage == "challenge" {
-        "challenge".to_string()
-    } else if engine.stage() == go_engine::Stage::Unstarted
-        && gwp.game.stage != "unstarted"
-        && gwp.game.stage != "challenge"
-    {
-        if gwp.game.handicap >= 2 {
-            "white_to_play".to_string()
-        } else {
-            "black_to_play".to_string()
-        }
-    } else {
-        engine.stage().to_string()
-    };
+    let stage = state_serializer::resolve_stage(gwp, &engine);
 
     let settled_territory = if gwp.game.result.is_some() {
         Game::load_settled_territory(&state.db, gwp.game.id)

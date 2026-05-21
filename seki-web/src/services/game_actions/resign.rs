@@ -64,7 +64,8 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
             return Err(AppError::Internal(e.to_string()));
         }
 
-        let ended = if let Some(result) = engine.result() {
+        let result = engine.result();
+        let ended = if let Some(result) = result {
             Game::set_ended(&mut *tx, game_id, result, "completed").await?
         } else {
             false
@@ -72,35 +73,21 @@ pub async fn resign(state: &AppState, game_id: i64, player_id: i64) -> Result<En
 
         tx.commit().await?;
 
-        if engine.stage() == Stage::Completed
-            && let Some(result) = engine.result()
-            && let Some(b_id) = gwp.game.black_id
-            && let Some(w_id) = gwp.game.white_id
-            && let Err(e) =
-                crate::services::rating::finalize_rating(&state.db, &gwp.game, result, b_id, w_id)
-                    .await
+        if let Some(result) = result
+            && ended
         {
-            tracing::error!(
-                game_id,
-                error = %e,
-                "Failed to finalize rating after resign"
-            );
-        }
-
-        if ended {
+            super::end_game::finalize_and_broadcast(state, &mut gwp, game_id, result, &[]).await;
+        } else if ended {
             gwp.game.result = engine.result().map(String::from);
             gwp.game.stage = "completed".to_string();
         }
     }
 
-    broadcast_game_state(state, &gwp, &engine).await;
-
-    if gwp.game.result.is_some()
-        && let Some(result) = engine.result()
-    {
-        let move_number = Some(engine.moves().len() as i32);
-        broadcast_system_chat(state, game_id, &format!("Game over. {result}"), move_number).await;
-    }
+    let engine = state
+        .registry
+        .get_engine(game_id)
+        .await
+        .ok_or_else(|| AppError::Internal("Engine cache unavailable".to_string()))?;
 
     Ok(engine)
 }

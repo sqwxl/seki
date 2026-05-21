@@ -9,8 +9,8 @@ use crate::error::AppError;
 use crate::models::game::{Game, GameWithPlayers};
 
 use super::{
-    broadcast_game_state, broadcast_system_chat, load_game_and_check_player, pause_clock,
-    player_stone, require_both_players, require_not_challenge,
+    broadcast_game_state, load_game_and_check_player, pause_clock, player_stone,
+    require_both_players, require_not_challenge,
 };
 
 pub async fn toggle_chain(
@@ -140,52 +140,11 @@ pub async fn settle_territory(
     tx.commit().await?;
 
     if !ended {
-        // Another caller already settled this game — skip duplicate broadcasts.
         return Ok(());
     }
 
-    // Rating finalization
-    if let Some(b_id) = gwp.game.black_id
-        && let Some(w_id) = gwp.game.white_id
-        && let Err(e) =
-            crate::services::rating::finalize_rating(&state.db, &gwp.game, &result, b_id, w_id)
-                .await
-    {
-        tracing::error!(
-            game_id,
-            error = %e,
-            "Failed to finalize rating after territory settlement"
-        );
-    }
-
-    // Non-transactional post-actions
-    state
-        .registry
-        .with_engine_mut(game_id, |engine| {
-            engine.set_result(result.clone());
-            Ok(())
-        })
-        .await;
-
-    let engine = state
-        .registry
-        .get_engine(game_id)
-        .await
-        .ok_or_else(|| AppError::Internal("Engine cache unavailable".to_string()))?;
-
     state.registry.clear_territory_review(game_id).await;
-
-    gwp.game.result = Some(result.clone());
-    gwp.game.stage = "completed".to_string();
-
-    broadcast_system_chat(
-        state,
-        game_id,
-        &format!("Game over. {result}"),
-        Some(engine.moves().len() as i32),
-    )
-    .await;
-    broadcast_game_state(state, &gwp, &engine).await;
+    super::end_game::finalize_and_broadcast(state, &mut gwp, game_id, &result, &[]).await;
 
     Ok(())
 }
