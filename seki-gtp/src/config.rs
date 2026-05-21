@@ -25,8 +25,6 @@ pub struct EngineConfig {
 pub struct TimeConfig {
     #[serde(default = "default_move_buffer_ms")]
     pub move_buffer_ms: u64,
-    #[serde(default = "default_resign_threshold")]
-    pub resign_threshold: f64,
     #[serde(default = "default_engine_timeout_ms")]
     pub engine_timeout_ms: u64,
 }
@@ -35,7 +33,6 @@ impl Default for TimeConfig {
     fn default() -> Self {
         TimeConfig {
             move_buffer_ms: default_move_buffer_ms(),
-            resign_threshold: default_resign_threshold(),
             engine_timeout_ms: default_engine_timeout_ms(),
         }
     }
@@ -51,10 +48,6 @@ fn default_max_concurrent_games() -> usize {
 
 fn default_move_buffer_ms() -> u64 {
     3000
-}
-
-fn default_resign_threshold() -> f64 {
-    0.05
 }
 
 fn default_engine_timeout_ms() -> u64 {
