@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::config::Config;
 
 #[derive(serde::Deserialize)]
@@ -33,9 +35,23 @@ impl Client {
 
     pub async fn get_me(&self) -> Result<MeData, String> {
         let url = format!("{}/api/me", self.base_url);
+        let mut delay = Duration::from_secs(1);
+        loop {
+            match self.try_get_me(&url).await {
+                Ok(me) => return Ok(me),
+                Err(e) => {
+                    tracing::warn!("Failed to authenticate (retrying in {delay:?}): {e}");
+                    tokio::time::sleep(delay).await;
+                    delay = (delay * 2).min(Duration::from_secs(30));
+                }
+            }
+        }
+    }
+
+    async fn try_get_me(&self, url: &str) -> Result<MeData, String> {
         let resp = self
             .http
-            .get(&url)
+            .get(url)
             .bearer_auth(&self.api_token)
             .send()
             .await
