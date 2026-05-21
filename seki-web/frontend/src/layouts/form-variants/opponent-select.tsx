@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { UserLabel } from "../../components/user-label";
-import type { RankData, UserData } from "../../game/types";
+import type { DerivedHandicapKomi, RankData, UserData } from "../../game/types";
 
 export type OpponentSearchResult = {
   user_data: UserData;
   is_online: boolean;
   is_recent: boolean;
+  derived_handicap_komi?: DerivedHandicapKomi | null;
 };
 
 type SelectedOpponent =

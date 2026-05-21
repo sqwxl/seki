@@ -211,6 +211,7 @@ export function NewGameScreen({ navigate }: { navigate: NavigateFn }) {
             isRegistered={data?.user_is_registered}
             currentUserRank={data?.rating?.current_user_rank}
             rankedUnavailableReason={data?.rating?.ranked_unavailable_reason}
+            derivedHandicapKomi={data?.derived_handicap_komi}
           />
         ) : (
           <LoadingState />
@@ -284,6 +285,7 @@ export function ChallengeScreen({
             isRegistered={data?.user_is_registered}
             currentUserRank={data?.rating?.current_user_rank}
             rankedUnavailableReason={data?.rating?.ranked_unavailable_reason}
+            derivedHandicapKomi={data?.derived_handicap_komi}
           />
         ) : (
           <LoadingState />

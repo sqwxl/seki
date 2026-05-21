@@ -1,5 +1,10 @@
 import type { ChatEntry } from "../components/chat";
-import type { InitialGameProps, RankData, UserData } from "../game/types";
+import type {
+  DerivedHandicapKomi,
+  InitialGameProps,
+  RankData,
+  UserData,
+} from "../game/types";
 import type { UserGamesInitialData } from "../layouts/user-games";
 import type { FlashMessage } from "../utils/flash";
 
@@ -49,6 +54,7 @@ export type NewGameData = {
     ranked_unavailable_reason?: string | null;
   };
   opponent_rank?: RankData | null;
+  derived_handicap_komi?: DerivedHandicapKomi | null;
 };
 
 export type RatingHistoryEntryData = {
@@ -97,4 +103,5 @@ export type GameSettingsFormProps = {
   isRegistered?: boolean;
   currentUserRank?: RankData | null;
   rankedUnavailableReason?: string | null;
+  derivedHandicapKomi?: DerivedHandicapKomi | null;
 };

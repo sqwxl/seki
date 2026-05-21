@@ -73,6 +73,11 @@ export type RankData = {
   uncertain: boolean;
 };
 
+export type DerivedHandicapKomi = {
+  handicap: number;
+  komi: number;
+};
+
 export type UserData = {
   id: number;
   display_name: string;

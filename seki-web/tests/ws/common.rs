@@ -257,7 +257,9 @@ impl TestServer {
         {
             body["invite_username"] = json!("test-white");
         }
-        if body.get("invite_username").is_some() || body.get("invite_email").is_some() {
+        if (body.get("invite_username").is_some() || body.get("invite_email").is_some())
+            && body["ranked"].as_bool() != Some(true)
+        {
             if body.get("komi").is_none() {
                 body["komi"] = json!(6.5);
             }
@@ -449,7 +451,9 @@ impl TestServer {
         {
             body["invite_username"] = json!("test-white");
         }
-        if body.get("invite_username").is_some() || body.get("invite_email").is_some() {
+        if (body.get("invite_username").is_some() || body.get("invite_email").is_some())
+            && body["ranked"].as_bool() != Some(true)
+        {
             if body.get("komi").is_none() {
                 body["komi"] = json!(6.5);
             }

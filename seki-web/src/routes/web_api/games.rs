@@ -89,6 +89,7 @@ pub(crate) struct NewGameData {
     pub rating: NewGameRatingData,
     pub eligible_opponents: Vec<EligibleOpponent>,
     pub opponent_rank: Option<crate::services::rating::RankDto>,
+    pub derived_handicap_komi: Option<crate::services::rating::DerivedHandicapKomi>,
 }
 
 #[derive(Serialize)]
@@ -121,7 +122,9 @@ pub(crate) async fn load_new_game(
     opponent: Option<String>,
 ) -> Result<NewGameData, AppError> {
     use crate::models::user::User;
-    use crate::services::rating::{can_participate_in_ranking, rank_for_profile, rank_for_user};
+    use crate::services::rating::{
+        can_participate_in_ranking, derive_handicap_komi, rank_for_profile, rank_for_user,
+    };
 
     let user_is_registered = current_user.is_registered();
     let current_user_profile = if user_is_registered {
@@ -160,16 +163,21 @@ pub(crate) async fn load_new_game(
         }
     }
 
-    let opponent_rank = match opponent.as_deref() {
+    let (opponent_rank, derived_handicap_komi) = match opponent.as_deref() {
         Some(username) => {
             if let Some(opp_user) = User::find_by_username(&state.db, username).await? {
                 let prof = RatingProfile::find(&state.db, opp_user.id).await?;
-                Some(rank_for_user(&opp_user, prof.as_ref()))
+                let opp_rank = Some(rank_for_user(&opp_user, prof.as_ref()));
+                let derived = current_user_profile
+                    .as_ref()
+                    .and_then(|p| prof.as_ref().map(|op| (p, op)))
+                    .map(|(cp, op)| derive_handicap_komi(cp.rating, op.rating));
+                (opp_rank, derived)
             } else {
-                None
+                (None, None)
             }
         }
-        None => None,
+        None => (None, None),
     };
 
     Ok(NewGameData {
@@ -182,6 +190,7 @@ pub(crate) async fn load_new_game(
         },
         eligible_opponents,
         opponent_rank,
+        derived_handicap_komi,
     })
 }
 

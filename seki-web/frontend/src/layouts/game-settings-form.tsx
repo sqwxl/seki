@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { IconBell, IconTimer, IconUser } from "../components/icons";
-import type { RankData } from "../game/types";
+import type { DerivedHandicapKomi, RankData } from "../game/types";
 import { fullRankText } from "../utils/rating";
 import { GAME_SETTINGS, storage } from "../utils/storage";
 import {
   CHALLENGE_DEFAULTS,
   DirectChallengeForm,
-  inferSettingsFromRanks,
   type ChallengeSettings,
 } from "./form-variants/direct-challenge";
 import {
@@ -211,6 +210,7 @@ type Props = {
   isRegistered?: boolean;
   currentUserRank?: RankData | null;
   rankedUnavailableReason?: string | null;
+  derivedHandicapKomi?: DerivedHandicapKomi | null;
 };
 
 export function GameSettingsForm({
@@ -219,6 +219,7 @@ export function GameSettingsForm({
   isRegistered,
   currentUserRank,
   rankedUnavailableReason,
+  derivedHandicapKomi: initialDerivedHandicapKomi,
 }: Props) {
   const [all, setAll] = useState(() => {
     const saved = loadSettings();
@@ -244,6 +245,9 @@ export function GameSettingsForm({
   });
   const [selectedChallengeOpponentRank, setSelectedChallengeOpponentRank] =
     useState<RankData | null | undefined>(opponentRank);
+  const [searchDerivedHandicapKomi, setSearchDerivedHandicapKomi] = useState<
+    DerivedHandicapKomi | null | undefined
+  >(initialDerivedHandicapKomi);
 
   const settingsRef = useRef(all);
   settingsRef.current = all;
@@ -383,22 +387,15 @@ export function GameSettingsForm({
   function setChallengeOpponent(result: OpponentSearchResult | null) {
     const opponentRank = result?.user_data.rank ?? null;
     setSelectedChallengeOpponentRank(opponentRank);
+    setSearchDerivedHandicapKomi(result?.derived_handicap_komi ?? null);
     setAll((prev) => {
-      const challenge = {
-        ...prev.challenge,
-        selectedOpponent: result?.user_data.display_name ?? "",
+      return {
+        ...prev,
+        challenge: {
+          ...prev.challenge,
+          selectedOpponent: result?.user_data.display_name ?? "",
+        },
       };
-      const inferred = result
-        ? inferSettingsFromRanks(currentUserRank, opponentRank)
-        : null;
-
-      if (inferred) {
-        challenge.handicap = inferred.handicap;
-        challenge.komi = inferred.komi;
-        challenge.color = inferred.color;
-      }
-
-      return { ...prev, challenge };
     });
   }
 
@@ -564,6 +561,7 @@ export function GameSettingsForm({
         <DirectChallengeForm
           s={all.challenge}
           set={setChallenge}
+          derivedHandicapKomi={searchDerivedHandicapKomi}
           currentUserRank={currentUserRank}
           opponentRank={challengeOpponentRank}
         />

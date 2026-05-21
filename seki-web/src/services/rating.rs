@@ -77,6 +77,24 @@ pub struct RankedSettingsDto {
     pub calibration_policy_version: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct DerivedHandicapKomi {
+    pub handicap: i32,
+    pub komi: f64,
+}
+
+pub fn derive_handicap_komi(user_rating: f64, opponent_rating: f64) -> DerivedHandicapKomi {
+    let policy = RatingCalibrationPolicy::default();
+    let settings = policy.ranked_settings(
+        user_rating.min(opponent_rating),
+        user_rating.max(opponent_rating),
+    );
+    DerivedHandicapKomi {
+        handicap: settings.handicap,
+        komi: settings.komi,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct RatingUpdate {
     pub black_before: Glicko2Rating,

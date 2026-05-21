@@ -439,9 +439,6 @@ async fn ranked_api_create_allows_direct_email_challenge_for_existing_user() {
         .header("Authorization", "Bearer test-black-api-token-12345")
         .json(&json!({
             "cols": 9,
-            "komi": 6.5,
-            "handicap": 0,
-            "color": "black",
             "ranked": true,
             "invite_email": "white@example.com",
             "time_control": "fischer",

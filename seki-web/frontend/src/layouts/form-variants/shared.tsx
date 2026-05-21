@@ -151,7 +151,6 @@ export function HandicapSelectField<T extends BaseGameSettings>({
           }
         }}
       />
-      {disabled && <input type="hidden" name="handicap" value={value} />}
     </div>
   );
 }
@@ -183,7 +182,6 @@ export function KomiField<T extends BaseGameSettings>({
           set("komi", (parseFloat(e.currentTarget.value) || 0) as T["komi"])
         }
       />
-      {disabled && <input type="hidden" name="komi" value={value} />}
     </div>
   );
 }
@@ -242,7 +240,6 @@ export function ColorPickerField<T extends BaseGameSettings>({
           <IconNigiri />
         </label>
       </div>
-      {disabled && value && <input type="hidden" name="color" value={value} />}
     </div>
   );
 }

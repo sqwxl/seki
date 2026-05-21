@@ -100,21 +100,24 @@ pub async fn create_game(
     } else {
         invite_email.clone()
     };
-    let komi = if is_open {
+    let komi = if is_open || is_ranked {
         6.5
     } else {
         form.komi
             .ok_or_else(|| AppError::UnprocessableEntity("Missing komi".to_string()))?
     };
-    let handicap = if is_open {
+    let handicap = if is_open || is_ranked {
         0
     } else {
         form.handicap
             .ok_or_else(|| AppError::UnprocessableEntity("Missing handicap".to_string()))?
     };
-    if is_open && (form.komi.is_some() || form.handicap.is_some() || form.color.is_some()) {
+    if (is_open || is_ranked)
+        && (form.komi.is_some() || form.handicap.is_some() || form.color.is_some())
+    {
         return Err(AppError::UnprocessableEntity(
-            "Open games derive handicap, komi, and color after an opponent joins".to_string(),
+            "Ranked and open games derive handicap, komi, and color after an opponent joins"
+                .to_string(),
         ));
     }
     let rating_range = if is_open && form.rating_range_mode.as_deref() == Some("absolute") {
@@ -126,7 +129,7 @@ pub async fn create_game(
     } else {
         RatingRangePreference::Unlimited
     };
-    let color = if is_open {
+    let color = if is_open || is_ranked {
         "black".to_string()
     } else {
         form.color

@@ -103,6 +103,7 @@ pub async fn accept_challenge(
             "Failed to capture ranked snapshot on challenge acceptance"
         );
     }
+    let gwp = Game::find_with_players(&state.db, game_id).await?;
 
     let engine = state
         .registry

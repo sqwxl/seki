@@ -11,7 +11,7 @@ use crate::error::AppError;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
-use crate::services::rating::rank_for_user;
+use crate::services::rating::{derive_handicap_komi, rank_for_user};
 use crate::session::CurrentUser;
 use crate::templates::UserData;
 
@@ -25,6 +25,7 @@ pub struct SearchResult {
     pub user_data: UserData,
     pub is_online: bool,
     pub is_recent: bool,
+    pub derived_handicap_komi: Option<crate::services::rating::DerivedHandicapKomi>,
 }
 
 // GET /users/search?q=<optional>
@@ -43,8 +44,11 @@ pub async fn search_users(
     let user_ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
     let online_ids = state.presence.connected_ids(&user_ids).await;
 
-    let rank_map = if user_ids.is_empty() {
-        std::collections::HashMap::new()
+    let (rank_map, profile_map) = if user_ids.is_empty() {
+        (
+            std::collections::HashMap::new(),
+            std::collections::HashMap::new(),
+        )
     } else {
         let ids_json = serde_json::to_string(&user_ids).unwrap_or_default();
         let users: std::collections::HashMap<i64, User> = User::find_by_ids(&state.db, &user_ids)
@@ -62,7 +66,8 @@ pub async fn search_users(
         .into_iter()
         .map(|(uid, r, d, v, p): (i64, f64, f64, f64, bool)| (uid, r, d, v, p))
         .collect();
-        let mut map = std::collections::HashMap::new();
+        let mut rank_map = std::collections::HashMap::new();
+        let mut profile_map = std::collections::HashMap::new();
         for &id in &user_ids {
             if let Some(user) = users.get(&id) {
                 let profile =
@@ -79,10 +84,19 @@ pub async fn search_users(
                             created_at: chrono::Utc::now(),
                             updated_at: chrono::Utc::now(),
                         });
-                map.insert(id, rank_for_user(user, profile.as_ref()));
+                rank_map.insert(id, rank_for_user(user, profile.as_ref()));
+                if let Some(p) = profile {
+                    profile_map.insert(id, p);
+                }
             }
         }
-        map
+        (rank_map, profile_map)
+    };
+
+    let current_user_profile = if current_user.is_registered() {
+        RatingProfile::find(&state.db, current_user.id).await?
+    } else {
+        None
     };
 
     let mut results: Vec<SearchResult> = rows
@@ -98,11 +112,16 @@ pub async fn search_users(
                 is_bot: if r.is_bot { Some(true) } else { None },
                 rank: rank.clone(),
             };
+            let derived_handicap_komi = current_user_profile
+                .as_ref()
+                .and_then(|cp| profile_map.get(&r.id).map(|op| (cp, op)))
+                .map(|(cp, op)| derive_handicap_komi(cp.rating, op.rating));
 
             SearchResult {
                 user_data,
                 is_online: online_ids.contains(&r.id),
                 is_recent: r.is_recent,
+                derived_handicap_komi,
             }
         })
         .collect();
