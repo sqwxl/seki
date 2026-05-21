@@ -168,12 +168,13 @@ impl GameRegistry {
             let rooms = self.rooms.read().await;
             if let Some(room) = rooms.get(&game.id)
                 && let Some(ref engine) = room.engine
+                && engine.handicap() as i32 == game.handicap
             {
                 return Ok(engine.clone());
             }
         }
 
-        // Cache miss: build from DB (no lock held)
+        // Cache miss or handicap changed: build from DB (no lock held)
         let engine = engine_builder::build_engine(pool, game).await?;
 
         // Store under write lock

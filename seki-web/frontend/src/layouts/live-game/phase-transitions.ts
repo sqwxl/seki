@@ -227,6 +227,7 @@ export function buildControls(
         }
       },
       pending: pendingRematch ? "confirm" : undefined,
+      isRanked: initialProps.value.settings.ranked,
     };
   }
 

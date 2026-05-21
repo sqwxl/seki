@@ -46,6 +46,7 @@ export type ControlsProps = {
     onConfirm: (swapColors: boolean) => void;
     disabled?: boolean;
     pending?: "confirm" | "cancel";
+    isRanked?: boolean;
   };
   analyze?: ButtonDef & { active?: boolean };
   estimate?: ButtonDef;

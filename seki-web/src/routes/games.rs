@@ -11,6 +11,7 @@ use crate::models::game::{Game, TimeControlType};
 use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::engine_builder;
+use crate::services::game_actions;
 use crate::services::game_creator::{self, CreateGameParams, RatingRangePreference};
 use crate::services::game_joiner;
 use crate::services::state_serializer;
@@ -340,73 +341,10 @@ pub async fn rematch_game(
     Form(form): Form<RematchForm>,
 ) -> Result<Response, AppError> {
     let json = wants_json(&headers);
-    let gwp = Game::find_with_players(&state.db, id).await?;
-
-    if gwp.game.result.is_none() {
-        return Err(AppError::UnprocessableEntity(
-            "Game is not finished".to_string(),
-        ));
-    }
-    if !gwp.has_player(current_user.id) {
-        return Err(AppError::UnprocessableEntity(
-            "You are not a player in this game".to_string(),
-        ));
-    }
-
     let swap = form.swap_colors.as_deref() == Some("true");
-    let was_black = gwp.game.black_id == Some(current_user.id);
-    let color = match (was_black, swap) {
-        (true, false) | (false, true) => "black",
-        (true, true) | (false, false) => "white",
-    };
+    let new_id = game_actions::rematch_game(&state, &current_user, id, swap).await?;
 
-    let opponent_id = if was_black {
-        gwp.game.white_id
-    } else {
-        gwp.game.black_id
-    };
-
-    let params = CreateGameParams {
-        cols: gwp.game.cols,
-        rows: gwp.game.rows,
-        komi: gwp.game.komi,
-        handicap: gwp.game.handicap,
-        is_private: gwp.game.is_private,
-        allow_undo: gwp.game.allow_undo,
-        color: color.to_string(),
-        invite_email: None,
-        invite_username: None,
-        time_control: gwp.game.time_control,
-        main_time_secs: gwp.game.main_time_secs,
-        increment_secs: gwp.game.increment_secs,
-        byoyomi_time_secs: gwp.game.byoyomi_time_secs,
-        byoyomi_periods: gwp.game.byoyomi_periods,
-        open_to: None,
-        ranked: false,
-        rating_range: RatingRangePreference::Unlimited,
-        open_game: false,
-    };
-
-    let game = game_creator::create_game(&state.db, &current_user, params).await?;
-
-    if let Some(opp_id) = opponent_id {
-        let mut tx = state.db.begin().await?;
-        Game::set_opponent(&mut *tx, game.id, opp_id).await?;
-        if game.black_id.is_none() {
-            Game::set_black(&mut *tx, game.id, opp_id).await?;
-        } else if game.white_id.is_none() {
-            Game::set_white(&mut *tx, game.id, opp_id).await?;
-        }
-        if game.stage == "unstarted" {
-            Game::set_stage(&mut *tx, game.id, "challenge").await?;
-        }
-        tx.commit().await?;
-    }
-
-    if let Ok(gwp) = Game::find_with_players(&state.db, game.id).await {
-        crate::services::live::notify_game_created(&state, &gwp);
-    }
-    let url = format!("/games/{}", game.id);
+    let url = format!("/games/{new_id}");
     if json {
         Ok(axum::Json(serde_json::json!({ "redirect": url })).into_response())
     } else {

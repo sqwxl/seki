@@ -78,7 +78,8 @@ async fn ranked_resign_updates_ratings_idempotently() {
     let _ = black.join_game(game_id).await;
     let _ = white.join_game(game_id).await;
 
-    black.play(game_id, 0, 0).await;
+    // Handicap game with 300 point gap: white plays first
+    white.play(game_id, 0, 0).await;
     let _ = black.recv_kind("state").await;
     let _ = white.recv_kind("state").await;
 

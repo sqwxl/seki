@@ -70,18 +70,20 @@ export function GameControls(props: ControlsProps) {
           confirm={{
             message: "Rematch?",
             onConfirm: () => {
-              const swap = (
-                document.getElementById("rematch-swap") as HTMLInputElement
-              ).checked;
+              const swap =
+                (document.getElementById("rematch-swap") as HTMLInputElement)
+                  ?.checked ?? false;
 
               props.rematch!.onConfirm(swap);
             },
             pending: props.rematch.pending,
           }}
         >
-          <label>
-            <input type="checkbox" id="rematch-swap" /> Swap colors
-          </label>
+          {!props.rematch.isRanked && (
+            <label>
+              <input type="checkbox" id="rematch-swap" /> Swap colors
+            </label>
+          )}
         </ConfirmButton>
       )}
       {props.controlRequestResponse ? (
