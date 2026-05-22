@@ -328,7 +328,7 @@ async fn rematch_ranked_lower_rated_gets_black() {
     assert_eq!(color_reason, "lower_rating_black");
 }
 
-/// Ranked rematch with large rating gap assigns handicap.
+/// Ranked rematch creates a challenge-stage game with derived settings in the snapshot.
 #[tokio::test]
 async fn rematch_ranked_assigns_handicap() {
     let ts = TestServer::start().await;
@@ -359,6 +359,10 @@ async fn rematch_ranked_assigns_handicap() {
         .unwrap();
     let body: serde_json::Value = resp.json().await.unwrap();
 
+    // Game is created as a challenge
+    assert_eq!(body["stage"].as_str().unwrap(), "challenge");
+
+    // Derived handicap/komi are applied at creation (COALESCE in set_ranked_snapshot)
     let hc = body["handicap"].as_i64().unwrap();
     assert!(
         hc >= 2,
@@ -368,9 +372,9 @@ async fn rematch_ranked_assigns_handicap() {
         (body["komi"].as_f64().unwrap() - 0.5).abs() < f64::EPSILON,
         "handicap games should have 0.5 komi"
     );
-    assert_eq!(body["stage"].as_str().unwrap(), "white_to_play");
 
     let new_id = body["id"].as_i64().unwrap();
+
     let color_reason: String =
         sqlx::query_scalar("SELECT derived_color_reason FROM games WHERE id = $1")
             .bind(new_id)
