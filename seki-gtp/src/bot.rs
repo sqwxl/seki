@@ -337,6 +337,8 @@ impl Bot {
         handicap: u8,
         _is_sync: bool,
     ) {
+        let tx = self.ws_tx.clone();
+        let delay_s = self.config.accept_delay_s;
         let finished = {
             let gs = self.games.entry(game_id).or_insert_with(|| GameState {
                 stage: GameStage::Idle,
@@ -368,8 +370,18 @@ impl Bot {
                 "challenge" => {
                     if gs.stage != GameStage::Finished {
                         gs.stage = GameStage::Challenge;
-                        info!("Accepting challenge game={game_id}");
-                        send_json(&self.ws_tx, &ClientMsg::accept_challenge(game_id));
+                        if delay_s > 0 {
+                            info!("Challenge received, will accept in {delay_s}s game={game_id}");
+                            let tx = tx.clone();
+                            tokio::spawn(async move {
+                                tokio::time::sleep(std::time::Duration::from_secs(delay_s)).await;
+                                info!("Accepting challenge game={game_id}");
+                                send_json(&tx, &ClientMsg::accept_challenge(game_id));
+                            });
+                        } else {
+                            info!("Accepting challenge game={game_id}");
+                            send_json(&tx, &ClientMsg::accept_challenge(game_id));
+                        }
                     }
                 }
                 "unstarted" => {

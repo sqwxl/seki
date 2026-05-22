@@ -8,6 +8,8 @@ pub struct Config {
     pub api_token: String,
     #[serde(default = "default_max_concurrent_games")]
     pub max_concurrent_games: usize,
+    #[serde(default = "default_accept_delay_s")]
+    pub accept_delay_s: u64,
     #[serde(default)]
     pub engine: Option<EngineConfig>,
     #[serde(default)]
@@ -41,6 +43,10 @@ fn default_server_url() -> String {
 
 fn default_max_concurrent_games() -> usize {
     4
+}
+
+fn default_accept_delay_s() -> u64 {
+    30
 }
 
 fn default_engine_timeout_ms() -> u64 {

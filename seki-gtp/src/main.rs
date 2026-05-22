@@ -23,6 +23,12 @@ struct Cli {
     #[arg(long, help = "Max concurrent games (overrides config)")]
     max_games: Option<usize>,
 
+    #[arg(
+        long,
+        help = "Seconds to wait before auto-accepting a challenge (overrides config)"
+    )]
+    accept_delay: Option<u64>,
+
     #[arg(short, long, help = "Enable verbose logging")]
     verbose: bool,
 
@@ -53,6 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             server_url: "http://localhost:3000".to_string(),
             api_token: String::new(),
             max_concurrent_games: 4,
+            accept_delay_s: 30,
             engine: None,
             time: seki_gtp::config::TimeConfig::default(),
         }
@@ -66,6 +73,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     if let Some(max) = cli.max_games {
         config.max_concurrent_games = max;
+    }
+    if let Some(delay) = cli.accept_delay {
+        config.accept_delay_s = delay;
     }
 
     let engine_cfg = if !cli.engine.is_empty() {
