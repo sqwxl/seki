@@ -121,6 +121,8 @@ impl Bot {
                     &negotiations,
                     &territory,
                     settings.settings.handicap as u8,
+                    settings.settings.cols as u8,
+                    settings.settings.rows as u8,
                     true,
                 )
                 .await;
@@ -150,6 +152,8 @@ impl Bot {
                     &negotiations,
                     &territory,
                     settings.settings.handicap as u8,
+                    settings.settings.cols as u8,
+                    settings.settings.rows as u8,
                     false,
                 )
                 .await;
@@ -335,6 +339,8 @@ impl Bot {
         negotiations: &Option<seki_api_types::game::Negotiations>,
         territory: &Option<seki_api_types::game::TerritoryState>,
         handicap: u8,
+        cols: u8,
+        rows: u8,
         _is_sync: bool,
     ) {
         let tx = self.ws_tx.clone();
@@ -343,14 +349,17 @@ impl Bot {
             let gs = self.games.entry(game_id).or_insert_with(|| GameState {
                 stage: GameStage::Idle,
                 our_stone: None,
-                cols: 19,
-                rows: 19,
+                cols,
+                rows,
                 komi: 6.5,
                 handicap: 0,
                 moves_known: 0,
                 pregame_accepted: false,
                 territory_approved: false,
             });
+
+            gs.cols = cols;
+            gs.rows = rows;
 
             if gs.our_stone.is_none() {
                 gs.our_stone = if black.as_ref().is_some_and(|u| u.id == self.user_id) {
