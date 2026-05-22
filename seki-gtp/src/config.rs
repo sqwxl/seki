@@ -46,7 +46,7 @@ fn default_max_concurrent_games() -> usize {
 }
 
 fn default_accept_delay_s() -> u64 {
-    30
+    10
 }
 
 fn default_engine_timeout_ms() -> u64 {
