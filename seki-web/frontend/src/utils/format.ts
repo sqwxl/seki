@@ -77,7 +77,7 @@ export function formatTimeControl(s: GameSettings): string | undefined {
         (s.main_time_secs ?? DEFAULT_CORRESPONDENCE_SECS) / 86400,
       );
 
-      return `${days}d`;
+      return `${days} days`;
     }
   }
 }

@@ -61,7 +61,9 @@ export function LobbyPopover({
   const size = formatSize(settings.cols, settings.rows);
   const tc = formatTimeControl(settings);
   const disableActions = pendingAction != null;
-  const showRatingRange = settings.rating_range_mode != null;
+  const isOpenGame =
+    variant === "creator-waiting" || variant === "visitor-open";
+  const showRatingRange = isOpenGame && settings.rating_range_mode != null;
   const ratingRangeText =
     settings.rating_difference_lower_unlimited &&
     settings.rating_difference_higher_unlimited
