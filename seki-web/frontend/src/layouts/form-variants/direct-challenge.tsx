@@ -64,13 +64,16 @@ export function DirectChallengeForm({
 
   return (
     <SettingsFieldset>
-      {s.selectedOpponent && derivedHandicapKomi && derivedColor && (
-        <div class="form-help" style="margin-bottom: 0.5em">
-          {derivedHandicapKomi.handicap >= 2
-            ? `Rating gap ~${derivedHandicapKomi.handicap} stones — you play ${derivedColor === "black" ? "Black" : derivedColor === "white" ? "White" : "Random"} with ${derivedHandicapKomi.handicap}-stone handicap and ${derivedHandicapKomi.komi} komi.`
-            : `Rating gap <2 stones — even game, ${derivedHandicapKomi.komi} komi. You play ${derivedColor === "nigiri" ? "Random" : derivedColor === "black" ? "Black" : "White"}.`}
-        </div>
-      )}
+      {s.selectedOpponent &&
+        s.ranked &&
+        derivedHandicapKomi &&
+        derivedColor && (
+          <div class="form-help" style="margin-bottom: 0.5em">
+            {derivedHandicapKomi.handicap >= 2
+              ? `Rating gap ~${derivedHandicapKomi.handicap} stones — you play ${derivedColor === "black" ? "Black" : derivedColor === "white" ? "White" : "Random"} with ${derivedHandicapKomi.handicap}-stone handicap and ${derivedHandicapKomi.komi} komi.`
+              : `Rating gap <2 stones — even game, ${derivedHandicapKomi.komi} komi. You play ${derivedColor === "nigiri" ? "Random" : derivedColor === "black" ? "Black" : "White"}.`}
+          </div>
+        )}
 
       <BoardSettingsFields
         s={s}

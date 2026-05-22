@@ -1,6 +1,6 @@
 import { type ControlsProps } from "../components/controls-shared";
 import { GameControls } from "../components/game-controls";
-import { IconCheck } from "../components/icons";
+import { IconCheck, IconX } from "../components/icons";
 import { NavControls } from "../components/nav-controls";
 import { UIControls } from "../components/ui-controls";
 
@@ -21,7 +21,9 @@ export function Controls(props: ControlsProps) {
       <div class="controls-group">
         <NavControls nav={props.nav} counterOverride={reviewOverride} />
         {props.territoryExit && (
-          <button onClick={props.territoryExit.onClick}>Exit</button>
+          <button class="btn-exit" onClick={props.territoryExit.onClick}>
+            <IconX />
+          </button>
         )}
       </div>
     );

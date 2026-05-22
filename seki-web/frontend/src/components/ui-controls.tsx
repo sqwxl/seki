@@ -93,7 +93,7 @@ export function UIControls(
             </>
           ) : (
             <button
-              class={props.analyze.active ? "active" : undefined}
+              class={props.analyze.active ? "btn-exit" : undefined}
               title={
                 props.analyze.active
                   ? "Back to game"
@@ -112,7 +112,6 @@ export function UIControls(
       )}
       {props.estimate && (
         <button
-          class="btn-estimate"
           title={props.estimate.title ?? "Estimate score"}
           disabled={props.estimate.disabled || props.estimate.pending}
           onClick={props.estimate.onClick}
@@ -122,7 +121,7 @@ export function UIControls(
       )}
       {props.exitEstimate && (
         <button
-          class="btn-exit-estimate"
+          class="btn-exit"
           title={props.exitEstimate.title ?? "Back to game"}
           disabled={props.exitEstimate.disabled || props.exitEstimate.pending}
           onClick={props.exitEstimate.onClick}

@@ -7,6 +7,11 @@
   max-width: 100%;
 }
 
+.btn-exit {
+  background: var(--red);
+  color: var(--bg);
+}
+
 .controls .analysis-toggle {
   display: none;
 }

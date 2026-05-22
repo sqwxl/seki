@@ -41,7 +41,7 @@ build-js:
 hot-setup: deps services
 
 [parallel]
-hot: wasm-hot serve-hot frontend-hot katago
+hot: wasm-hot serve-hot frontend-hot
 
 openapi:
     cargo run -p seki-web --bin gen-openapi
