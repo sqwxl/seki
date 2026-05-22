@@ -330,6 +330,10 @@ export function liveGame(
 
     if (isMyTurn) {
       if (!mc.enabled) {
+        if (!board.value.engine.is_legal(col, row)) {
+          return true;
+        }
+
         clearPendingMove();
         channel.play(col, row);
       } else {
@@ -342,7 +346,7 @@ export function liveGame(
         if (action === "confirm") {
           syncPendingMove();
           channel.play(col, row);
-        } else {
+        } else if (action === "set") {
           syncPendingMove();
           board.value.render();
         }
