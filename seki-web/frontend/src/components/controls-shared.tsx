@@ -364,6 +364,7 @@ export function HandicapSelect({
 }) {
   return (
     <select
+      name="handicap"
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(parseInt(e.currentTarget.value, 10))}
