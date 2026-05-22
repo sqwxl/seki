@@ -27,7 +27,7 @@ struct Cli {
     verbose: bool,
 
     /// Engine command and arguments (everything after --)
-    #[arg(last = true, required = true)]
+    #[arg(last = true)]
     engine: Vec<String>,
 }
 

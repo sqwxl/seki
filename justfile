@@ -41,7 +41,10 @@ build-js:
 hot-setup: deps services
 
 [parallel]
-hot: wasm-hot serve-hot frontend-hot
+hot: wasm-hot serve-hot frontend-hot katago
 
 openapi:
     cargo run -p seki-web --bin gen-openapi
+
+katago:
+    cargo run -p seki-gtp -- --config gtp.toml

@@ -23,8 +23,6 @@ pub struct EngineConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TimeConfig {
-    #[serde(default = "default_move_buffer_ms")]
-    pub move_buffer_ms: u64,
     #[serde(default = "default_engine_timeout_ms")]
     pub engine_timeout_ms: u64,
 }
@@ -32,7 +30,6 @@ pub struct TimeConfig {
 impl Default for TimeConfig {
     fn default() -> Self {
         TimeConfig {
-            move_buffer_ms: default_move_buffer_ms(),
             engine_timeout_ms: default_engine_timeout_ms(),
         }
     }
@@ -44,10 +41,6 @@ fn default_server_url() -> String {
 
 fn default_max_concurrent_games() -> usize {
     4
-}
-
-fn default_move_buffer_ms() -> u64 {
-    3000
 }
 
 fn default_engine_timeout_ms() -> u64 {
