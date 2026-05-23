@@ -208,14 +208,39 @@ impl Bot {
         for game in &player_games {
             if self.is_player(game) {
                 match game.stage.as_str() {
-                    "challenge" => {
-                        self.queue_or_accept_challenge(game.id);
-                    }
                     "black_to_play" | "white_to_play" | "territory_review" => {
                         self.join_game(game.id).await;
+                        let our_stone = if game.black.as_ref().is_some_and(|u| u.id == self.user_id)
+                        {
+                            Some(Stone::Black)
+                        } else if game.white.as_ref().is_some_and(|u| u.id == self.user_id) {
+                            Some(Stone::White)
+                        } else {
+                            None
+                        };
+                        let stage = match game.stage.as_str() {
+                            "territory_review" => GameStage::Territory,
+                            _ => GameStage::Playing,
+                        };
+                        self.games.entry(game.id).or_insert_with(|| GameState {
+                            stage,
+                            our_stone,
+                            cols: game.settings.cols as u8,
+                            rows: game.settings.rows as u8,
+                            komi: game.derived_komi.unwrap_or(6.5),
+                            handicap: game.settings.handicap as u8,
+                            moves_known: game.move_count.unwrap_or(0),
+                            pregame_accepted: false,
+                            territory_approved: false,
+                        });
                     }
                     _ => {}
                 }
+            }
+        }
+        for game in &player_games {
+            if self.is_player(game) && game.stage == "challenge" {
+                self.queue_or_accept_challenge(game.id);
             }
         }
     }
@@ -234,7 +259,17 @@ impl Bot {
     }
 
     async fn handle_game_updated(&mut self, game: LiveGameItem) {
-        if !self.joined_games.contains(&game.id) {}
+        if let Some(gs) = self.games.get_mut(&game.id) {
+            if game.stage == "challenge" && gs.stage == GameStage::Challenge {
+                return;
+            }
+            match game.stage.as_str() {
+                "completed" | "resigned" | "aborted" | "declined" | "timeout" => {
+                    gs.stage = GameStage::Finished;
+                }
+                _ => {}
+            }
+        }
     }
 
     async fn handle_game_removed(&mut self, game_id: i64) {
@@ -286,6 +321,10 @@ impl Bot {
             );
             self.joined_games.push(game_id);
         } else {
+            info!(
+                "Challenge queue full (active={}, max={}), queuing game={}",
+                active, self.config.max_concurrent_games, game_id
+            );
             self.challenge_queue.push_back(game_id);
         }
     }
@@ -304,6 +343,10 @@ impl Bot {
                 .count();
             if active >= self.config.max_concurrent_games {
                 self.challenge_queue.push_front(game_id);
+                info!(
+                    "Cannot accept queued challenge game={game_id}, active={active}, max={}",
+                    self.config.max_concurrent_games
+                );
                 break;
             }
             info!("Accepting queued challenge game={game_id}");
