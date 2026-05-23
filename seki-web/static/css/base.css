@@ -254,6 +254,12 @@ a:visited {
   cursor: pointer;
 }
 
+.nav-icon:active,
+.nav-icon[aria-pressed="true"] {
+  background: none;
+  box-shadow: none;
+}
+
 .nav-icon svg {
   width: 1.25em;
   height: 1.25em;
