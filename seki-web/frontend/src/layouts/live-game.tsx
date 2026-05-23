@@ -1,6 +1,7 @@
 import { effect, untracked } from "@preact/signals";
 import { createRef, render } from "preact";
 import type { ChatEntry } from "../components/chat";
+import { liveGameControlsState } from "../game/capabilities";
 import { createGameChannel } from "../game/channel";
 import type { ClockState } from "../game/clock";
 import { handleGameMessage, resetMovesTracker } from "../game/messages";
@@ -694,6 +695,54 @@ export function liveGame(
     }),
   );
 
+  // --- Keyboard shortcuts ---
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (document.querySelector(".confirm-popover")) return;
+
+    const caps = liveGameControlsState.value;
+
+    switch (e.key) {
+      case "p":
+        if (caps.passIsAnalysisPass) {
+          board.value?.pass();
+        } else if (caps.showPass && caps.confirmPassRequired) {
+          document.getElementById("pass-btn")?.click();
+        }
+        break;
+      case "r":
+        if (caps.showResign) {
+          document.getElementById("resign-btn")?.click();
+        }
+        break;
+      case "u":
+        if (caps.undoTooltip && caps.canRequestUndo && !caps.showUndoResponse) {
+          channel.requestUndo();
+        }
+        break;
+      case "a":
+        if (caps.canEnterAnalysis) {
+          enterAnalysis();
+        }
+        break;
+      case "e":
+        if (caps.showEnterEstimate && caps.canEnterEstimate) {
+          enterEstimate();
+        }
+        break;
+      case "Escape":
+        if (estimateMode.value) {
+          doExitEstimate();
+        } else if (analysisMode.value) {
+          exitAnalysis();
+        }
+        break;
+    }
+  };
+
+  document.addEventListener("keydown", handleKeyDown);
+
   // --- Tab title flash on visibility change ---
   const onVisibilityChange = () => {
     if (!document.hidden) {
@@ -715,6 +764,7 @@ export function liveGame(
     unsubPresenceState();
     unsubPresenceChanged();
     document.removeEventListener("visibilitychange", onVisibilityChange);
+    document.removeEventListener("keydown", handleKeyDown);
     territoryCountdown.interval && clearInterval(territoryCountdown.interval);
     clockState.interval && clearInterval(clockState.interval);
     board.value?.destroy();

@@ -1,6 +1,6 @@
 import { effect } from "@preact/signals";
 import { createRef, render } from "preact";
-import { buildPlayerPanels } from "../game/capabilities";
+import { analysisCapabilities, buildPlayerPanels } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { mobileTab, showCoordinates } from "../game/state";
 import { createBoard, ensureWasm } from "../goban/create-board";
@@ -370,6 +370,38 @@ export function initAnalysis(root: HTMLElement) {
     },
   );
 
+  // --- Keyboard shortcuts ---
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (document.querySelector(".confirm-popover")) return;
+
+    const board = analysisBoard.value;
+    if (!board) return;
+
+    const caps = analysisCapabilities.value;
+
+    switch (e.key) {
+      case "p":
+        if (caps.canPass) {
+          board.pass();
+        }
+        break;
+      case "e":
+        if (caps.showEstimate && caps.canEstimate) {
+          board.enterTerritoryReview();
+        }
+        break;
+      case "Escape":
+        if (analysisTerritoryInfo.value.reviewing) {
+          board.exitTerritoryReview();
+        }
+        break;
+    }
+  };
+
+  document.addEventListener("keydown", handleKeyDown);
+
   const disposers = [
     effect(() => {
       if (mobileTab.value === "board" && analysisBoard.value) {
@@ -399,6 +431,7 @@ export function initAnalysis(root: HTMLElement) {
   return () => {
     disposed = true;
     boardInitVersion += 1;
+    document.removeEventListener("keydown", handleKeyDown);
 
     for (const dispose of disposers) {
       dispose();

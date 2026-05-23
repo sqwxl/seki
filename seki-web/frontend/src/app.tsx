@@ -27,6 +27,7 @@ import {
 } from "./utils/flash";
 import { initPreferences } from "./utils/preferences";
 import {
+  requestSpaNavigation,
   SPA_NAVIGATE_EVENT,
   type SpaNavigateDetail,
 } from "./utils/spa-navigation";
@@ -124,6 +125,32 @@ function App() {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const tag = (event.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (document.querySelector(".confirm-popover")) return;
+
+      switch (event.key) {
+        case "n":
+          requestSpaNavigation("/games/new");
+          break;
+        case "s":
+          requestSpaNavigation("/settings");
+          break;
+        case "g":
+          requestSpaNavigation("/games");
+          break;
+        case "A":
+          requestSpaNavigation("/analysis");
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   async function refreshSession() {
