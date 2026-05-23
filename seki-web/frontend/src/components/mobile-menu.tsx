@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { UserData } from "../game/types";
 import { ratingDisplayPreference } from "../utils/preferences";
 import {
+  IconAnalysis,
   IconLogin,
   IconLogout,
   IconMenu,
+  IconPlus,
   IconRegister,
   IconUser,
 } from "./icons";
@@ -22,6 +24,7 @@ export function MobileMenu({
   const ref = useRef<HTMLDivElement>(null);
   const username = user?.display_name ?? "Guest";
   const isRegistered = user?.is_registered ?? false;
+  const showNavigation = !user?.is_bot;
 
   useEffect(() => {
     if (!open) {
@@ -78,6 +81,24 @@ export function MobileMenu({
               )}
             </a>
           </div>
+          {showNavigation && (
+            <div class="nav-dropdown-section">
+              <a
+                class="nav-dropdown-item"
+                href="/games/new"
+                onClick={() => setOpen(false)}
+              >
+                <IconPlus /> New game
+              </a>
+              <a
+                class="nav-dropdown-item"
+                href="/analysis"
+                onClick={() => setOpen(false)}
+              >
+                <IconAnalysis /> Analysis Board
+              </a>
+            </div>
+          )}
           <SettingsDropdownContent showLabel={false} />
           <div class="nav-dropdown-section">
             {isRegistered ? (
