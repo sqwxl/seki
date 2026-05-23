@@ -16,6 +16,7 @@ import { getWasm } from "../../goban/init-wasm";
 export { OpponentSelect, type OpponentSearchResult } from "./opponent-select";
 
 export type BaseGameSettings = {
+  ranked: boolean;
   cols: number;
   handicap: number;
   komi: number;
@@ -30,15 +31,6 @@ export type GameSettingsSetter<T extends BaseGameSettings> = <
   key: K,
   value: T[K],
 ) => void;
-
-type RankedGameFieldProps = {
-  id: string;
-  checked: boolean;
-  disabled?: boolean;
-  hidden?: boolean;
-  help?: string;
-  onChange?: (checked: boolean) => void;
-};
 
 export function SettingsFieldset({
   children,
@@ -55,25 +47,29 @@ export function SettingsFieldset({
   );
 }
 
-export function RankedGameField({
-  id,
-  checked,
+export function RankedGameField<T extends BaseGameSettings>({
+  s,
+  set,
   disabled,
   help,
-  onChange,
-}: RankedGameFieldProps) {
+}: {
+  s: T;
+  set: GameSettingsSetter<T>;
+  disabled?: boolean;
+  help?: string;
+}) {
   return (
     <div title={help}>
-      <label for={id}>
+      <label for="game_ranked">
         <IconBalance /> Rated?
         <input
           type="checkbox"
           name="ranked"
-          id={id}
+          id="game_ranked"
           value="true"
-          checked={checked}
+          checked={s.ranked}
           disabled={disabled}
-          onChange={(e) => onChange?.(e.currentTarget.checked)}
+          onChange={(e) => set("ranked", e.currentTarget.checked)}
         />
       </label>
     </div>

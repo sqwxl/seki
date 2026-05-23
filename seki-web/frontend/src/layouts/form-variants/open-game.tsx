@@ -6,6 +6,7 @@ import {
   BoardSizeField,
   MaxRatingDifferenceField,
   PrivateSpectatorsField,
+  RankedGameField,
   SettingsFieldset,
   type GameSettingsSetter,
 } from "./shared";
@@ -35,11 +36,37 @@ export const OPEN_DEFAULTS: OpenGameSettings = {
 type Props = {
   s: OpenGameSettings;
   set: GameSettingsSetter<OpenGameSettings>;
+  isRegistered?: boolean;
+  rankedUnavailableReason?: string | null;
+  currentRatingText: string;
 };
 
-export function OpenGameForm({ s, set }: Props) {
+export function OpenGameForm({
+  s,
+  set,
+  isRegistered,
+  rankedUnavailableReason,
+  currentRatingText,
+}: Props) {
+  const rankedBlockedReason = !isRegistered
+    ? (rankedUnavailableReason ?? "Register or sign in to create ranked games.")
+    : (rankedUnavailableReason ??
+      (s.isPrivate ? "Ranked games must be public." : undefined));
+
   return (
     <SettingsFieldset>
+      <RankedGameField
+        s={s}
+        set={set}
+        disabled={!isRegistered || Boolean(rankedBlockedReason)}
+        help={
+          rankedBlockedReason
+            ? rankedBlockedReason
+            : currentRatingText
+              ? `Your current rating is ${currentRatingText}.`
+              : "Your first ranked game starts from a provisional rating."
+        }
+      />
       <BoardSizeField s={s} set={set} />
       <MaxRatingDifferenceField s={s} set={set} />
 

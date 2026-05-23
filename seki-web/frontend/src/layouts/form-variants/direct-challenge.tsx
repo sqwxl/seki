@@ -7,6 +7,7 @@ import { BoardSettingsFields } from "./board-parameters";
 import {
   AllowUndoField,
   PrivateSpectatorsField,
+  RankedGameField,
   SettingsFieldset,
   type GameSettingsSetter,
 } from "./shared";
@@ -36,17 +37,23 @@ export const CHALLENGE_DEFAULTS: ChallengeSettings = {
 type Props = {
   s: ChallengeSettings;
   set: GameSettingsSetter<ChallengeSettings>;
+  isRegistered?: boolean;
   derivedHandicapKomi?: DerivedHandicapKomi | null;
   currentUserRank?: RankData | null;
   opponentRank?: RankData | null;
+  rankedUnavailableReason?: string | null;
+  currentRatingText: string;
 };
 
 export function DirectChallengeForm({
   s,
   set,
+  isRegistered,
   derivedHandicapKomi,
   currentUserRank,
   opponentRank,
+  rankedUnavailableReason,
+  currentRatingText,
 }: Props) {
   const handicapValue = s.ranked
     ? (derivedHandicapKomi?.handicap ?? 0)
@@ -62,8 +69,33 @@ export function DirectChallengeForm({
           : "white";
   const colorValue = s.ranked ? (derivedColor ?? s.color) : s.color;
 
+  const selectedOpponentCannotRank =
+    s.selectedOpponent &&
+    (opponentRank?.status === "anonymous" ||
+      opponentRank?.status === "not_participating");
+
+  const rankedBlockedReason = !isRegistered
+    ? (rankedUnavailableReason ?? "Register or sign in to create ranked games.")
+    : (rankedUnavailableReason ??
+      (s.isPrivate ? "Ranked games must be public." : undefined) ??
+      (selectedOpponentCannotRank
+        ? "Opponent is not participating in ranking."
+        : undefined));
+
   return (
     <SettingsFieldset>
+      <RankedGameField
+        s={s}
+        set={set}
+        disabled={!isRegistered || Boolean(rankedBlockedReason)}
+        help={
+          rankedBlockedReason
+            ? rankedBlockedReason
+            : currentRatingText
+              ? `Your current rating is ${currentRatingText}.`
+              : "Your first ranked game starts from a provisional rating."
+        }
+      />
       {s.selectedOpponent &&
         s.ranked &&
         derivedHandicapKomi &&

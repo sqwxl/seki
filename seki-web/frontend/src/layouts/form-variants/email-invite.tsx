@@ -10,6 +10,7 @@ import {
 } from "./shared";
 
 export type EmailInviteSettings = {
+  ranked: boolean;
   cols: number;
   handicap: number;
   komi: number;
@@ -21,6 +22,7 @@ export type EmailInviteSettings = {
 };
 
 export const EMAIL_DEFAULTS: EmailInviteSettings = {
+  ranked: false,
   cols: 19,
   handicap: 0,
   komi: 6.5,

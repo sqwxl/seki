@@ -20,7 +20,6 @@ import {
 } from "./form-variants/open-game";
 import {
   OpponentSelect,
-  RankedGameField,
   type OpponentSearchResult,
 } from "./form-variants/shared";
 
@@ -65,8 +64,6 @@ type CommonSettingKey =
   | "color"
   | "allowUndo"
   | "isPrivate";
-
-type SyncableVariant = Exclude<Variant, "email">;
 
 const COMMON_SETTING_KEYS: CommonSettingKey[] = [
   "cols",
@@ -129,53 +126,12 @@ function applyCommonSetting(
   return { ...all, email, open, challenge };
 }
 
-function applyRankedSetting(
-  all: AllSettings,
-  source: SyncableVariant,
-  ranked: boolean,
-): AllSettings {
-  const shared = {
-    ...all.shared,
-    timeControl:
-      ranked && all.shared.timeControl === "none"
-        ? ("fischer" as TimeControl)
-        : all.shared.timeControl,
-  };
-  const open = {
-    ...all.open,
-    ranked,
-    isPrivate: ranked ? false : all.open.isPrivate,
-  };
-  const challenge = {
-    ...all.challenge,
-    ranked,
-    isPrivate: ranked ? false : all.challenge.isPrivate,
-  };
-
-  if (source === "open") {
-    return { ...all, shared, open, challenge };
-  }
-
-  return { ...all, shared, challenge, open };
-}
-
 function syncFromVariant(all: AllSettings, source: Variant): AllSettings {
   const sourceSettings = all[source];
-  const withCommonSettings = COMMON_SETTING_KEYS.reduce(
+  return COMMON_SETTING_KEYS.reduce(
     (next, key) => applyCommonSetting(next, source, key, sourceSettings[key]),
     all,
   );
-
-  if (source === "email") {
-    return withCommonSettings;
-  }
-
-  const ranked =
-    source === "open"
-      ? withCommonSettings.open.ranked
-      : withCommonSettings.challenge.ranked;
-
-  return applyRankedSetting(withCommonSettings, source, ranked);
 }
 
 function normalizeSettings(all: AllSettings): AllSettings {
@@ -233,11 +189,7 @@ export function GameSettingsForm({
         opponentRank?.status === "unranked";
 
       if (canRank && isRegistered && !rankedUnavailableReason) {
-        return applyRankedSetting(
-          { ...saved, shared: { ...saved.shared, variant: "challenge" } },
-          "challenge",
-          true,
-        );
+        saved.challenge.ranked = true;
       }
     }
 
@@ -259,29 +211,7 @@ export function GameSettingsForm({
     ? opponentRank
     : selectedChallengeOpponentRank;
   const currentRatingText = fullRankText(currentUserRank);
-  const selectedOpponentCannotRank =
-    variant === "challenge" &&
-    all.challenge.selectedOpponent &&
-    (challengeOpponentRank?.status === "anonymous" ||
-      challengeOpponentRank?.status === "not_participating");
-  const rankedBlockedReason =
-    variant === "email"
-      ? "Email invites are always unrated."
-      : !isRegistered
-        ? (rankedUnavailableReason ??
-          "Register or sign in to create ranked games.")
-        : (rankedUnavailableReason ??
-          (variant === "open" && all.open.isPrivate
-            ? "Ranked games must be public."
-            : undefined) ??
-          (variant === "challenge" && all.challenge.isPrivate
-            ? "Ranked games must be public."
-            : undefined) ??
-          (selectedOpponentCannotRank
-            ? "Opponent is not participating in ranking."
-            : undefined));
-  const rankedDisabled = Boolean(rankedBlockedReason);
-  const rankedChecked =
+  const isRanked =
     variant === "email"
       ? false
       : variant === "open"
@@ -296,19 +226,11 @@ export function GameSettingsForm({
     });
   }
 
-  function setRanked(checked: boolean) {
-    if (variant === "email") {
-      return;
-    }
-
-    setAll((prev) => applyRankedSetting(prev, variant, checked));
-  }
-
   function setShared<K extends keyof SharedSettings>(
     key: K,
     value: SharedSettings[K],
   ) {
-    if (key === "timeControl" && value === "none" && rankedChecked) {
+    if (key === "timeControl" && value === "none" && isRanked) {
       return;
     }
 
@@ -320,10 +242,6 @@ export function GameSettingsForm({
     value: OpenGameSettings[K],
   ) {
     setAll((prev) => {
-      if (key === "ranked") {
-        return applyRankedSetting(prev, "open", Boolean(value));
-      }
-
       const commonKey = String(key);
       if (isCommonSettingKey(commonKey)) {
         return applyCommonSetting(
@@ -345,10 +263,6 @@ export function GameSettingsForm({
     value: ChallengeSettings[K],
   ) {
     setAll((prev) => {
-      if (key === "ranked") {
-        return applyRankedSetting(prev, "challenge", Boolean(value));
-      }
-
       const commonKey = String(key);
       if (isCommonSettingKey(commonKey)) {
         return applyCommonSetting(
@@ -450,22 +364,6 @@ export function GameSettingsForm({
 
   return (
     <div ref={rootRef}>
-      <fieldset>
-        <RankedGameField
-          id="game_ranked"
-          checked={rankedChecked}
-          onChange={setRanked}
-          disabled={!isRegistered || rankedDisabled}
-          help={
-            rankedBlockedReason
-              ? rankedBlockedReason
-              : currentRatingText
-                ? `Your current rating is ${currentRatingText}.`
-                : "Your first ranked game starts from a provisional rating."
-          }
-        />
-      </fieldset>
-
       {!opponent && (
         <fieldset>
           <legend>
@@ -555,15 +453,26 @@ export function GameSettingsForm({
         />
       )}
 
-      {variant === "open" && <OpenGameForm s={all.open} set={setOpen} />}
+      {variant === "open" && (
+        <OpenGameForm
+          s={all.open}
+          set={setOpen}
+          isRegistered={isRegistered}
+          rankedUnavailableReason={rankedUnavailableReason}
+          currentRatingText={currentRatingText}
+        />
+      )}
 
       {variant === "challenge" && (
         <DirectChallengeForm
           s={all.challenge}
           set={setChallenge}
+          isRegistered={isRegistered}
           derivedHandicapKomi={searchDerivedHandicapKomi}
           currentUserRank={currentUserRank}
           opponentRank={challengeOpponentRank}
+          rankedUnavailableReason={rankedUnavailableReason}
+          currentRatingText={currentRatingText}
         />
       )}
 
@@ -574,7 +483,7 @@ export function GameSettingsForm({
           <IconTimer /> Time control
         </legend>
         <div class="new-game-form-time-controls">
-          {!rankedChecked && (
+          {!isRanked && (
             <label>
               <input
                 type="radio"
