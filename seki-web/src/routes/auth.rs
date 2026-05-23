@@ -124,10 +124,11 @@ pub async fn register(
         return redirect_with_flash(&session, "/register", msg).await;
     }
 
-    // Check uniqueness
+    // Check uniqueness. The current anonymous row already owns its generated
+    // username, so keeping that name during upgrade is allowed.
     if User::find_by_username(&state.db, &username)
         .await?
-        .is_some()
+        .is_some_and(|user| user.id != current_user.id)
     {
         let msg = "Username is already taken.";
         if json {
@@ -149,14 +150,31 @@ pub async fn register(
         .map_err(|e| AppError::Internal(format!("Password hash error: {e}")))?
         .to_string();
 
-    User::set_credentials(
+    if let Err(e) = User::set_credentials(
         &state.db,
         current_user.id,
         &username,
         &password_hash,
         is_bot,
     )
-    .await?;
+    .await
+    {
+        if let sqlx::Error::Database(db_error) = &e
+            && db_error.is_unique_violation()
+        {
+            let msg = "Username is already taken.";
+            if json {
+                return Ok((
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    axum::Json(json!({"error": msg, "field": "username"})),
+                )
+                    .into_response());
+            }
+            return redirect_with_flash(&session, "/register", msg).await;
+        }
+
+        return Err(e.into());
+    }
 
     // Ensure rating profile exists for the newly registered user
     crate::models::rating::RatingProfile::get_or_create(&state.db, current_user.id).await?;

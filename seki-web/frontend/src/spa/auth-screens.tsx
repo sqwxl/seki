@@ -97,6 +97,9 @@ export function AuthFormScreen({
             id="username"
             required
             maxLength={30}
+            defaultValue={
+              mode === "register" ? (currentUser?.display_name ?? "") : ""
+            }
             autoFocus
           />
         </div>

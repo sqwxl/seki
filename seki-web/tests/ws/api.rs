@@ -1688,6 +1688,134 @@ async fn approve_territory_requires_auth() {
 }
 
 // ============================================================
+// Auth: Registration
+// ============================================================
+
+#[tokio::test]
+async fn register_allows_anonymous_user_to_keep_current_username() {
+    let server = TestServer::start().await;
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+
+    let resp = client
+        .get(format!("http://{}/api/auth/token", server.addr))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.unwrap();
+    let user_id = body["user"]["id"].as_i64().unwrap();
+    let username = body["user"]["display_name"].as_str().unwrap().to_string();
+
+    let resp = client
+        .post(format!("http://{}/register", server.addr))
+        .header("Accept", "application/json")
+        .form(&[
+            ("username", username.as_str()),
+            ("password", "testpassword"),
+            ("password_confirmation", "testpassword"),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+
+    let row: (String, bool) =
+        sqlx::query_as("SELECT username, password_hash IS NOT NULL FROM users WHERE id = $1")
+            .bind(user_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    assert_eq!(row.0, username);
+    assert!(row.1);
+}
+
+#[tokio::test]
+async fn register_preserves_anonymous_player_identity_for_existing_game() {
+    let server = TestServer::start().await;
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+
+    let resp = client
+        .get(format!("http://{}/api/auth/token", server.addr))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.unwrap();
+    let user_id = body["user"]["id"].as_i64().unwrap();
+
+    let resp = client
+        .post(format!("http://{}/games", server.addr))
+        .header("Accept", "application/json")
+        .form(&[
+            ("cols", "9"),
+            ("variant", "challenge"),
+            ("invite_username", "test-white"),
+            ("komi", "6.5"),
+            ("handicap", "0"),
+            ("color", "black"),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.unwrap();
+    let redirect = body["redirect"].as_str().unwrap();
+    let game_id: i64 = redirect.trim_start_matches("/games/").parse().unwrap();
+
+    let before: (Option<i64>, Option<i64>, Option<i64>) =
+        sqlx::query_as("SELECT creator_id, black_id, white_id FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    assert_eq!(before.0, Some(user_id));
+    assert!(before.1 == Some(user_id) || before.2 == Some(user_id));
+
+    let resp = client
+        .post(format!("http://{}/register", server.addr))
+        .header("Accept", "application/json")
+        .form(&[
+            ("username", "upgraded-player"),
+            ("password", "testpassword"),
+            ("password_confirmation", "testpassword"),
+        ])
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+
+    let after: (Option<i64>, Option<i64>, Option<i64>) =
+        sqlx::query_as("SELECT creator_id, black_id, white_id FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    assert_eq!(after, before);
+
+    let resp = client
+        .get(format!("http://{}/api/session/me", server.addr))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+    let body: Value = resp.json().await.unwrap();
+    assert_eq!(body["id"], user_id);
+    assert_eq!(body["display_name"], "upgraded-player");
+    assert_eq!(body["is_registered"], true);
+}
+
+// ============================================================
 // Auth: Logout
 // ============================================================
 
