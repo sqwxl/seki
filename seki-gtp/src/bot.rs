@@ -1,4 +1,6 @@
 use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use go_engine::{Stone, Turn};
 use seki_api_types::ws::{ClientMsg, LiveGameItem, ServerMsg};
@@ -39,6 +41,7 @@ pub struct Bot {
     joined_games: Vec<i64>,
     challenge_queue: VecDeque<i64>,
     user_id: i64,
+    game_gens: HashMap<i64, Arc<AtomicU64>>,
 }
 
 fn send_json(tx: &mpsc::UnboundedSender<String>, msg: &ClientMsg) {
@@ -62,6 +65,7 @@ impl Bot {
             joined_games: Vec::new(),
             challenge_queue: VecDeque::new(),
             user_id,
+            game_gens: HashMap::new(),
         };
 
         loop {
@@ -158,6 +162,15 @@ impl Bot {
                 )
                 .await;
             }
+            ServerMsg::UndoAccepted {
+                game_id,
+                current_turn_stone,
+                ref moves,
+                ..
+            } => {
+                self.handle_undo_accepted(game_id, current_turn_stone, moves)
+                    .await;
+            }
             ServerMsg::UndoRequestSent { game_id } => {
                 self.handle_undo_request(game_id).await;
             }
@@ -179,7 +192,8 @@ impl Bot {
                     self.joined_games.retain(|&id| id != gid);
                 }
             }
-            ServerMsg::Chat { .. }
+            ServerMsg::UndoRejected { .. }
+            | ServerMsg::Chat { .. }
             | ServerMsg::PlayerDisconnected { .. }
             | ServerMsg::PlayerReconnected { .. }
             | ServerMsg::PlayerGone { .. }
@@ -225,6 +239,7 @@ impl Bot {
 
     async fn handle_game_removed(&mut self, game_id: i64) {
         self.games.remove(&game_id);
+        self.game_gens.remove(&game_id);
         self.joined_games.retain(|&id| id != game_id);
         self.process_challenge_queue().await;
     }
@@ -425,7 +440,7 @@ impl Bot {
                         -1
                     };
 
-                    if current_turn_stone == expected_current {
+                    if current_turn_stone == expected_current && moves.len() > gs.moves_known {
                         let tx = self.ws_tx.clone();
                         let engine = self.engine.clone();
                         let cfg = self.config.clone();
@@ -434,6 +449,14 @@ impl Bot {
                         let gs_komi = gs.komi;
                         let gs_handicap = gs.handicap;
                         let moves_vec = moves.to_vec();
+
+                        let generation = self
+                            .game_gens
+                            .entry(game_id)
+                            .or_insert_with(|| Arc::new(AtomicU64::new(0)))
+                            .clone();
+                        generation.fetch_add(1, Ordering::SeqCst);
+                        let cancel_token = generation.load(Ordering::SeqCst);
 
                         tokio::spawn(async move {
                             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -448,6 +471,8 @@ impl Bot {
                                 our_stone,
                                 gs_handicap,
                                 &cfg,
+                                generation,
+                                cancel_token,
                             )
                             .await;
                         });
@@ -484,13 +509,83 @@ impl Bot {
 
         if finished {
             self.games.remove(&game_id);
+            self.game_gens.remove(&game_id);
             self.joined_games.retain(|&id| id != game_id);
             self.process_challenge_queue().await;
         }
     }
 
+    async fn handle_undo_accepted(
+        &mut self,
+        game_id: i64,
+        current_turn_stone: i32,
+        moves: &[Turn],
+    ) {
+        let our_stone = self.games.get(&game_id).and_then(|g| g.our_stone);
+        let expected_current = match our_stone {
+            Some(Stone::Black) => 1,
+            Some(Stone::White) => -1,
+            None => 0,
+        };
+        info!(
+            "Undo accepted for game={game_id}, current_turn_stone={current_turn_stone}, our_stone={our_stone:?}, expected_current={expected_current}"
+        );
+
+        if let Some(gs) = self.games.get_mut(&game_id) {
+            gs.moves_known = moves.len();
+        }
+
+        let generation = self
+            .game_gens
+            .entry(game_id)
+            .or_insert_with(|| Arc::new(AtomicU64::new(0)))
+            .clone();
+        generation.fetch_add(1, Ordering::SeqCst);
+
+        if current_turn_stone == expected_current {
+            info!("It is our turn after undo, playing game={game_id}");
+            let tx = self.ws_tx.clone();
+            let engine = self.engine.clone();
+            let cfg = self.config.clone();
+            let gs_cols;
+            let gs_rows;
+            let gs_komi;
+            let gs_handicap;
+            if let Some(gs) = self.games.get(&game_id) {
+                gs_cols = gs.cols;
+                gs_rows = gs.rows;
+                gs_komi = gs.komi;
+                gs_handicap = gs.handicap;
+            } else {
+                return;
+            }
+
+            let moves_vec = moves.to_vec();
+            let cancel_token = generation.load(Ordering::SeqCst);
+
+            tokio::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                Bot::think_and_play(
+                    engine,
+                    tx,
+                    game_id,
+                    gs_cols,
+                    gs_rows,
+                    gs_komi,
+                    &moves_vec,
+                    our_stone,
+                    gs_handicap,
+                    &cfg,
+                    generation,
+                    cancel_token,
+                )
+                .await;
+            });
+        }
+    }
+
     async fn handle_undo_request(&mut self, game_id: i64) {
-        info!("Auto-accepting undo for game={game_id}");
+        info!("Auto-accepting undo request game={game_id}");
         send_json(&self.ws_tx, &ClientMsg::respond_to_undo(game_id, "accept"));
     }
 
@@ -506,6 +601,8 @@ impl Bot {
         our_stone: Option<Stone>,
         handicap: u8,
         config: &Config,
+        generation: Arc<AtomicU64>,
+        cancel_token: u64,
     ) {
         let stone = match our_stone {
             Some(s) => s,
@@ -515,14 +612,22 @@ impl Bot {
             }
         };
 
-        // Setup board: boardsize + clear_board + komi + optional handicap
+        if generation.load(Ordering::SeqCst) != cancel_token {
+            info!("Game {game_id}: stale think_and_play (gen changed), skipping");
+            return;
+        }
+
         if let Err(e) = engine.setup_position(cols, rows, komi).await {
             error!("Game {game_id}: setup failed - {e}. Falling back to pass.");
             send_json(&tx, &ClientMsg::pass(game_id));
             return;
         }
 
-        // Place handicap stones using standard hoshi positions
+        if generation.load(Ordering::SeqCst) != cancel_token {
+            info!("Game {game_id}: stale think_and_play after setup, skipping");
+            return;
+        }
+
         if handicap >= 2
             && let Some(pts) = go_engine::handicap::handicap_points(cols, rows, handicap)
         {
@@ -537,18 +642,32 @@ impl Bot {
             }
         }
 
+        if generation.load(Ordering::SeqCst) != cancel_token {
+            info!("Game {game_id}: stale think_and_play after handicap, skipping");
+            return;
+        }
+
         if let Err(e) = engine.replay_moves(moves).await {
             error!("Game {game_id}: replay failed - {e}. Falling back to pass.");
             send_json(&tx, &ClientMsg::pass(game_id));
             return;
         }
 
-        // Generate move
+        if generation.load(Ordering::SeqCst) != cancel_token {
+            info!("Game {game_id}: stale think_and_play after replay, skipping");
+            return;
+        }
+
         let move_result = tokio::time::timeout(
             std::time::Duration::from_millis(config.time.engine_timeout_ms),
             engine.genmove(stone),
         )
         .await;
+
+        if generation.load(Ordering::SeqCst) != cancel_token {
+            info!("Game {game_id}: stale think_and_play after genmove, skipping");
+            return;
+        }
 
         let move_result = match move_result {
             Ok(Ok(r)) => r,
@@ -566,15 +685,15 @@ impl Bot {
 
         match move_result {
             MoveResult::Coord { col, row } => {
-                info!("Game {game_id}: playing ({col},{row})");
+                info!("Game {game_id}: bot playing ({col},{row})");
                 send_json(&tx, &ClientMsg::play(game_id, col as i32, row as i32));
             }
             MoveResult::Pass => {
-                info!("Game {game_id}: passing");
+                info!("Game {game_id}: bot passing");
                 send_json(&tx, &ClientMsg::pass(game_id));
             }
             MoveResult::Resign => {
-                info!("Game {game_id}: resigning");
+                info!("Game {game_id}: bot resigning");
                 send_json(&tx, &ClientMsg::resign(game_id));
             }
         }
