@@ -50,6 +50,7 @@ export function GameControls(props: ControlsProps) {
           title={props.pass.title ?? "Pass"}
           disabled={props.pass.disabled}
           confirm={props.confirmPass}
+          focusOnMount="cancel"
         />
       )}
       {props.resign && (
@@ -59,6 +60,7 @@ export function GameControls(props: ControlsProps) {
           title="Resign"
           disabled={props.resign.disabled}
           confirm={props.resign}
+          focusOnMount="cancel"
         />
       )}
       {props.rematch && (
@@ -67,6 +69,7 @@ export function GameControls(props: ControlsProps) {
           icon={IconRepeat}
           title="Rematch"
           disabled={props.rematch.disabled}
+          focusOnMount="confirm"
           confirm={{
             message: "Rematch?",
             onConfirm: () => {

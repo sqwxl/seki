@@ -100,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .get_me()
         .await
         .map_err(|e| format!("Failed to authenticate: {e}"))?;
-    tracing::info!("Authenticated as {} (id={})", me.username, me.id);
+    tracing::info!("[auth] authenticated as {} (id={})", me.username, me.id);
 
     let engine = spawn_engine(&engine_cfg.command, &engine_cfg.args).await?;
 

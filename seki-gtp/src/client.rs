@@ -40,7 +40,7 @@ impl Client {
             match self.try_get_me(&url).await {
                 Ok(me) => return Ok(me),
                 Err(e) => {
-                    tracing::warn!("Failed to authenticate (retrying in {delay:?}): {e}");
+                    tracing::warn!("[auth] authentication failed, retrying in {delay:?}: {e}");
                     tokio::time::sleep(delay).await;
                     delay = (delay * 2).min(Duration::from_secs(30));
                 }

@@ -92,7 +92,7 @@ pub async fn connect(config: &Config) -> Result<WsHandle, String> {
 }
 
 async fn connect_inner(ws_url: &str) -> Result<WsHandle, String> {
-    info!("Connecting to {ws_url}");
+    info!("[ws] connecting to {ws_url}");
     let (ws_stream, _) = connect_async_tls_with_config(ws_url, None, false, Some(tls_connector()))
         .await
         .map_err(|e| format!("Failed to connect: {e}"))?;
@@ -121,7 +121,7 @@ async fn connect_inner(ws_url: &str) -> Result<WsHandle, String> {
                         }
                     }
                     Err(e) => {
-                        warn!("Failed to parse server message: {e}: {text}");
+                        warn!("[ws] failed to parse message: {e}");
                     }
                 },
                 Message::Close(_) => break,
@@ -159,7 +159,7 @@ pub async fn connect_with_retry(config: &Config) -> WsHandle {
         match connect_inner(&ws_url).await {
             Ok(handle) => return handle,
             Err(e) => {
-                error!("Connection failed (retrying in {delay:?}): {e}");
+                error!("[ws] connection failed, retrying in {delay:?}: {e}");
                 tokio::time::sleep(delay).await;
                 delay = (delay * 2).min(Duration::from_secs(30));
             }

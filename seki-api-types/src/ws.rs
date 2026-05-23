@@ -197,6 +197,18 @@ pub enum ServerMsg {
     Chat {
         game_id: i64,
     },
+    UndoAccepted {
+        game_id: i64,
+        state: go_engine::GameState,
+        current_turn_stone: i32,
+        moves: Vec<Turn>,
+        undo_rejected: bool,
+        #[serde(default)]
+        clock: Option<ClockState>,
+    },
+    UndoRejected {
+        game_id: i64,
+    },
     UndoRequestSent {
         game_id: i64,
     },

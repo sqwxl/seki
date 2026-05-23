@@ -114,6 +114,7 @@ export function ConfirmPopover({
   closeOnCancel = true,
   children,
   popoverRef,
+  focusOnMount,
 }: {
   icon: preact.ComponentType<{ title?: string }>;
   message: string;
@@ -123,17 +124,59 @@ export function ConfirmPopover({
   closeOnCancel?: boolean;
   children?: preact.ComponentChildren;
   popoverRef?: preact.Ref<HTMLDivElement>;
+  focusOnMount?: "confirm" | "cancel";
 }) {
   const Icon = icon;
   const disableActions = pending != null;
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const trapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (focusOnMount === "confirm") {
+      confirmRef.current?.focus();
+    } else if (focusOnMount === "cancel") {
+      cancelRef.current?.focus();
+    }
+  }, []);
+
+  const setRef = (el: HTMLDivElement | null) => {
+    trapRef.current = el;
+    if (typeof popoverRef === "function") {
+      popoverRef(el);
+    } else if (popoverRef) {
+      (popoverRef as preact.RefObject<HTMLDivElement>).current = el;
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== "Tab") return;
+
+    const focusable = trapRef.current?.querySelectorAll<HTMLElement>(
+      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    if (!focusable || focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   return (
-    <div class="confirm-popover" ref={popoverRef}>
+    <div class="confirm-popover" ref={setRef} onKeyDown={handleKeyDown}>
       <Icon />
       <p>{message}</p>
       {children}
       <div class="confirm-actions">
         <button
+          ref={confirmRef}
           class="btn-success"
           disabled={disableActions}
           onClick={() => {
@@ -143,6 +186,7 @@ export function ConfirmPopover({
           <ButtonContent pending={pending === "confirm"} icon={IconCheck} />
         </button>
         <button
+          ref={cancelRef}
           class="btn-warn"
           disabled={disableActions}
           onClick={() => {
@@ -189,6 +233,7 @@ export function ConfirmButton({
   disabled,
   confirm,
   buttonClass,
+  focusOnMount,
   children,
 }: {
   id: string;
@@ -197,6 +242,7 @@ export function ConfirmButton({
   disabled?: boolean;
   confirm: ConfirmDef;
   buttonClass?: string;
+  focusOnMount?: "confirm" | "cancel";
   children?: preact.ComponentChildren;
 }) {
   const Icon = icon;
@@ -263,6 +309,7 @@ export function ConfirmButton({
           onCancel={closeOnCancelHandler(setOpen)}
           pending={confirm.pending}
           popoverRef={popoverRef}
+          focusOnMount={focusOnMount}
         >
           {children}
         </ConfirmPopover>

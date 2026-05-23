@@ -431,6 +431,7 @@ impl Bot {
                     }
                 }
                 "black_to_play" | "white_to_play" => {
+                    let transitioning_to_play = gs.stage != GameStage::Playing;
                     gs.stage = GameStage::Playing;
 
                     let our_stone = gs.our_stone;
@@ -440,7 +441,9 @@ impl Bot {
                         -1
                     };
 
-                    if current_turn_stone == expected_current && moves.len() > gs.moves_known {
+                    if current_turn_stone == expected_current
+                        && (moves.len() > gs.moves_known || transitioning_to_play)
+                    {
                         let tx = self.ws_tx.clone();
                         let engine = self.engine.clone();
                         let cfg = self.config.clone();

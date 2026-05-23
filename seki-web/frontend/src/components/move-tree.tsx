@@ -102,8 +102,8 @@ export function MoveTree({
     return path;
   }, [currentNodeId, tree]);
 
-  const maxCol = layout.reduce((m, n) => Math.max(m, n.col), 0);
-  const maxRow = layout.reduce((m, n) => Math.max(m, n.row), 0);
+  const maxCol = layout.reduce((m, n) => (n ? Math.max(m, n.col) : m), 0);
+  const maxRow = layout.reduce((m, n) => (n ? Math.max(m, n.row) : m), 0);
 
   const svgWidth = vertical
     ? (maxRow + 1) * ROW_SPACING + PADDING * 2
@@ -138,7 +138,7 @@ export function MoveTree({
       x = cx(0, 0);
       y = cy(0, 0);
     } else {
-      const cur = layout.find((n) => n.id === currentNodeId);
+      const cur = layout.find((n) => n && n.id === currentNodeId);
 
       if (!cur) {
         return;

@@ -226,12 +226,12 @@ impl EngineHandle {
 }
 
 pub async fn spawn_engine(command: &str, args: &[String]) -> Result<EngineHandle, String> {
-    info!("Spawning engine: {command} {}", args.join(" "));
+    info!("[engine] spawning {command} {}", args.join(" "));
     let handle = EngineHandle::spawn(command, args)?;
 
     let name = handle.name().await?;
     let version = handle.version().await?;
-    info!("Engine: {name} v{version}");
+    info!("[engine] {name} v{version}");
 
     Ok(handle)
 }
