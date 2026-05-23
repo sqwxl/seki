@@ -711,9 +711,14 @@ export function liveGame(
           document.getElementById("pass-btn")?.click();
         }
         break;
-      case "r":
+      case "q":
         if (caps.showResign) {
           document.getElementById("resign-btn")?.click();
+        }
+        break;
+      case "r":
+        if (caps.canRematch) {
+          document.getElementById("rematch-btn")?.click();
         }
         break;
       case "u":
