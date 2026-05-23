@@ -16,6 +16,8 @@ seki-web/frontend/node_modules/
 seki.db
 seki.db-shm
 seki.db-wal
+gtp.toml
+gtp-pi.toml
 docs
 .playwright-mcp/
 .DS_Store
