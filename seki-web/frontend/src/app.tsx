@@ -444,11 +444,7 @@ function App() {
       <nav ref={navRef}>
         <div class="mobile-nav-brand">
           <a href="/games" class="brand-link">
-            <img
-              src="/static/images/stone_black.svg"
-              alt=""
-              class="brand-stone"
-            />
+            <span class="brand-stone" aria-hidden="true" />
             <span>Seki</span>
           </a>
         </div>
