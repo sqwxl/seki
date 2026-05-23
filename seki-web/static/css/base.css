@@ -211,6 +211,32 @@ nav {
   }
 }
 
+.desktop-nav-primary,
+.desktop-only {
+  display: none;
+}
+
+.mobile-nav-brand {
+  flex: 1;
+  min-width: 0;
+}
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-weight: 700;
+}
+
+.brand-stone {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.nav-actions {
+  margin-left: auto;
+}
+
 a,
 a:visited {
   color: inherit;
@@ -257,6 +283,23 @@ a:visited {
   box-shadow: var(--shadow-elevated);
   margin-top: 0.5em;
   gap: 0;
+}
+
+.nav-dropdown.mobile-menu-dropdown {
+  position: fixed;
+  top: var(--nav-height, 0px);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  min-width: 0;
+  max-width: none;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin-top: 0;
+  overflow-y: auto;
 }
 
 .flash {

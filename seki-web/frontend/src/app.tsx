@@ -1,8 +1,11 @@
 import { render } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { AccountLinks } from "./components/account-menu";
 import { ConnectionStatus } from "./components/connection-status";
+import { IconPlus } from "./components/icons";
+import { MobileMenu } from "./components/mobile-menu";
 import { NotificationBell } from "./components/notification-bell";
-import { UserMenu } from "./components/user-menu";
+import { SettingsMenu } from "./components/settings-menu";
 import type { UserData } from "./game/types";
 import { initUnreadTracking } from "./game/unread";
 import { readUserData, writeUserData } from "./game/util";
@@ -37,7 +40,6 @@ import {
   setAppCredential,
 } from "./utils/storage";
 import { initTheme } from "./utils/theme";
-import { IconPlus } from "./components/icons";
 import { ensureConnected } from "./ws";
 
 type AuthTokenResponse = {
@@ -440,7 +442,17 @@ function App() {
   return (
     <>
       <nav ref={navRef}>
-        <div>
+        <div class="mobile-nav-brand">
+          <a href="/games" class="brand-link">
+            <img
+              src="/static/images/stone_black.svg"
+              alt=""
+              class="brand-stone"
+            />
+            <span>Seki</span>
+          </a>
+        </div>
+        <div class="desktop-nav-primary">
           {!currentUser?.is_bot && (
             <>
               <a href="/games/new" title="New game" class="nav-icon">
@@ -451,10 +463,18 @@ function App() {
             </>
           )}
         </div>
-        <div>
+        <div class="nav-actions">
           <ConnectionStatus />
           {!currentUser?.is_bot && <NotificationBell />}
-          <UserMenu onLogout={handleLogout} />
+          <span class="desktop-only">
+            {!currentUser?.is_bot && <SettingsMenu />}
+          </span>
+          <span class="desktop-only">
+            <AccountLinks user={currentUser} onLogout={handleLogout} />
+          </span>
+          <span class="mobile-only">
+            <MobileMenu user={currentUser} onLogout={handleLogout} />
+          </span>
         </div>
       </nav>
       <FlashBanner />

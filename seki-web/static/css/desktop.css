@@ -5,6 +5,18 @@
     font-size: 1.125em;
   }
 
+  .mobile-nav-brand,
+  .mobile-only {
+    display: none;
+  }
+
+  .desktop-nav-primary,
+  .desktop-only {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+  }
+
   .game-page h2 {
     font-size: 1.5em;
   }

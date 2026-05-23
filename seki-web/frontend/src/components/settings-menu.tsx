@@ -23,9 +23,8 @@ import {
   getThemeLabel,
   themeMode,
 } from "../utils/theme";
-import { IconLogin, IconLogout, IconRegister, IconUser } from "./icons";
+import { IconSettings } from "./icons";
 import { ToggleButton } from "./toggle-button";
-import { UserLabel } from "./user-label";
 
 function ThemeButton() {
   const mode = themeMode.value;
@@ -73,22 +72,61 @@ function nextRatingDisplay(mode: RatingDisplayMode): RatingDisplayMode {
   return mode === "kyu_dan" ? "rating" : "kyu_dan";
 }
 
-export function UserMenu({
-  onLogout,
+export function SettingsDropdownContent({
+  showLabel = true,
 }: {
-  onLogout?: () => void | Promise<void>;
+  showLabel?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   const userData = readUserData();
-  const username = userData?.display_name ?? "Guest";
-  const isRegistered = userData?.is_registered ?? false;
   const ratingDisplay = ratingDisplayPreference.value;
 
   function handleRatingDisplayToggle() {
     const next = nextRatingDisplay(ratingDisplayPreference.value);
     savePref("rating_display", next);
   }
+
+  return (
+    <div class="nav-dropdown-section">
+      {showLabel && <div class="nav-dropdown-section-label">Settings</div>}
+      <ThemeButton />
+      {!userData?.is_bot && (
+        <>
+          <ToggleButton
+            on={moveConfirmEnabled.value}
+            label="Move confirmation"
+            onToggle={handleMoveConfirmToggle}
+          />
+          <ToggleButton
+            on={showCoordinates.value}
+            label="Coordinates"
+            onToggle={handleCoordsToggle}
+          />
+          <ToggleButton
+            on={showMoveTree.value}
+            label="Move tree"
+            onToggle={handleMoveTreeToggle}
+          />
+          <ToggleButton
+            on={soundEnabled.value}
+            label="Sound"
+            onToggle={handleSoundToggle}
+          />
+        </>
+      )}
+      <button
+        type="button"
+        class="nav-dropdown-item"
+        onClick={handleRatingDisplayToggle}
+      >
+        Ratings: {ratingDisplay === "kyu_dan" ? "Kyu/dan" : "Elo"}
+      </button>
+    </div>
+  );
+}
+
+export function SettingsMenu() {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
@@ -110,93 +148,15 @@ export function UserMenu({
     <div class="nav-dropdown-wrapper" ref={ref}>
       <button
         type="button"
-        class="user-menu-trigger"
+        class="nav-icon settings-trigger"
         onClick={() => setOpen(!open)}
+        title="Settings"
       >
-        {userData ? (
-          <UserLabel
-            user={userData}
-            noLink
-            options={{ rank: { displayMode: ratingDisplay } }}
-          />
-        ) : (
-          "Guest"
-        )}
+        <IconSettings />
       </button>
       {open && (
         <div class="nav-dropdown">
-          <div class="nav-dropdown-section">
-            <a
-              class="nav-dropdown-item"
-              href={`/users/${username}`}
-              onClick={() => setOpen(false)}
-            >
-              <IconUser /> Profile
-            </a>
-          </div>
-          <div class="nav-dropdown-section">
-            <div class="nav-dropdown-section-label">Settings</div>
-            <ThemeButton />
-            {!userData?.is_bot && (
-              <>
-                <ToggleButton
-                  on={moveConfirmEnabled.value}
-                  label="Move confirmation"
-                  onToggle={handleMoveConfirmToggle}
-                />
-                <ToggleButton
-                  on={showCoordinates.value}
-                  label="Coordinates"
-                  onToggle={handleCoordsToggle}
-                />
-                <ToggleButton
-                  on={showMoveTree.value}
-                  label="Move tree"
-                  onToggle={handleMoveTreeToggle}
-                />
-                <ToggleButton
-                  on={soundEnabled.value}
-                  label="Sound"
-                  onToggle={handleSoundToggle}
-                />
-              </>
-            )}
-            <button
-              type="button"
-              class="nav-dropdown-item"
-              onClick={handleRatingDisplayToggle}
-            >
-              Ratings: {ratingDisplay === "kyu_dan" ? "Kyu/dan" : "Elo"}
-            </button>
-          </div>
-          <div class="nav-dropdown-section">
-            {isRegistered ? (
-              <button
-                type="button"
-                class="nav-dropdown-item"
-                onClick={() => onLogout?.()}
-              >
-                <IconLogout /> Log out
-              </button>
-            ) : (
-              <>
-                <a
-                  class="nav-dropdown-item"
-                  href="/login"
-                  onClick={() => setOpen(false)}
-                >
-                  <IconLogin /> Log in
-                </a>
-                <a
-                  class="nav-dropdown-item"
-                  href="/register"
-                  onClick={() => setOpen(false)}
-                >
-                  <IconRegister /> Register
-                </a>
-              </>
-            )}
-          </div>
+          <SettingsDropdownContent />
         </div>
       )}
     </div>
