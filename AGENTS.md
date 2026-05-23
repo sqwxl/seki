@@ -148,8 +148,3 @@ axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-s
 - TypeScript: prefer `type` over `interface`, never use `as unknown as`
 - Keep new logic in `go-engine` or Rust services when possible; keep `go-engine-wasm` thin
 - Do not add server-rendered page-specific templates unless there is a strong reason; the current app shape is SPA shell + JSON bootstrap
-
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read specs/005-userlabel-userdata/plan.md
-<!-- SPECKIT END -->
