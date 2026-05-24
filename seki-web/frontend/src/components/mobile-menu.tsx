@@ -7,6 +7,7 @@ import {
   IconLogout,
   IconMenu,
   IconPlus,
+  IconPublic,
   IconRegister,
   IconUser,
 } from "./icons";
@@ -89,6 +90,13 @@ export function MobileMenu({
                 onClick={() => setOpen(false)}
               >
                 <IconPlus /> New game
+              </a>
+              <a
+                class="nav-dropdown-item"
+                href="/games/spectate"
+                onClick={() => setOpen(false)}
+              >
+                <IconPublic /> Spectate
               </a>
               <a
                 class="nav-dropdown-item"
