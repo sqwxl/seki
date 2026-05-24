@@ -22,12 +22,31 @@ export function MiniGobanCell({ game }: MiniGobanCellProps) {
     boardState?.board ?? Array.from<number>({ length: cols * rows }).fill(0);
 
   const markerMap: (MarkerData | null)[] | undefined = useMemo(() => {
-    if (!boardState?.last_move) return undefined;
-    const [lc, lr] = boardState.last_move;
+    const lm = boardState?.last_move;
+    const ko = boardState?.ko?.pos;
+    if (!lm && !ko) return undefined;
+
     const map: (MarkerData | null)[] = Array(signMap.length).fill(null);
-    map[lr * cols + lc] = { type: "circle" };
+
+    if (lm) {
+      const [lc, lr] = lm;
+      map[lr * cols + lc] = { type: "circle" };
+    }
+
+    if (ko) {
+      const [kc, kr] = ko;
+      map[kr * cols + kc] = { type: "triangle", label: "ko" };
+    }
+
     return map;
-  }, [boardState?.last_move, cols, signMap.length]);
+  }, [boardState?.last_move, boardState?.ko, cols, signMap.length]);
+
+  // Territory paint overlay for completed games
+  const paintMap = useMemo(() => {
+    const o = boardState?.ownership;
+    if (!o || o.length !== signMap.length) return undefined;
+    return o;
+  }, [boardState?.ownership, signMap.length]);
 
   useEffect(() => {
     const el = boardRef.current;
@@ -79,6 +98,7 @@ export function MiniGobanCell({ game }: MiniGobanCellProps) {
             vertexSize={vertexSize}
             signMap={signMap}
             markerMap={markerMap}
+            paintMap={paintMap}
           />
         ) : (
           <div class="mini-goban-placeholder" />

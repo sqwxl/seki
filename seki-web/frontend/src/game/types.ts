@@ -27,6 +27,7 @@ export type GameState = {
   captures: Captures;
   ko?: { pos: [number, number]; illegal: number } | null;
   last_move?: [number, number] | null;
+  ownership?: number[] | null;
 };
 
 export type TurnData = {

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use go_engine::{Engine, GameState, Move, Stone, Turn};
+use go_engine::{Engine, GameState, Move, Stage, Stone, Turn};
 
 use crate::db::DbPool;
 use crate::models::game::Game;
@@ -66,6 +66,18 @@ pub async fn cache_engine_state(
             for (k, v) in meta_map {
                 map.insert(k, v);
             }
+        }
+        // Cache territory ownership for completed games so lobby miniboards
+        // can render a paint overlay without rebuilding the engine.
+        if engine.stage() == Stage::Completed {
+            let ownership = go_engine::territory::estimate_territory(
+                engine.goban(),
+                &std::collections::HashSet::new(),
+            );
+            map.insert(
+                "ownership".to_string(),
+                serde_json::to_value(&ownership).unwrap_or_default(),
+            );
         }
     }
 
