@@ -659,7 +659,7 @@ impl Game {
         game_id: i64,
         state: &str,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE games SET cached_engine_state = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2")
+        sqlx::query("UPDATE games SET cached_engine_state = $1 WHERE id = $2")
             .bind(state)
             .bind(game_id)
             .execute(executor)
