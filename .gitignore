@@ -39,3 +39,4 @@ seki-web/android/app/seki-release.keystore
 seki-web/android/local.properties
 seki-web/android/captures/
 seki-web/android/.externalNativeBuild/
+.pi

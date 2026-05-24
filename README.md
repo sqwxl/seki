@@ -1,76 +1,33 @@
 # Seki [^1]
 
-A web app for playing Go (Weiqi/Baduk), built with Rust and Preact.
-
-## Tech Stack
-
-- **Backend:** Rust (Axum 0.8, sqlx 0.8, Askama templates, tower-sessions)
-- **Frontend:** Preact 10, TypeScript, esbuild
-- **Game engine:** Pure Rust library (`go-engine`) with WASM bridge (`go-engine-wasm`) for client-side logic
-- **Database:** SQLite
-- **Real-time:** WebSocket (single `/ws` endpoint for game channels and lobby events)
+A platform for playing Go (Weiqi/Baduk), built with Rust and Preact.
 
 ## Architecture
 
-Cargo workspace with three crates:
+| Crate              | Purpose                                                                                       |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `go-engine`        | Pure game logic library (board state, rules, scoring, SGF, game tree)                         |
+| `go-engine-wasm`   | Thin wasm-bindgen shell for browser use                                                       |
+| `seki-web`         | Server and web client. Axum (routes, models, services, WebSocket, templates, Preact frontend) |
+| `seki-client`      | HTTP + WS client                                                                              |
+| `seki-gtp`         | Bridge app to interface GTP engines (eg. KataGo) with Seki                                    |
+| `seki-api-types`   | Shared API types for `seki-web` and `seki-client`                                             |
+| `seki-random-bots` | QA feature that simulates an active user pool.                                                |
 
-| Crate            | Purpose                                                                        |
-| ---------------- | ------------------------------------------------------------------------------ |
-| `go-engine`      | Pure game logic library (board state, rules, scoring, SGF, game tree)          |
-| `go-engine-wasm` | Thin wasm-bindgen shell for browser use                                        |
-| `seki-web`       | Axum web app (routes, models, services, WebSocket, templates, Preact frontend) |
+## Local quickstart
 
-## Getting Started
-
-```bash
-# Prerequisites: Rust, Node 24+, pnpm
-
-# Build WASM engine
-wasm-pack build go-engine-wasm --target web --out-dir seki-web/static/wasm
-
-# Build frontend
-cd seki-web/frontend && pnpm install && pnpm run build && cd ../..
-
-# Run the server
-cargo run -p seki-web --bin seki-web  # http://localhost:3000
-```
-
-## Prebuilt Deploy
-
-If you do not want Rust, Node, `pnpm`, or `wasm-pack` on the Pi, build locally and ship a release tarball over SSH.
+Prerequisites: Rust, Node 24+, pnpm, Cargo binstall
 
 ```bash
-# First deploy from your local machine
-./scripts/deploy-prebuilt.sh
+# install dependencies
+just setup
 
-# Then adjust runtime config on the Pi if needed
-ssh nilueps@pi.local '$EDITOR ~/.config/seki/seki.env && systemctl --user restart seki'
+# run
+just run
+
 ```
 
-What this flow does:
-
-- installs `~/.config/systemd/user/seki.service`
-- builds WASM, frontend assets, and the release `seki-web` binary locally
-- uploads a tarball plus helper scripts to the Pi over SSH
-- installs each deploy into `~/seki/releases/<timestamp>`
-- updates `~/seki/current` and restarts the `seki` user service
-
-Required on the Pi: `tar` and a running user systemd session.
-Required on your local machine: `ssh`, `scp`, Rust, `pnpm`, and `wasm-pack`.
-If the service should stay up after logout, enable lingering for the deploy user with `sudo loginctl enable-linger nilueps`.
-
-Notes:
-
-- `./scripts/deploy-prebuilt.sh` builds locally, then uploads the release to `nilueps@pi.local` by default.
-- Override `DEPLOY_HOST` if you need a different SSH target, or `APP_DIR` if you want a different remote install path.
-- For Tailscale Funnel, set `BASE_URL=https://pi.basilisk-aeolian.ts.net` and `ENVIRONMENT=production` in `~/.config/seki/seki.env`.
-- `BASE_URL` is used for generated invite email links; it is not used for routing.
-- The deploy build always targets the Pi's `aarch64-unknown-linux-gnu` architecture.
-- The Rust release build always runs inside the `seki-build` Ubuntu 24.04 toolbox, and the script will create it if needed.
-- The script provisions `crossbuild-essential-arm64` and `pkg-config` inside the toolbox automatically and runs `rustup target add aarch64-unknown-linux-gnu` there.
-- After install, the deploy script waits for `/up` to report the new `RELEASE_ID`, which avoids a false success if an older process is still serving traffic.
-- The frontend, WASM, and tarball packaging steps still run on the host, so your host still needs `pnpm` and `wasm-pack`.
-- On Bluefin, the intended deploy command is now just: `./scripts/deploy-prebuilt.sh`
+Look in `./justfile` for recipe details
 
 ## Features
 
@@ -95,11 +52,12 @@ Notes:
 - [x] Monte Carlo dead stone detection
 - [ ] Multiple rulesets (Japanese, Chinese, AGA)
 - [ ] Conditional moves (pre-plan responses, useful for correspondence)
-- [x] Score estimator (territory estimate from analysis mode)
 - [ ] Vacation/pause system (for correspondence games)
+- [x] Score estimator (territory estimate from analysis mode)
 - [x] Turn notification (tab title flash when it's your turn)
 - [x] Turn notifications (email/push) — push notifications implemented
 - [ ] Players can agree to postpone timed game
+- [ ] Return to game from territory review (e.g., to settle life/death dispute)
 
 ### Board & Navigation
 
@@ -120,7 +78,7 @@ Notes:
 - [x] Import/export SGF
 - [ ] Zen mode (board only)
 - [ ] Appearance customization (stones, board)
-- [ ] High-contrast mode
+- [ ] Accessible/High-contrast mode
 - [x] Dark mode with theme toggle (light/dark/auto)
 - [x] Touch crosshair input for mobile
 - [x] Sound effects (stone placement, pass)
@@ -132,10 +90,9 @@ Notes:
 - [x] In-game chat with move-linked messages
 - [x] Live games list
 - [x] Spectator support for games
-- [ ] Pre-start spectate flow for open/challenge games
+- [x] Pre-start spectate flow for open/challenge games
 - [ ] Room user list on the game page
-- [x] Filter games list (unranked, rank range)
-- [ ] Filter games list (time, size)
+- [ ] Filter games list (unranked, rank range, size, TC)
 - [ ] Auto-match system
 - [x] In-app notification system for unread games
 - [x] Notification settings and OS notification toggle
@@ -152,10 +109,9 @@ Notes:
 - [x] Settings page with API token management
 - [x] Basic user profile and game history
 - [ ] User profile customization
-- [x] Username changes from profile
+- [x] Username update from profile
 - [x] User online status (presence indicators in game, chat, and user search)
-- [ ] Friend requests / friends list
-- [ ] Rich user labels (rank/friend/bot indicators)
+- [x] Rich user labels (rank, bot, presence, etc.)
 - [x] Ranking system (Glicko-2 rating with kyu/dan labels)
   - [x] Ranked/unranked game option
 
@@ -168,18 +124,13 @@ Notes:
 - [ ] Versioning
 - [x] Docs (OpenAPI via Scalar)
   - [ ] Generated clients
-- [x] Rate limiting
-- [ ] Bots
+- [ ] AsyncAPI spec for WS API (maybe?)
+- [ ] Rate limiting (needs refinement)
 
 ### Social
 
-- [ ] Channels (users can create and join)
-  - [ ] Public and private (invite only)
-  - [ ] Mod users (crown symbol)
-  - [ ] Lobby chat
-  - [ ] 1-on-1 chat
+- [ ] Tag favorite users (prioritized in search results, games lists)
 - [ ] Flagging/reporting system (cheaters, spammers, over-zealous reporters, etc)
-  - [ ] 3 strike policy
 - [ ] Voice chat
 
 ### Learning & Review
@@ -190,6 +141,7 @@ Notes:
 - [ ] Live demonstrations/lessons with voice
 - [ ] Game reviews/lessons save and replay
 - [ ] AI review integration (KataGo or similar)
+- [ ] Offline bot play (i.e., client-side bot)
 
 ### Game Variants
 
@@ -198,9 +150,11 @@ Notes:
 
 ### Infrastructure
 
-- [x] Email support (SMTP; Mailpit in local development)
 - [ ] Domain registration and deployment
-- [x] Mobile-responsive design (tabbed layout, hamburger menu)
+- [x] Email support (SMTP; Mailpit in local development)
+- [x] Mobile-responsive design
 - [x] PWA install support (web manifest, service worker, offline shell)
+- [ ] Android client
+- [ ] iOS client
 
 [^1]: "Seki" is a Japanese go term meaning _mutual life_. It is a situation where two groups of stones share liberties which neither player can fill without dying.
