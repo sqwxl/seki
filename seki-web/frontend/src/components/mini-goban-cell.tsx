@@ -13,7 +13,9 @@ type MiniGobanCellProps = {
 
 export function MiniGobanCell({ game }: MiniGobanCellProps) {
   const boardRef = useRef<HTMLDivElement>(null);
-  const [vertexSize, setVertexSize] = useState(12);
+  // Start at 0 so we don't render the goban at a wrong size before measuring
+  // the container. The useEffect below sets the real size after mount.
+  const [vertexSize, setVertexSize] = useState(0);
 
   const cols = game.settings.cols;
   const rows = game.settings.rows;
@@ -91,7 +93,7 @@ export function MiniGobanCell({ game }: MiniGobanCellProps) {
         class="mini-goban-board"
         style={{ aspectRatio: `${cols}/${rows}` }}
       >
-        {boardState ? (
+        {boardState && vertexSize > 0 ? (
           <Goban
             cols={cols}
             rows={rows}
