@@ -11,6 +11,10 @@ export function parseRoute(url: URL): Route {
     return { kind: "games" };
   }
 
+  if (path === "/games/spectate") {
+    return { kind: "spectate" };
+  }
+
   if (path === "/games/new") {
     return { kind: "new-game" };
   }
@@ -69,6 +73,7 @@ export function parseRoute(url: URL): Route {
 export function getRouteDataUrl(route: Route): string | undefined {
   switch (route.kind) {
     case "games":
+    case "spectate":
       return "/api/web/games";
     case "new-game":
       return "/api/web/games/new";

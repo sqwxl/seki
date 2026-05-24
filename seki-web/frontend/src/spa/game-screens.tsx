@@ -1,10 +1,23 @@
 import type { ComponentType } from "preact";
-import { useEffect, useRef } from "preact/hooks";
-import { GamesList, type InitMessage } from "../layouts/games-list";
+import { useEffect, useRef, useState } from "preact/hooks";
+import {
+  GameListItem,
+  type LiveGameItem,
+} from "../components/game-description";
+import { MiniGobanCell } from "../components/mini-goban-cell";
+import {
+  type GameCreatedMessage,
+  type GameRemovedMessage,
+  type GameUpdatedMessage,
+  GamesList,
+  type InitMessage,
+} from "../layouts/games-list";
 import { clearFlash, setFlash } from "../utils/flash";
 import { buildGameNavigationRedirect } from "../utils/navigation-errors";
 import { fullRankText } from "../utils/rating";
+import { GAMES_LIST_VIEW, storage } from "../utils/storage";
 import { postForm } from "../utils/web-client";
+import { subscribe } from "../ws";
 import { pageTitle, setHead } from "./head";
 import { useRouteData } from "./route-data";
 import { ErrorState, LoadingState, useLazyModule } from "./screen-state";
@@ -104,6 +117,153 @@ export function GamesScreen() {
   }
 
   return <GamesList initial={data} />;
+}
+
+function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
+  const map = new Map<number, LiveGameItem>();
+
+  for (const g of msg.player_games) {
+    map.set(g.id, g);
+  }
+
+  for (const g of msg.public_games) {
+    map.set(g.id, g);
+  }
+
+  return map;
+}
+
+export function SpectateScreen() {
+  const { data, error } = useRouteData<InitMessage>("/api/web/games");
+
+  const [games, setGames] = useState<Map<number, LiveGameItem>>(() =>
+    data ? buildGamesMap(data) : new Map(),
+  );
+  const [playerId, setPlayerId] = useState<number | undefined>(data?.player_id);
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
+    const saved = storage.get(GAMES_LIST_VIEW);
+    return saved === "list" ? "list" : "grid";
+  });
+
+  const toggleView = () => {
+    setViewMode((prev) => {
+      const next = prev === "grid" ? "list" : "grid";
+      storage.set(GAMES_LIST_VIEW, next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    setHead(pageTitle("Spectate"), "Play Go (Weiqi/Baduk) online with friends");
+  }, []);
+
+  useEffect(() => {
+    if (data) {
+      setGames(buildGamesMap(data));
+      setPlayerId(data.player_id);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    const unsubs = [
+      subscribe<InitMessage>("init", (msg) => {
+        setPlayerId(msg.player_id);
+        setGames(buildGamesMap(msg));
+      }),
+
+      subscribe<GameCreatedMessage>("game_created", (msg) => {
+        setGames((prev) => {
+          const next = new Map(prev);
+          next.set(msg.game.id, msg.game);
+          return next;
+        });
+      }),
+
+      subscribe<GameUpdatedMessage>("game_updated", (msg) => {
+        setGames((prev) => {
+          const existing = prev.get(msg.game.id);
+          if (!existing) {
+            return prev;
+          }
+          const next = new Map(prev);
+          next.set(msg.game.id, { ...existing, ...msg.game });
+          return next;
+        });
+      }),
+
+      subscribe<GameRemovedMessage>("game_removed", (msg) => {
+        setGames((prev) => {
+          const next = new Map(prev);
+          next.delete(msg.game_id);
+          return next;
+        });
+      }),
+    ];
+
+    return () => {
+      for (const unsub of unsubs) {
+        unsub();
+      }
+    };
+  }, []);
+
+  if (error) {
+    return <ErrorState message={error.message} />;
+  }
+
+  if (!data) {
+    return <LoadingState />;
+  }
+
+  const allGames = [...games.values()];
+
+  const isMyGame = (g: LiveGameItem) =>
+    playerId !== undefined &&
+    (g.creator?.id === playerId ||
+      g.opponent?.id === playerId ||
+      g.black?.id === playerId ||
+      g.white?.id === playerId);
+
+  const publicGames = allGames.filter(
+    (g) =>
+      !isMyGame(g) &&
+      !g.settings.is_private &&
+      g.result !== "Aborted" &&
+      g.result !== "Declined" &&
+      g.opponent,
+  );
+
+  return (
+    <>
+      <div class="games-list-toolbar">
+        <button
+          type="button"
+          onClick={toggleView}
+          title={
+            viewMode === "grid" ? "Switch to list view" : "Switch to grid view"
+          }
+        >
+          {viewMode === "grid" ? "☰ List" : "▦ Grid"}
+        </button>
+      </div>
+      <h1>Spectate</h1>
+      {publicGames.length === 0 ? (
+        <p>No public games.</p>
+      ) : viewMode === "grid" ? (
+        <div class="games-grid">
+          {publicGames.map((g) => (
+            <MiniGobanCell key={g.id} game={g} />
+          ))}
+        </div>
+      ) : (
+        <ul class="games-list">
+          {publicGames.map((g) => (
+            <GameListItem key={g.id} game={g} playerId={undefined} />
+          ))}
+        </ul>
+      )}
+    </>
+  );
 }
 
 export function GameScreenRoute({

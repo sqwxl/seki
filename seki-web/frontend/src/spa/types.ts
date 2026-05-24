@@ -10,6 +10,7 @@ import type { FlashMessage } from "../utils/flash";
 
 export type Route =
   | { kind: "games" }
+  | { kind: "spectate" }
   | { kind: "new-game" }
   | { kind: "challenge"; username: string }
   | {

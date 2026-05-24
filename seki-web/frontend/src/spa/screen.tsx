@@ -12,6 +12,7 @@ import {
   GameScreenRoute,
   GamesScreen,
   NewGameScreen,
+  SpectateScreen,
 } from "./game-screens";
 import { ProfileScreen } from "./profile-screen";
 import type { NavigateFn, Route } from "./types";
@@ -37,6 +38,7 @@ export function Screen({
 
     switch (route.kind) {
       case "games":
+      case "spectate":
       case "new-game":
       case "challenge":
       case "analysis":
@@ -61,6 +63,8 @@ export function Screen({
   switch (route.kind) {
     case "games":
       return <GamesScreen />;
+    case "spectate":
+      return <SpectateScreen />;
     case "new-game":
       return <NewGameScreen navigate={navigate} />;
     case "challenge":

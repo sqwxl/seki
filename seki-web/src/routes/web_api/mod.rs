@@ -51,7 +51,7 @@ pub(crate) async fn bootstrap_for_location(
     };
 
     let data = match path {
-        "/" | "/games" => serde_json::to_value(
+        "/" | "/games" | "/games/spectate" => serde_json::to_value(
             games::load_games_index(
                 state,
                 current_user,
@@ -107,7 +107,7 @@ pub(crate) async fn bootstrap_for_location(
 
 fn route_data_url(path: &str, query: Option<&str>) -> Option<String> {
     match path {
-        "/" | "/games" => Some("/api/web/games".to_string()),
+        "/" | "/games" | "/games/spectate" => Some("/api/web/games".to_string()),
         "/games/new" => {
             let opponent = query_param(query, "opponent");
             Some(match opponent {

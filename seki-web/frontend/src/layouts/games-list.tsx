@@ -185,11 +185,6 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
       !isDismissed(g) &&
       !g.opponent,
   );
-  const publicGames = allGames.filter(
-    (g) =>
-      !isMyGame(g) && !g.settings.is_private && !isDismissed(g) && g.opponent,
-  );
-
   return (
     <>
       <div class="games-list-toolbar">
@@ -222,13 +217,6 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
         playerId={playerId}
         emptyText="No open games."
         viewMode="list"
-      />
-      <GameSection
-        title="Public games"
-        games={publicGames}
-        playerId={playerId}
-        emptyText="No public games."
-        viewMode={viewMode}
       />
     </>
   );
