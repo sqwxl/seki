@@ -199,19 +199,27 @@ impl BotRunner {
                     Stone::White => current_turn_stone == -1,
                 });
 
-                let stage_before = self.my_games.get(&game_id).map(|g| g.stage.clone());
                 let had_opponent = self
                     .my_games
                     .get(&game_id)
                     .map(|g| g.has_opponent)
                     .unwrap_or(false);
                 let has_opponent = black.is_some() && white.is_some();
-                self.my_games.entry(game_id).and_modify(|g| {
-                    g.stage = stage.clone();
-                    g.our_stone = our_stone;
-                    g.board = Some(state.clone());
-                    g.has_opponent = has_opponent;
-                });
+                let stage_before = self.my_games.get(&game_id).map(|g| g.stage.clone());
+                self.my_games
+                    .entry(game_id)
+                    .and_modify(|g| {
+                        g.stage = stage.clone();
+                        g.our_stone = our_stone;
+                        g.board = Some(state.clone());
+                        g.has_opponent = has_opponent;
+                    })
+                    .or_insert_with(|| ActiveGame {
+                        stage: stage.clone(),
+                        our_stone,
+                        board: Some(state.clone()),
+                        has_opponent,
+                    });
 
                 if is_our_turn_now {
                     info!(
@@ -249,19 +257,27 @@ impl BotRunner {
                     Stone::White => current_turn_stone == -1,
                 });
 
-                let stage_before = self.my_games.get(&game_id).map(|g| g.stage.clone());
                 let had_opponent = self
                     .my_games
                     .get(&game_id)
                     .map(|g| g.has_opponent)
                     .unwrap_or(false);
                 let has_opponent = black.is_some() && white.is_some();
-                self.my_games.entry(game_id).and_modify(|g| {
-                    g.stage = stage.clone();
-                    g.our_stone = our_stone;
-                    g.board = Some(state.clone());
-                    g.has_opponent = has_opponent;
-                });
+                let stage_before = self.my_games.get(&game_id).map(|g| g.stage.clone());
+                self.my_games
+                    .entry(game_id)
+                    .and_modify(|g| {
+                        g.stage = stage.clone();
+                        g.our_stone = our_stone;
+                        g.board = Some(state.clone());
+                        g.has_opponent = has_opponent;
+                    })
+                    .or_insert_with(|| ActiveGame {
+                        stage: stage.clone(),
+                        our_stone,
+                        board: Some(state.clone()),
+                        has_opponent,
+                    });
 
                 if is_our_turn_now {
                     info!(
