@@ -3,6 +3,7 @@ import { HandicapSelect } from "../../components/controls-shared";
 import {
   IconBalance,
   IconGrid4x4,
+  IconHoshi,
   IconKomi,
   IconNigiri,
   IconPlus,
@@ -134,7 +135,7 @@ export function HandicapSelectField<T extends BaseGameSettings>({
   return (
     <div>
       <label for="handicap">
-        <IconPlus /> Handicap
+        <IconHoshi /> Handicap
       </label>
       <HandicapSelect
         value={value}
