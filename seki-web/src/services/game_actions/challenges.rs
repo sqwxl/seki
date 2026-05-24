@@ -111,7 +111,19 @@ pub async fn accept_challenge(
         .await?;
 
     broadcast_game_state(state, &gwp, &engine).await;
-    live::notify_game_updated(state, &gwp, None, &gwp.game.stage);
+    let board_state = serde_json::to_value(engine.game_state()).ok();
+    let clock = if gwp.game.time_control == crate::models::game::TimeControlType::None {
+        None
+    } else {
+        Some(live::ClockSnapshot {
+            black_ms: gwp.game.clock_black_ms,
+            white_ms: gwp.game.clock_white_ms,
+            black_periods: gwp.game.clock_black_periods,
+            white_periods: gwp.game.clock_white_periods,
+            active_stone: gwp.game.clock_active_stone,
+        })
+    };
+    live::notify_game_updated(state, &gwp, None, &gwp.game.stage, board_state, clock);
 
     Ok(())
 }

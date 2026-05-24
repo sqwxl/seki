@@ -1,6 +1,15 @@
-import { GameStage, type GameSettings, type UserData } from "../game/types";
+import type { GameSettings, GameState, UserData } from "../game/types";
+import { GameStage } from "../game/types";
 import { buildDescriptionParts } from "../utils/format";
 import { UserLabel } from "./user-label";
+
+export type ClockSnapshot = {
+  black_ms?: number;
+  white_ms?: number;
+  black_periods?: number;
+  white_periods?: number;
+  active_stone?: number;
+};
 
 export type GameUpdate = {
   id: number;
@@ -12,6 +21,8 @@ export type GameUpdate = {
   white: UserData | undefined;
   settings?: GameSettings;
   move_count: number | undefined;
+  board_state?: GameState;
+  clock?: ClockSnapshot;
 };
 
 export type LiveGameItem = {
@@ -26,6 +37,9 @@ export type LiveGameItem = {
   settings: GameSettings;
   move_count: number | undefined;
   unread?: boolean;
+  board_state?: GameState;
+  clock?: ClockSnapshot;
+  derived_komi?: number;
 };
 
 export function isMyTurn(

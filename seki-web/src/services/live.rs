@@ -2,6 +2,8 @@ use serde::Serialize;
 use serde_json::json;
 use std::collections::HashMap;
 
+use go_engine::Engine;
+
 use crate::AppState;
 use crate::db::DbPool;
 use crate::models::game::{Game, GameWithPlayers, TimeControlType};
@@ -42,6 +44,21 @@ pub struct GameSettings {
     pub calibration_policy_version: Option<String>,
 }
 
+/// Clock snapshot sent in lobby messages.
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct ClockSnapshot {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) black_ms: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) white_ms: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) black_periods: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) white_periods: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) active_stone: Option<i32>,
+}
+
 /// Full game item sent in lobby `init` and `game_created` messages.
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct LiveGameItem {
@@ -63,6 +80,10 @@ pub struct LiveGameItem {
     pub derived_komi: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub derived_color_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub board_state: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clock: Option<ClockSnapshot>,
 }
 
 impl LiveGameItem {
@@ -70,6 +91,8 @@ impl LiveGameItem {
         gwp: &GameWithPlayers,
         move_count: Option<usize>,
         profiles: &HashMap<i64, RatingProfile>,
+        board_state: Option<serde_json::Value>,
+        clock: Option<ClockSnapshot>,
     ) -> Self {
         Self {
             id: gwp.game.id,
@@ -96,6 +119,8 @@ impl LiveGameItem {
             derived_handicap: gwp.game.derived_handicap,
             derived_komi: gwp.game.derived_komi,
             derived_color_reason: gwp.game.derived_color_reason.clone(),
+            board_state,
+            clock,
         }
     }
 }
@@ -133,9 +158,50 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
         .iter()
         .map(|gwp| {
             let mc = counts.get(&gwp.game.id).copied().map(|n| n as usize);
-            LiveGameItem::from_gwp(gwp, mc, &profiles)
+            let board_state = extract_board_state_json(
+                gwp.game.cached_engine_state.as_deref(),
+                gwp.game.cols,
+                gwp.game.rows,
+                engine_builder::game_handicap(&gwp.game),
+            );
+            let clock = clock_snapshot_for_game(&gwp.game);
+            LiveGameItem::from_gwp(gwp, mc, &profiles, board_state, clock)
         })
         .collect()
+}
+
+/// Extract board_state JSON from cached_engine_state. Returns None if unavailable.
+fn extract_board_state_json(
+    cached: Option<&str>,
+    cols: i32,
+    rows: i32,
+    handicap: u8,
+) -> Option<serde_json::Value> {
+    if let Some(cached) = cached {
+        let mut value: serde_json::Value = serde_json::from_str(cached).ok()?;
+        if let serde_json::Value::Object(ref mut map) = value {
+            map.remove("turn_count");
+            map.remove("handicap");
+        }
+        Some(value)
+    } else {
+        // No cached state — build empty board with handicap stones
+        let engine = Engine::with_handicap(cols as u8, rows as u8, handicap);
+        serde_json::to_value(engine.game_state()).ok()
+    }
+}
+
+fn clock_snapshot_for_game(game: &Game) -> Option<ClockSnapshot> {
+    if game.time_control == TimeControlType::None {
+        return None;
+    }
+    Some(ClockSnapshot {
+        black_ms: game.clock_black_ms,
+        white_ms: game.clock_white_ms,
+        black_periods: game.clock_black_periods,
+        white_periods: game.clock_white_periods,
+        active_stone: game.clock_active_stone,
+    })
 }
 
 /// Lightweight update (no settings — clients already have them from `init` or `game_created`).
@@ -152,12 +218,23 @@ struct GameUpdate {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     ranked: bool,
     settings: GameSettings,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    board_state: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    clock: Option<ClockSnapshot>,
 }
 
 /// Notify live clients that a new game appeared (created or joined).
 pub fn notify_game_created(state: &AppState, gwp: &GameWithPlayers) {
     let profiles: HashMap<i64, RatingProfile> = HashMap::new();
-    let item = LiveGameItem::from_gwp(gwp, None, &profiles);
+    let board_state = extract_board_state_json(
+        gwp.game.cached_engine_state.as_deref(),
+        gwp.game.cols,
+        gwp.game.rows,
+        engine_builder::game_handicap(&gwp.game),
+    );
+    let clock = clock_snapshot_for_game(&gwp.game);
+    let item = LiveGameItem::from_gwp(gwp, None, &profiles, board_state, clock);
     let msg = json!({
         "kind": "game_created",
         "game": item,
@@ -176,6 +253,8 @@ pub fn notify_game_updated(
     gwp: &GameWithPlayers,
     move_count: Option<usize>,
     stage: &str,
+    board_state: Option<serde_json::Value>,
+    clock: Option<ClockSnapshot>,
 ) {
     let profiles: HashMap<i64, RatingProfile> = HashMap::new();
     let update =
@@ -200,6 +279,8 @@ pub fn notify_game_updated(
             move_count,
             ranked: gwp.game.ranked,
             settings: game_settings_for_game(&gwp.game),
+            board_state,
+            clock,
         };
     let msg = json!({
         "kind": "game_updated",

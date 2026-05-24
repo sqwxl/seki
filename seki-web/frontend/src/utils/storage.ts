@@ -27,6 +27,7 @@ export const RATING_DISPLAY = "seki:rating_display";
 export const SOUND_ENABLED = "seki:sound_enabled";
 export const SHOW_COORDINATES = "seki:show_coordinates";
 export const SHOW_MOVE_TREE = "seki:show_move_tree";
+export const GAMES_LIST_VIEW = "seki:games_list_view";
 export const THEME = "seki:theme";
 export const APP_CREDENTIAL = "seki:app_credential";
 export const PUSH_SUBSCRIPTION_ID = "seki:push_subscription_id";

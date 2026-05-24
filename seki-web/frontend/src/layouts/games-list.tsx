@@ -1,7 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
 import type { GameUpdate, LiveGameItem } from "../components/game-description";
 import { GameListItem } from "../components/game-description";
+import { MiniGobanCell } from "../components/mini-goban-cell";
 import { isChallengeStage } from "../game/access";
+import { GAMES_LIST_VIEW, storage } from "../utils/storage";
 import { subscribe } from "../ws";
 
 export type InitMessage = {
@@ -45,11 +47,13 @@ function GameSection({
   games,
   playerId,
   emptyText,
+  viewMode,
 }: {
   title: string;
   games: LiveGameItem[];
   playerId: number | undefined;
   emptyText?: string;
+  viewMode: "list" | "grid";
 }) {
   if (!emptyText && games.length === 0) {
     return null;
@@ -60,6 +64,12 @@ function GameSection({
       <h1>{title}</h1>
       {games.length === 0 ? (
         <p>{emptyText}</p>
+      ) : viewMode === "grid" ? (
+        <div class="games-grid">
+          {games.map((g) => (
+            <MiniGobanCell key={g.id} game={g} />
+          ))}
+        </div>
       ) : (
         <ul class="games-list">
           {games.map((g) => (
@@ -78,6 +88,18 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
   const [playerId, setPlayerId] = useState<number | undefined>(
     initial?.player_id,
   );
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
+    const saved = storage.get(GAMES_LIST_VIEW);
+    return saved === "list" ? "list" : "grid";
+  });
+
+  const toggleView = () => {
+    setViewMode((prev) => {
+      const next = prev === "grid" ? "list" : "grid";
+      storage.set(GAMES_LIST_VIEW, next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const unsubs = [
@@ -163,24 +185,43 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
 
   return (
     <>
-      <GameSection title="Challenges" games={challenges} playerId={playerId} />
+      <div class="games-list-toolbar">
+        <button
+          type="button"
+          onClick={toggleView}
+          title={
+            viewMode === "grid" ? "Switch to list view" : "Switch to grid view"
+          }
+        >
+          {viewMode === "grid" ? "☰ List" : "▦ Grid"}
+        </button>
+      </div>
+      <GameSection
+        title="Challenges"
+        games={challenges}
+        playerId={playerId}
+        viewMode={viewMode}
+      />
       <GameSection
         title="Your games"
         games={userGames}
         playerId={playerId}
         emptyText="No games yet."
+        viewMode={viewMode}
       />
       <GameSection
         title="Open games"
         games={openGames}
         playerId={playerId}
         emptyText="No open games."
+        viewMode={viewMode}
       />
       <GameSection
         title="Public games"
         games={publicGames}
         playerId={playerId}
         emptyText="No public games."
+        viewMode={viewMode}
       />
     </>
   );
