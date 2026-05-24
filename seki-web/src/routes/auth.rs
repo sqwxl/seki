@@ -15,26 +15,10 @@ use crate::error::AppError;
 use crate::models::app_credential::AppCredential;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
-use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
+use crate::routes::flash::{redirect_with_flash, wants_json};
 use crate::services::jwt;
 use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
 use crate::templates::UserData;
-
-async fn redirect_with_flash(
-    session: &Session,
-    target: &str,
-    message: &str,
-) -> Result<Response, AppError> {
-    set_flash(
-        session,
-        FlashMessage {
-            message: message.to_string(),
-            severity: FlashSeverity::Error,
-        },
-    )
-    .await?;
-    Ok(Redirect::to(target).into_response())
-}
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
     headers
@@ -68,12 +52,6 @@ pub struct RegisterForm {
     pub is_bot: Option<String>,
 }
 
-#[derive(Deserialize)]
-pub struct LoginForm {
-    pub username: String,
-    pub password: String,
-}
-
 // POST /register
 pub async fn register(
     State(state): State<AppState>,
@@ -90,6 +68,7 @@ pub async fn register(
     let json = wants_json(&headers);
 
     // Validate
+    // TODO: Statically infer max username length from DB constraint at build time
     if username.is_empty() || username.len() > 30 {
         let msg = "Username must be between 1 and 30 characters.";
         if json {
@@ -101,6 +80,8 @@ pub async fn register(
         }
         return redirect_with_flash(&session, "/register", msg).await;
     }
+
+    // TODO: Same as previous comment
     if form.password.len() < 8 {
         let msg = "Password must be at least 8 characters.";
         if json {
@@ -112,6 +93,7 @@ pub async fn register(
         }
         return redirect_with_flash(&session, "/register", msg).await;
     }
+
     if form.password != form.password_confirmation {
         let msg = "Passwords do not match.";
         if json {
@@ -191,6 +173,11 @@ pub struct RedirectQuery {
     pub redirect: String,
 }
 
+#[derive(Deserialize)]
+pub struct LoginForm {
+    pub username: String,
+    pub password: String,
+}
 // POST /login
 pub async fn login(
     State(state): State<AppState>,
@@ -253,6 +240,7 @@ pub async fn login(
             )
                 .into_response());
         }
+
         return redirect_with_flash(&session, &login_target, login_err).await;
     }
 
@@ -274,11 +262,13 @@ pub async fn login(
     } else {
         &query.redirect
     };
+
     let mut response = if json {
         axum::Json(json!({"redirect": target})).into_response()
     } else {
         Redirect::to(target).into_response()
     };
+
     if let Some(token) = anon_token {
         response.headers_mut().insert(
             axum::http::header::SET_COOKIE,
@@ -287,6 +277,7 @@ pub async fn login(
                 .unwrap(),
         );
     }
+
     Ok(response)
 }
 
@@ -318,6 +309,7 @@ pub async fn logout(
     } else {
         Redirect::to(target).into_response()
     };
+
     // Clear the anon cookie regardless
     response.headers_mut().insert(
         axum::http::header::SET_COOKIE,
@@ -325,6 +317,7 @@ pub async fn logout(
             .parse()
             .unwrap(),
     );
+
     Ok(response)
 }
 
@@ -442,7 +435,9 @@ pub async fn restore_session(
     } else {
         None
     };
+
     let user_data = UserData::from_user_with_rank(&user, rating_profile.as_ref());
+
     Ok(Json(json!({
         "user": user_data,
         "token": new_token,

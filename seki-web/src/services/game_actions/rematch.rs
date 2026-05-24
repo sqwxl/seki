@@ -18,6 +18,7 @@ pub async fn rematch_game(
             "Game is not finished".to_string(),
         ));
     }
+
     if !gwp.has_player(player.id) {
         return Err(AppError::UnprocessableEntity(
             "You are not a player in this game".to_string(),
@@ -25,12 +26,14 @@ pub async fn rematch_game(
     }
 
     let was_black = gwp.game.black_id == Some(player.id);
+
     let opponent = if was_black {
         gwp.white.as_ref()
     } else {
         gwp.black.as_ref()
     }
     .ok_or_else(|| AppError::UnprocessableEntity("Opponent not found".to_string()))?;
+
     let opponent_username = opponent.username.clone();
 
     let new_id = if gwp.game.ranked {

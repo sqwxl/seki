@@ -23,6 +23,7 @@ async fn main() {
         .expect("Failed to run migrations");
 
     let secure_cookies = std::env::var("ENVIRONMENT").is_ok_and(|v| v == "production");
+
     let (app, state) = seki_web::build_router(pool, secure_cookies).await;
 
     let sweep_state = state.clone();

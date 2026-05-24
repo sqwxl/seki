@@ -74,13 +74,19 @@ pub async fn build_router_with_registry_and_presence(
 
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(session_secure)
+        // TODO: Extract expiry duration to config var
         .with_expiry(Expiry::OnInactivity(Duration::days(30)));
 
+    // TODO: Is 256 enough for production?
     let (live_tx, _) = broadcast::channel::<String>(256);
+
     let mailer = services::mailer::Mailer::from_env();
+
+    // TODO: Read from config instead of env var (keep fallback)
     let static_dir = std::env::var("STATIC_DIR")
         .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string());
     let static_dir_path = PathBuf::from(&static_dir);
+
     let jwt_secret = std::env::var("APP_CREDENTIAL_SECRET").unwrap_or_else(|_| {
         use rand::distr::Alphanumeric;
         let mut rng = rand::rng();
@@ -91,6 +97,7 @@ pub async fn build_router_with_registry_and_presence(
             .collect();
         s
     });
+
     let state = AppState {
         db: pool,
         registry,
@@ -100,15 +107,19 @@ pub async fn build_router_with_registry_and_presence(
         mailer,
         jwt_secret,
     };
+
     let static_assets = Router::new()
         .nest_service("/css", ServeDir::new(static_dir_path.join("css")))
         .nest_service("/dist", ServeDir::new(static_dir_path.join("dist")))
         .nest_service("/wasm", ServeDir::new(static_dir_path.join("wasm")))
         .layer(no_store_layer())
         .fallback_service(ServeDir::new(static_dir_path.clone()));
+
     let sw_route = Router::new()
         .route_service("/sw.js", ServeFile::new(static_dir_path.join("dist/sw.js")))
         .layer(no_store_layer());
+
+    // TODO: Extract rate limit configs and review rate limits on all mutation routes
     let app = Router::new()
         .merge(sw_route)
         .route("/analysis", get(routes::spa::shell))

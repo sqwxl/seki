@@ -10,7 +10,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
-use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
+use crate::routes::flash::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::session::CurrentUser;
 
 // GET /settings — redirect to own profile
@@ -89,8 +89,10 @@ pub async fn update_preferences(
     } else {
         User::update_preferences(&state.db, current_user.id, &preferences_patch).await?
     };
+
     let profile = RatingProfile::find(&state.db, current_user.id).await?;
     let mut preferences = user.preferences_with_defaults();
+
     if user.is_registered() {
         preferences["rating_participating"] = profile
             .as_ref()

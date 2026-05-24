@@ -8,7 +8,7 @@ use tower_sessions::Session;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
-use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
+use crate::routes::flash::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::services::engine_builder;
 use crate::services::game_actions;
 use crate::services::game_creator::{self, CreateGameParams, RatingRangePreference};
@@ -48,13 +48,78 @@ pub async fn create_game(
     Form(form): Form<CreateGameForm>,
 ) -> Result<Response, AppError> {
     let json = wants_json(&headers);
+
+    // TODO: Extract form validation to separate function; order predicates from least to most expensive
+
+    let variant = form.variant.as_deref().unwrap_or("open");
+    let invite_username = form
+        .invite_username
+        .as_deref()
+        .map(str::trim)
+        .filter(|username| !username.is_empty())
+        .map(str::to_string);
+
+    if variant == "challenge" && invite_username.is_none() {
+        return create_game_error_response(
+            &session,
+            json,
+            AppError::UnprocessableEntity("Direct challenges require an opponent".to_string()),
+        )
+        .await;
+    }
+
+    let is_ranked = form.ranked.as_deref() == Some("true");
+    let is_open = variant == "open";
+    let is_email = variant == "email";
+
+    let komi = if is_open || is_ranked {
+        6.5
+    } else {
+        form.komi
+            .ok_or_else(|| AppError::UnprocessableEntity("Missing komi".to_string()))?
+    };
+    let handicap = if is_open || is_ranked {
+        0
+    } else {
+        form.handicap
+            .ok_or_else(|| AppError::UnprocessableEntity("Missing handicap".to_string()))?
+    };
+    if (is_open || is_ranked)
+        && (form.komi.is_some() || form.handicap.is_some() || form.color.is_some())
+    {
+        return Err(AppError::UnprocessableEntity(
+            "Ranked and open games derive handicap, komi, and color after an opponent joins"
+                .to_string(),
+        ));
+    }
+
+    let rating_range = if is_open && form.rating_range_mode.as_deref() == Some("absolute") {
+        RatingRangePreference::Absolute(form.max_rating_difference.ok_or_else(|| {
+            AppError::UnprocessableEntity("Missing max_rating_difference".to_string())
+        })?)
+    } else if is_open && form.max_rating_difference.is_some() {
+        RatingRangePreference::Absolute(form.max_rating_difference.unwrap())
+    } else {
+        RatingRangePreference::Unlimited
+    };
+
+    let color = if is_open || is_ranked {
+        "black".to_string()
+    } else {
+        form.color
+            .clone()
+            .ok_or_else(|| AppError::UnprocessableEntity("Missing color".to_string()))?
+    };
+
     let cols = form.cols;
+
     let time_control = match form.time_control.as_deref() {
         Some("fischer") => TimeControlType::Fischer,
         Some("byoyomi") => TimeControlType::Byoyomi,
         Some("correspondence") => TimeControlType::Correspondence,
         _ => TimeControlType::None,
     };
+
     let (main_time_secs, increment_secs, byoyomi_time_secs, byoyomi_periods) = match time_control {
         TimeControlType::Fischer => (
             form.main_time_minutes.map(|m| m * 60),
@@ -76,66 +141,15 @@ pub async fn create_game(
         ),
         TimeControlType::None => (None, None, None, None),
     };
+
     let invite_email = form.invite_email.clone();
-    let variant = form.variant.as_deref().unwrap_or("open");
-    let is_ranked = form.ranked.as_deref() == Some("true");
-    let is_open = variant == "open";
-    let is_email = variant == "email";
-    let invite_username = form
-        .invite_username
-        .as_deref()
-        .map(str::trim)
-        .filter(|username| !username.is_empty())
-        .map(str::to_string);
-    if variant == "challenge" && invite_username.is_none() {
-        return create_game_error_response(
-            &session,
-            json,
-            AppError::UnprocessableEntity("Direct challenges require an opponent".to_string()),
-        )
-        .await;
-    }
+
     let email_to_send = if is_email {
         form.invite_email.clone()
     } else {
         invite_email.clone()
     };
-    let komi = if is_open || is_ranked {
-        6.5
-    } else {
-        form.komi
-            .ok_or_else(|| AppError::UnprocessableEntity("Missing komi".to_string()))?
-    };
-    let handicap = if is_open || is_ranked {
-        0
-    } else {
-        form.handicap
-            .ok_or_else(|| AppError::UnprocessableEntity("Missing handicap".to_string()))?
-    };
-    if (is_open || is_ranked)
-        && (form.komi.is_some() || form.handicap.is_some() || form.color.is_some())
-    {
-        return Err(AppError::UnprocessableEntity(
-            "Ranked and open games derive handicap, komi, and color after an opponent joins"
-                .to_string(),
-        ));
-    }
-    let rating_range = if is_open && form.rating_range_mode.as_deref() == Some("absolute") {
-        RatingRangePreference::Absolute(form.max_rating_difference.ok_or_else(|| {
-            AppError::UnprocessableEntity("Missing max_rating_difference".to_string())
-        })?)
-    } else if is_open && form.max_rating_difference.is_some() {
-        RatingRangePreference::Absolute(form.max_rating_difference.unwrap())
-    } else {
-        RatingRangePreference::Unlimited
-    };
-    let color = if is_open || is_ranked {
-        "black".to_string()
-    } else {
-        form.color
-            .clone()
-            .ok_or_else(|| AppError::UnprocessableEntity("Missing color".to_string()))?
-    };
+
     let params = CreateGameParams {
         cols,
         rows: cols,
@@ -162,6 +176,7 @@ pub async fn create_game(
             if let Ok(gwp) = Game::find_with_players(&state.db, game.id).await {
                 crate::services::live::notify_game_created(&state, &gwp);
             }
+
             if let (Some(email), Some(token)) = (&invite_email, &game.invite_token) {
                 let mailer = state.mailer.clone();
                 let email = email.clone();
@@ -169,19 +184,23 @@ pub async fn create_game(
                 let base_url =
                     std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:3000".into());
                 let game_id = game.id;
+
                 tokio::spawn(async move {
                     mailer
                         .send_invitation(&email, game_id, &token, &base_url)
                         .await;
                 });
             }
+
             let url = format!("/games/{}", game.id);
+
             if json {
                 Ok(axum::Json(serde_json::json!({ "redirect": url })).into_response())
             } else {
                 Ok(Redirect::to(&url).into_response())
             }
         }
+
         Err(e) => create_game_error_response(&session, json, e).await,
     }
 }
@@ -198,6 +217,7 @@ async fn create_game_error_response(
         )
             .into_response());
     }
+
     set_flash(
         session,
         FlashMessage {
@@ -206,6 +226,7 @@ async fn create_game_error_response(
         },
     )
     .await?;
+
     Ok(Redirect::to("/games/new").into_response())
 }
 
@@ -234,6 +255,7 @@ pub async fn join_game(
         return Ok(Redirect::to(&url).into_response());
     }
 
+    // TODO: why include here and not at file start?
     use crate::services::game_access;
 
     game_access::check_join_tokens(
@@ -259,18 +281,22 @@ pub async fn join_game(
         tracing::error!(id, "Failed to load game state after join");
         return Err(AppError::Internal("Failed to load game state".to_string()));
     };
+
     state
         .registry
         .broadcast(id, &loaded.value.to_string())
         .await;
 
+    // TODO: same question: why not import?
     crate::services::live::notify_game_created(&state, &gwp);
 
     let access_q = query
         .access_token
         .as_deref()
         .map(|token| format!("?access_token={token}"));
+
     let url = format!("/games/{id}{}", access_q.unwrap_or_default());
+
     if json {
         Ok(axum::Json(serde_json::json!({ "redirect": url })).into_response())
     } else {

@@ -10,7 +10,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
-use crate::routes::{FlashMessage, FlashSeverity, set_flash, wants_json};
+use crate::routes::flash::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::services::rating::{derive_handicap_komi, rank_for_user};
 use crate::session::CurrentUser;
 use crate::templates::UserData;
@@ -55,16 +55,20 @@ pub async fn search_users(
             .into_iter()
             .map(|u| (u.id, u))
             .collect();
+
         let profiles = RatingProfile::find_batch(&state.db, &user_ids).await?;
         let mut rank_map = std::collections::HashMap::new();
         let mut profile_map = std::collections::HashMap::new();
+
         for (&id, user) in &users {
             let profile = profiles.get(&id);
             rank_map.insert(id, rank_for_user(user, profile));
+
             if let Some(p) = profile.cloned() {
                 profile_map.insert(id, p);
             }
         }
+
         (rank_map, profile_map)
     };
 
@@ -137,6 +141,7 @@ pub async fn update_username(
     let json = wants_json(&headers);
 
     // Validate
+    // TODO: Same as in auth.rs, use DB constraint at compile time for this value
     if new_username.is_empty() || new_username.len() > 30 {
         let msg = "Username must be between 1 and 30 characters.";
         if json {
@@ -154,15 +159,18 @@ pub async fn update_username(
             },
         )
         .await?;
+
         return Ok(Redirect::to(&format!("/users/{}", profile_user.username)).into_response());
     }
 
     // No change
     if new_username == profile_user.username {
         let url = format!("/users/{new_username}");
+
         if json {
             return Ok(axum::Json(json!({"redirect": url})).into_response());
         }
+
         return Ok(Redirect::to(&url).into_response());
     }
 
@@ -187,6 +195,7 @@ pub async fn update_username(
             },
         )
         .await?;
+
         return Ok(Redirect::to(&format!("/users/{}", profile_user.username)).into_response());
     }
 
@@ -217,8 +226,10 @@ pub async fn update_username(
                 },
             )
             .await?;
+
             Ok(Redirect::to(&format!("/users/{}", profile_user.username)).into_response())
         }
+
         Err(e) => Err(AppError::Internal(e.to_string())),
     }
 }

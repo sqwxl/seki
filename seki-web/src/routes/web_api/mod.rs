@@ -8,7 +8,7 @@ use serde::Serialize;
 
 use crate::AppState;
 use crate::error::AppError;
-use crate::routes::FlashMessage;
+use crate::routes::flash::FlashMessage;
 use crate::session::CurrentUser;
 
 pub fn router() -> Router<AppState> {
@@ -75,12 +75,15 @@ pub(crate) async fn bootstrap_for_location(
             let access_token = query_param(query, "access_token");
             let invite_token = query_param(query, "invite_token");
             let mut params = Vec::new();
+
             if let Some(token) = access_token {
                 params.push(format!("access_token={token}"));
             }
+
             if let Some(token) = invite_token {
                 params.push(format!("invite_token={token}"));
             }
+
             serde_json::to_value(
                 games::load_game_show(state, current_user, game_id, params).await?,
             )?

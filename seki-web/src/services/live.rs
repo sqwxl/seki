@@ -133,6 +133,7 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
         .await
         .unwrap_or_default();
     let mut user_ids = std::collections::HashSet::new();
+
     for gwp in games {
         if let Some(ref u) = gwp.creator {
             user_ids.insert(u.id);
@@ -147,6 +148,7 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
             user_ids.insert(u.id);
         }
     }
+
     let profiles: HashMap<i64, RatingProfile> = if user_ids.is_empty() {
         HashMap::new()
     } else {
@@ -155,6 +157,7 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
             .await
             .unwrap_or_default()
     };
+
     // Rebuild engines for games whose cache is stale (NULL but have moves).
     // This runs concurrently to avoid serializing many small DB round-trips.
     let rebuild_indices: Vec<(usize, &GameWithPlayers)> = games
@@ -208,14 +211,17 @@ fn extract_board_state_json(
 ) -> Option<serde_json::Value> {
     if let Some(cached) = cached {
         let mut value: serde_json::Value = serde_json::from_str(cached).ok()?;
+
         if let serde_json::Value::Object(ref mut map) = value {
             map.remove("turn_count");
             map.remove("handicap");
         }
+
         Some(value)
     } else {
         // No cached state — build empty board with handicap stones
         let engine = Engine::with_handicap(cols as u8, rows as u8, handicap);
+
         serde_json::to_value(engine.game_state()).ok()
     }
 }
@@ -286,6 +292,7 @@ pub fn notify_game_updated(
     clock: Option<ClockSnapshot>,
 ) {
     let profiles: HashMap<i64, RatingProfile> = HashMap::new();
+
     let update =
         GameUpdate {
             id: gwp.game.id,
@@ -311,6 +318,7 @@ pub fn notify_game_updated(
             board_state,
             clock,
         };
+
     let msg = json!({
         "kind": "game_updated",
         "game": update,

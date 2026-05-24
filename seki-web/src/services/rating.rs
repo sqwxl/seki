@@ -165,6 +165,10 @@ impl RatingCalibrationPolicy {
             } else {
                 self.even_game_komi
             },
+            // TODO: Extract equality conditional exp to utility function and reuse anywhere this same
+            // op is performed (e.g. game_joiner.rs)
+            // TODO: Replace EPSILON to some higher limit like 0.5 or 1.0, can accept a bit more overlap
+            // than mere floating point noise.
             color_reason: if (black_rating - white_rating).abs() < f64::EPSILON {
                 "exact_rating_random".to_string()
             } else if black_rating < white_rating {

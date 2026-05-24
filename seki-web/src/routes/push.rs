@@ -7,6 +7,7 @@ use crate::error::AppError;
 use crate::models::push_destination::PushDestination;
 use crate::session::CurrentUser;
 
+// TODO: why 10? Also, move to config
 pub const MAX_DESTINATIONS: i64 = 10;
 
 #[derive(Deserialize)]

@@ -28,6 +28,7 @@ pub enum TimeControlType {
 #[allow(dead_code)]
 pub struct Game {
     pub id: i64,
+    // TODO: creator_id should be i64 (always given)
     pub creator_id: Option<i64>,
     pub opponent_id: Option<i64>,
     pub black_id: Option<i64>,

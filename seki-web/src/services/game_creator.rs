@@ -8,17 +8,23 @@ use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
 use crate::services::rating;
 
+// TODO: Move to config file
 const MAX_CORRESPONDENCE_DAYS: i32 = 30;
 const SECS_PER_DAY: i32 = 86_400;
 
 pub struct CreateGameParams {
     pub cols: i32,
     pub rows: i32,
-    pub komi: f64,
-    pub handicap: i32,
     pub is_private: bool,
     pub allow_undo: bool,
+
+    // TODO: For ranked games, these fields (color, handicap and komi) are set by us.
+    // The client should not be required to supply a value (they should be Option); in fact they
+    // should NOT supply these values for ranked games (and we must ignore any value given in that case)
     pub color: String,
+    pub handicap: i32,
+    pub komi: f64,
+
     pub invite_email: Option<String>,
     pub invite_username: Option<String>,
     pub time_control: TimeControlType,
@@ -30,6 +36,7 @@ pub struct CreateGameParams {
     pub ranked: bool,
     pub rating_range: RatingRangePreference,
     pub open_game: bool,
+    // TODO: Add support for ruleset selection (Japanese, Chinese, etc.)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,6 +96,7 @@ pub async fn create_game(
             "Handicap cannot be negative".to_string(),
         ));
     }
+
     // Check max handicap for board size
     let max_hc = go_engine::handicap::max_handicap(params.cols as u8, params.rows as u8);
     if params.handicap > 0 && max_hc == 0 {
@@ -113,7 +121,7 @@ pub async fn create_game(
         ));
     }
 
-    let friend = if let Some(ref username) = params.invite_username {
+    let opponent = if let Some(ref username) = params.invite_username {
         if !username.is_empty() {
             Some(
                 User::find_by_username(pool, username)
@@ -140,39 +148,45 @@ pub async fn create_game(
     // A raw email invite does not assign the second seat yet.
     // Mark it invite-only so only the token holder can fill that seat.
     let invite_only =
-        params.invite_email.as_ref().is_some_and(|e| !e.is_empty()) && friend.is_none();
+        params.invite_email.as_ref().is_some_and(|e| !e.is_empty()) && opponent.is_none();
     let is_private = params.is_private || invite_only;
 
     if params.ranked {
         let creator_profile = RatingProfile::find(pool, creator.id).await?;
+
         rating::can_create_ranked(
             creator,
             creator_profile.as_ref(),
             rating::RankedCreateEligibility {
                 is_private: params.is_private,
                 invite_only,
-                has_direct_opponent: friend.is_some(),
+                has_direct_opponent: opponent.is_some(),
                 handicap: params.handicap,
                 komi: params.komi,
                 time_control: params.time_control,
             },
         )?;
-        if let Some(opponent) = friend.as_ref() {
+
+        if let Some(opponent) = opponent.as_ref() {
             let opponent_profile = RatingProfile::find(pool, opponent.id).await?;
             rating::can_join_ranked(opponent, opponent_profile.as_ref())?;
         }
+
         RatingProfile::get_or_create(pool, creator.id).await?;
     }
 
-    let friend_id = friend.as_ref().map(|f| f.id);
+    let opponent_id = opponent.as_ref().map(|f| f.id);
 
     let nigiri = !matches!(params.color.as_str(), "black" | "white");
+
+    // TODO: With the work mentioned above to stop requiring the color param, we should only
+    // ever be assigning these for unranked games
     let (black_id, white_id) = if params.open_game {
         (None, None)
     } else {
         match params.color.as_str() {
-            "black" => (Some(creator.id), friend_id),
-            "white" => (friend_id, Some(creator.id)),
+            "black" => (Some(creator.id), opponent_id),
+            "white" => (opponent_id, Some(creator.id)),
             // Random colors are finalized when the game actually starts.
             _ => (None, None),
         }
@@ -202,7 +216,7 @@ pub async fn create_game(
     let game = Game::create(
         pool,
         creator.id,
-        friend_id,
+        opponent_id,
         black_id,
         white_id,
         params.cols,
@@ -254,7 +268,7 @@ pub async fn create_game(
 
     // When both seats are assigned up front, this is a direct challenge:
     // the invited player must accept or decline before play starts.
-    if friend.is_some() {
+    if opponent.is_some() {
         Game::set_stage(pool, game.id, "challenge").await?;
     }
 

@@ -6,12 +6,13 @@ use tower_sessions::Session;
 
 use crate::AppState;
 use crate::error::AppError;
+use crate::routes::flash::{FlashMessage, FlashSeverity, set_flash, take_flash};
 use crate::routes::web_api::BootstrapPayload;
 use crate::routes::web_api::bootstrap_for_location;
-use crate::routes::{FlashMessage, FlashSeverity, set_flash, take_flash};
 use crate::session::{CurrentUser, OptionalCurrentUser};
 use crate::templates::shell::SpaShellTemplate;
 
+// TODO: Add terse docstring
 pub async fn shell(
     State(state): State<AppState>,
     OriginalUri(uri): OriginalUri,
@@ -131,7 +132,7 @@ mod tests {
         .expect("redirect result");
         assert_eq!(redirect.as_deref(), Some("/games"));
         let flash = session
-            .get::<crate::routes::FlashMessage>("flash")
+            .get::<crate::routes::flash::FlashMessage>("flash")
             .await
             .expect("flash get")
             .expect("flash set");

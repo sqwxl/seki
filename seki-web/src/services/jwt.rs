@@ -3,6 +3,16 @@ use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode}
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
+// TODO: Is this secure?
+fn generate_jti() -> String {
+    let jti: String = rand::rng()
+        .sample_iter(&rand::distr::Alphanumeric)
+        .take(32)
+        .map(char::from)
+        .collect();
+    jti
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppCredentialClaims {
     pub sub: String,
@@ -43,13 +53,4 @@ pub fn validate_app_credential(
         &Validation::new(jsonwebtoken::Algorithm::HS256),
     )?;
     Ok(token_data.claims)
-}
-
-fn generate_jti() -> String {
-    let jti: String = rand::rng()
-        .sample_iter(&rand::distr::Alphanumeric)
-        .take(32)
-        .map(char::from)
-        .collect();
-    jti
 }

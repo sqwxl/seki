@@ -9,6 +9,7 @@ use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::services::rating::{self, RatingCalibrationPolicy};
 
+// TODO: Function is too big, refactor
 pub async fn join_open_game(
     pool: &DbPool,
     gwp: &GameWithPlayers,
@@ -25,9 +26,11 @@ pub async fn join_open_game(
         || !gwp.game.rating_difference_higher_unlimited
     {
         let profile = RatingProfile::find(pool, user.id).await?;
+
         if gwp.game.ranked {
             rating::can_join_ranked(user, profile.as_ref())?;
         }
+
         profile
     } else {
         None
@@ -35,7 +38,8 @@ pub async fn join_open_game(
 
     if gwp.game.open_to.as_deref() == Some("registered") && !user.is_registered() {
         return Err(AppError::UnprocessableEntity(
-            "This game is restricted to registered users".to_string(),
+            "This game is restricted to registered users only. Register an account to join this game."
+                .to_string(),
         ));
     }
 
@@ -44,8 +48,11 @@ pub async fn join_open_game(
             "Open games require a creator".to_string(),
         ));
     };
+
     if gwp.game.opponent_id.is_some() {
-        return Err(AppError::UnprocessableEntity("Game is full".to_string()));
+        return Err(AppError::UnprocessableEntity(
+            "This game is full".to_string(),
+        ));
     }
 
     if !gwp.game.ranked
@@ -62,7 +69,7 @@ pub async fn join_open_game(
         )
     {
         return Err(AppError::UnprocessableEntity(
-            "This game is outside the allowed rating range".to_string(),
+            "Your rank is outside the allowed rating range for this game.".to_string(),
         ));
     }
 
@@ -73,12 +80,14 @@ pub async fn join_open_game(
             || !gwp.game.rating_difference_higher_unlimited
         {
             let creator_profile = RatingProfile::find(pool, creator_id).await?;
-            let Some(joiner_profile) = joiner_profile.as_ref() else {
+
+            let Some(creator_profile) = creator_profile.as_ref() else {
                 return Err(AppError::UnprocessableEntity(
                     "Ranked games require player ratings".to_string(),
                 ));
             };
-            let Some(creator_profile) = creator_profile.as_ref() else {
+
+            let Some(joiner_profile) = joiner_profile.as_ref() else {
                 return Err(AppError::UnprocessableEntity(
                     "Ranked games require player ratings".to_string(),
                 ));
@@ -90,13 +99,14 @@ pub async fn join_open_game(
                 joiner_profile.rating,
             ) {
                 return Err(AppError::UnprocessableEntity(
-                    "This game is outside the allowed rating range".to_string(),
+                    "Your rank is outside the allowed rating range for this game.".to_string(),
                 ));
             }
         }
 
         let creator_profile = RatingProfile::get_or_create(pool, creator_id).await?;
         let joiner_profile = RatingProfile::get_or_create(pool, user.id).await?;
+
         let creator_black = if (creator_profile.rating - joiner_profile.rating).abs() < f64::EPSILON
         {
             rand::rng().random_bool(0.5)
@@ -119,6 +129,7 @@ pub async fn join_open_game(
                 creator_profile.rating,
             )
         };
+
         final_black_id = Some(black_id);
         final_white_id = Some(white_id);
 
