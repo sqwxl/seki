@@ -126,10 +126,17 @@ impl FromRequestParts<crate::AppState> for ApiUser {
                 ))
             })?;
 
-        let user = User::find_by_api_token(&state.db, &header)
+        let user = if let Some(u) = User::find_or_create_dev_bot(&state.db, &header)
             .await
             .map_err(|e| ApiError(AppError::Internal(format!("Database error: {e}"))))?
-            .ok_or_else(|| ApiError(AppError::Unauthorized("Invalid API token".to_string())))?;
+        {
+            u
+        } else {
+            User::find_by_api_token(&state.db, &header)
+                .await
+                .map_err(|e| ApiError(AppError::Internal(format!("Database error: {e}"))))?
+                .ok_or_else(|| ApiError(AppError::Unauthorized("Invalid API token".to_string())))?
+        };
 
         if !user.is_registered() {
             return Err(ApiError(AppError::Unauthorized(
@@ -169,11 +176,20 @@ impl FromRequestParts<crate::AppState> for OptionalApiUser {
             return Ok(OptionalApiUser(None));
         };
 
-        let user = User::find_by_api_token(&state.db, &header)
+        let dev_bot = User::find_or_create_dev_bot(&state.db, &header)
             .await
             .ok()
-            .flatten()
-            .filter(|u| u.is_registered());
+            .flatten();
+
+        let user = if let Some(u) = dev_bot {
+            Some(u)
+        } else {
+            User::find_by_api_token(&state.db, &header)
+                .await
+                .ok()
+                .flatten()
+                .filter(|u| u.is_registered())
+        };
 
         Ok(OptionalApiUser(user))
     }

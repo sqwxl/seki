@@ -9,7 +9,6 @@ use tracing::{error, info, warn};
 
 use crate::config::Config;
 use crate::engine::{EngineHandle, MoveResult};
-use crate::ws;
 
 #[derive(Debug, Clone, PartialEq)]
 enum GameStage {
@@ -54,7 +53,8 @@ impl Bot {
     pub async fn run(config: Config, engine: EngineHandle, user_id: i64) -> Result<(), String> {
         info!("Bot user_id={user_id} starting");
 
-        let mut ws_handle = ws::connect_with_retry(&config).await;
+        let mut ws_handle =
+            seki_client::ws::connect_with_retry(&config.server_url, &config.api_token).await;
         let ws_tx = ws_handle.tx.clone();
 
         let mut bot = Bot {
@@ -75,7 +75,7 @@ impl Bot {
                         Some(server_msg) => bot.handle_message(server_msg).await,
                         None => {
                             warn!("WebSocket channel closed, reconnecting...");
-                            ws_handle = ws::connect_with_retry(&bot.config).await;
+                            ws_handle = seki_client::ws::connect_with_retry(&bot.config.server_url, &bot.config.api_token).await;
                             bot.ws_tx = ws_handle.tx.clone();
                             bot.joined_games.clear();
                             bot.games.clear();

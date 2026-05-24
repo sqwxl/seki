@@ -10,8 +10,7 @@ use seki_api_types::ws::ServerMsg;
 use tokio::sync::mpsc;
 use tokio_tungstenite::{Connector, connect_async_tls_with_config, tungstenite::Message};
 use tracing::{error, info, warn};
-
-use crate::config::Config;
+use url::Url;
 
 #[derive(Debug)]
 struct NoCertVerifier;
@@ -77,23 +76,30 @@ pub struct WsHandle {
     pub rx: mpsc::UnboundedReceiver<ServerMsg>,
 }
 
-pub async fn connect(config: &Config) -> Result<WsHandle, String> {
-    let ws_url = format!(
+pub fn ws_url(server_url: &str, api_token: &str) -> String {
+    format!(
         "{}/ws?token={}",
-        config
-            .server_url
+        server_url
             .trim_end_matches('/')
             .replace("http://", "ws://")
             .replace("https://", "wss://"),
-        config.api_token
-    );
+        api_token
+    )
+}
 
-    connect_inner(&ws_url).await
+pub async fn connect(server_url: &str, api_token: &str) -> Result<WsHandle, String> {
+    let url = ws_url(server_url, api_token);
+    connect_inner(&url).await
 }
 
 async fn connect_inner(ws_url: &str) -> Result<WsHandle, String> {
     info!("[ws] connecting to {ws_url}");
-    let (ws_stream, _) = connect_async_tls_with_config(ws_url, None, false, Some(tls_connector()))
+    let parsed = Url::parse(ws_url).map_err(|e| format!("Invalid URL: {e}"))?;
+    let connector = match parsed.scheme() {
+        "wss" => Some(tls_connector()),
+        _ => None,
+    };
+    let (ws_stream, _) = connect_async_tls_with_config(ws_url, None, false, connector)
         .await
         .map_err(|e| format!("Failed to connect: {e}"))?;
 
@@ -125,34 +131,22 @@ async fn connect_inner(ws_url: &str) -> Result<WsHandle, String> {
                     }
                 },
                 Message::Close(_) => break,
-                Message::Ping(data) => {
+                Message::Ping(_data) => {
                     // pong handled by tungstenite internally
-                    let _ = data;
                 }
                 _ => {}
             }
         }
     });
 
-    let handle = WsHandle {
+    Ok(WsHandle {
         tx: msg_tx,
         rx: server_rx,
-    };
-
-    Ok(handle)
+    })
 }
 
-/// Connect with automatic reconnection on failure.
-pub async fn connect_with_retry(config: &Config) -> WsHandle {
-    let ws_url = format!(
-        "{}/ws?token={}",
-        config
-            .server_url
-            .trim_end_matches('/')
-            .replace("http://", "ws://")
-            .replace("https://", "wss://"),
-        config.api_token
-    );
+pub async fn connect_with_retry(server_url: &str, api_token: &str) -> WsHandle {
+    let ws_url = ws_url(server_url, api_token);
 
     let mut delay = Duration::from_secs(1);
     loop {

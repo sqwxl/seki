@@ -1,0 +1,28 @@
+server_url = "http://localhost:3333"
+bot_count = 5
+
+[timing]
+action_interval_ms = 2000
+jitter_ms = 500
+
+[probabilities]
+create_open_game = 0.10
+challenge_player = 0.05
+join_open_game = 0.40
+play_move = 0.50
+pass_turn = 0.10
+resign = 0.02
+request_undo = 0.03
+chat = 0.05
+
+[game_settings]
+board_sizes = [[9, 9], [13, 13], [19, 19]]
+time_controls = ["none", "fischer", "byoyomi"]
+main_time_secs_max = 1800
+main_time_secs_min = 300
+byoyomi_time_secs_max = 60
+byoyomi_time_secs_min = 10
+byoyomi_periods_max = 5
+byoyomi_periods_min = 1
+private_probability = 0.2
+ranked_probability = 0.3

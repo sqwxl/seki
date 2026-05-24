@@ -23,5 +23,8 @@ run: wasm-hot serve-hot frontend-hot
 katago:
     watchexec -r -w seki-gtp -- cargo run -p seki-gtp -- --config gtp.toml
 
+random-bots:
+    watchexec -r -w seki-random-bots -- cargo run -p seki-random-bots -- --config random-bots.toml --verbose
+
 deploy:
     bash scripts/deploy-prebuilt.sh

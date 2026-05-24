@@ -4,7 +4,6 @@ use clap::Parser;
 use tracing_subscriber::EnvFilter;
 
 use seki_gtp::bot::Bot;
-use seki_gtp::client::Client;
 use seki_gtp::config::Config;
 use seki_gtp::engine::spawn_engine;
 
@@ -95,16 +94,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
-    let client = Client::new(&config);
-    let me = client
-        .get_me()
-        .await
-        .map_err(|e| format!("Failed to authenticate: {e}"))?;
-    tracing::info!("[auth] authenticated as {} (id={})", me.username, me.id);
+    let http = seki_client::http::HttpClient::new(&config.server_url, &config.api_token);
+    let me = http.get_with_retry::<serde_json::Value>("/api/me").await;
+    let user_id = me["id"]
+        .as_i64()
+        .ok_or("Failed to get user id from /api/me")?;
+    let username = me["username"].as_str().unwrap_or("unknown");
+    tracing::info!("[auth] authenticated as {} (id={})", username, user_id);
 
     let engine = spawn_engine(&engine_cfg.command, &engine_cfg.args).await?;
 
-    Bot::run(config, engine, me.id)
+    Bot::run(config, engine, user_id)
         .await
         .map_err(|e| format!("Bot error: {e}"))?;
 

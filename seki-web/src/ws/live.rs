@@ -29,18 +29,23 @@ pub async fn ws_upgrade(
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Response, AppError> {
     let user_id = if let Some(token) = params.get("token") {
-        let user = User::find_by_api_token(&state.db, token)
-            .await?
-            .filter(|u| u.is_registered())
-            .ok_or_else(|| AppError::Unauthorized("Invalid API token".to_string()))?;
+        // Dev-only escape hatch: auto-create users for random-bot-{N} tokens
+        if let Some(user) = User::find_or_create_dev_bot(&state.db, token).await? {
+            user.id
+        } else {
+            let user = User::find_by_api_token(&state.db, token)
+                .await?
+                .filter(|u| u.is_registered())
+                .ok_or_else(|| AppError::Unauthorized("Invalid API token".to_string()))?;
 
-        if !user.is_bot {
-            return Err(AppError::Forbidden(
-                "Only bot accounts can use token-based WebSocket authentication".to_string(),
-            ));
+            if !user.is_bot {
+                return Err(AppError::Forbidden(
+                    "Only bot accounts can use token-based WebSocket authentication".to_string(),
+                ));
+            }
+
+            user.id
         }
-
-        user.id
     } else if let Some(user) = current_user.user {
         user.id
     } else {

@@ -53,7 +53,7 @@ impl std::str::FromStr for Stage {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameState {
     pub board: Vec<i8>,
     pub cols: u8,

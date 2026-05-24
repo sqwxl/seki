@@ -3484,12 +3484,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "seki-gtp"
+name = "seki-client"
 version = "0.1.0"
 dependencies = [
- "clap",
  "futures-util",
- "go-engine",
  "reqwest",
  "rustls",
  "seki-api-types",
@@ -3497,6 +3495,38 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-tungstenite 0.24.0",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "seki-gtp"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "go-engine",
+ "seki-api-types",
+ "seki-client",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "seki-random-bots"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "go-engine",
+ "rand 0.9.2",
+ "seki-api-types",
+ "seki-client",
+ "serde",
+ "serde_json",
+ "tokio",
  "toml",
  "tracing",
  "tracing-subscriber",

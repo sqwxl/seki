@@ -334,6 +334,33 @@ impl User {
         .fetch_one(executor)
         .await
     }
+
+    /// Dev-only: find or auto-create a user for `random-bot-{N}` tokens.
+    /// Gated behind `#[cfg(debug_assertions)]` — always returns None in release builds.
+    pub async fn find_or_create_dev_bot(
+        pool: &DbPool,
+        token: &str,
+    ) -> Result<Option<User>, sqlx::Error> {
+        if cfg!(not(debug_assertions)) {
+            return Ok(None);
+        }
+        if !token.starts_with("random-bot-") {
+            return Ok(None);
+        }
+
+        if let Some(user) = Self::find_by_api_token(pool, token).await? {
+            return Ok(Some(user));
+        }
+
+        sqlx::query_as::<_, User>(
+            "INSERT INTO users (username, api_token, password_hash) VALUES ($1, $2, $3) RETURNING *",
+        )
+        .bind(token)
+        .bind(token)
+        .bind("auto-created-dev-bot")
+        .fetch_optional(pool)
+        .await
+    }
 }
 
 #[derive(Debug, Clone, FromRow)]
