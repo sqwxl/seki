@@ -38,6 +38,7 @@ export function derivePlayerPanel(opts: {
     whiteLow: boolean;
   };
   isNigiriPending: boolean;
+  currentTurn: number | null;
 }): PlayerPanelProps {
   const {
     position,
@@ -50,6 +51,7 @@ export function derivePlayerPanel(opts: {
     score,
     cd,
     isNigiriPending,
+    currentTurn,
   } = opts;
   const bOnline = blackUser ? online.has(blackUser.id) : false;
   const wOnline = whiteUser ? online.has(whiteUser.id) : false;
@@ -63,6 +65,7 @@ export function derivePlayerPanel(opts: {
     clock: cd.blackText || undefined,
     clockLowTime: cd.blackLow,
     isOnline: bOnline,
+    strong: currentTurn === 1,
     rank: blackUser?.rank,
   };
   const whitePanel: PlayerPanelProps = {
@@ -72,6 +75,7 @@ export function derivePlayerPanel(opts: {
     clock: cd.whiteText || undefined,
     clockLowTime: cd.whiteLow,
     isOnline: wOnline,
+    strong: currentTurn === -1,
     rank: whiteUser?.rank,
   };
 

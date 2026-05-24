@@ -395,24 +395,23 @@ impl BotRunner {
                 .map(|(id, _)| *id)
                 .collect();
 
-            if !playable.is_empty() {
-                let game_id = playable[self.rng.random_range(0..playable.len())];
+            for game_id in &playable {
                 let action = pick_game_action(&mut self.rng, &self.config.probabilities);
                 match action {
                     GameAction::Play => {
-                        self.play_random_move(game_id);
+                        self.play_random_move(*game_id);
                     }
                     GameAction::Pass => {
                         info!("{} passing in game {game_id}", self.bot_name());
-                        send_json(&self.ws_tx, &ClientMsg::pass(game_id));
+                        send_json(&self.ws_tx, &ClientMsg::pass(*game_id));
                     }
                     GameAction::Resign => {
                         info!("{} resigning game {game_id}", self.bot_name());
-                        send_json(&self.ws_tx, &ClientMsg::resign(game_id));
+                        send_json(&self.ws_tx, &ClientMsg::resign(*game_id));
                     }
                     GameAction::RequestUndo => {
                         info!("{} requesting undo in game {game_id}", self.bot_name());
-                        send_json(&self.ws_tx, &ClientMsg::respond_to_undo(game_id, "accept"));
+                        send_json(&self.ws_tx, &ClientMsg::respond_to_undo(*game_id, "accept"));
                     }
                     GameAction::Chat => {
                         let msg = random_chat_message(&mut self.rng);

@@ -1,5 +1,5 @@
 server_url = "http://localhost:3333"
-bot_count = 5
+bot_count = 2
 
 [timing]
 action_interval_ms = 2000

@@ -4,6 +4,7 @@ import {
   black,
   boardFinalized,
   boardFinalizedScore,
+  currentTurn,
   estimateScore,
   gameStage,
   gameState,
@@ -29,6 +30,7 @@ export const liveGamePanelState = computed((): LiveGamePanelState => {
   const w = white.value;
   const online = onlineUsers.value;
   const cd = clockDisplay.value;
+  const turn = currentTurn.value;
   const terr = territory.value;
   const settled = settledTerritory.value;
   const isPlay = isPlayStage(stage);
@@ -49,6 +51,7 @@ export const liveGamePanelState = computed((): LiveGamePanelState => {
     score,
     cd,
     isNigiriPending,
+    currentTurn: turn,
   };
 
   return {

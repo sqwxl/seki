@@ -12,6 +12,7 @@ export type PlayerPanelProps = {
   clock?: string;
   clockLowTime?: boolean;
   isOnline?: boolean;
+  strong?: boolean;
   rank?: RankData | null;
 };
 
@@ -26,6 +27,7 @@ export function PlayerPanel(props: PlayerPanelProps) {
               stone: props.stone,
               showPresence: props.isOnline !== undefined,
               presence: props.isOnline,
+              strong: props.strong,
               rank: { value: props.rank },
             }}
           />
