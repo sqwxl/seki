@@ -221,7 +221,7 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
         games={openGames}
         playerId={playerId}
         emptyText="No open games."
-        viewMode={viewMode}
+        viewMode="list"
       />
       <GameSection
         title="Public games"
