@@ -130,11 +130,19 @@ impl BotRunner {
                 if self.my_games.contains_key(&game.id) {
                     self.lobby_games.retain(|&id| id != game.id);
                     let stage_before = self.my_games.get(&game.id).map(|g| g.stage.clone());
+                    let had_opponent = self
+                        .my_games
+                        .get(&game.id)
+                        .map(|g| g.has_opponent)
+                        .unwrap_or(false);
+                    let has_opponent = game.opponent.is_some();
                     if let Some(ag) = self.my_games.get_mut(&game.id) {
                         ag.stage = game.stage.clone();
-                        ag.has_opponent = game.opponent.is_some();
+                        ag.has_opponent = has_opponent;
                     }
-                    if stage_before.as_deref() != Some(game.stage.as_str()) {
+                    if stage_before.as_deref() != Some(game.stage.as_str())
+                        || (!had_opponent && has_opponent)
+                    {
                         self.handle_game_stage_hook(game.id).await;
                     }
                 } else if !game.settings.is_private && is_joinable(&game) {
@@ -145,8 +153,10 @@ impl BotRunner {
                 let gid = game.id;
                 if let Some(ag) = self.my_games.get_mut(&gid) {
                     let stage_before = ag.stage.clone();
+                    let had_opponent = ag.has_opponent;
+                    let has_opponent = game.opponent.is_some();
                     ag.stage = game.stage.clone();
-                    ag.has_opponent = game.opponent.is_some();
+                    ag.has_opponent = has_opponent;
                     if matches!(
                         game.stage.as_str(),
                         "completed" | "resigned" | "aborted" | "declined" | "timeout"
@@ -157,7 +167,7 @@ impl BotRunner {
                             game.stage
                         );
                     }
-                    if stage_before != game.stage {
+                    if stage_before != game.stage || (!had_opponent && has_opponent) {
                         self.handle_game_stage_hook(gid).await;
                     }
                 }
@@ -190,11 +200,17 @@ impl BotRunner {
                 });
 
                 let stage_before = self.my_games.get(&game_id).map(|g| g.stage.clone());
+                let had_opponent = self
+                    .my_games
+                    .get(&game_id)
+                    .map(|g| g.has_opponent)
+                    .unwrap_or(false);
+                let has_opponent = black.is_some() && white.is_some();
                 self.my_games.entry(game_id).and_modify(|g| {
                     g.stage = stage.clone();
                     g.our_stone = our_stone;
                     g.board = Some(state.clone());
-                    g.has_opponent = black.is_some() && white.is_some();
+                    g.has_opponent = has_opponent;
                 });
 
                 if is_our_turn_now {
@@ -204,7 +220,9 @@ impl BotRunner {
                     );
                 }
 
-                if stage_before.as_deref() != Some(stage.as_str()) {
+                if stage_before.as_deref() != Some(stage.as_str())
+                    || (!had_opponent && has_opponent)
+                {
                     self.handle_game_stage_hook(game_id).await;
                 }
             }
@@ -232,11 +250,17 @@ impl BotRunner {
                 });
 
                 let stage_before = self.my_games.get(&game_id).map(|g| g.stage.clone());
+                let had_opponent = self
+                    .my_games
+                    .get(&game_id)
+                    .map(|g| g.has_opponent)
+                    .unwrap_or(false);
+                let has_opponent = black.is_some() && white.is_some();
                 self.my_games.entry(game_id).and_modify(|g| {
                     g.stage = stage.clone();
                     g.our_stone = our_stone;
                     g.board = Some(state.clone());
-                    g.has_opponent = black.is_some() && white.is_some();
+                    g.has_opponent = has_opponent;
                 });
 
                 if is_our_turn_now {
@@ -246,7 +270,9 @@ impl BotRunner {
                     );
                 }
 
-                if stage_before.as_deref() != Some(stage.as_str()) {
+                if stage_before.as_deref() != Some(stage.as_str())
+                    || (!had_opponent && has_opponent)
+                {
                     self.handle_game_stage_hook(game_id).await;
                 }
             }
