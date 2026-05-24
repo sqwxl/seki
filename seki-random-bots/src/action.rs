@@ -35,7 +35,16 @@ pub fn random_create_game_body(rng: &mut impl Rng, settings: &GameSettings) -> s
     let is_private = rng.random::<f64>() < settings.private_probability;
     let ranked = rng.random::<f64>() < settings.ranked_probability;
 
-    let time_control = &settings.time_controls[rng.random_range(0..settings.time_controls.len())];
+    let tc_pool: Vec<&String> = if ranked {
+        settings
+            .time_controls
+            .iter()
+            .filter(|t| t.as_str() != "none")
+            .collect()
+    } else {
+        settings.time_controls.iter().collect()
+    };
+    let time_control = tc_pool[rng.random_range(0..tc_pool.len())];
 
     let mut body = serde_json::json!({
         "cols": cols,

@@ -3,7 +3,7 @@ bot_count = 5
 
 [timing]
 action_interval_ms = 2000
-jitter_ms = 500
+jitter_ms = 1000
 
 [probabilities]
 create_open_game = 0.10

@@ -66,6 +66,9 @@ impl BotRunner {
 
         let interval = bot.config.timing.action_interval_ms;
         let jitter = bot.config.timing.jitter_ms;
+        // Stagger bots so they don't all fire at the same instant
+        let stagger = bot.rng.random_range(0..=jitter);
+        tokio::time::sleep(tokio::time::Duration::from_millis(stagger)).await;
         let mut tick_timer = tokio::time::interval(tokio::time::Duration::from_millis(interval));
 
         loop {
@@ -118,25 +121,30 @@ impl BotRunner {
                 }
 
                 for game in &public_games {
-                    if !self.my_games.contains_key(&game.id) {
+                    if !self.my_games.contains_key(&game.id) && is_joinable(game) {
                         self.lobby_games.push(game.id);
                     }
                 }
             }
             ServerMsg::GameCreated { game } => {
                 if self.my_games.contains_key(&game.id) {
+                    self.lobby_games.retain(|&id| id != game.id);
+                    let stage_before = self.my_games.get(&game.id).map(|g| g.stage.clone());
                     if let Some(ag) = self.my_games.get_mut(&game.id) {
                         ag.stage = game.stage.clone();
                         ag.has_opponent = game.opponent.is_some();
                     }
-                    self.handle_game_stage_hook(game.id).await;
-                } else if !game.settings.is_private {
+                    if stage_before.as_deref() != Some(game.stage.as_str()) {
+                        self.handle_game_stage_hook(game.id).await;
+                    }
+                } else if !game.settings.is_private && is_joinable(&game) {
                     self.lobby_games.push(game.id);
                 }
             }
             ServerMsg::GameUpdated { game } => {
                 let gid = game.id;
                 if let Some(ag) = self.my_games.get_mut(&gid) {
+                    let stage_before = ag.stage.clone();
                     ag.stage = game.stage.clone();
                     ag.has_opponent = game.opponent.is_some();
                     if matches!(
@@ -148,10 +156,11 @@ impl BotRunner {
                             self.bot_name(),
                             game.stage
                         );
-                        // Keep around briefly, will be cleaned up on next tick
+                    }
+                    if stage_before != game.stage {
+                        self.handle_game_stage_hook(gid).await;
                     }
                 }
-                self.handle_game_stage_hook(gid).await;
             }
             ServerMsg::GameRemoved { game_id } => {
                 self.my_games.remove(&game_id);
@@ -180,6 +189,7 @@ impl BotRunner {
                     Stone::White => current_turn_stone == -1,
                 });
 
+                let stage_before = self.my_games.get(&game_id).map(|g| g.stage.clone());
                 self.my_games.entry(game_id).and_modify(|g| {
                     g.stage = stage.clone();
                     g.our_stone = our_stone;
@@ -194,7 +204,9 @@ impl BotRunner {
                     );
                 }
 
-                self.handle_game_stage_hook(game_id).await;
+                if stage_before.as_deref() != Some(stage.as_str()) {
+                    self.handle_game_stage_hook(game_id).await;
+                }
             }
             ServerMsg::State {
                 game_id,
@@ -219,6 +231,7 @@ impl BotRunner {
                     Stone::White => current_turn_stone == -1,
                 });
 
+                let stage_before = self.my_games.get(&game_id).map(|g| g.stage.clone());
                 self.my_games.entry(game_id).and_modify(|g| {
                     g.stage = stage.clone();
                     g.our_stone = our_stone;
@@ -233,7 +246,9 @@ impl BotRunner {
                     );
                 }
 
-                self.handle_game_stage_hook(game_id).await;
+                if stage_before.as_deref() != Some(stage.as_str()) {
+                    self.handle_game_stage_hook(game_id).await;
+                }
             }
             ServerMsg::UndoRequestSent { game_id } => {
                 info!(
@@ -272,40 +287,25 @@ impl BotRunner {
         if let Some(ag) = self.my_games.get(&game_id) {
             match ag.stage.as_str() {
                 "challenge" if ag.has_opponent => {
-                    let delay = self.rng.random_range(1..=5);
                     info!(
-                        "{} auto-accepting challenge game={game_id} in {delay}s",
+                        "{} auto-accepting challenge game={game_id}",
                         self.bot_name()
                     );
-                    let tx = self.ws_tx.clone();
-                    tokio::spawn(async move {
-                        tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await;
-                        send_json(&tx, &ClientMsg::accept_challenge(game_id));
-                    });
+                    send_json(&self.ws_tx, &ClientMsg::accept_challenge(game_id));
                 }
                 "unstarted" if ag.has_opponent => {
-                    let delay = self.rng.random_range(1..=3);
                     info!(
-                        "{} auto-accepting pregame settings game={game_id} in {delay}s",
+                        "{} auto-accepting pregame settings game={game_id}",
                         self.bot_name()
                     );
-                    let tx = self.ws_tx.clone();
-                    tokio::spawn(async move {
-                        tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await;
-                        send_json(&tx, &ClientMsg::accept_pregame_settings(game_id));
-                    });
+                    send_json(&self.ws_tx, &ClientMsg::accept_pregame_settings(game_id));
                 }
                 "territory_review" => {
-                    let delay = self.rng.random_range(1..=3);
                     info!(
-                        "{} auto-approving territory game={game_id} in {delay}s",
+                        "{} auto-approving territory game={game_id}",
                         self.bot_name()
                     );
-                    let tx = self.ws_tx.clone();
-                    tokio::spawn(async move {
-                        tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await;
-                        send_json(&tx, &ClientMsg::approve_territory(game_id));
-                    });
+                    send_json(&self.ws_tx, &ClientMsg::approve_territory(game_id));
                 }
                 "completed" | "resigned" | "aborted" | "declined" | "timeout" => {
                     self.my_games.remove(&game_id);
@@ -341,14 +341,18 @@ impl BotRunner {
             ) || (matches!(g.stage.as_str(), "challenge" | "unstarted") && g.has_opponent)
         });
 
+        // Always try to join from lobby
+        if !self.lobby_games.is_empty() {
+            self.join_random_game().await;
+        }
+
+        // Create if we have no games at all
+        if self.my_games.is_empty() {
+            self.create_random_game().await;
+        }
+
         if !has_active_games {
-            let has_open = self.my_games.values().any(|g| !g.has_opponent);
-            if !self.lobby_games.is_empty() {
-                self.join_random_game().await;
-            } else if !has_open {
-                self.create_random_game().await;
-            }
-            // else: we have open games but no lobby — wait, opponent will join us
+            // Nothing to do: no playable games and no reason to create
         } else {
             // Pick a random active game where we can do something
             let playable: Vec<i64> = self
@@ -357,6 +361,10 @@ impl BotRunner {
                 .filter(|(_, g)| {
                     matches!(g.stage.as_str(), "black_to_play" | "white_to_play")
                         && g.board.is_some()
+                        && g.our_stone.is_some_and(|s| match s {
+                            Stone::Black => g.stage == "black_to_play",
+                            Stone::White => g.stage == "white_to_play",
+                        })
                 })
                 .map(|(id, _)| *id)
                 .collect();
@@ -467,6 +475,16 @@ impl BotRunner {
             }
         }
     }
+}
+
+fn is_joinable(game: &LiveGameItem) -> bool {
+    if game.result.is_some() {
+        return false;
+    }
+    matches!(
+        game.stage.as_str(),
+        "challenge" | "unstarted" | "black_to_play" | "white_to_play" | "territory_review"
+    ) && (game.black.is_none() || game.white.is_none())
 }
 
 fn guess_stone(game: &LiveGameItem, user_id: i64) -> Option<Stone> {
