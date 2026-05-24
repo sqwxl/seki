@@ -102,6 +102,13 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
   };
 
   useEffect(() => {
+    if (initial) {
+      setGames(buildGamesMap(initial));
+      setPlayerId(initial.player_id);
+    }
+  }, [initial]);
+
+  useEffect(() => {
     const unsubs = [
       subscribe<InitMessage>("init", (msg) => {
         setPlayerId(msg.player_id);
