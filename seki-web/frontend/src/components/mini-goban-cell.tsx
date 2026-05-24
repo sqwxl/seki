@@ -41,6 +41,8 @@ export function MiniGobanCell({ game }: MiniGobanCellProps) {
   }, [cols, rows]);
 
   const dismissed = game.result === "Aborted" || game.result === "Declined";
+  const isFinished =
+    game.stage === GameStage.Completed && game.result && !dismissed;
 
   return (
     <a
@@ -70,6 +72,9 @@ export function MiniGobanCell({ game }: MiniGobanCellProps) {
           />
         ) : (
           <div class="mini-goban-placeholder" />
+        )}
+        {isFinished && (
+          <div class="mini-goban-result-overlay">{game.result}</div>
         )}
       </div>
       <MiniPanel

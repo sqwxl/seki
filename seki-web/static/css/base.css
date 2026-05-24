@@ -772,6 +772,7 @@ a.nav-dropdown-item {
 }
 
 .mini-goban-board {
+  position: relative;
   width: 100%;
   min-height: 0;
   display: flex;
@@ -784,6 +785,20 @@ a.nav-dropdown-item {
   height: 100%;
   background: var(--bg-input);
   border-radius: 0.125em;
+}
+
+.mini-goban-result-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  padding: 0.2em 0.5em;
+  border-radius: 0.25em;
+  font-size: 0.75em;
+  font-weight: bold;
+  pointer-events: none;
 }
 
 .mini-panel {
