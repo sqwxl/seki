@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { formatClock } from "../game/clock";
 import type { GameSettings, UserData } from "../game/types";
 import { GameStage } from "../game/types";
 import { Goban } from "../goban";
+import type { MarkerData } from "../goban/types";
 import type { ClockSnapshot, LiveGameItem } from "./game-description";
 import { UserLabel } from "./user-label";
 
@@ -19,6 +20,14 @@ export function MiniGobanCell({ game }: MiniGobanCellProps) {
   const boardState = game.board_state;
   const signMap =
     boardState?.board ?? Array.from<number>({ length: cols * rows }).fill(0);
+
+  const markerMap: (MarkerData | null)[] | undefined = useMemo(() => {
+    if (!boardState?.last_move) return undefined;
+    const [lc, lr] = boardState.last_move;
+    const map: (MarkerData | null)[] = Array(signMap.length).fill(null);
+    map[lr * cols + lc] = { type: "circle" };
+    return map;
+  }, [boardState?.last_move, cols, signMap.length]);
 
   useEffect(() => {
     const el = boardRef.current;
@@ -69,6 +78,7 @@ export function MiniGobanCell({ game }: MiniGobanCellProps) {
             rows={rows}
             vertexSize={vertexSize}
             signMap={signMap}
+            markerMap={markerMap}
           />
         ) : (
           <div class="mini-goban-placeholder" />

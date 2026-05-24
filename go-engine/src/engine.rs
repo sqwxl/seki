@@ -60,6 +60,7 @@ pub struct GameState {
     pub rows: u8,
     pub captures: Captures,
     pub ko: Option<Ko>,
+    pub last_move: Option<(i8, i8)>,
 }
 
 #[derive(Debug, Clone)]
@@ -249,6 +250,10 @@ impl Engine {
             rows: self.rows,
             captures: self.goban.captures().clone(),
             ko: self.goban.ko().clone(),
+            last_move: self.moves.iter().rev().find(|t| t.is_play()).map(|t| {
+                let (px, py) = t.pos.unwrap();
+                (px as i8, py as i8)
+            }),
         }
     }
 
@@ -641,8 +646,29 @@ mod tests {
         let json = serde_json::to_value(&gs).unwrap();
 
         assert!(json["ko"].is_null());
+        assert!(json["last_move"].is_null());
         assert_eq!(json["captures"]["black"], 0);
         assert_eq!(json["captures"]["white"], 0);
+    }
+
+    #[test]
+    fn game_state_last_move_after_play() {
+        let mut engine = Engine::new(4, 4);
+        engine.try_play(Stone::Black, (2, 3)).unwrap();
+
+        let json = serde_json::to_value(engine.game_state()).unwrap();
+        assert_eq!(json["last_move"], serde_json::json!([2, 3]));
+    }
+
+    #[test]
+    fn game_state_last_move_after_pass() {
+        let mut engine = Engine::new(4, 4);
+        engine.try_play(Stone::Black, (1, 1)).unwrap();
+        engine.try_pass(Stone::White).unwrap();
+
+        let json = serde_json::to_value(engine.game_state()).unwrap();
+        // Still points to the last actual play, not the pass
+        assert_eq!(json["last_move"], serde_json::json!([1, 1]));
     }
 
     #[test]

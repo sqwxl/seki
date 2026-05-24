@@ -1,3 +1,4 @@
+use futures_util::future::join_all;
 use serde::Serialize;
 use serde_json::json;
 use std::collections::HashMap;
@@ -154,16 +155,44 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
             .await
             .unwrap_or_default()
     };
+    // Rebuild engines for games whose cache is stale (NULL but have moves).
+    // This runs concurrently to avoid serializing many small DB round-trips.
+    let rebuild_indices: Vec<(usize, &GameWithPlayers)> = games
+        .iter()
+        .enumerate()
+        .filter(|(_, gwp)| {
+            gwp.game.cached_engine_state.is_none()
+                && counts.get(&gwp.game.id).copied().unwrap_or(0) > 0
+        })
+        .collect();
+
+    let rebuilt_states: HashMap<usize, Option<serde_json::Value>> =
+        join_all(rebuild_indices.iter().map(|(idx, gwp)| async move {
+            let state = match engine_builder::build_engine(pool, &gwp.game).await {
+                Ok(engine) => serde_json::to_value(engine.game_state()).ok(),
+                Err(_) => None,
+            };
+            (*idx, state)
+        }))
+        .await
+        .into_iter()
+        .collect();
+
     games
         .iter()
-        .map(|gwp| {
+        .enumerate()
+        .map(|(i, gwp)| {
             let mc = counts.get(&gwp.game.id).copied().map(|n| n as usize);
-            let board_state = extract_board_state_json(
-                gwp.game.cached_engine_state.as_deref(),
-                gwp.game.cols,
-                gwp.game.rows,
-                engine_builder::game_handicap(&gwp.game),
-            );
+            let board_state = if let Some(state) = rebuilt_states.get(&i) {
+                state.clone()
+            } else {
+                extract_board_state_json(
+                    gwp.game.cached_engine_state.as_deref(),
+                    gwp.game.cols,
+                    gwp.game.rows,
+                    engine_builder::game_handicap(&gwp.game),
+                )
+            };
             let clock = clock_snapshot_for_game(&gwp.game);
             LiveGameItem::from_gwp(gwp, mc, &profiles, board_state, clock)
         })

@@ -799,6 +799,7 @@ a.nav-dropdown-item {
   font-size: 0.75em;
   font-weight: bold;
   pointer-events: none;
+  z-index: 10;
 }
 
 .mini-panel {

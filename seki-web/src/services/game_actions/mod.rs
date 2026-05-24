@@ -80,6 +80,17 @@ pub(super) async fn broadcast_game_state(state: &AppState, gwp: &GameWithPlayers
         board_state,
         clock,
     );
+
+    // Keep the DB cache fresh so lobby init / game_created messages
+    // include the latest board state (including last_move marker).
+    let _ = engine_builder::cache_engine_state(
+        &state.db,
+        game_id,
+        engine,
+        engine.moves().len() as i64,
+        None,
+    )
+    .await;
 }
 
 pub(super) async fn broadcast_system_chat(

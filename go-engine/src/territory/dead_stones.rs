@@ -315,6 +315,7 @@ pub fn detect_dead_stones(goban: &Goban) -> HashSet<Point> {
         rows,
         captures: Default::default(),
         ko: None,
+        last_move: None,
     });
     let ownership = estimate_territory(&simplified_goban, &HashSet::new());
 

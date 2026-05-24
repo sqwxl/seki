@@ -26,6 +26,7 @@ export type GameState = {
   rows: number;
   captures: Captures;
   ko?: { pos: [number, number]; illegal: number } | null;
+  last_move?: [number, number] | null;
 };
 
 export type TurnData = {
