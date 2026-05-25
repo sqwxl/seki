@@ -523,7 +523,7 @@ a.nav-dropdown-item {
 }
 
 .user-label.active-turn .player-name {
-  text-decoration: underline;
+  font-weight: bold;
 }
 
 .presence-dot {
