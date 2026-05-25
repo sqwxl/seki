@@ -142,6 +142,9 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                         "bye" => {
                             bye_received = true;
                         }
+                        "ping" => {
+                            let _ = tx.send(Arc::new(json!({"kind": "pong"}).to_string()));
+                        }
                         "join_game" => {
                             if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64())
                                 && let Ok(gwp) = Game::find_with_players(&state.db, game_id).await

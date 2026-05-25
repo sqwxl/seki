@@ -28,10 +28,52 @@ let ws: WebSocket | undefined;
 window.__ws = { close: () => ws?.close() };
 
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+let pingTimeout: ReturnType<typeof setTimeout> | undefined;
 let pendingSends: string[] = [];
 
 /** Reflects whether the WebSocket is currently open. */
 export const wsConnected = signal(false);
+
+const HEALTH_CHECK_TIMEOUT_MS = 3000;
+
+/** Cancel any pending reconnect timer and connect immediately. */
+function reconnectNow() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = undefined;
+  }
+  if (pingTimeout) {
+    clearTimeout(pingTimeout);
+    pingTimeout = undefined;
+  }
+  if (ws) {
+    ws.close();
+    ws = undefined;
+  }
+  connect();
+}
+
+/**
+ * Called when the page becomes visible (tab switch, app resume, bfcache restore).
+ * Checks connection health and reconnects if needed.
+ */
+function becameVisible() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    // Not connected or socket is closing/closed — reconnect immediately.
+    // Don't wait for a throttled setTimeout that may never fire.
+    reconnectNow();
+    return;
+  }
+
+  // Socket looks open but may be half-open (OS suspended, server cleaned up).
+  // Send a ping and wait for a response.
+  ws.send(JSON.stringify({ action: "ping" }));
+  pingTimeout = setTimeout(() => {
+    pingTimeout = undefined;
+    // No response — socket is dead
+    reconnectNow();
+  }, HEALTH_CHECK_TIMEOUT_MS);
+}
 
 function ensureConnected() {
   if (!ws && !reconnectTimer) {
@@ -49,6 +91,12 @@ function connect() {
 
   ws.onopen = () => {
     wsConnected.value = true;
+
+    // Cancel any health check timeout — we're alive
+    if (pingTimeout) {
+      clearTimeout(pingTimeout);
+      pingTimeout = undefined;
+    }
 
     // Notify game handlers before re-joining so they can reset stale state
     for (const [gameId, handler] of gameHandlers) {
@@ -79,6 +127,13 @@ function connect() {
     }
 
     const kind = data.kind as string;
+
+    // Any server message confirms the connection is healthy
+    if (pingTimeout) {
+      clearTimeout(pingTimeout);
+      pingTimeout = undefined;
+    }
+
     const kindHandlers = handlers.get(kind);
 
     if (kindHandlers) {
@@ -102,6 +157,11 @@ function connect() {
 
   ws.onclose = () => {
     wsConnected.value = false;
+
+    if (pingTimeout) {
+      clearTimeout(pingTimeout);
+      pingTimeout = undefined;
+    }
 
     // Notify game handlers that we're disconnected so they can show UI feedback
     for (const [gameId, handler] of gameHandlers) {
@@ -218,6 +278,25 @@ window.addEventListener("beforeunload", () => {
     ws.send(JSON.stringify({ action: "bye" }));
   }
 });
+
+// Reconnect when the page becomes visible (tab switch, app resume on mobile).
+// Guarded: jsdom test environment may not have addEventListener on document.
+if (typeof document !== "undefined" && document.addEventListener) {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      becameVisible();
+    }
+  });
+}
+
+// Handle bfcache restore (mobile browsers may freeze the page)
+if (typeof window !== "undefined") {
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) {
+      becameVisible();
+    }
+  });
+}
 
 export {
   ensureConnected,
