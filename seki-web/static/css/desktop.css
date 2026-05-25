@@ -146,12 +146,6 @@
   .controls {
     gap: 0.5em;
 
-    button,
-    select {
-      height: 2em;
-      min-width: 2em;
-    }
-
     .analysis-toggle {
       display: inline-flex;
     }
@@ -184,6 +178,7 @@
     align-items: center;
     gap: 1em;
 
+    justify-content: center;
     > .controls-start,
     > .controls-nav,
     > .controls-middle,
@@ -192,12 +187,10 @@
     }
 
     > .controls-start {
-      flex: 1;
       justify-content: flex-end;
     }
 
     > .controls-end {
-      flex: 1;
       display: inline-flex;
       justify-content: flex-start;
     }

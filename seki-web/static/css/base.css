@@ -94,7 +94,8 @@ h2 {
   text-align: center;
 }
 
-button {
+button,
+.btn-raised {
   margin: 0;
   padding: 0.4em;
   border: 1px solid var(--border);
@@ -105,6 +106,9 @@ button {
   font-size: 0.9em;
   line-height: 1.2;
   cursor: pointer;
+}
+
+.btn-raised {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.4) inset,
     0 -1px 0 rgba(0, 0, 0, 0.08) inset,
@@ -116,16 +120,23 @@ button:hover {
 }
 
 button:active {
+  background: var(--bg);
+}
+
+button[aria-pressed="true"] {
+  background: var(--bg);
+}
+
+.btn-raised:active {
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.2) inset,
     0 1px 0 rgba(255, 255, 255, 0.1) inset;
 }
 
-button[aria-pressed="true"] {
+.btn-raised[aria-pressed="true"] {
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.2) inset,
     0 1px 0 rgba(255, 255, 255, 0.1) inset;
-  background: var(--bg);
 }
 
 button:disabled {

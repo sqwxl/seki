@@ -21,6 +21,7 @@ export function NavControls({
   return (
     <div class="controls-nav">
       <button
+        class="btn-raised"
         title="Go to start"
         disabled={nav.atStart}
         onClick={() => nav.onNavigate("start")}
@@ -28,6 +29,7 @@ export function NavControls({
         <IconPlaybackRewind />
       </button>
       <button
+        class="btn-raised"
         title="Back"
         disabled={nav.atStart}
         onClick={() => nav.onNavigate("back")}
@@ -37,8 +39,8 @@ export function NavControls({
       <button
         class={
           counterOverride
-            ? "controls-counter controls-confirm"
-            : "controls-counter"
+            ? "btn-raised controls-counter controls-confirm"
+            : "btn-raised controls-counter"
         }
         title={counterOverride?.title ?? "Go to end of main line"}
         disabled={counterOverride ? counterOverride.disabled : nav.atMainEnd}
@@ -51,6 +53,7 @@ export function NavControls({
         {counterOverride ? counterOverride.content : nav.counter}
       </button>
       <button
+        class="btn-raised"
         title="Forward"
         disabled={nav.atLatest}
         onClick={() => nav.onNavigate("forward")}
@@ -58,6 +61,7 @@ export function NavControls({
         <IconPlaybackNext />
       </button>
       <button
+        class="btn-raised"
         title="Go to latest"
         disabled={nav.atLatest}
         onClick={() => nav.onNavigate("end")}
