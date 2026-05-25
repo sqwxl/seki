@@ -13,6 +13,7 @@ A platform for playing Go (Weiqi/Baduk), built with Rust and Preact.
 | `seki-gtp`         | Bridge app to interface GTP engines (eg. KataGo) with Seki                                    |
 | `seki-api`         | Shared API types for `seki-web` and `seki-client`                                             |
 | `seki-random-bots` | QA feature that simulates an active user pool.                                                |
+| `seki-android`     | Android client (Kotlin, WebView-based)                                                        |
 
 ## Local quickstart
 
@@ -154,7 +155,7 @@ Look in `./justfile` for recipe details
 - [x] Email support (SMTP; Mailpit in local development)
 - [x] Mobile-responsive design
 - [x] PWA install support (web manifest, service worker, offline shell)
-- [ ] Android client
+- [ ] Android client (WIP — see `seki-android/`)
 - [ ] iOS client
 
 [^1]: "Seki" is a Japanese go term meaning _mutual life_. It is a situation where two groups of stones share liberties which neither player can fill without dying.

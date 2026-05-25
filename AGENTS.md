@@ -140,6 +140,10 @@ Bridge binary that connects GTP engines (e.g., KataGo) to Seki. Reads engine con
 
 QA/testing binary that simulates an active user pool. Creates accounts, joins/open games, plays random legal moves. Config via `random-bots.toml`.
 
+### seki-android
+
+Android client in `seki-android/` (not a Cargo workspace member). Kotlin, WebView-based. Wraps the Seki web app in a native Android shell with Firebase Cloud Messaging for push notifications. Built with Gradle.
+
 ### seki-web
 
 Axum 0.8 web app. Top-level modules:

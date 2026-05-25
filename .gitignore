@@ -31,12 +31,12 @@ Thumbs.db
 .specify/
 
 # Android
-seki-web/android/.gradle/
-seki-web/android/build/
-seki-web/android/app/build/
-seki-web/android/app/google-services.json
-seki-web/android/app/seki-release.keystore
-seki-web/android/local.properties
-seki-web/android/captures/
-seki-web/android/.externalNativeBuild/
+seki-android/.gradle/
+seki-android/build/
+seki-android/app/build/
+seki-android/app/google-services.json
+seki-android/app/seki-release.keystore
+seki-android/local.properties
+seki-android/captures/
+seki-android/.externalNativeBuild/
 .pi
