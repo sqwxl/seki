@@ -18,6 +18,7 @@
 
 .controls button,
 .controls select,
+.controls input[type="number"],
 .controls-menu-dropdown button,
 .controls-menu-dropdown select {
   display: inline-flex;
@@ -27,6 +28,11 @@
   font-size: 1.3em;
   height: 2.4em;
   min-width: 2.4em;
+}
+
+.controls button {
+  min-width: 2.8em;
+  border-radius: 0.8em;
 }
 
 .controls button > svg {
@@ -140,9 +146,29 @@
     order: -2;
   }
 
-  > .controls-nav,
   > .controls-middle {
     order: -1;
+  }
+}
+
+.controls-row--compact {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  column-gap: 0.75em;
+  row-gap: 0.25em;
+
+  > .controls-start,
+  > .controls-middle {
+    order: 0;
+  }
+
+  .btn-group {
+    gap: 0.25em;
+  }
+
+  .controls-counter {
+    min-width: 5ch;
   }
 }
 
@@ -155,12 +181,14 @@
   display: flex;
   gap: 0.5em;
   justify-content: center;
-  align-items: stretch;
+  align-items: center;
 }
 
 .controls button.controls-counter {
   min-width: 7ch;
+  min-height: 3.5em;
   padding: 0 0.4em;
+  border-radius: 1.25em;
 }
 
 .inline-control-group {

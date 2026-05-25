@@ -102,6 +102,7 @@ function LiveGameBottomPanel() {
 }
 
 function LiveGameControls(props: LiveGamePageProps) {
+  const compact = IS_MOBILE && mobileTab.value === "analysis";
   return (
     <Controls
       {...buildControls(liveGameControlsState.value, props.channel, props.mc, {
@@ -114,6 +115,7 @@ function LiveGameControls(props: LiveGamePageProps) {
         exitPresentation: props.exitPresentation,
         returnControl: props.returnControl,
       })}
+      compact={compact}
     />
   );
 }

@@ -15,8 +15,9 @@ import {
 export function GameControls(props: ControlsProps) {
   return (
     <>
-      {props.requestUndo && (
+      {!props.compact && props.requestUndo && (
         <button
+          class="btn-raised"
           title={props.requestUndo.title ?? "Undo"}
           disabled={props.requestUndo.disabled || props.requestUndo.pending}
           onClick={props.requestUndo.onClick}
@@ -24,7 +25,7 @@ export function GameControls(props: ControlsProps) {
           <ButtonContent pending={props.requestUndo.pending} icon={IconUndo} />
         </button>
       )}
-      {props.undoResponse ? (
+      {!props.compact && props.undoResponse ? (
         <ModalConfirmPopover
           icon={IconUndo}
           message="Opponent requests to undo their last move."
@@ -35,7 +36,7 @@ export function GameControls(props: ControlsProps) {
       ) : null}
       {props.pass && !props.confirmPass && (
         <button
-          class="btn-pass"
+          class="btn-raised btn-pass"
           title={props.pass.title ?? "Pass"}
           disabled={props.pass.disabled || props.pass.pending}
           onClick={props.pass.onClick}
@@ -53,7 +54,7 @@ export function GameControls(props: ControlsProps) {
           focusOnMount="cancel"
         />
       )}
-      {props.resign && (
+      {!props.compact && props.resign && (
         <ConfirmButton
           id="resign-btn"
           icon={IconWhiteFlag}
@@ -63,7 +64,7 @@ export function GameControls(props: ControlsProps) {
           focusOnMount="cancel"
         />
       )}
-      {props.rematch && (
+      {!props.compact && props.rematch && (
         <ConfirmButton
           id="rematch-btn"
           icon={IconRepeat}

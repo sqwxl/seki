@@ -17,6 +17,7 @@ export type ConfirmDef = {
 
 export type ControlsProps = {
   layout?: "analysis" | "analysis-review";
+  compact?: boolean;
 
   // Nav bar
   nav: {
@@ -177,7 +178,7 @@ export function ConfirmPopover({
       <div class="confirm-actions">
         <button
           ref={confirmRef}
-          class="btn-success"
+          class="btn btn-success"
           disabled={disableActions}
           onClick={() => {
             onConfirm();
@@ -187,7 +188,7 @@ export function ConfirmPopover({
         </button>
         <button
           ref={cancelRef}
-          class="btn-warn"
+          class="btn btn-warn"
           disabled={disableActions}
           onClick={() => {
             onCancel?.();
@@ -289,7 +290,7 @@ export function ConfirmButton({
       <button
         id={id}
         ref={buttonRef}
-        class={buttonClass}
+        class={buttonClass || "btn-raised"}
         title={title}
         disabled={disabled || isPending}
         onClick={() => setOpen((value) => !value)}
@@ -330,6 +331,7 @@ export function SgfImportButton({
   return (
     <>
       <button
+        class="btn-raised"
         title="Import SGF file"
         onClick={() => {
           (document.getElementById("sgf-import") as HTMLInputElement)?.click();
@@ -353,6 +355,7 @@ export function CopyInviteLinkButton({ onClick }: { onClick: () => void }) {
 
   return (
     <button
+      class="btn-raised"
       title="Copy access link"
       onClick={(e) => {
         onClick();
