@@ -132,7 +132,13 @@ export function liveGame(
   showCoordinates.value = readShowCoordinates();
 
   const mc = createMoveConfirm({
-    getSign: () => playerStone.value as Sign,
+    getSign: () => {
+      if (analysisMode.value) {
+        return (board.value?.engine.current_turn_stone() ?? 1) as Sign;
+      }
+
+      return playerStone.value as Sign;
+    },
   });
 
   moveConfirmEnabled.value = mc.enabled;
@@ -298,7 +304,26 @@ export function liveGame(
   // --- Vertex click handler ---
   function handleVertexClick(col: number, row: number): boolean {
     if (analysisMode.value) {
-      return false;
+      if (!mc.enabled) {
+        return false;
+      }
+
+      const action = handleMoveConfirmClick(
+        mc,
+        col,
+        row,
+        !!board.value?.engine.is_legal(col, row),
+      );
+
+      syncPendingMove();
+
+      if (action === "confirm") {
+        return false;
+      }
+
+      board.value?.render();
+
+      return true;
     }
 
     if (!board.value || !board.value.engine.is_at_latest()) {
@@ -401,7 +426,7 @@ export function liveGame(
 
   // --- Ghost stone getter ---
   function ghostStone() {
-    if (analysisMode.value || estimateMode.value) {
+    if (estimateMode.value) {
       return undefined;
     }
 

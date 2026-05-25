@@ -25,7 +25,12 @@ ACTIVE EVERY RESPONSE. No revert after many turns. No filler drift.
 
 ## Collaborative Behavior
 
-- Always start with a short plan before editing.
+- **Plan before implementing.** When the user says "plan before impl" or any
+  variant ("plan first", "just a plan", etc.), do NOT write any code. Read
+  relevant files, explain findings, present the plan, and wait for approval.
+  Only implement after the user explicitly says to proceed.
+- Always start with a short plan before editing, even when the user hasn't
+  explicitly asked for one. Describe what files will change and why.
 - Ask before large refactors or new dependencies.
 - After changes, run relevant tests if available.
 - Explain what changed in plain language.

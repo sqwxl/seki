@@ -2,7 +2,9 @@ import type { ControlsProps } from "../../components/controls-shared";
 import type { LiveGameControlsState } from "../../game/capabilities";
 import { buildTerritoryOverlay } from "../../game/capabilities";
 import type { GameChannel } from "../../game/channel";
+import { playStoneSound } from "../../game/sound";
 import {
+  analysisMode,
   board,
   clearGameFlashMessage,
   clearPendingAction,
@@ -356,16 +358,34 @@ export function buildControls(
 
   // --- Confirm move (ephemeral — read from mc state) ---
   if (pendingMove.value) {
-    controlsProps.confirmMove = {
-      onClick: () => {
-        if (pendingMove.value) {
-          const [col, row] = pendingMove.value;
-          mc.clear();
-          pendingMove.value = undefined;
-          channel.play(col, row);
-        }
-      },
-    };
+    if (analysisMode.value) {
+      controlsProps.confirmMove = {
+        onClick: () => {
+          if (pendingMove.value && board.value) {
+            const [col, row] = pendingMove.value;
+            mc.clear();
+            pendingMove.value = undefined;
+
+            if (board.value.engine.try_play(col, row)) {
+              playStoneSound();
+              board.value.save();
+              board.value.render();
+            }
+          }
+        },
+      };
+    } else {
+      controlsProps.confirmMove = {
+        onClick: () => {
+          if (pendingMove.value) {
+            const [col, row] = pendingMove.value;
+            mc.clear();
+            pendingMove.value = undefined;
+            channel.play(col, row);
+          }
+        },
+      };
+    }
   }
 
   return controlsProps;
