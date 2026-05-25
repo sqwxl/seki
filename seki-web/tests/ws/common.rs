@@ -104,6 +104,14 @@ async fn create_test_db() -> SqlitePool {
     seki_web::db::create_pool(&db_url).await.unwrap()
 }
 
+/// Fixed session signing key — ensures LightServer sessions work without
+/// the axum server infrastructure that normally generates the key lazily.
+fn session_signing_key() -> tower_sessions::cookie::Key {
+    static KEY: OnceLock<tower_sessions::cookie::Key> = OnceLock::new();
+    KEY.get_or_init(tower_sessions::cookie::Key::generate)
+        .clone()
+}
+
 /// A running test server with three pre-authenticated users.
 pub struct TestServer {
     pub addr: String,
@@ -147,6 +155,7 @@ impl TestServer {
             false,
             seki_web::ws::registry::GameRegistry::with_max_grace(100),
             presence,
+            None,
         )
         .await;
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -734,6 +743,269 @@ impl WsClient {
     pub async fn close(self) {
         let mut sink = self.sink;
         let _ = sink.close().await;
+    }
+}
+
+/// Lightweight in-process test server — calls the router directly via tower::ServiceExt
+/// instead of spawning a TCP listener. For HTTP-only tests that don't need WebSocket.
+pub struct LightServer {
+    pub router: axum::Router,
+    pub pool: SqlitePool,
+    pub black_id: i64,
+    pub white_id: i64,
+    pub spectator_id: i64,
+}
+
+/// Response wrapper that mimics the parts of reqwest::Response used by tests.
+pub struct LightResponse {
+    status: axum::http::StatusCode,
+    body: axum::body::Bytes,
+}
+
+impl LightResponse {
+    pub fn status(&self) -> axum::http::StatusCode {
+        self.status
+    }
+
+    pub async fn json<T: serde::de::DeserializeOwned>(self) -> Result<T, serde_json::Error> {
+        serde_json::from_slice(&self.body)
+    }
+
+    pub async fn text(self) -> Result<String, std::string::FromUtf8Error> {
+        String::from_utf8(self.body.to_vec())
+    }
+}
+
+impl LightServer {
+    pub async fn start() -> Self {
+        let pool = create_test_db().await;
+
+        let black_id: i64 =
+            sqlx::query_scalar("SELECT id FROM users WHERE username = 'test-black'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let white_id: i64 =
+            sqlx::query_scalar("SELECT id FROM users WHERE username = 'test-white'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        let spectator_id: i64 =
+            sqlx::query_scalar("SELECT id FROM users WHERE username = 'test-spectator'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+
+        let presence = seki_web::ws::presence::UserPresence::with_grace_period(
+            std::time::Duration::from_millis(0),
+        );
+        let (router, _state) = seki_web::build_router_with_registry_and_presence(
+            pool.clone(),
+            false,
+            seki_web::ws::registry::GameRegistry::with_max_grace(100),
+            presence,
+            Some(session_signing_key()),
+        )
+        .await;
+
+        LightServer {
+            router,
+            pool,
+            black_id,
+            white_id,
+            spectator_id,
+        }
+    }
+
+    pub async fn request(
+        &self,
+        method: axum::http::Method,
+        path: &str,
+        token: &str,
+        body: Option<&serde_json::Value>,
+    ) -> LightResponse {
+        use tower::ServiceExt as _;
+
+        let mut builder = axum::http::Request::builder()
+            .method(&method)
+            .uri(path)
+            .header("Authorization", format!("Bearer {token}"));
+
+        if body.is_some() {
+            builder = builder.header("Content-Type", "application/json");
+        }
+
+        let body_bytes = body.map(|b| b.to_string()).unwrap_or_default().into_bytes();
+
+        let mut req = builder.body(axum::body::Body::from(body_bytes)).unwrap();
+
+        // tower_governor needs ConnectInfo to extract a client key.
+        // In a real server, axum adds this from the TCP connection.
+        req.extensions_mut()
+            .insert(axum::extract::ConnectInfo(std::net::SocketAddr::from((
+                [127, 0, 0, 1],
+                0,
+            ))));
+
+        let resp = self.router.clone().oneshot(req).await.unwrap();
+        let status = resp.status();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+
+        LightResponse { status, body }
+    }
+
+    pub async fn create_game(&self) -> i64 {
+        let resp = self
+            .request(
+                axum::http::Method::POST,
+                "/api/games",
+                "test-black-api-token-12345",
+                Some(&json!({"cols": 9})),
+            )
+            .await;
+        assert!(
+            resp.status().is_success(),
+            "create_game failed: {}",
+            resp.status()
+        );
+        let body: Value = resp.json().await.unwrap();
+        body["id"].as_i64().expect("game id missing from response")
+    }
+
+    pub async fn create_game_with(&self, opts: Value) -> i64 {
+        let mut body = json!({"cols": 9});
+        if let Some(obj) = opts.as_object() {
+            for (k, v) in obj {
+                body[k] = v.clone();
+            }
+        }
+        if (body.get("komi").is_some()
+            || body.get("handicap").is_some()
+            || body.get("color").is_some())
+            && body.get("invite_username").is_none()
+            && body.get("invite_email").is_none()
+        {
+            body["invite_username"] = json!("test-white");
+        }
+        if (body.get("invite_username").is_some() || body.get("invite_email").is_some())
+            && body["ranked"].as_bool() != Some(true)
+        {
+            if body.get("komi").is_none() {
+                body["komi"] = json!(6.5);
+            }
+            if body.get("handicap").is_none() {
+                body["handicap"] = json!(0);
+            }
+            if body.get("color").is_none() {
+                body["color"] = json!("black");
+            }
+        }
+        if body["ranked"].as_bool() == Some(true) && body.get("time_control").is_none() {
+            body["time_control"] = json!("fischer");
+            body["main_time_secs"] = json!(600);
+            body["increment_secs"] = json!(5);
+        }
+        let resp = self
+            .request(
+                axum::http::Method::POST,
+                "/api/games",
+                "test-black-api-token-12345",
+                Some(&body),
+            )
+            .await;
+        assert!(
+            resp.status().is_success(),
+            "create_game_with failed: {}",
+            resp.status()
+        );
+        let body: Value = resp.json().await.unwrap();
+        body["id"].as_i64().expect("game id missing from response")
+    }
+
+    pub async fn join_game(&self, game_id: i64) -> Value {
+        let resp = self
+            .request(
+                axum::http::Method::POST,
+                &format!("/api/games/{game_id}/join"),
+                "test-white-api-token-67890",
+                Some(&json!({})),
+            )
+            .await;
+        assert!(
+            resp.status().is_success(),
+            "join_game failed: {}",
+            resp.status()
+        );
+        let body = resp.json().await.unwrap();
+        self.finalize_pregame_settings_if_present(game_id).await;
+        body
+    }
+
+    pub async fn create_and_join(&self) -> i64 {
+        let game_id = self.create_game().await;
+        self.join_game(game_id).await;
+        game_id
+    }
+
+    pub async fn create_and_join_with(&self, opts: Value) -> i64 {
+        let game_id = self.create_game_with(opts).await;
+        self.join_game(game_id).await;
+        game_id
+    }
+
+    async fn finalize_pregame_settings_if_present(&self, game_id: i64) {
+        let Some((handicap, komi, color)): Option<(i32, f64, String)> = sqlx::query_as(
+            "SELECT handicap, komi, color FROM pregame_setting_negotiations WHERE game_id = $1",
+        )
+        .bind(game_id)
+        .fetch_optional(&self.pool)
+        .await
+        .unwrap() else {
+            return;
+        };
+
+        let (creator_id, opponent_id): (Option<i64>, Option<i64>) =
+            sqlx::query_as("SELECT creator_id, opponent_id FROM games WHERE id = $1")
+                .bind(game_id)
+                .fetch_one(&self.pool)
+                .await
+                .unwrap();
+        let creator_id = creator_id.unwrap();
+        let opponent_id = opponent_id.unwrap();
+        let (final_black, final_white) = if color == "white" {
+            (opponent_id, creator_id)
+        } else {
+            (creator_id, opponent_id)
+        };
+        let stage = if handicap >= 2 {
+            "white_to_play"
+        } else {
+            "black_to_play"
+        };
+
+        let mut tx = self.pool.begin().await.unwrap();
+        sqlx::query(
+            "UPDATE games SET handicap = $2, komi = $3, black_id = $4, white_id = $5, \
+             nigiri = false, stage = $6, cached_engine_state = NULL, updated_at = CURRENT_TIMESTAMP \
+             WHERE id = $1",
+        )
+        .bind(game_id)
+        .bind(handicap)
+        .bind(komi)
+        .bind(final_black)
+        .bind(final_white)
+        .bind(stage)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+        sqlx::query("DELETE FROM pregame_setting_negotiations WHERE game_id = $1")
+            .bind(game_id)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
     }
 }
 

@@ -1,29 +1,31 @@
+use axum::http::Method;
 use serde_json::json;
 
-use crate::common::TestServer;
+use crate::common::LightServer;
 
 /// Play one move as black in a game where test-black is black.
-async fn play_one_move(ts: &TestServer, game_id: i64) {
+async fn play_one_move(ts: &LightServer, game_id: i64) {
     let resp = ts
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", ts.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert!(resp.status().is_success(), "play failed: {}", resp.status());
 }
 
 /// Resign the game as black via API.
-async fn resign_as_black(ts: &TestServer, game_id: i64) {
+async fn resign_as_black(ts: &LightServer, game_id: i64) {
     let resp = ts
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/resign", ts.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/resign"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     let status = resp.status();
     let body = resp.text().await.unwrap();
     assert!(
@@ -35,7 +37,7 @@ async fn resign_as_black(ts: &TestServer, game_id: i64) {
 }
 
 /// Play one move as the active player in a ranked game.
-async fn play_first_move(ts: &TestServer, game_id: i64) {
+async fn play_first_move(ts: &LightServer, game_id: i64) {
     let (black_id, white_id, stage): (Option<i64>, Option<i64>, String) =
         sqlx::query_as("SELECT black_id, white_id, stage FROM games WHERE id = $1")
             .bind(game_id)
@@ -53,18 +55,14 @@ async fn play_first_move(ts: &TestServer, game_id: i64) {
     } else {
         "test-white-api-token-67890"
     };
-    let client = if mover_id == ts.black_id {
-        &ts.client_black
-    } else {
-        &ts.client_white
-    };
-    let resp = client
-        .post(format!("http://{}/api/games/{game_id}/play", ts.addr))
-        .header("Authorization", format!("Bearer {token}"))
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+    let resp = ts
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            token,
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     let status = resp.status();
     let body = resp.text().await.unwrap();
     assert!(
@@ -76,23 +74,20 @@ async fn play_first_move(ts: &TestServer, game_id: i64) {
 }
 
 /// Resign as a specific player by their user ID.
-async fn resign_as_player(ts: &TestServer, game_id: i64, player_id: i64) {
+async fn resign_as_player(ts: &LightServer, game_id: i64, player_id: i64) {
     let token = if player_id == ts.black_id {
         "test-black-api-token-12345"
     } else {
         "test-white-api-token-67890"
     };
-    let client = if player_id == ts.black_id {
-        &ts.client_black
-    } else {
-        &ts.client_white
-    };
-    let resp = client
-        .post(format!("http://{}/api/games/{game_id}/resign", ts.addr))
-        .header("Authorization", format!("Bearer {token}"))
-        .send()
-        .await
-        .unwrap();
+    let resp = ts
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/resign"),
+            token,
+            None,
+        )
+        .await;
     let status = resp.status();
     let body = resp.text().await.unwrap();
     assert!(
@@ -106,7 +101,7 @@ async fn resign_as_player(ts: &TestServer, game_id: i64, player_id: i64) {
 /// Rematch after resignation creates a new game with same settings.
 #[tokio::test]
 async fn rematch_creates_new_game() {
-    let ts = TestServer::start().await;
+    let ts = LightServer::start().await;
     let game_id = ts.create_and_join().await;
 
     play_one_move(&ts, game_id).await;
@@ -114,13 +109,13 @@ async fn rematch_creates_new_game() {
 
     // Rematch via API — black requests rematch, no swap
     let resp = ts
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/rematch", ts.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/rematch"),
+            "test-black-api-token-12345",
+            Some(&json!({})),
+        )
+        .await;
     let status = resp.status();
     let resp_body = resp.text().await.unwrap();
     assert!(
@@ -143,7 +138,7 @@ async fn rematch_creates_new_game() {
 /// Rematch with swap_colors swaps player colors.
 #[tokio::test]
 async fn rematch_swap_colors() {
-    let ts = TestServer::start().await;
+    let ts = LightServer::start().await;
     let game_id = ts.create_and_join().await;
 
     play_one_move(&ts, game_id).await;
@@ -151,13 +146,13 @@ async fn rematch_swap_colors() {
 
     // Rematch with swap
     let resp = ts
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/rematch", ts.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"swap_colors": true}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/rematch"),
+            "test-black-api-token-12345",
+            Some(&json!({"swap_colors": true})),
+        )
+        .await;
     let status = resp.status();
     let resp_body = resp.text().await.unwrap();
     assert!(
@@ -176,7 +171,7 @@ async fn rematch_swap_colors() {
 /// Rematch of a ranked game creates a new ranked game with derived handicap/komi.
 #[tokio::test]
 async fn rematch_ranked_creates_ranked_game() {
-    let ts = TestServer::start().await;
+    let ts = LightServer::start().await;
     let game_id = ts.create_game_with(json!({"ranked": true})).await;
     ts.join_game(game_id).await;
 
@@ -184,13 +179,13 @@ async fn rematch_ranked_creates_ranked_game() {
     resign_as_player(&ts, game_id, ts.black_id).await;
 
     let resp = ts
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/rematch", ts.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/rematch"),
+            "test-black-api-token-12345",
+            Some(&json!({})),
+        )
+        .await;
     let status = resp.status();
     let resp_body = resp.text().await.unwrap();
     assert!(
@@ -233,7 +228,7 @@ async fn rematch_ranked_creates_ranked_game() {
 /// Ranked rematch ignores swap_colors — color is always determined by rating.
 #[tokio::test]
 async fn rematch_ranked_ignores_swap_colors() {
-    let ts = TestServer::start().await;
+    let ts = LightServer::start().await;
     let game_id = ts.create_game_with(json!({"ranked": true})).await;
     ts.join_game(game_id).await;
 
@@ -241,13 +236,13 @@ async fn rematch_ranked_ignores_swap_colors() {
     resign_as_player(&ts, game_id, ts.black_id).await;
 
     let resp = ts
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/rematch", ts.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"swap_colors": true}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/rematch"),
+            "test-black-api-token-12345",
+            Some(&json!({"swap_colors": true})),
+        )
+        .await;
     let status = resp.status();
     let resp_body = resp.text().await.unwrap();
     assert!(
@@ -282,7 +277,7 @@ async fn rematch_ranked_ignores_swap_colors() {
 /// Rematch of a ranked game assigns color based on rating — lower-rated gets black.
 #[tokio::test]
 async fn rematch_ranked_lower_rated_gets_black() {
-    let ts = TestServer::start().await;
+    let ts = LightServer::start().await;
 
     sqlx::query(
         "INSERT INTO rating_profiles (user_id, rating, participating) \
@@ -301,13 +296,13 @@ async fn rematch_ranked_lower_rated_gets_black() {
     resign_as_player(&ts, game_id, ts.black_id).await;
 
     let resp = ts
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/rematch", ts.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/rematch"),
+            "test-black-api-token-12345",
+            Some(&json!({})),
+        )
+        .await;
     let body: serde_json::Value = resp.json().await.unwrap();
 
     // Lower-rated player (test-black at 1300) should be black
@@ -331,7 +326,7 @@ async fn rematch_ranked_lower_rated_gets_black() {
 /// Ranked rematch creates a challenge-stage game with derived settings in the snapshot.
 #[tokio::test]
 async fn rematch_ranked_assigns_handicap() {
-    let ts = TestServer::start().await;
+    let ts = LightServer::start().await;
 
     sqlx::query(
         "INSERT INTO rating_profiles (user_id, rating, participating) \
@@ -350,13 +345,13 @@ async fn rematch_ranked_assigns_handicap() {
     resign_as_player(&ts, game_id, ts.black_id).await;
 
     let resp = ts
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/rematch", ts.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/rematch"),
+            "test-black-api-token-12345",
+            Some(&json!({})),
+        )
+        .await;
     let body: serde_json::Value = resp.json().await.unwrap();
 
     // Game is created as a challenge

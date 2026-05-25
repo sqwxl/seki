@@ -55,6 +55,7 @@ pub async fn build_router_with_presence(
         session_secure,
         ws::registry::GameRegistry::new(),
         presence,
+        None,
     )
     .await
 }
@@ -65,6 +66,7 @@ pub async fn build_router_with_registry_and_presence(
     session_secure: bool,
     registry: ws::registry::GameRegistry,
     presence: ws::presence::UserPresence,
+    session_key: Option<tower_sessions::cookie::Key>,
 ) -> (Router, AppState) {
     let session_store = SqliteStore::new(pool.clone());
     session_store
@@ -72,7 +74,9 @@ pub async fn build_router_with_registry_and_presence(
         .await
         .expect("Failed to migrate session store");
 
+    let key = session_key.unwrap_or_else(tower_sessions::cookie::Key::generate);
     let session_layer = SessionManagerLayer::new(session_store)
+        .with_private(key)
         .with_secure(session_secure)
         // TODO: Extract expiry duration to config var
         .with_expiry(Expiry::OnInactivity(Duration::days(30)));
