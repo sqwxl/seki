@@ -436,6 +436,9 @@ function App() {
     clearRouteDataCache();
     await fetchToken();
 
+    // Close WebSocket so it reconnects with the new anonymous identity.
+    window.__ws?.close();
+
     navigate("/", true);
   }
 

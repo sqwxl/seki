@@ -69,6 +69,11 @@ export function AuthFormScreen({
       await refreshSession();
       await fetchAuthToken();
 
+      // Close WebSocket so it reconnects with the new session identity.
+      // Otherwise game actions use the pre-login (anonymous) user ID and
+      // fail with "Only players can perform this action".
+      window.__ws?.close();
+
       const botUser = readUserData();
       if (botUser?.is_bot) {
         navigate(`/users/${encodeURIComponent(botUser.display_name)}`, true);
