@@ -11,7 +11,6 @@ import { PlayerPanel } from "../components/player-panel";
 import { TabBar } from "../components/tab-bar";
 import {
   liveGameControlsState,
-  liveGameMoveTreeState,
   liveGamePanelState,
   liveGameStatusState,
   type LiveGameStatusState,
@@ -36,6 +35,7 @@ import {
   hasUnreadChat,
   initialProps,
   isPendingAction,
+  mobileTab,
   moves,
   nigiri,
   onlineUsers,
@@ -344,12 +344,16 @@ function LiveGameStatusSlot(
   );
 }
 
+const IS_MOBILE =
+  typeof window !== "undefined" &&
+  window.matchMedia("(max-width: 767px)").matches;
+
 function LiveGameMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
-  const showMoveTree = liveGameMoveTreeState.value.showMoveTree;
+  const visible = !IS_MOBILE || mobileTab.value === "analysis";
 
   return (
     <div
-      class={`move-tree-slot${!showMoveTree ? " hidden" : ""}`}
+      class={`move-tree-slot${!visible ? " hidden" : ""}`}
       ref={(el) => {
         if (el && !el.contains(moveTreeEl)) {
           el.appendChild(moveTreeEl);

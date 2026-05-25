@@ -1,9 +1,5 @@
 import { signal } from "@preact/signals";
-import {
-  moveConfirmEnabled,
-  showCoordinates,
-  showMoveTree,
-} from "../game/state";
+import { moveConfirmEnabled, showCoordinates } from "../game/state";
 import type { UserPreferences } from "../game/types";
 import { readUserData } from "../game/util";
 import { readMoveConfirmation } from "./move-confirm";
@@ -13,7 +9,6 @@ import {
   NOTIFICATIONS,
   RATING_DISPLAY,
   SHOW_COORDINATES,
-  SHOW_MOVE_TREE,
   storage,
   THEME,
 } from "./storage";
@@ -64,10 +59,6 @@ export function initPreferences(): void {
     storage.set(SHOW_COORDINATES, String(serverPrefs.show_coordinates));
   }
 
-  if (serverPrefs.show_move_tree != null) {
-    storage.set(SHOW_MOVE_TREE, String(serverPrefs.show_move_tree));
-  }
-
   if (serverPrefs.notifications != null) {
     storage.set(NOTIFICATIONS, serverPrefs.notifications);
   }
@@ -83,7 +74,6 @@ export function initPreferences(): void {
 
   // Refresh signals from updated localStorage
   showCoordinates.value = storage.get(SHOW_COORDINATES) === "true";
-  showMoveTree.value = storage.get(SHOW_MOVE_TREE) === "true";
   moveConfirmEnabled.value = readMoveConfirmation();
 }
 

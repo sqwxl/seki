@@ -54,7 +54,6 @@ export type UserPreferences = {
   rating_participating?: boolean;
   move_confirmation?: boolean;
   show_coordinates?: boolean;
-  show_move_tree?: boolean;
   notifications?: string;
   notify_your_turn_app?: boolean;
   notify_your_turn_email?: boolean;

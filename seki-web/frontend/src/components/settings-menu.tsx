@@ -3,7 +3,6 @@ import {
   board,
   moveConfirmEnabled,
   showCoordinates,
-  showMoveTree,
   soundEnabled,
 } from "../game/state";
 import { readUserData } from "../game/util";
@@ -11,12 +10,7 @@ import { analysisBoard } from "../layouts/analysis-state";
 import { toggleShowCoordinates } from "../utils/coord-toggle";
 import { ratingDisplayPreference, savePref } from "../utils/preferences";
 import type { RatingDisplayMode } from "../utils/rating";
-import {
-  MOVE_CONFIRMATION,
-  SHOW_MOVE_TREE,
-  SOUND_ENABLED,
-  storage,
-} from "../utils/storage";
+import { MOVE_CONFIRMATION, SOUND_ENABLED, storage } from "../utils/storage";
 import {
   cycleTheme,
   getThemeIcon,
@@ -51,15 +45,6 @@ function handleMoveConfirmToggle() {
   moveConfirmEnabled.value = next;
   storage.set(MOVE_CONFIRMATION, String(next));
   savePref("move_confirmation", next);
-}
-
-function handleMoveTreeToggle() {
-  const next = !showMoveTree.value;
-  showMoveTree.value = next;
-  storage.set(SHOW_MOVE_TREE, String(next));
-  savePref("show_move_tree", next);
-  board.value?.render();
-  analysisBoard.value?.render();
 }
 
 function handleSoundToggle() {
@@ -100,11 +85,6 @@ export function SettingsDropdownContent({
             on={showCoordinates.value}
             label="Coordinates"
             onToggle={handleCoordsToggle}
-          />
-          <ToggleButton
-            on={showMoveTree.value}
-            label="Move tree"
-            onToggle={handleMoveTreeToggle}
           />
           <ToggleButton
             on={soundEnabled.value}

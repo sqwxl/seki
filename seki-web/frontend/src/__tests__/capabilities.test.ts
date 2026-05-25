@@ -38,7 +38,6 @@ import {
   presenterId,
   result,
   settledTerritory,
-  showMoveTree,
   territory,
   undoRequest,
   white,
@@ -132,7 +131,6 @@ function resetAllSignals() {
       boardLastMoveWasPass: false,
     };
     estimateScore.value = undefined;
-    showMoveTree.value = false;
     moveConfirmEnabled.value = false;
     hasUnreadChat.value = false;
     presentationActive.value = false;
@@ -1397,11 +1395,6 @@ describe("chat and misc", () => {
   it("hasUnreadChat reflects signal", () => {
     hasUnreadChat.value = true;
     expect(caps().hasUnreadChat).toBe(true);
-  });
-
-  it("showMoveTree reflects signal", () => {
-    showMoveTree.value = true;
-    expect(caps().showMoveTree).toBe(true);
   });
 });
 

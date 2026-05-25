@@ -4,12 +4,7 @@ import type { Board } from "../goban/create-board";
 import type { Point } from "../goban/types";
 import { activeFlashMessage, clearFlash, setFlash } from "../utils/flash";
 import { readMoveConfirmation } from "../utils/move-confirm";
-import {
-  SHOW_COORDINATES,
-  SHOW_MOVE_TREE,
-  SOUND_ENABLED,
-  storage,
-} from "../utils/storage";
+import { SHOW_COORDINATES, SOUND_ENABLED, storage } from "../utils/storage";
 import type {
   GameStage,
   GameState,
@@ -163,7 +158,6 @@ export const estimateScore = signal<ScoreData | undefined>(undefined);
 export const boardFinalized = signal(false);
 export const boardFinalizedScore = signal<ScoreData | undefined>(undefined);
 export const boardReviewing = signal(false);
-export const showMoveTree = signal(storage.get(SHOW_MOVE_TREE) === "true");
 export const showCoordinates = signal(storage.get(SHOW_COORDINATES) === "true");
 export const soundEnabled = signal(storage.get(SOUND_ENABLED) !== "false");
 export const moveConfirmEnabled = signal(readMoveConfirmation());

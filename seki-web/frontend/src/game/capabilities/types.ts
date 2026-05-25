@@ -82,9 +82,6 @@ export type UiCapabilities = {
   statusText: string;
   presentationStatusSuffix: string;
 
-  // Move tree
-  showMoveTree: boolean;
-
   // Chat
   showChat: boolean;
   hasUnreadChat: boolean;
@@ -151,8 +148,6 @@ export type LiveGameStatusState = Pick<
   | "lobbyPopover"
   | "showInviteLink"
 >;
-
-export type LiveGameMoveTreeState = Pick<UiCapabilities, "showMoveTree">;
 
 // ---------------------------------------------------------------------------
 // Helpers

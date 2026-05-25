@@ -16,7 +16,6 @@ import {
   isAnalysisCapablePhase,
 } from "./build-overlay";
 import { liveGameControlsState } from "./controls";
-import { liveGameMoveTreeState } from "./move-tree";
 import { liveGamePanelState } from "./panels";
 import { liveGameStatusState } from "./status";
 import type { UiCapabilities } from "./types";
@@ -60,8 +59,6 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     showGhostStone: !inAnalysis && !inEstimate && moveConfirmEnabled.value,
     territoryOverlay: deriveTerritoryOverlay(phase, stage, terr, settled),
     boardAspectRatio: `${gameState.value.cols}/${gameState.value.rows}`,
-
-    ...liveGameMoveTreeState.value,
 
     showChat: true,
     hasUnreadChat: hasUnreadChat.value,
