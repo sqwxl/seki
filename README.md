@@ -8,7 +8,7 @@ A platform for playing Go (Weiqi/Baduk), built with Rust and Preact.
 | ------------------ | --------------------------------------------------------------------------------------------- |
 | `go-engine`        | Pure game logic library (board state, rules, scoring, SGF, game tree)                         |
 | `go-engine-wasm`   | Thin wasm-bindgen shell for browser use                                                       |
-| `seki-web`         | Server and web client. Axum (routes, models, services, WebSocket, templates, Preact frontend) |
+| `seki-web`         | Server and web client. Axum (routes, models, services, WebSocket, views, Preact frontend) |
 | `seki-client`      | HTTP + WS client                                                                              |
 | `seki-gtp`         | Bridge app to interface GTP engines (eg. KataGo) with Seki                                    |
 | `seki-api`         | Shared API types for `seki-web` and `seki-client`                                             |
