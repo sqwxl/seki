@@ -38,11 +38,14 @@ if [[ ! -f "$ENV_FILE" ]]; then
     VAPID_PUBLIC_KEY="$(openssl ec -in "$VAPID_PRIVATE_PEM" -pubout -outform DER | tail -c 65 | base64 | tr -d '=' | tr '/+' '_-')"
     rm -f "$VAPID_PRIVATE_PEM"
 
+    APP_CREDENTIAL_SECRET="$(openssl rand -base64 48 | tr -d '\n')"
+
     cat >"$ENV_FILE" <<EOF
 DATABASE_URL=sqlite://$DATA_DIR/seki.db
 PORT=3000
 BASE_URL=https://pi.basilisk-aeolian.ts.net
 ENVIRONMENT=production
+APP_CREDENTIAL_SECRET=$APP_CREDENTIAL_SECRET
 VAPID_PRIVATE_KEY=$VAPID_PRIVATE_KEY
 VAPID_PUBLIC_KEY=$VAPID_PUBLIC_KEY
 EOF

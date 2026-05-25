@@ -91,16 +91,29 @@ pub async fn build_router_with_registry_and_presence(
         .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string());
     let static_dir_path = PathBuf::from(&static_dir);
 
-    let jwt_secret = std::env::var("APP_CREDENTIAL_SECRET").unwrap_or_else(|_| {
-        use rand::distr::Alphanumeric;
-        let mut rng = rand::rng();
-        let s: String = (&mut rng)
-            .sample_iter(&Alphanumeric)
-            .take(64)
-            .map(char::from)
-            .collect();
-        s
-    });
+    let jwt_secret = if let Ok(secret) = std::env::var("APP_CREDENTIAL_SECRET") {
+        secret
+    } else {
+        // Load persisted secret from DB, or generate and store on first boot
+        let secret = crate::models::server_config::load_jwt_secret(&pool)
+            .await
+            .expect("Failed to load JWT secret from DB")
+            .unwrap_or_else(|| {
+                use rand::distr::Alphanumeric;
+                let mut rng = rand::rng();
+                let s: String = (&mut rng)
+                    .sample_iter(&Alphanumeric)
+                    .take(64)
+                    .map(char::from)
+                    .collect();
+                s
+            });
+        // Persist on first boot (ON CONFLICT upsert is idempotent on restarts)
+        crate::models::server_config::store_jwt_secret(&pool, &secret)
+            .await
+            .expect("Failed to store JWT secret in DB");
+        secret
+    };
 
     let state = AppState {
         db: pool,

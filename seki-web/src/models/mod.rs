@@ -6,6 +6,7 @@ pub mod message;
 pub mod pregame_settings;
 pub mod push_destination;
 pub mod rating;
+pub mod server_config;
 pub mod turn;
 pub mod user;
 pub mod vapid_config;
