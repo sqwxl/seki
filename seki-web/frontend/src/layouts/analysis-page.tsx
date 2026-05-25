@@ -205,7 +205,10 @@ function AnalysisBottomPanel() {
 
 function AnalysisControlsSlot(props: AnalysisPageProps) {
   const caps = analysisCapabilities.value;
-  return <Controls {...buildAnalysisControls(caps, props)} />;
+  const compact =
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 767px)").matches;
+  return <Controls {...buildAnalysisControls(caps, props)} compact={compact} />;
 }
 
 function AnalysisMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {

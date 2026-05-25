@@ -34,7 +34,7 @@ function TabIcon({ id }: { id: Tab }) {
   return null;
 }
 
-function ControlsMenu({ controls }: { controls: ControlsProps }) {
+export function ControlsMenu({ controls }: { controls: ControlsProps }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 

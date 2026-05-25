@@ -2,6 +2,7 @@ import { type ControlsProps } from "../components/controls-shared";
 import { GameControls } from "../components/game-controls";
 import { IconCheck, IconX } from "../components/icons";
 import { NavControls } from "../components/nav-controls";
+import { ControlsMenu } from "../components/tab-bar";
 import { UIControls } from "../components/ui-controls";
 
 export function Controls(props: ControlsProps) {
@@ -54,7 +55,11 @@ export function Controls(props: ControlsProps) {
         <GameControls {...props} />
       </span>
       <span class="btn-group controls-end">
-        <UIControls {...props} />
+        {props.compact ? (
+          <ControlsMenu controls={props} />
+        ) : (
+          <UIControls {...props} />
+        )}
       </span>
     </div>
   );
