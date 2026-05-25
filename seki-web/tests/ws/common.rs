@@ -817,6 +817,29 @@ impl LightServer {
         }
     }
 
+    fn build_request(
+        &self,
+        method: axum::http::Method,
+        path: &str,
+        body: Option<&serde_json::Value>,
+    ) -> axum::http::Request<axum::body::Body> {
+        let mut builder = axum::http::Request::builder().method(&method).uri(path);
+
+        if body.is_some() {
+            builder = builder.header("Content-Type", "application/json");
+        }
+
+        let body_bytes = body.map(|b| b.to_string()).unwrap_or_default().into_bytes();
+        let mut req = builder.body(axum::body::Body::from(body_bytes)).unwrap();
+
+        req.extensions_mut()
+            .insert(axum::extract::ConnectInfo(std::net::SocketAddr::from((
+                [127, 0, 0, 1],
+                0,
+            ))));
+        req
+    }
+
     pub async fn request(
         &self,
         method: axum::http::Method,
@@ -854,6 +877,30 @@ impl LightServer {
             .unwrap();
 
         LightResponse { status, body }
+    }
+
+    /// Send a request without an Authorization header (for public endpoints).
+    pub async fn request_no_auth(
+        &self,
+        method: axum::http::Method,
+        path: &str,
+        body: Option<&serde_json::Value>,
+    ) -> LightResponse {
+        use tower::ServiceExt as _;
+
+        let req = self.build_request(method, path, body);
+        let resp = self.router.clone().oneshot(req).await.unwrap();
+        let status = resp.status();
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+
+        LightResponse { status, body }
+    }
+
+    pub async fn create_challenge(&self) -> i64 {
+        self.create_game_with(json!({"invite_username": "test-white"}))
+            .await
     }
 
     pub async fn create_game(&self) -> i64 {
@@ -1007,6 +1054,116 @@ impl LightServer {
             .unwrap();
         tx.commit().await.unwrap();
     }
+
+    pub async fn enter_territory_review(&self) -> i64 {
+        let game_id = self.create_and_join().await;
+
+        let resp = self
+            .request(
+                axum::http::Method::POST,
+                &format!("/api/games/{game_id}/pass"),
+                "test-black-api-token-12345",
+                None,
+            )
+            .await;
+        assert!(
+            resp.status().is_success(),
+            "black pass failed: {}",
+            resp.status()
+        );
+
+        let resp = self
+            .request(
+                axum::http::Method::POST,
+                &format!("/api/games/{game_id}/pass"),
+                "test-white-api-token-67890",
+                None,
+            )
+            .await;
+        assert!(
+            resp.status().is_success(),
+            "white pass failed: {}",
+            resp.status()
+        );
+
+        game_id
+    }
+
+    pub async fn create_private_game(&self) -> i64 {
+        self.create_game_with(json!({"is_private": true})).await
+    }
+
+    pub async fn get_access_token(&self, game_id: i64) -> String {
+        sqlx::query_scalar::<_, String>("SELECT access_token FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap()
+    }
+
+    pub async fn get_invite_token(&self, game_id: i64) -> String {
+        sqlx::query_scalar::<_, String>("SELECT invite_token FROM games WHERE id = $1")
+            .bind(game_id)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap()
+    }
+
+    pub async fn make_game_invite_only(&self, game_id: i64, invite_token: &str) {
+        sqlx::query("UPDATE games SET invite_only = true, invite_token = $2 WHERE id = $1")
+            .bind(game_id)
+            .bind(invite_token)
+            .execute(&self.pool)
+            .await
+            .unwrap();
+    }
+
+    pub async fn try_create_game_with(&self, opts: Value) -> LightResponse {
+        let mut body = json!({"cols": 9});
+        if let Some(obj) = opts.as_object() {
+            for (k, v) in obj {
+                body[k] = v.clone();
+            }
+        }
+        if (body.get("komi").is_some()
+            || body.get("handicap").is_some()
+            || body.get("color").is_some())
+            && body.get("invite_username").is_none()
+            && body.get("invite_email").is_none()
+        {
+            body["invite_username"] = json!("test-white");
+        }
+        if (body.get("invite_username").is_some() || body.get("invite_email").is_some())
+            && body["ranked"].as_bool() != Some(true)
+        {
+            if body.get("komi").is_none() {
+                body["komi"] = json!(6.5);
+            }
+            if body.get("handicap").is_none() {
+                body["handicap"] = json!(0);
+            }
+            if body.get("color").is_none() {
+                body["color"] = json!("black");
+            }
+        }
+        if body["ranked"].as_bool() == Some(true) && body.get("time_control").is_none() {
+            body["time_control"] = json!("fischer");
+            body["main_time_secs"] = json!(600);
+            body["increment_secs"] = json!(5);
+        }
+        self.request(
+            axum::http::Method::POST,
+            "/api/games",
+            "test-black-api-token-12345",
+            Some(&body),
+        )
+        .await
+    }
+}
+
+pub async fn light_api_error_message(resp: LightResponse) -> String {
+    let body: Value = resp.json().await.unwrap();
+    body["error"]["message"].as_str().unwrap().to_string()
 }
 
 pub async fn api_error_message(resp: reqwest::Response) -> String {

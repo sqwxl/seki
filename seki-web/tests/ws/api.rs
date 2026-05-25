@@ -1,6 +1,7 @@
+use axum::http::Method;
 use serde_json::{Value, json};
 
-use crate::common::TestServer;
+use crate::common::{LightServer, TestServer};
 
 fn assert_api_error(body: &Value, code: &str) -> String {
     assert_eq!(
@@ -19,15 +20,12 @@ fn assert_api_error(body: &Value, code: &str) -> String {
 
 #[tokio::test]
 async fn list_games_returns_public_games() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // No games yet
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request_no_auth(Method::GET, "/api/games", None)
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Vec<Value> = resp.json().await.unwrap();
     assert!(body.is_empty());
@@ -36,11 +34,8 @@ async fn list_games_returns_public_games() {
     server.create_game().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request_no_auth(Method::GET, "/api/games", None)
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Vec<Value> = resp.json().await.unwrap();
     assert!(!body.is_empty());
@@ -48,29 +43,27 @@ async fn list_games_returns_public_games() {
 
 #[tokio::test]
 async fn list_games_no_auth_required() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
-    // No auth header at all
-    let resp = reqwest::Client::new()
-        .get(format!("http://{}/api/games", server.addr))
-        .send()
-        .await
-        .unwrap();
+    let resp = server
+        .request_no_auth(Method::GET, "/api/games", None)
+        .await;
     assert_eq!(resp.status(), 200);
 }
 
 #[tokio::test]
 async fn get_game_returns_game_state() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_game().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/{game_id}", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            &format!("/api/games/{game_id}"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["id"], game_id);
@@ -81,27 +74,27 @@ async fn get_game_returns_game_state() {
 
 #[tokio::test]
 async fn get_game_no_auth_for_public_game() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_game().await;
 
-    let resp = reqwest::Client::new()
-        .get(format!("http://{}/api/games/{game_id}", server.addr))
-        .send()
-        .await
-        .unwrap();
+    let resp = server
+        .request_no_auth(Method::GET, &format!("/api/games/{game_id}"), None)
+        .await;
     assert_eq!(resp.status(), 200);
 }
 
 #[tokio::test]
 async fn get_game_404_for_nonexistent() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/99999", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            "/api/games/99999",
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 404);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(assert_api_error(&body, "not_found"), "Record not found");
@@ -109,18 +102,17 @@ async fn get_game_404_for_nonexistent() {
 
 #[tokio::test]
 async fn get_messages_returns_empty_initially() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_game().await;
 
     let resp = server
-        .client_black
-        .get(format!(
-            "http://{}/api/games/{game_id}/messages",
-            server.addr
-        ))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            &format!("/api/games/{game_id}/messages"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Vec<Value> = resp.json().await.unwrap();
     assert!(body.is_empty());
@@ -128,28 +120,32 @@ async fn get_messages_returns_empty_initially() {
 
 #[tokio::test]
 async fn get_messages_404_for_nonexistent_game() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/99999/messages", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            "/api/games/99999/messages",
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 404);
 }
 
 #[tokio::test]
 async fn get_turns_returns_empty_initially() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_game().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/{game_id}/turns", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            &format!("/api/games/{game_id}/turns"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Vec<Value> = resp.json().await.unwrap();
     assert!(body.is_empty());
@@ -157,27 +153,26 @@ async fn get_turns_returns_empty_initially() {
 
 #[tokio::test]
 async fn get_turns_404_for_nonexistent_game() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/99999/turns", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            "/api/games/99999/turns",
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 404);
 }
 
 #[tokio::test]
 async fn get_user_returns_profile() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/users/test-black", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request_no_auth(Method::GET, "/api/users/test-black", None)
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["username"], "test-black");
@@ -186,14 +181,11 @@ async fn get_user_returns_profile() {
 
 #[tokio::test]
 async fn get_user_404_for_nonexistent() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/users/nonexistent-user", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request_no_auth(Method::GET, "/api/users/nonexistent-user", None)
+        .await;
     assert_eq!(resp.status(), 404);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(assert_api_error(&body, "not_found"), "User not found");
@@ -201,15 +193,12 @@ async fn get_user_404_for_nonexistent() {
 
 #[tokio::test]
 async fn get_user_games_returns_list() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // No games yet
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/users/test-black/games", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request_no_auth(Method::GET, "/api/users/test-black/games", None)
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Vec<Value> = resp.json().await.unwrap();
     assert!(body.is_empty());
@@ -218,11 +207,8 @@ async fn get_user_games_returns_list() {
     server.create_game().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/users/test-black/games", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request_no_auth(Method::GET, "/api/users/test-black/games", None)
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Vec<Value> = resp.json().await.unwrap();
     assert_eq!(body.len(), 1);
@@ -230,17 +216,11 @@ async fn get_user_games_returns_list() {
 
 #[tokio::test]
 async fn get_user_games_404_for_nonexistent_user() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .get(format!(
-            "http://{}/api/users/nonexistent-user/games",
-            server.addr
-        ))
-        .send()
-        .await
-        .unwrap();
+        .request_no_auth(Method::GET, "/api/users/nonexistent-user/games", None)
+        .await;
     assert_eq!(resp.status(), 404);
 }
 
@@ -250,15 +230,11 @@ async fn get_user_games_404_for_nonexistent_user() {
 
 #[tokio::test]
 async fn get_me_returns_current_user() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/me", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(Method::GET, "/api/me", "test-black-api-token-12345", None)
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["username"], "test-black");
@@ -267,16 +243,16 @@ async fn get_me_returns_current_user() {
 
 #[tokio::test]
 async fn create_game_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"cols": 9}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            "/api/games",
+            "test-black-api-token-12345",
+            Some(&json!({"cols": 9})),
+        )
+        .await;
     assert_eq!(resp.status(), 201, "create_game should return 201 Created");
     let body: Value = resp.json().await.unwrap();
     assert!(body["id"].is_i64());
@@ -291,22 +267,22 @@ async fn create_game_via_api() {
 
 #[tokio::test]
 async fn create_random_challenge_leaves_colors_unset_until_accept() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({
-            "cols": 9,
-            "invite_username": "test-white",
-            "komi": 6.5,
-            "handicap": 0,
-            "color": "random",
-        }))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            "/api/games",
+            "test-black-api-token-12345",
+            Some(&json!({
+                "cols": 9,
+                "invite_username": "test-white",
+                "komi": 6.5,
+                "handicap": 0,
+                "color": "random",
+            })),
+        )
+        .await;
     assert_eq!(resp.status(), 201);
     let body: Value = resp.json().await.unwrap();
     let game_id = body["id"].as_i64().expect("game id missing from response");
@@ -326,12 +302,13 @@ async fn create_random_challenge_leaves_colors_unset_until_accept() {
     assert_eq!(stage, "challenge");
 
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/accept"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 200);
 
     let (black_id, white_id, stage): (Option<i64>, Option<i64>, String) =
@@ -348,68 +325,72 @@ async fn create_random_challenge_leaves_colors_unset_until_accept() {
 
 #[tokio::test]
 async fn delete_unstarted_game() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_game().await;
 
     let resp = server
-        .client_black
-        .delete(format!("http://{}/api/games/{game_id}", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::DELETE,
+            &format!("/api/games/{game_id}"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(resp.status().is_success());
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["deleted"], true);
 
     // Verify game is gone
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/{game_id}", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            &format!("/api/games/{game_id}"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 404);
 }
 
 #[tokio::test]
 async fn delete_game_only_by_creator() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_game().await;
 
-    // White (not creator) tries to delete
     let resp = server
-        .client_white
-        .delete(format!("http://{}/api/games/{game_id}", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::DELETE,
+            &format!("/api/games/{game_id}"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 422);
 }
 
 #[tokio::test]
 async fn delete_started_game_fails() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
     // Play a move so the game is started (started_at is set on first move)
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
 
     let resp = server
-        .client_black
-        .delete(format!("http://{}/api/games/{game_id}", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::DELETE,
+            &format!("/api/games/{game_id}"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 422);
     let body: Value = resp.json().await.unwrap();
     assert!(assert_api_error(&body, "validation_error").contains("started"));
@@ -417,17 +398,17 @@ async fn delete_started_game_fails() {
 
 #[tokio::test]
 async fn join_game_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_game().await;
 
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/join", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .json(&json!({}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/join"),
+            "test-white-api-token-67890",
+            Some(&json!({})),
+        )
+        .await;
     assert!(resp.status().is_success());
     let body: Value = resp.json().await.unwrap();
     assert!(body["opponent"].is_object());
@@ -438,18 +419,17 @@ async fn join_game_via_api() {
 
 #[tokio::test]
 async fn play_move_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
-    // Black plays first move
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 2, "row": 2}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 2, "row": 2})),
+        )
+        .await;
     assert!(resp.status().is_success());
     let body: Value = resp.json().await.unwrap();
     assert!(body["state"].is_object());
@@ -457,41 +437,43 @@ async fn play_move_via_api() {
 
 #[tokio::test]
 async fn pass_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/pass", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/pass"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(resp.status().is_success());
 }
 
 #[tokio::test]
 async fn resign_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
     // Play a move first (can't resign before first move)
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
 
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/resign", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/resign"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(resp.status().is_success());
     let body: Value = resp.json().await.unwrap();
     assert!(body["result"].is_string());
@@ -499,16 +481,17 @@ async fn resign_via_api() {
 
 #[tokio::test]
 async fn abort_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_game().await;
 
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/abort", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/abort"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(resp.status().is_success());
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["status"], "aborted");
@@ -516,29 +499,29 @@ async fn abort_via_api() {
 
 #[tokio::test]
 async fn request_undo_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server
         .create_and_join_with(json!({"allow_undo": true}))
         .await;
 
     // Play a move first
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
 
-    // Black requests undo (it's now white's turn, black can request undo of their last move)
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/undo", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/undo"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_success(),
         "undo request failed: {}",
@@ -550,41 +533,38 @@ async fn request_undo_via_api() {
 
 #[tokio::test]
 async fn respond_to_undo_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server
         .create_and_join_with(json!({"allow_undo": true}))
         .await;
 
     // Play a move, then request undo
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
 
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/undo", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/undo"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
 
-    // White accepts
     let resp = server
-        .client_white
-        .post(format!(
-            "http://{}/api/games/{game_id}/undo/respond",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .json(&json!({"response": "accept"}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/undo/respond"),
+            "test-white-api-token-67890",
+            Some(&json!({"response": "accept"})),
+        )
+        .await;
     assert!(
         resp.status().is_success(),
         "undo respond failed: {}",
@@ -594,74 +574,65 @@ async fn respond_to_undo_via_api() {
 
 #[tokio::test]
 async fn respond_to_undo_reject() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server
         .create_and_join_with(json!({"allow_undo": true}))
         .await;
 
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
 
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/undo", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/undo"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
 
-    // Invalid response value
     let resp = server
-        .client_white
-        .post(format!(
-            "http://{}/api/games/{game_id}/undo/respond",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .json(&json!({"response": "maybe"}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/undo/respond"),
+            "test-white-api-token-67890",
+            Some(&json!({"response": "maybe"})),
+        )
+        .await;
     assert_eq!(resp.status(), 422);
 }
 
 #[tokio::test]
 async fn send_and_get_chat_messages() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_game().await;
 
-    // Send a message
     let resp = server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/messages",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"text": "Hello!"}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/messages"),
+            "test-black-api-token-12345",
+            Some(&json!({"text": "Hello!"})),
+        )
+        .await;
     assert!(resp.status().is_success());
     let msg: Value = resp.json().await.unwrap();
     assert_eq!(msg["text"], "Hello!");
 
-    // Get messages
     let resp = server
-        .client_black
-        .get(format!(
-            "http://{}/api/games/{game_id}/messages",
-            server.addr
-        ))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            &format!("/api/games/{game_id}/messages"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Vec<Value> = resp.json().await.unwrap();
     assert_eq!(body.len(), 1);
@@ -670,34 +641,35 @@ async fn send_and_get_chat_messages() {
 
 #[tokio::test]
 async fn get_turns_after_moves() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
-    // Play two moves
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 2, "row": 2}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 2, "row": 2})),
+        )
+        .await;
 
     server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .json(&json!({"col": 6, "row": 6}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-white-api-token-67890",
+            Some(&json!({"col": 6, "row": 6})),
+        )
+        .await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/{game_id}/turns", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            &format!("/api/games/{game_id}/turns"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 200);
     let body: Vec<Value> = resp.json().await.unwrap();
     assert_eq!(body.len(), 2);
@@ -711,39 +683,35 @@ async fn get_turns_after_moves() {
 
 #[tokio::test]
 async fn rematch_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
-    // Play a move and resign to finish the game
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
 
     server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/resign", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/resign"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
 
-    // Rematch
     let resp = server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/rematch",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/rematch"),
+            "test-black-api-token-12345",
+            Some(&json!({})),
+        )
+        .await;
     assert!(
         resp.status().is_success(),
         "rematch failed: {}",
@@ -756,20 +724,17 @@ async fn rematch_via_api() {
 
 #[tokio::test]
 async fn rematch_unfinished_game_fails() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
     let resp = server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/rematch",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/rematch"),
+            "test-black-api-token-12345",
+            Some(&json!({})),
+        )
+        .await;
     assert_eq!(resp.status(), 422);
 }
 
@@ -779,46 +744,34 @@ async fn rematch_unfinished_game_fails() {
 
 #[tokio::test]
 async fn missing_auth_returns_401() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
-    // Endpoints that require auth
-    let endpoints = vec![
-        ("POST", format!("http://{}/api/games", server.addr)),
-        ("GET", format!("http://{}/api/me", server.addr)),
-    ];
+    let resp = server
+        .request_no_auth(
+            Method::POST,
+            "/api/games",
+            Some(&json!({"cols": 9, "rows": 9})),
+        )
+        .await;
+    assert_eq!(resp.status(), 401);
+    let body: Value = resp.json().await.unwrap();
+    assert!(body["error"]["message"].is_string());
+    assert_eq!(body["error"]["code"], "unauthorized");
 
-    let client = reqwest::Client::new();
-    for (method, url) in endpoints {
-        let resp = match method {
-            "POST" => client
-                .post(&url)
-                .json(&json!({"cols": 9, "rows": 9}))
-                .send()
-                .await
-                .unwrap(),
-            _ => client.get(&url).send().await.unwrap(),
-        };
-        assert_eq!(resp.status(), 401, "Expected 401 for {method} {url}");
-        let body: Value = resp.json().await.unwrap();
-        assert!(
-            body["error"]["message"].is_string(),
-            "Expected JSON error body for {method} {url}"
-        );
-        assert_eq!(body["error"]["code"], "unauthorized");
-    }
+    let resp = server.request_no_auth(Method::GET, "/api/me", None).await;
+    assert_eq!(resp.status(), 401);
+    let body: Value = resp.json().await.unwrap();
+    assert!(body["error"]["message"].is_string());
+    assert_eq!(body["error"]["code"], "unauthorized");
 }
 
 #[tokio::test]
 async fn invalid_token_returns_401() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/me", server.addr))
-        .header("Authorization", "Bearer invalid-token-000")
-        .send()
-        .await
-        .unwrap();
+        .request(Method::GET, "/api/me", "invalid-token-000", None)
+        .await;
     assert_eq!(resp.status(), 401);
     let body: Value = resp.json().await.unwrap();
     assert_eq!(assert_api_error(&body, "unauthorized"), "Invalid API token");
@@ -826,18 +779,17 @@ async fn invalid_token_returns_401() {
 
 #[tokio::test]
 async fn wrong_turn_returns_error() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
-    // White tries to play first (it's black's turn)
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-white-api-token-67890",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Expected client error for wrong turn, got {}",
@@ -847,47 +799,48 @@ async fn wrong_turn_returns_error() {
 
 #[tokio::test]
 async fn non_player_cannot_play() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
-    // Spectator tries to play
     let resp = server
-        .client_spectator
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-spectator-api-token-99999")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-spectator-api-token-99999",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert!(resp.status().is_client_error());
 }
 
 #[tokio::test]
 async fn play_on_nonexistent_game_returns_404() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/99999/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            "/api/games/99999/play",
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert_eq!(resp.status(), 404);
 }
 
 #[tokio::test]
 async fn json_error_responses_have_structured_error_envelope() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // 404
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/99999", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            "/api/games/99999",
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     let body: Value = resp.json().await.unwrap();
     assert!(
         body["error"].is_object(),
@@ -897,11 +850,7 @@ async fn json_error_responses_have_structured_error_envelope() {
     assert!(body["error"]["message"].is_string());
 
     // 401
-    let resp = reqwest::Client::new()
-        .get(format!("http://{}/api/me", server.addr))
-        .send()
-        .await
-        .unwrap();
+    let resp = server.request_no_auth(Method::GET, "/api/me", None).await;
     let body: Value = resp.json().await.unwrap();
     assert!(
         body["error"].is_object(),
@@ -927,7 +876,7 @@ async fn json_error_responses_have_structured_error_envelope() {
 
 #[tokio::test]
 async fn reject_board_dimensions_outside_range() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // Below minimum
     let resp = server
@@ -960,7 +909,7 @@ async fn reject_board_dimensions_outside_range() {
 
 #[tokio::test]
 async fn accept_board_dimensions_within_range() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // Boundaries
     let resp = server
@@ -986,17 +935,17 @@ async fn accept_board_dimensions_within_range() {
 
 #[tokio::test]
 async fn accept_challenge_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // White (the challenged player) accepts
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/accept"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_success(),
         "accept_challenge failed: {}",
@@ -1005,13 +954,14 @@ async fn accept_challenge_via_api() {
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["status"], "accepted");
 
-    // Verify the game is now in a playing stage
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/{game_id}", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            &format!("/api/games/{game_id}"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     let game: Value = resp.json().await.unwrap();
     let stage = game["stage"].as_str().unwrap();
     assert!(
@@ -1022,27 +972,26 @@ async fn accept_challenge_via_api() {
 
 #[tokio::test]
 async fn accept_challenge_game_is_playable() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // Accept the challenge
     server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/accept"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
 
-    // Black should be able to play a move
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 4, "row": 4}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 4, "row": 4})),
+        )
+        .await;
     assert!(
         resp.status().is_success(),
         "Should be able to play after accepting challenge: {}",
@@ -1052,17 +1001,17 @@ async fn accept_challenge_game_is_playable() {
 
 #[tokio::test]
 async fn creator_cannot_accept_own_challenge() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // Black (creator) tries to accept
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/accept"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Creator should not be able to accept own challenge"
@@ -1071,17 +1020,17 @@ async fn creator_cannot_accept_own_challenge() {
 
 #[tokio::test]
 async fn non_participant_cannot_accept_challenge() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // Spectator tries to accept
     let resp = server
-        .client_spectator
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .header("Authorization", "Bearer test-spectator-api-token-99999")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/accept"),
+            "test-spectator-api-token-99999",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Non-participant should not be able to accept challenge"
@@ -1090,17 +1039,17 @@ async fn non_participant_cannot_accept_challenge() {
 
 #[tokio::test]
 async fn cannot_accept_non_challenge_game() {
-    let server = TestServer::start().await;
-    // create_and_join creates a game where white joins (not a challenge)
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/accept"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Should not accept a game that is not in challenge state"
@@ -1109,26 +1058,26 @@ async fn cannot_accept_non_challenge_game() {
 
 #[tokio::test]
 async fn cannot_accept_already_accepted_challenge() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // Accept once
     server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/accept"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
 
-    // Try to accept again
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/accept"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Should not accept an already accepted challenge"
@@ -1137,20 +1086,17 @@ async fn cannot_accept_already_accepted_challenge() {
 
 #[tokio::test]
 async fn decline_challenge_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // White (the challenged player) declines
     let resp = server
-        .client_white
-        .post(format!(
-            "http://{}/api/games/{game_id}/decline",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/decline"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_success(),
         "decline_challenge failed: {}",
@@ -1159,13 +1105,14 @@ async fn decline_challenge_via_api() {
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["status"], "declined");
 
-    // Verify the game is now in declined state
     let resp = server
-        .client_black
-        .get(format!("http://{}/api/games/{game_id}", server.addr))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::GET,
+            &format!("/api/games/{game_id}"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     let game: Value = resp.json().await.unwrap();
     assert_eq!(game["stage"], "declined");
     assert_eq!(game["result"], "Declined");
@@ -1173,20 +1120,17 @@ async fn decline_challenge_via_api() {
 
 #[tokio::test]
 async fn creator_cannot_decline_own_challenge() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // Black (creator) tries to decline
     let resp = server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/decline",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/decline"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Creator should not be able to decline own challenge"
@@ -1195,20 +1139,17 @@ async fn creator_cannot_decline_own_challenge() {
 
 #[tokio::test]
 async fn non_participant_cannot_decline_challenge() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // Spectator tries to decline
     let resp = server
-        .client_spectator
-        .post(format!(
-            "http://{}/api/games/{game_id}/decline",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-spectator-api-token-99999")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/decline"),
+            "test-spectator-api-token-99999",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Non-participant should not be able to decline challenge"
@@ -1217,19 +1158,17 @@ async fn non_participant_cannot_decline_challenge() {
 
 #[tokio::test]
 async fn cannot_decline_non_challenge_game() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
     let resp = server
-        .client_white
-        .post(format!(
-            "http://{}/api/games/{game_id}/decline",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/decline"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Should not decline a game that is not in challenge state"
@@ -1238,32 +1177,26 @@ async fn cannot_decline_non_challenge_game() {
 
 #[tokio::test]
 async fn cannot_decline_already_declined_challenge() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // Decline once
     server
-        .client_white
-        .post(format!(
-            "http://{}/api/games/{game_id}/decline",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/decline"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
 
-    // Try to decline again
     let resp = server
-        .client_white
-        .post(format!(
-            "http://{}/api/games/{game_id}/decline",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/decline"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Should not decline an already declined challenge"
@@ -1272,29 +1205,26 @@ async fn cannot_decline_already_declined_challenge() {
 
 #[tokio::test]
 async fn cannot_accept_declined_challenge() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    // Decline first
     server
-        .client_white
-        .post(format!(
-            "http://{}/api/games/{game_id}/decline",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/decline"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
 
-    // Try to accept
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/accept"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "Should not accept an already declined challenge"
@@ -1303,58 +1233,53 @@ async fn cannot_accept_declined_challenge() {
 
 #[tokio::test]
 async fn accept_challenge_on_nonexistent_game_returns_404() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/99999/accept", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            "/api/games/99999/accept",
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 404);
 }
 
 #[tokio::test]
 async fn decline_challenge_on_nonexistent_game_returns_404() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/99999/decline", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            "/api/games/99999/decline",
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 404);
 }
 
 #[tokio::test]
 async fn accept_challenge_requires_auth() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    let resp = reqwest::Client::new()
-        .post(format!("http://{}/api/games/{game_id}/accept", server.addr))
-        .send()
-        .await
-        .unwrap();
+    let resp = server
+        .request_no_auth(Method::POST, &format!("/api/games/{game_id}/accept"), None)
+        .await;
     assert_eq!(resp.status(), 401);
 }
 
 #[tokio::test]
 async fn decline_challenge_requires_auth() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_challenge().await;
 
-    let resp = reqwest::Client::new()
-        .post(format!(
-            "http://{}/api/games/{game_id}/decline",
-            server.addr
-        ))
-        .send()
-        .await
-        .unwrap();
+    let resp = server
+        .request_no_auth(Method::POST, &format!("/api/games/{game_id}/decline"), None)
+        .await;
     assert_eq!(resp.status(), 401);
 }
 
@@ -1364,21 +1289,17 @@ async fn decline_challenge_requires_auth() {
 
 #[tokio::test]
 async fn toggle_chain_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.enter_territory_review().await;
 
-    // Toggle a chain (the board is empty, but the endpoint should still succeed)
     let resp = server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/toggle",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/toggle"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert!(
         resp.status().is_success(),
         "toggle_chain failed: {}",
@@ -1397,20 +1318,17 @@ async fn toggle_chain_via_api() {
 
 #[tokio::test]
 async fn approve_territory_via_api() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.enter_territory_review().await;
 
-    // Black approves
     let resp = server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/approve",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/approve"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_success(),
         "black approve failed: {}",
@@ -1421,17 +1339,14 @@ async fn approve_territory_via_api() {
     assert_eq!(body["territory"]["white_approved"], false);
     assert_eq!(body["stage"], "territory_review");
 
-    // White approves — game should settle
     let resp = server
-        .client_white
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/approve",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/approve"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_success(),
         "white approve failed: {}",
@@ -1447,73 +1362,67 @@ async fn approve_territory_via_api() {
 
 #[tokio::test]
 async fn toggle_resets_approval() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
     // Play stones so there's something to toggle in territory review
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert!(resp.status().is_success(), "black play failed");
 
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/play", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .json(&json!({"col": 8, "row": 8}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/play"),
+            "test-white-api-token-67890",
+            Some(&json!({"col": 8, "row": 8})),
+        )
+        .await;
     assert!(resp.status().is_success(), "white play failed");
 
-    // Two passes to enter territory review
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games/{game_id}/pass", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/pass"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(resp.status().is_success(), "black pass failed");
 
     let resp = server
-        .client_white
-        .post(format!("http://{}/api/games/{game_id}/pass", server.addr))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/pass"),
+            "test-white-api-token-67890",
+            None,
+        )
+        .await;
     assert!(resp.status().is_success(), "white pass failed");
 
-    // Black approves
     server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/approve",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/approve"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
 
-    // White toggles the stone at (0,0) — should reset both approvals
     let resp = server
-        .client_white
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/toggle",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-white-api-token-67890")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/toggle"),
+            "test-white-api-token-67890",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert!(resp.status().is_success());
     let body: Value = resp.json().await.unwrap();
     assert_eq!(body["territory"]["black_approved"], false);
@@ -1523,21 +1432,17 @@ async fn toggle_resets_approval() {
 
 #[tokio::test]
 async fn toggle_chain_outside_territory_review() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
-    // Game is in play stage, not territory review
     let resp = server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/toggle",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/toggle"),
+            "test-black-api-token-12345",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "toggle should fail outside territory review"
@@ -1552,19 +1457,17 @@ async fn toggle_chain_outside_territory_review() {
 
 #[tokio::test]
 async fn approve_territory_outside_territory_review() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
 
     let resp = server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/approve",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/approve"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "approve should fail outside territory review"
@@ -1573,32 +1476,26 @@ async fn approve_territory_outside_territory_review() {
 
 #[tokio::test]
 async fn approve_territory_twice_returns_error() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.enter_territory_review().await;
 
-    // Black approves once
     server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/approve",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/approve"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
 
-    // Black tries to approve again
     let resp = server
-        .client_black
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/approve",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/approve"),
+            "test-black-api-token-12345",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "double approve should fail"
@@ -1613,20 +1510,17 @@ async fn approve_territory_twice_returns_error() {
 
 #[tokio::test]
 async fn non_player_cannot_toggle_chain() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.enter_territory_review().await;
 
     let resp = server
-        .client_spectator
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/toggle",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-spectator-api-token-99999")
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/toggle"),
+            "test-spectator-api-token-99999",
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "non-player should not be able to toggle chain"
@@ -1635,19 +1529,17 @@ async fn non_player_cannot_toggle_chain() {
 
 #[tokio::test]
 async fn non_player_cannot_approve_territory() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.enter_territory_review().await;
 
     let resp = server
-        .client_spectator
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/approve",
-            server.addr
-        ))
-        .header("Authorization", "Bearer test-spectator-api-token-99999")
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/approve"),
+            "test-spectator-api-token-99999",
+            None,
+        )
+        .await;
     assert!(
         resp.status().is_client_error(),
         "non-player should not be able to approve territory"
@@ -1656,39 +1548,36 @@ async fn non_player_cannot_approve_territory() {
 
 #[tokio::test]
 async fn toggle_chain_requires_auth() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.enter_territory_review().await;
 
-    let resp = reqwest::Client::new()
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/toggle",
-            server.addr
-        ))
-        .json(&json!({"col": 0, "row": 0}))
-        .send()
-        .await
-        .unwrap();
+    let resp = server
+        .request_no_auth(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/toggle"),
+            Some(&json!({"col": 0, "row": 0})),
+        )
+        .await;
     assert_eq!(resp.status(), 401);
 }
 
 #[tokio::test]
 async fn approve_territory_requires_auth() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
     let game_id = server.enter_territory_review().await;
 
-    let resp = reqwest::Client::new()
-        .post(format!(
-            "http://{}/api/games/{game_id}/territory/approve",
-            server.addr
-        ))
-        .send()
-        .await
-        .unwrap();
+    let resp = server
+        .request_no_auth(
+            Method::POST,
+            &format!("/api/games/{game_id}/territory/approve"),
+            None,
+        )
+        .await;
     assert_eq!(resp.status(), 401);
 }
 
 // ============================================================
-// Auth: Registration
+// Auth: Registration — needs session cookies, keep on TestServer
 // ============================================================
 
 #[tokio::test]
@@ -1816,7 +1705,7 @@ async fn register_preserves_anonymous_player_identity_for_existing_game() {
 }
 
 // ============================================================
-// Auth: Logout
+// Auth: Logout — needs session cookies, keep on TestServer
 // ============================================================
 
 #[tokio::test]
@@ -1829,7 +1718,6 @@ async fn logout_html_redirects() {
         .send()
         .await
         .unwrap();
-    // Should be a 303 See Other redirect (client has redirect policy none)
     assert_eq!(resp.status(), 303);
 }
 

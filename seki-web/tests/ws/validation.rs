@@ -1,46 +1,47 @@
+use axum::http::Method;
 use serde_json::json;
 
-use crate::common::{TestServer, api_error_message};
+use crate::common::{LightServer, TestServer, light_api_error_message};
 
 // -- Board Size Validation --
 
 #[tokio::test]
 async fn reject_board_size_below_minimum() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
         .try_create_game_with(json!({"cols": 1, "rows": 9}))
         .await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("width"));
+    assert!(light_api_error_message(resp).await.contains("width"));
 
     let resp = server
         .try_create_game_with(json!({"cols": 9, "rows": 1}))
         .await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("height"));
+    assert!(light_api_error_message(resp).await.contains("height"));
 }
 
 #[tokio::test]
 async fn reject_board_size_above_maximum() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
         .try_create_game_with(json!({"cols": 42, "rows": 19}))
         .await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("width"));
+    assert!(light_api_error_message(resp).await.contains("width"));
 
     let resp = server
         .try_create_game_with(json!({"cols": 19, "rows": 50}))
         .await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("height"));
+    assert!(light_api_error_message(resp).await.contains("height"));
 }
 
 #[tokio::test]
 async fn reject_negative_board_dimensions() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
         .try_create_game_with(json!({"cols": -5, "rows": 9}))
@@ -55,7 +56,7 @@ async fn reject_negative_board_dimensions() {
 
 #[tokio::test]
 async fn reject_zero_board_dimensions() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
         .try_create_game_with(json!({"cols": 0, "rows": 9}))
@@ -70,7 +71,7 @@ async fn reject_zero_board_dimensions() {
 
 #[tokio::test]
 async fn accept_valid_board_sizes() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // Minimum size
     let resp = server
@@ -101,16 +102,16 @@ async fn accept_valid_board_sizes() {
 
 #[tokio::test]
 async fn reject_negative_handicap() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server.try_create_game_with(json!({"handicap": -1})).await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("negative"));
+    assert!(light_api_error_message(resp).await.contains("negative"));
 }
 
 #[tokio::test]
 async fn accept_handicap_one_as_no_handicap() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server.try_create_game_with(json!({"handicap": 1})).await;
     assert!(
@@ -121,14 +122,18 @@ async fn accept_handicap_one_as_no_handicap() {
 
 #[tokio::test]
 async fn reject_handicap_exceeds_max_for_board_size() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // 9x9 max handicap is 5
     let resp = server
         .try_create_game_with(json!({"cols": 9, "rows": 9, "handicap": 6}))
         .await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("Maximum handicap"));
+    assert!(
+        light_api_error_message(resp)
+            .await
+            .contains("Maximum handicap")
+    );
 
     // 19x19 max handicap is 9
     let resp = server
@@ -139,14 +144,18 @@ async fn reject_handicap_exceeds_max_for_board_size() {
 
 #[tokio::test]
 async fn reject_handicap_on_unsupported_board() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // Even board (8x8) doesn't support handicap
     let resp = server
         .try_create_game_with(json!({"cols": 8, "rows": 8, "handicap": 2}))
         .await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("not supported"));
+    assert!(
+        light_api_error_message(resp)
+            .await
+            .contains("not supported")
+    );
 
     // Non-square board doesn't support handicap
     let resp = server
@@ -157,7 +166,7 @@ async fn reject_handicap_on_unsupported_board() {
 
 #[tokio::test]
 async fn accept_valid_handicap() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // Handicap 0 (no handicap)
     let resp = server
@@ -194,34 +203,34 @@ async fn accept_valid_handicap() {
 
 #[tokio::test]
 async fn reject_integer_komi_zero() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server.try_create_game_with(json!({"komi": 0})).await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("half-integer"));
+    assert!(light_api_error_message(resp).await.contains("half-integer"));
 }
 
 #[tokio::test]
 async fn reject_integer_komi_positive() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server.try_create_game_with(json!({"komi": 7})).await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("half-integer"));
+    assert!(light_api_error_message(resp).await.contains("half-integer"));
 }
 
 #[tokio::test]
 async fn reject_integer_komi_negative() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server.try_create_game_with(json!({"komi": -5})).await;
     assert_eq!(resp.status(), 422);
-    assert!(api_error_message(resp).await.contains("half-integer"));
+    assert!(light_api_error_message(resp).await.contains("half-integer"));
 }
 
 #[tokio::test]
 async fn accept_half_integer_komi() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     // Positive half-integer
     let resp = server.try_create_game_with(json!({"komi": 6.5})).await;
@@ -244,23 +253,23 @@ async fn accept_half_integer_komi() {
 
 #[tokio::test]
 async fn missing_komi_rejected() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
-    // Send without komi — should fail deserialization
+    // Send without komi — should fail validation
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({"cols": 9, "handicap": 0, "color": "black"}))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            "/api/games",
+            "test-black-api-token-12345",
+            Some(&json!({"cols": 9, "handicap": 0, "color": "black"})),
+        )
+        .await;
     assert_eq!(resp.status(), 422);
 }
 
 #[tokio::test]
 async fn rows_defaults_to_cols() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server.try_create_game_with(json!({"cols": 13})).await;
     assert!(resp.status().is_success());
@@ -271,7 +280,7 @@ async fn rows_defaults_to_cols() {
 
 #[tokio::test]
 async fn is_private_defaults_to_false() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server.try_create_game_with(json!({})).await;
     assert!(resp.status().is_success());
@@ -281,13 +290,16 @@ async fn is_private_defaults_to_false() {
 
 #[tokio::test]
 async fn allow_undo_defaults_to_true() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server.try_create_game_with(json!({})).await;
     assert!(resp.status().is_success());
     let body: serde_json::Value = resp.json().await.unwrap();
     assert_eq!(body["allow_undo"], true);
 }
+
+// These tests hit the SPA web route (POST /games) which requires session cookies.
+// Keep them on TestServer.
 
 #[tokio::test]
 async fn web_direct_challenge_requires_opponent() {
@@ -351,24 +363,24 @@ async fn web_direct_challenge_accepts_handicap_submission() {
 
 #[tokio::test]
 async fn ranked_games_require_time_control() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
-        .client_black
-        .post(format!("http://{}/api/games", server.addr))
-        .header("Authorization", "Bearer test-black-api-token-12345")
-        .json(&json!({
-            "cols": 9,
-            "ranked": true,
-            "open_to": "registered"
-        }))
-        .send()
-        .await
-        .unwrap();
+        .request(
+            Method::POST,
+            "/api/games",
+            "test-black-api-token-12345",
+            Some(&json!({
+                "cols": 9,
+                "ranked": true,
+                "open_to": "registered"
+            })),
+        )
+        .await;
 
     assert_eq!(resp.status(), 422);
     assert!(
-        api_error_message(resp)
+        light_api_error_message(resp)
             .await
             .contains("Ranked games require a time control")
     );
@@ -376,7 +388,7 @@ async fn ranked_games_require_time_control() {
 
 #[tokio::test]
 async fn correspondence_games_reject_more_than_thirty_days_per_move() {
-    let server = TestServer::start().await;
+    let server = LightServer::start().await;
 
     let resp = server
         .try_create_game_with(json!({
@@ -387,7 +399,7 @@ async fn correspondence_games_reject_more_than_thirty_days_per_move() {
 
     assert_eq!(resp.status(), 422);
     assert!(
-        api_error_message(resp)
+        light_api_error_message(resp)
             .await
             .contains("at most 30 days per move")
     );
