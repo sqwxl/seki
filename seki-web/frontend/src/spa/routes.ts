@@ -40,7 +40,10 @@ export function parseRoute(url: URL): Route {
   }
 
   if (path === "/register") {
-    return { kind: "register" };
+    return {
+      kind: "register",
+      redirect: url.searchParams.get("redirect"),
+    };
   }
 
   if (path === "/settings") {

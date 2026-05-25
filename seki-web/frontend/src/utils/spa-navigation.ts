@@ -16,3 +16,16 @@ export function requestSpaNavigation(
     }),
   );
 }
+
+export function authUrl(mode: "login" | "register"): string {
+  const current = window.location.pathname + window.location.search;
+  // Don't redirect back to auth pages or root
+  if (
+    current === "/" ||
+    current.startsWith("/login") ||
+    current.startsWith("/register")
+  ) {
+    return `/${mode}`;
+  }
+  return `/${mode}?redirect=${encodeURIComponent(current)}`;
+}

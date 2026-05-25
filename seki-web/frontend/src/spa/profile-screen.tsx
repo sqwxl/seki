@@ -5,6 +5,7 @@ import { UserLabel } from "../components/user-label";
 import { UserGames } from "../layouts/user-games";
 import { clearFlash, setFlash } from "../utils/flash";
 import { formatNumericRating, fullRankText } from "../utils/rating";
+import { authUrl } from "../utils/spa-navigation";
 import { postForm } from "../utils/web-client";
 import { pageTitle, setHead } from "./head";
 import { useRouteData } from "./route-data";
@@ -244,8 +245,8 @@ export function ProfileScreen({
             </>
           ) : (
             <p>
-              <a href="/register">Register</a> to access API tokens and other
-              settings.
+              <a href={authUrl("register")}>Register</a> to access API tokens
+              and other settings.
             </p>
           )}
         </section>

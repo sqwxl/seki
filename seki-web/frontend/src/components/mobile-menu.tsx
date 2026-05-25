@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { UserData } from "../game/types";
 import { ratingDisplayPreference } from "../utils/preferences";
+import { authUrl } from "../utils/spa-navigation";
 import {
   IconAnalysis,
   IconLogin,
@@ -121,14 +122,14 @@ export function MobileMenu({
               <>
                 <a
                   class="nav-dropdown-item"
-                  href="/login"
+                  href={authUrl("login")}
                   onClick={() => setOpen(false)}
                 >
                   <IconLogin /> Log in
                 </a>
                 <a
                   class="nav-dropdown-item"
-                  href="/register"
+                  href={authUrl("register")}
                   onClick={() => setOpen(false)}
                 >
                   <IconRegister /> Register

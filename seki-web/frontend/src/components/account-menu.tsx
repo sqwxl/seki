@@ -1,5 +1,6 @@
 import type { UserData } from "../game/types";
 import { ratingDisplayPreference } from "../utils/preferences";
+import { authUrl } from "../utils/spa-navigation";
 import { IconLogout } from "./icons";
 import { UserLabel } from "./user-label";
 
@@ -37,8 +38,8 @@ export function AccountLinks({
         </button>
       ) : (
         <>
-          <a href="/login">Log in</a>
-          <a href="/register">Register</a>
+          <a href={authUrl("login")}>Log in</a>
+          <a href={authUrl("register")}>Register</a>
         </>
       )}
     </>

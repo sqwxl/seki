@@ -2,6 +2,7 @@ import { useEffect } from "preact/hooks";
 import type { UserData } from "../game/types";
 import { readUserData } from "../game/util";
 import { activeFlash, clearFlash, setFlash } from "../utils/flash";
+import { authUrl } from "../utils/spa-navigation";
 import { setAppCredential } from "../utils/storage";
 import { postForm } from "../utils/web-client";
 import { pageTitle, setHead } from "./head";
@@ -58,7 +59,9 @@ export function AuthFormScreen({
     const action =
       mode === "login" && redirectTarget
         ? `/login?redirect=${encodeURIComponent(redirectTarget)}`
-        : `/${mode}`;
+        : mode === "register" && redirectTarget
+          ? `/register?redirect=${encodeURIComponent(redirectTarget)}`
+          : `/${mode}`;
 
     try {
       const result = await postForm(action, new FormData(form));
@@ -85,7 +88,7 @@ export function AuthFormScreen({
     <>
       <h1>{mode === "login" ? "Log in" : "Register"}</h1>
       <form
-        action={mode === "login" ? "/login" : "/register"}
+        action={`/${mode}${redirectTarget ? `?redirect=${encodeURIComponent(redirectTarget)}` : ""}`}
         method="post"
         onSubmit={onSubmit}
       >
@@ -140,11 +143,12 @@ export function AuthFormScreen({
       <p>
         {mode === "login" ? (
           <>
-            Don&apos;t have an account? <a href="/register">Register</a>
+            Don&apos;t have an account?{" "}
+            <a href={authUrl("register")}>Register</a>
           </>
         ) : (
           <>
-            Already have an account? <a href="/login">Log in</a>
+            Already have an account? <a href={authUrl("login")}>Log in</a>
           </>
         )}
       </p>

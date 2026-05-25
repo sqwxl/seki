@@ -98,6 +98,7 @@ export function Screen({
           currentUser={currentUser}
           navigate={navigate}
           refreshSession={refreshSession}
+          redirectTarget={route.redirect}
         />
       );
     case "settings":

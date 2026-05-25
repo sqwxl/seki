@@ -58,6 +58,7 @@ pub async fn register(
     session: Session,
     current_user: CurrentUser,
     headers: axum::http::HeaderMap,
+    Query(query): Query<RedirectQuery>,
     Form(form): Form<RegisterForm>,
 ) -> Result<Response, AppError> {
     if current_user.is_registered() {
@@ -161,10 +162,15 @@ pub async fn register(
     // Ensure rating profile exists for the newly registered user
     crate::models::rating::RatingProfile::get_or_create(&state.db, current_user.id).await?;
 
+    let target = if query.redirect.is_empty() {
+        "/"
+    } else {
+        &query.redirect
+    };
     if json {
-        return Ok(axum::Json(json!({"redirect": "/"})).into_response());
+        return Ok(axum::Json(json!({"redirect": target})).into_response());
     }
-    Ok(Redirect::to("/").into_response())
+    Ok(Redirect::to(target).into_response())
 }
 
 #[derive(Deserialize)]

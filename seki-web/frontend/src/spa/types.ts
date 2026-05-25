@@ -22,7 +22,7 @@ export type Route =
   | { kind: "analysis" }
   | { kind: "profile"; username: string }
   | { kind: "login"; redirect?: string | null }
-  | { kind: "register" }
+  | { kind: "register"; redirect?: string | null }
   | { kind: "settings" }
   | { kind: "not-found" };
 
