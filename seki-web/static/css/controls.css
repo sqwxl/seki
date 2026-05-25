@@ -171,7 +171,6 @@
 
   button {
     flex-shrink: 1;
-    min-width: 0;
     padding-inline: 0.25em;
   }
 
