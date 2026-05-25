@@ -13,4 +13,4 @@ serde_json = "1"
 futures-util = "0.3"
 tracing = "0.1"
 url = "2"
-seki-api-types = { path = "../seki-api-types" }
+seki-api = { path = "../seki-api" }

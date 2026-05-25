@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum RankStatus {
     Anonymous,
@@ -10,6 +11,7 @@ pub enum RankStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RankDto {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub qualifier: Option<String>,
@@ -24,6 +26,7 @@ pub struct RankDto {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct UserData {
     pub id: i64,
     pub display_name: String,

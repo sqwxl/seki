@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 go-engine = { path = "../go-engine" }
+seki-api = { path = "../seki-api", features = ["openapi"] }
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["full"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono", "json"] }

@@ -6,7 +6,7 @@ use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, Server
 use rustls::crypto::ring;
 use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use rustls::{ClientConfig, DigitallySignedStruct, SignatureScheme};
-use seki_api_types::ws::ServerMsg;
+use seki_api::ws::ServerMsg;
 use tokio::sync::mpsc;
 use tokio_tungstenite::{Connector, connect_async_tls_with_config, tungstenite::Message};
 use tracing::{error, info, warn};

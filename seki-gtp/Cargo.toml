@@ -12,5 +12,5 @@ toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 go-engine = { path = "../go-engine" }
-seki-api-types = { path = "../seki-api-types" }
+seki-api = { path = "../seki-api" }
 seki-client = { path = "../seki-client" }

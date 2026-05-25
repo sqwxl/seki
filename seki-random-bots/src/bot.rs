@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use go_engine::{GameState, Stone};
 use rand::Rng;
-use seki_api_types::ws::{ClientMsg, LiveGameItem, ServerMsg};
+use seki_api::ws::{ClientMsg, LiveGameItem, ServerMsg};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 

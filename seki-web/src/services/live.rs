@@ -4,6 +4,8 @@ use serde_json::json;
 use std::collections::HashMap;
 
 use go_engine::Engine;
+use seki_api::game::TimeControl;
+pub use seki_api::game::{ClockSnapshot, GameSettings};
 
 use crate::AppState;
 use crate::db::DbPool;
@@ -17,47 +19,13 @@ use crate::services::rating::{
 };
 use crate::templates::UserData;
 
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct GameSettings {
-    pub cols: i32,
-    pub rows: i32,
-    pub handicap: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_rating_difference_lower: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_rating_difference_higher: Option<i32>,
-    pub rating_difference_lower_unlimited: bool,
-    pub rating_difference_higher_unlimited: bool,
-    pub rating_range_mode: String,
-    pub time_control: TimeControlType,
-    pub main_time_secs: Option<i32>,
-    pub increment_secs: Option<i32>,
-    pub byoyomi_time_secs: Option<i32>,
-    pub byoyomi_periods: Option<i32>,
-    pub is_private: bool,
-    pub invite_only: bool,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub ranked: bool,
-    pub rating_status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub color_reason: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub calibration_policy_version: Option<String>,
-}
-
-/// Clock snapshot sent in lobby messages.
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct ClockSnapshot {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) black_ms: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) white_ms: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) black_periods: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) white_periods: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) active_stone: Option<i32>,
+fn time_control_from_tc_type(tc: TimeControlType) -> TimeControl {
+    match tc {
+        TimeControlType::None => TimeControl::None,
+        TimeControlType::Fischer => TimeControl::Fischer,
+        TimeControlType::Byoyomi => TimeControl::Byoyomi,
+        TimeControlType::Correspondence => TimeControl::Correspondence,
+    }
 }
 
 /// Full game item sent in lobby `init` and `game_created` messages.
@@ -338,7 +306,7 @@ pub fn game_settings_for_game(game: &Game) -> GameSettings {
         rating_difference_lower_unlimited: game.rating_difference_lower_unlimited,
         rating_difference_higher_unlimited: game.rating_difference_higher_unlimited,
         rating_range_mode: game.rating_range_mode.clone(),
-        time_control: game.time_control,
+        time_control: time_control_from_tc_type(game.time_control),
         main_time_secs: game.main_time_secs,
         increment_secs: game.increment_secs,
         byoyomi_time_secs: game.byoyomi_time_secs,

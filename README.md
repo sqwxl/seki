@@ -11,7 +11,7 @@ A platform for playing Go (Weiqi/Baduk), built with Rust and Preact.
 | `seki-web`         | Server and web client. Axum (routes, models, services, WebSocket, templates, Preact frontend) |
 | `seki-client`      | HTTP + WS client                                                                              |
 | `seki-gtp`         | Bridge app to interface GTP engines (eg. KataGo) with Seki                                    |
-| `seki-api-types`   | Shared API types for `seki-web` and `seki-client`                                             |
+| `seki-api`         | Shared API types for `seki-web` and `seki-client`                                             |
 | `seki-random-bots` | QA feature that simulates an active user pool.                                                |
 
 ## Local quickstart

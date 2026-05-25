@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use go_engine::{Stone, Turn};
-use seki_api_types::ws::{ClientMsg, LiveGameItem, ServerMsg};
+use seki_api::ws::{ClientMsg, LiveGameItem, ServerMsg};
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
@@ -198,7 +198,13 @@ impl Bot {
             | ServerMsg::PlayerReconnected { .. }
             | ServerMsg::PlayerGone { .. }
             | ServerMsg::PresenceState { .. }
-            | ServerMsg::PresenceChanged { .. } => {
+            | ServerMsg::PresenceChanged { .. }
+            | ServerMsg::PresentationStarted { .. }
+            | ServerMsg::PresentationEnded { .. }
+            | ServerMsg::PresentationUpdate { .. }
+            | ServerMsg::ControlChanged { .. }
+            | ServerMsg::ControlRequested { .. }
+            | ServerMsg::ControlRequestCancelled { .. } => {
                 // Logged by server, no action needed
             }
         }
@@ -391,11 +397,11 @@ impl Bot {
         _state: &serde_json::Value,
         moves: &[Turn],
         current_turn_stone: i32,
-        black: &Option<seki_api_types::user::UserData>,
-        white: &Option<seki_api_types::user::UserData>,
+        black: &Option<seki_api::user::UserData>,
+        white: &Option<seki_api::user::UserData>,
         komi: f64,
-        negotiations: &Option<seki_api_types::game::Negotiations>,
-        territory: &Option<seki_api_types::game::TerritoryState>,
+        negotiations: &Option<seki_api::game::Negotiations>,
+        territory: &Option<seki_api::game::TerritoryState>,
         handicap: u8,
         cols: u8,
         rows: u8,
