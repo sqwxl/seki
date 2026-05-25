@@ -735,8 +735,7 @@ a.nav-dropdown-item {
 /* games list toggle toolbar */
 .games-list-toolbar {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.5em;
+  justify-content: flex-start;
 
   button {
     background: var(--bg-input);
