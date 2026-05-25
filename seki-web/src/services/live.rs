@@ -17,7 +17,7 @@ use crate::services::engine_builder;
 use crate::services::rating::{
     PROVISIONAL_DEVIATION_THRESHOLD, RankDto, RankStatus, RatingCalibrationPolicy,
 };
-use crate::templates::UserData;
+use crate::views::{UserData, user_data_from_user_with_rank};
 
 fn time_control_from_tc_type(tc: TimeControlType) -> TimeControl {
     match tc {
@@ -28,69 +28,45 @@ fn time_control_from_tc_type(tc: TimeControlType) -> TimeControl {
     }
 }
 
-/// Full game item sent in lobby `init` and `game_created` messages.
-#[derive(Serialize, utoipa::ToSchema)]
-pub struct LiveGameItem {
-    pub id: i64,
-    pub creator_id: Option<i64>,
-    pub creator: Option<UserData>,
-    pub opponent: Option<UserData>,
-    pub stage: String,
-    pub result: Option<String>,
-    pub black: Option<UserData>,
-    pub white: Option<UserData>,
-    pub settings: GameSettings,
-    pub move_count: Option<usize>,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub ranked: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub derived_handicap: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub derived_komi: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub derived_color_reason: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub board_state: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub clock: Option<ClockSnapshot>,
-}
+pub use seki_api::ws::LiveGameItem;
 
-impl LiveGameItem {
-    pub fn from_gwp(
-        gwp: &GameWithPlayers,
-        move_count: Option<usize>,
-        profiles: &HashMap<i64, RatingProfile>,
-        board_state: Option<serde_json::Value>,
-        clock: Option<ClockSnapshot>,
-    ) -> Self {
-        Self {
-            id: gwp.game.id,
-            creator_id: gwp.game.creator_id,
-            creator: gwp
-                .creator
-                .as_ref()
-                .map(|user| UserData::from_user_with_rank(user, profiles.get(&user.id))),
-            opponent: gwp
-                .opponent
-                .as_ref()
-                .map(|user| UserData::from_user_with_rank(user, profiles.get(&user.id))),
-            stage: gwp.game.stage.clone(),
-            result: gwp.game.result.clone(),
-            black: gwp.black.as_ref().map(|user| {
-                user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))
-            }),
-            white: gwp.white.as_ref().map(|user| {
-                user_data_for_game_player(user, &gwp.game, false, profiles.get(&user.id))
-            }),
-            settings: game_settings_for_game(&gwp.game),
-            move_count,
-            ranked: gwp.game.ranked,
-            derived_handicap: gwp.game.derived_handicap,
-            derived_komi: gwp.game.derived_komi,
-            derived_color_reason: gwp.game.derived_color_reason.clone(),
-            board_state,
-            clock,
-        }
+pub fn live_item_from_gwp(
+    gwp: &GameWithPlayers,
+    move_count: Option<usize>,
+    profiles: &HashMap<i64, RatingProfile>,
+    board_state: Option<serde_json::Value>,
+    clock: Option<ClockSnapshot>,
+) -> LiveGameItem {
+    LiveGameItem {
+        id: gwp.game.id,
+        creator_id: gwp.game.creator_id,
+        creator: gwp
+            .creator
+            .as_ref()
+            .map(|user| user_data_from_user_with_rank(user, profiles.get(&user.id))),
+        opponent: gwp
+            .opponent
+            .as_ref()
+            .map(|user| user_data_from_user_with_rank(user, profiles.get(&user.id))),
+        stage: gwp.game.stage.clone(),
+        result: gwp.game.result.clone(),
+        black: gwp
+            .black
+            .as_ref()
+            .map(|user| user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))),
+        white: gwp
+            .white
+            .as_ref()
+            .map(|user| user_data_for_game_player(user, &gwp.game, false, profiles.get(&user.id))),
+        settings: game_settings_for_game(&gwp.game),
+        move_count,
+        ranked: gwp.game.ranked,
+        derived_handicap: gwp.game.derived_handicap,
+        derived_komi: gwp.game.derived_komi,
+        derived_color_reason: gwp.game.derived_color_reason.clone(),
+        unread: None,
+        board_state,
+        clock,
     }
 }
 
@@ -165,7 +141,7 @@ pub async fn build_live_items(pool: &DbPool, games: &[GameWithPlayers]) -> Vec<L
                 )
             };
             let clock = clock_snapshot_for_game(&gwp.game);
-            LiveGameItem::from_gwp(gwp, mc, &profiles, board_state, clock)
+            live_item_from_gwp(gwp, mc, &profiles, board_state, clock)
         })
         .collect()
 }
@@ -237,7 +213,7 @@ pub fn notify_game_created(state: &AppState, gwp: &GameWithPlayers) {
         engine_builder::game_handicap(&gwp.game),
     );
     let clock = clock_snapshot_for_game(&gwp.game);
-    let item = LiveGameItem::from_gwp(gwp, None, &profiles, board_state, clock);
+    let item = live_item_from_gwp(gwp, None, &profiles, board_state, clock);
     let msg = json!({
         "kind": "game_created",
         "game": item,
@@ -269,11 +245,11 @@ pub fn notify_game_updated(
             creator: gwp
                 .creator
                 .as_ref()
-                .map(|user| UserData::from_user_with_rank(user, profiles.get(&user.id))),
+                .map(|user| user_data_from_user_with_rank(user, profiles.get(&user.id))),
             opponent: gwp
                 .opponent
                 .as_ref()
-                .map(|user| UserData::from_user_with_rank(user, profiles.get(&user.id))),
+                .map(|user| user_data_from_user_with_rank(user, profiles.get(&user.id))),
             black: gwp.black.as_ref().map(|user| {
                 user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))
             }),
@@ -326,7 +302,7 @@ pub fn user_data_for_game_player(
     is_black: bool,
     profile: Option<&RatingProfile>,
 ) -> UserData {
-    let mut data = UserData::from_user_with_rank(user, profile);
+    let mut data = user_data_from_user_with_rank(user, profile);
     if let Some(snapshot_rank) = rank_from_game_snapshot(game, is_black) {
         data.rank = Some(snapshot_rank);
     }

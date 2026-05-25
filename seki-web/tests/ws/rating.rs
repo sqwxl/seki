@@ -472,7 +472,7 @@ async fn web_user_rank_dtos_cover_rating_states() {
         .unwrap();
     let anonymous = User::create(&server.pool).await.unwrap();
 
-    let anonymous_rank = seki_web::templates::UserData::from_user_with_rank(&anonymous, None)
+    let anonymous_rank = seki_web::views::user_data_from_user_with_rank(&anonymous, None)
         .rank
         .unwrap();
     assert_eq!(
@@ -481,7 +481,7 @@ async fn web_user_rank_dtos_cover_rating_states() {
     );
 
     let unranked_without_profile =
-        seki_web::templates::UserData::from_user_with_rank(&registered, None)
+        seki_web::views::user_data_from_user_with_rank(&registered, None)
             .rank
             .unwrap();
     assert_eq!(
@@ -493,7 +493,7 @@ async fn web_user_rank_dtos_cover_rating_states() {
     let mut profile = RatingProfile::get_or_create(&server.pool, server.black_id)
         .await
         .unwrap();
-    let unranked = seki_web::templates::UserData::from_user_with_rank(&registered, Some(&profile))
+    let unranked = seki_web::views::user_data_from_user_with_rank(&registered, Some(&profile))
         .rank
         .unwrap();
     assert_eq!(
@@ -509,7 +509,7 @@ async fn web_user_rank_dtos_cover_rating_states() {
         .unwrap()
         .unwrap();
     let not_participating =
-        seki_web::templates::UserData::from_user_with_rank(&registered, Some(&profile))
+        seki_web::views::user_data_from_user_with_rank(&registered, Some(&profile))
             .rank
             .unwrap();
     assert_eq!(
@@ -528,7 +528,7 @@ async fn web_user_rank_dtos_cover_rating_states() {
         .await
         .unwrap()
         .unwrap();
-    let ranked = seki_web::templates::UserData::from_user_with_rank(&registered, Some(&profile))
+    let ranked = seki_web::views::user_data_from_user_with_rank(&registered, Some(&profile))
         .rank
         .unwrap();
     assert_eq!(

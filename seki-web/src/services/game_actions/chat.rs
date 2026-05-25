@@ -9,7 +9,7 @@ use crate::models::message::Message;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::services::clock::{self, TimeControl};
-use crate::templates::UserData;
+use crate::views::user_data_from_user_with_rank;
 
 use super::{
     ChatSent, current_move_number, end_game_on_time, load_or_init_clock, settle_territory,
@@ -49,7 +49,7 @@ pub async fn send_chat(
     } else {
         None
     };
-    let user_data = UserData::from_user_with_rank(&user, profile.as_ref());
+    let user_data = user_data_from_user_with_rank(&user, profile.as_ref());
 
     let move_number = current_move_number(state, &gwp.game).await;
 

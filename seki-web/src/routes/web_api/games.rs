@@ -15,8 +15,8 @@ use crate::services::{
     game_joiner, presentation_actions, rating, state_assembly, state_serializer,
 };
 use crate::session::CurrentUser;
-use crate::templates::UserData;
-use crate::templates::games_show::InitialGameProps;
+use crate::views::games_show::InitialGameProps;
+use crate::views::{UserData, user_data_from_user_with_rank};
 
 #[derive(Serialize)]
 pub(crate) struct GamesIndexData {
@@ -375,7 +375,7 @@ async fn user_data_for_ids(
     let mut result = std::collections::HashMap::new();
     for user in users {
         let profile = profiles.get(&user.id);
-        result.insert(user.id, UserData::from_user_with_rank(&user, profile));
+        result.insert(user.id, user_data_from_user_with_rank(&user, profile));
     }
 
     Ok(result)
@@ -457,11 +457,11 @@ async fn build_game_props(
         creator: gwp
             .creator
             .as_ref()
-            .map(|user| UserData::from_user_with_rank(user, creator_profile.as_ref())),
+            .map(|user| user_data_from_user_with_rank(user, creator_profile.as_ref())),
         opponent: gwp
             .opponent
             .as_ref()
-            .map(|user| UserData::from_user_with_rank(user, opponent_profile.as_ref())),
+            .map(|user| user_data_from_user_with_rank(user, opponent_profile.as_ref())),
         black: gwp.black.as_ref().map(|user| {
             live::user_data_for_game_player(user, &gwp.game, true, black_profile.as_ref())
         }),

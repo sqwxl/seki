@@ -18,7 +18,7 @@ use crate::models::user::User;
 use crate::routes::flash::{redirect_with_flash, wants_json};
 use crate::services::jwt;
 use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
-use crate::templates::UserData;
+use crate::views::user_data_from_user_with_rank;
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
     headers
@@ -345,7 +345,7 @@ pub async fn issue_token(
     } else {
         None
     };
-    let user_data = UserData::from_user_with_rank(&current_user.user, rating_profile.as_ref());
+    let user_data = user_data_from_user_with_rank(&current_user.user, rating_profile.as_ref());
 
     Ok(Json(json!({
         "token": token,
@@ -436,7 +436,7 @@ pub async fn restore_session(
         None
     };
 
-    let user_data = UserData::from_user_with_rank(&user, rating_profile.as_ref());
+    let user_data = user_data_from_user_with_rank(&user, rating_profile.as_ref());
 
     Ok(Json(json!({
         "user": user_data,

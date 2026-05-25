@@ -40,24 +40,7 @@ impl RatingDisplayMode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum RankStatus {
-    Anonymous,
-    NotParticipating,
-    Unranked,
-    Ranked,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct RankDto {
-    pub qualifier: Option<String>,
-    pub status: RankStatus,
-    pub rating: Option<f64>,
-    pub deviation: Option<f64>,
-    pub volatility: Option<f64>,
-    pub uncertain: bool,
-}
+pub use seki_api::user::{RankDto, RankStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RatingSummaryDto {

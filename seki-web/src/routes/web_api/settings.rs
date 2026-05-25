@@ -5,7 +5,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::rating::RatingProfile;
 use crate::session::CurrentUser;
-use crate::templates::UserData;
+use crate::views::{UserData, user_data_from_user_with_rank};
 
 pub(crate) async fn session_me(
     State(state): State<AppState>,
@@ -16,7 +16,7 @@ pub(crate) async fn session_me(
     } else {
         None
     };
-    Ok(Json(UserData::from_user_with_rank(
+    Ok(Json(user_data_from_user_with_rank(
         &current_user.user,
         rating_profile.as_ref(),
     )))

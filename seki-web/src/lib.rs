@@ -22,7 +22,7 @@ pub mod models;
 pub mod routes;
 pub mod services;
 pub mod session;
-pub mod templates;
+pub mod views;
 pub mod ws;
 
 #[derive(Clone)]

@@ -77,7 +77,7 @@ impl Modify for ApiModifier {
         crate::services::live::LiveGameItem,
         crate::services::live::GameSettings,
         crate::models::game::TimeControlType,
-        crate::templates::UserData,
+        crate::views::UserData,
         crate::error::ApiErrorResponse,
         crate::error::ApiErrorDetail
     )),

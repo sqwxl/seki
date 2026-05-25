@@ -13,7 +13,7 @@ use crate::models::user::User;
 use crate::routes::flash::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::services::rating::{derive_handicap_komi, rank_for_user};
 use crate::session::CurrentUser;
-use crate::templates::UserData;
+use crate::views::UserData;
 
 #[derive(Deserialize)]
 pub struct SearchQuery {

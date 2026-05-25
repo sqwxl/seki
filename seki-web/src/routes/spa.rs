@@ -10,7 +10,7 @@ use crate::routes::flash::{FlashMessage, FlashSeverity, set_flash, take_flash};
 use crate::routes::web_api::BootstrapPayload;
 use crate::routes::web_api::bootstrap_for_location;
 use crate::session::{CurrentUser, OptionalCurrentUser};
-use crate::templates::shell::SpaShellTemplate;
+use crate::views::shell::SpaShellTemplate;
 
 // TODO: Add terse docstring
 pub async fn shell(

@@ -10,7 +10,7 @@ use crate::services::live::LiveGameItem;
 use crate::services::live::build_live_items;
 use crate::services::rating::ProfileRatingDto;
 use crate::session::CurrentUser;
-use crate::templates::UserData;
+use crate::views::{UserData, user_data_from_user_with_rank};
 
 #[derive(Serialize)]
 pub(crate) struct UserGamesData {
@@ -69,7 +69,7 @@ pub(crate) async fn load_user_profile(
 
     Ok(UserProfileData {
         profile_username: profile_user.username.clone(),
-        profile_user: UserData::from_user_with_rank(&profile_user, profile_rating.as_ref()),
+        profile_user: user_data_from_user_with_rank(&profile_user, profile_rating.as_ref()),
         rating,
         initial_games: UserGamesData {
             profile_user_id: profile_user.id,

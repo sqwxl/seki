@@ -410,18 +410,14 @@ async fn build_init_message(state: &AppState, user_id: i64) -> String {
         .unwrap_or_default();
 
     let user_items_enriched: Vec<serde_json::Value> = user_items
-        .iter()
+        .into_iter()
         .zip(player_games.iter())
-        .map(|(item, gwp)| {
-            let mut v = serde_json::to_value(item).unwrap();
+        .map(|(mut item, gwp)| {
             let is_my_turn = is_user_turn(&gwp.game, user_id);
             let last_seen = reads.get(&gwp.game.id).copied().unwrap_or(0);
             let mc = item.move_count.unwrap_or(0) as i32;
-            let unread = is_my_turn && mc > last_seen;
-            v.as_object_mut()
-                .unwrap()
-                .insert("unread".into(), serde_json::Value::Bool(unread));
-            v
+            item.unread = Some(is_my_turn && mc > last_seen);
+            serde_json::to_value(item).unwrap()
         })
         .collect();
 
