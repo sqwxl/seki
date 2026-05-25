@@ -49,6 +49,7 @@ import type {
   UserData,
 } from "../game/types";
 import { GameStage } from "../game/types";
+import { wsConnected } from "../ws";
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -137,6 +138,7 @@ function resetAllSignals() {
     canStartPresentation.value = false;
     boardFinalized.value = false;
   });
+  wsConnected.value = true;
   resetPhase();
 }
 

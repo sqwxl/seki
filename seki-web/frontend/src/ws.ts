@@ -28,10 +28,10 @@ let ws: WebSocket | undefined;
 window.__ws = { close: () => ws?.close() };
 
 let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
-let disconnectTimer: ReturnType<typeof setTimeout> | undefined;
 let pendingSends: string[] = [];
 
-export const localDisconnected = signal(true);
+/** Reflects whether the WebSocket is currently open. */
+export const wsConnected = signal(false);
 
 function ensureConnected() {
   if (!ws && !reconnectTimer) {
@@ -39,7 +39,6 @@ function ensureConnected() {
   }
 }
 
-const DISCONNECT_TIMEOUT_MS = 10000;
 const RECONNECT_TIMEOUT_MS = 2000;
 
 function connect() {
@@ -49,12 +48,7 @@ function connect() {
   ws = new WebSocket(url);
 
   ws.onopen = () => {
-    if (disconnectTimer) {
-      clearTimeout(disconnectTimer);
-      disconnectTimer = undefined;
-    }
-
-    localDisconnected.value = false;
+    wsConnected.value = true;
 
     // Notify game handlers before re-joining so they can reset stale state
     for (const [gameId, handler] of gameHandlers) {
@@ -107,19 +101,11 @@ function connect() {
   };
 
   ws.onclose = () => {
-    // Delay showing the disconnected state to avoid flicker during page navigation
-    // or very brief connection drops.
-    if (!disconnectTimer && !localDisconnected.value) {
-      disconnectTimer = setTimeout(() => {
-        localDisconnected.value = true;
+    wsConnected.value = false;
 
-        // Notify game handlers that we're disconnected so they can show UI feedback
-        for (const [gameId, handler] of gameHandlers) {
-          handler({ kind: "ws_disconnected", game_id: gameId });
-        }
-
-        disconnectTimer = undefined;
-      }, DISCONNECT_TIMEOUT_MS);
+    // Notify game handlers that we're disconnected so they can show UI feedback
+    for (const [gameId, handler] of gameHandlers) {
+      handler({ kind: "ws_disconnected", game_id: gameId });
     }
 
     ws = undefined;

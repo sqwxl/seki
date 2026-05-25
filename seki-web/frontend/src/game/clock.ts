@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals";
 import { DEFAULT_BYOYOMI_PERIOD_SECS } from "../utils/format";
-import { localDisconnected } from "../ws";
+import { wsConnected } from "../ws";
 import { initialProps } from "./state";
 import type { ClockData, GameSettings } from "./types";
 
@@ -179,7 +179,7 @@ export function checkClockTimeout(
 }
 
 function updateClockSignal(clockState: ClockState): void {
-  if (localDisconnected.value) {
+  if (!wsConnected.value) {
     return;
   }
   clockDisplay.value = computeClockDisplay(clockState);

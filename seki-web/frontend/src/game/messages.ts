@@ -1,5 +1,5 @@
 import type { MoveConfirmState } from "../utils/move-confirm";
-import { localDisconnected } from "../ws";
+import { wsConnected } from "../ws";
 import type { GameChannel } from "./channel";
 import type { ClockState } from "./clock";
 import { syncClock } from "./clock";
@@ -188,7 +188,7 @@ export function handleGameMessage(
   switch (data.kind) {
     case "state_sync":
     case "state": {
-      localDisconnected.value = false;
+      wsConnected.value = true;
       const isLiveUpdate = data.kind === "state";
 
       const prevStage = gameStage.value;
@@ -384,7 +384,7 @@ export function handleGameMessage(
       break;
     }
     case "ws_reconnected": {
-      localDisconnected.value = false;
+      wsConnected.value = true;
 
       // Clear stale local state before the server sends fresh state on rejoin.
       // Without this, presentation signals from a previous session persist
@@ -400,7 +400,7 @@ export function handleGameMessage(
       break;
     }
     case "ws_disconnected": {
-      localDisconnected.value = true;
+      wsConnected.value = false;
 
       break;
     }

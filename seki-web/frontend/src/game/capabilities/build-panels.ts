@@ -1,4 +1,5 @@
 import type { PlayerPanelProps } from "../../components/player-panel";
+import { wsConnected } from "../../ws";
 import type { UserData } from "../types";
 import type { PanelScoreFields, ScoreInput } from "./types";
 
@@ -53,8 +54,18 @@ export function derivePlayerPanel(opts: {
     isNigiriPending,
     currentTurn,
   } = opts;
-  const bOnline = blackUser ? online.has(blackUser.id) : false;
-  const wOnline = whiteUser ? online.has(whiteUser.id) : false;
+  // Self-presence uses local WS state (instant, no server round-trip).
+  // Opponent presence still comes from the server presence subscription.
+  const bOnline = blackUser
+    ? stone === 1
+      ? wsConnected.value
+      : online.has(blackUser.id)
+    : false;
+  const wOnline = whiteUser
+    ? stone === -1
+      ? wsConnected.value
+      : online.has(whiteUser.id)
+    : false;
 
   const panels = buildPlayerPanels({ komi, captures, score });
 
