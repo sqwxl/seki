@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use argon2::password_hash::SaltString;
@@ -11,7 +12,10 @@ use futures_util::{SinkExt, StreamExt};
 use reqwest::cookie::{CookieStore, Jar};
 use serde_json::{Value, json};
 use sqlx::SqlitePool;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
+use std::str::FromStr;
 use tokio::net::TcpListener;
+use tokio::sync::OnceCell;
 use tokio_tungstenite::tungstenite;
 
 static DB_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -21,49 +25,83 @@ fn test_db_path() -> PathBuf {
     std::env::temp_dir().join(format!("seki-test-{}-{id}.db", std::process::id()))
 }
 
-async fn create_test_db() -> SqlitePool {
-    let path = test_db_path();
-    let db_url = format!("sqlite://{}", path.display());
-    let pool = seki_web::db::create_pool(&db_url).await.unwrap();
-    seki_web::db::run_migrations(&pool).await.unwrap();
+/// Cache the argon2 password hash — computed only once for the entire test process.
+fn password_hash() -> &'static str {
+    static HASH: OnceLock<String> = OnceLock::new();
+    HASH.get_or_init(|| {
+        let salt = SaltString::generate(&mut OsRng);
+        Argon2::default()
+            .hash_password(b"testpassword", &salt)
+            .unwrap()
+            .to_string()
+    })
+}
 
-    let salt = SaltString::generate(&mut OsRng);
-    let password_hash = Argon2::default()
-        .hash_password(b"testpassword", &salt)
-        .unwrap()
-        .to_string();
+/// Template DB path, created once with migrations + users, then copied per test.
+static TEMPLATE: OnceCell<PathBuf> = OnceCell::const_new();
 
-    for (token, username, api_token) in [
-        (
-            "black-session-token",
-            "test-black",
-            "test-black-api-token-12345",
-        ),
-        (
-            "white-session-token",
-            "test-white",
-            "test-white-api-token-67890",
-        ),
-        (
-            "spectator-session-token",
-            "test-spectator",
-            "test-spectator-api-token-99999",
-        ),
-    ] {
-        sqlx::query(
-            "INSERT INTO users (session_token, username, password_hash, api_token) \
-             VALUES ($1, $2, $3, $4)",
-        )
-        .bind(token)
-        .bind(username)
-        .bind(&password_hash)
-        .bind(api_token)
-        .execute(&pool)
+async fn get_or_create_template() -> &'static PathBuf {
+    TEMPLATE
+        .get_or_init(|| async {
+            let path =
+                std::env::temp_dir().join(format!("seki-template-{}.db", std::process::id()));
+            let db_url = format!("sqlite://{}", path.display());
+            // Use DELETE journal mode so the template file is self-contained
+            // (no WAL/SHM files) and can be safely copied per test.
+            let options = SqliteConnectOptions::from_str(&db_url)
+                .unwrap()
+                .create_if_missing(true)
+                .journal_mode(SqliteJournalMode::Delete);
+            let pool = SqlitePoolOptions::new()
+                .max_connections(1)
+                .connect_with(options)
+                .await
+                .unwrap();
+            seki_web::db::run_migrations(&pool).await.unwrap();
+
+            let hash = password_hash();
+            for (token, username, api_token) in [
+                (
+                    "black-session-token",
+                    "test-black",
+                    "test-black-api-token-12345",
+                ),
+                (
+                    "white-session-token",
+                    "test-white",
+                    "test-white-api-token-67890",
+                ),
+                (
+                    "spectator-session-token",
+                    "test-spectator",
+                    "test-spectator-api-token-99999",
+                ),
+            ] {
+                sqlx::query(
+                    "INSERT INTO users (session_token, username, password_hash, api_token) \
+                     VALUES ($1, $2, $3, $4)",
+                )
+                .bind(token)
+                .bind(username)
+                .bind(hash)
+                .bind(api_token)
+                .execute(&pool)
+                .await
+                .unwrap();
+            }
+
+            pool.close().await;
+            path
+        })
         .await
-        .unwrap();
-    }
+}
 
-    pool
+async fn create_test_db() -> SqlitePool {
+    let template = get_or_create_template().await;
+    let dest = test_db_path();
+    std::fs::copy(template, &dest).unwrap();
+    let db_url = format!("sqlite://{}", dest.display());
+    seki_web::db::create_pool(&db_url).await.unwrap()
 }
 
 /// A running test server with three pre-authenticated users.
@@ -152,11 +190,8 @@ impl TestServer {
 
         let base = format!("http://{addr}");
 
-        client_black
-            .get(format!("{base}/login"))
-            .send()
-            .await
-            .unwrap();
+        // POST login — the handler creates a session if one doesn't exist.
+        // No need for a prior GET /login.
         client_black
             .post(format!("{base}/login"))
             .form(&[("username", "test-black"), ("password", "testpassword")])
@@ -165,22 +200,12 @@ impl TestServer {
             .unwrap();
 
         client_white
-            .get(format!("{base}/login"))
-            .send()
-            .await
-            .unwrap();
-        client_white
             .post(format!("{base}/login"))
             .form(&[("username", "test-white"), ("password", "testpassword")])
             .send()
             .await
             .unwrap();
 
-        client_spectator
-            .get(format!("{base}/login"))
-            .send()
-            .await
-            .unwrap();
         client_spectator
             .post(format!("{base}/login"))
             .form(&[("username", "test-spectator"), ("password", "testpassword")])
