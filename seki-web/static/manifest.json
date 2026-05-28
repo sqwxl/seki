@@ -2,7 +2,7 @@
   "name": "Seki",
   "short_name": "Seki",
   "start_url": "/",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#faf9f6",
   "theme_color": "#1a1a2e",
   "orientation": "natural",
