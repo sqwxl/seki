@@ -714,6 +714,18 @@ export function liveGame(
 
       if (tab === "analysis" && !analysisMode.peek()) {
         untracked(() => enterAnalysis());
+      } else if (tab === "chat" && analysisMode.peek()) {
+        // Force board to live state without changing mobile tab
+        untracked(() => {
+          if (gamePhase.value.phase === "estimate") {
+            doExitEstimate();
+          }
+          clearPendingMove();
+          saveAnalysis(board.value, analysisMode.value, analysisKey, false);
+          toLive();
+          board.value?.restoreBaseMoves();
+          board.value?.render();
+        });
       } else if (tab === "board" && analysisMode.peek()) {
         untracked(() => exitAnalysis());
       }

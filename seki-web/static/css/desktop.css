@@ -125,9 +125,8 @@
     }
   }
 
-  /* View wrappers become transparent, tab bar hidden */
-  .game-board-view,
-  .game-chat-view {
+  /* View wrapper becomes transparent, tab bar hidden */
+  .game-board-view {
     display: contents !important;
   }
 

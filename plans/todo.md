@@ -1,0 +1,1 @@
+- when bot_user=true, server auto-accepts undo requests and territory approve requests rather than delegating to the bot engine. this ensure consistent behavior around these features for all bots. bot should receive appropriate message so its internal state remains consistent with the server's
