@@ -1,10 +1,5 @@
 import type { ControlsProps } from "./controls-shared";
-import {
-  IconPlaybackForward,
-  IconPlaybackNext,
-  IconPlaybackPrev,
-  IconPlaybackRewind,
-} from "./icons";
+import { IconNext, IconPrev } from "./icons";
 
 export function NavControls({
   nav,
@@ -22,19 +17,11 @@ export function NavControls({
     <div class="controls-nav">
       <button
         class="btn-raised"
-        title="Go to start"
-        disabled={nav.atStart}
-        onClick={() => nav.onNavigate("start")}
-      >
-        <IconPlaybackRewind />
-      </button>
-      <button
-        class="btn-raised"
         title="Back"
         disabled={nav.atStart}
         onClick={() => nav.onNavigate("back")}
       >
-        <IconPlaybackPrev />
+        <IconPrev />
       </button>
       <button
         class={
@@ -58,15 +45,7 @@ export function NavControls({
         disabled={nav.atLatest}
         onClick={() => nav.onNavigate("forward")}
       >
-        <IconPlaybackNext />
-      </button>
-      <button
-        class="btn-raised"
-        title="Go to latest"
-        disabled={nav.atLatest}
-        onClick={() => nav.onNavigate("end")}
-      >
-        <IconPlaybackForward />
+        <IconNext />
       </button>
     </div>
   );
