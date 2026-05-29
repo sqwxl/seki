@@ -1,19 +1,14 @@
 import type { ControlsProps } from "../components/controls-shared";
+import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
 import { CapturesBlack, CapturesWhite, IconGrid3x3 } from "../components/icons";
 import { TabBar } from "../components/tab-bar";
 import type { AnalysisCapabilities } from "../game/capabilities";
 import { analysisCapabilities } from "../game/capabilities";
 import { playStoneSound } from "../game/sound";
-import {
-  blackSymbol,
-  formatN,
-  formatSgfTime,
-  formatSize,
-  whiteSymbol,
-} from "../utils/format";
+import { GameStage } from "../game/types";
+import { formatN } from "../utils/format";
 import type { MoveConfirmState } from "../utils/move-confirm";
-import type { SgfMeta } from "../utils/sgf";
 import {
   analysisBoard,
   analysisKomi,
@@ -29,41 +24,6 @@ import { GamePageLayout } from "./game-page-layout";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function formatSgfDescription(meta: SgfMeta): string {
-  const b = meta.black_name ?? "Black";
-  const w = meta.white_name ?? "White";
-  const parts: string[] = [
-    `${b} ${blackSymbol()} vs ${w} ${whiteSymbol()}`,
-    formatSize(meta.cols, meta.rows),
-  ];
-
-  if (meta.handicap && meta.handicap >= 2) {
-    parts.push(`H${meta.handicap}`);
-  }
-
-  const tc = formatSgfTime(meta.time_limit_secs, meta.overtime);
-
-  if (tc) {
-    parts.push(tc);
-  }
-
-  if (meta.result) {
-    parts.push(meta.result);
-  }
-
-  return parts.join(" - ");
-}
-
-// ---------------------------------------------------------------------------
-// Components
-// ---------------------------------------------------------------------------
-
-function AnalysisHeader() {
-  const meta = analysisMeta.value;
-
-  return <>{meta && <p>{formatSgfDescription(meta)}</p>}</>;
-}
 
 function buildAnalysisControls(
   caps: AnalysisCapabilities,
@@ -249,16 +209,89 @@ export function AnalysisPage(props: AnalysisPageProps) {
   const size = analysisSize.value;
 
   const statusText = caps.statusText;
+  const meta = analysisMeta.value;
+  const hasMeta = !!meta;
+  const metaGameSettings = meta
+    ? {
+        cols: meta.cols,
+        rows: meta.rows,
+        handicap: meta.handicap ?? 0,
+        time_control: "none" as const,
+        is_private: false,
+        invite_only: false,
+        main_time_secs: undefined as number | undefined,
+        increment_secs: undefined as number | undefined,
+        byoyomi_time_secs: undefined as number | undefined,
+        byoyomi_periods: undefined as number | undefined,
+      }
+    : {
+        cols: 19,
+        rows: 19,
+        handicap: 0,
+        time_control: "none" as const,
+        is_private: false,
+        invite_only: false,
+        main_time_secs: undefined as number | undefined,
+        increment_secs: undefined as number | undefined,
+        byoyomi_time_secs: undefined as number | undefined,
+        byoyomi_periods: undefined as number | undefined,
+      };
 
   return (
     <GamePageLayout
-      header={<AnalysisHeader />}
+      header={undefined}
       gobanRef={gobanRef}
       gobanStyle={`aspect-ratio: ${size}/${size}`}
       playerTop={<AnalysisTopPanel />}
       playerBottom={<AnalysisBottomPanel />}
       controls={<AnalysisControlsSlot {...props} />}
-      status={statusText ? <GameStatus text={statusText} /> : undefined}
+      status={
+        statusText || hasMeta ? (
+          <GameStatus text={statusText || " "}>
+            {hasMeta && meta && (
+              <GameInfo
+                settings={metaGameSettings}
+                komi={meta.komi ?? 6.5}
+                stage={GameStage.Completed}
+                moveCount={0}
+                result={meta.result}
+                black={
+                  meta.black_name
+                    ? {
+                        id: 0,
+                        display_name: meta.black_name,
+                        is_registered: false,
+                        email: undefined,
+                        preferences: { rating_display: "kyu_dan" as const },
+                        is_bot: undefined,
+                        rank: null,
+                      }
+                    : undefined
+                }
+                white={
+                  meta.white_name
+                    ? {
+                        id: 0,
+                        display_name: meta.white_name,
+                        is_registered: false,
+                        email: undefined,
+                        preferences: { rating_display: "kyu_dan" as const },
+                        is_bot: undefined,
+                        rank: null,
+                      }
+                    : undefined
+                }
+                capturesBlack={0}
+                capturesWhite={0}
+                territory={undefined}
+                settledTerritory={undefined}
+                estimateScore={undefined}
+                copyInviteLink={() => {}}
+              />
+            )}
+          </GameStatus>
+        ) : undefined
+      }
       moveTree={<AnalysisMoveTree moveTreeEl={moveTreeEl} />}
       tabBar={<AnalysisTabBar {...props} />}
     />

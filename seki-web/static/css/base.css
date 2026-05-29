@@ -581,6 +581,12 @@ a.nav-dropdown-item {
   display: none;
 }
 
+@media (max-width: 767px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+}
+
 /* Board view fills available space */
 .game-board-view {
   flex: 1;
@@ -591,13 +597,19 @@ a.nav-dropdown-item {
   gap: 0.5em;
 }
 
-/* Board area keeps its natural size, does not shrink when chat is below */
-.game-board-view .game-board-area {
-  flex-shrink: 0;
+/* Players + board flow together */
+.board-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.board-main .game-board-area {
   min-height: 0;
 }
 
-.game-board-view .goban-container {
+.board-main .goban-container {
   max-height: 100%;
   margin-inline: auto;
 }
