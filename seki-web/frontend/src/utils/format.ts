@@ -193,19 +193,7 @@ export function formatGameDescription(g: DescriptionInput): string {
   const b = g.black?.display_name ?? g.creator?.display_name ?? "?";
   const w = g.white?.display_name ?? g.opponent?.display_name ?? "?";
 
-  if (!g.black || !g.white) {
-    return [`${b} vs ${w}`, ...buildDescriptionParts(g)].join(" - ");
-  }
-
-  const creatorIsWhite = g.creator_id != null && g.white?.id === g.creator_id;
-  const first = creatorIsWhite
-    ? `${w} ${whiteSymbol()}`
-    : `${b} ${blackSymbol()}`;
-  const second = creatorIsWhite
-    ? `${b} ${blackSymbol()}`
-    : `${w} ${whiteSymbol()}`;
-
-  return [`${first} vs ${second}`, ...buildDescriptionParts(g)].join(" - ");
+  return [`${b} vs ${w}`, ...buildDescriptionParts(g)].join(" - ");
 }
 
 export function parseDatasetJson<T>(
