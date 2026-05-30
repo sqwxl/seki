@@ -57,6 +57,7 @@ export type GameMessageDeps = {
 
 // Track last-seen move count for cheap change detection
 let prevMoveCount = 0;
+let prevMovesJson = "[]";
 
 function reconcilePendingActionFromState(): void {
   switch (pendingAction.value) {
@@ -141,8 +142,15 @@ function syncBoardMoves(
   }
 
   const currentMoves = moves.value;
-  if (currentMoves.length !== prevMoveCount) {
-    if (gameStage.value !== GameStage.Completed && playEffects) {
+  const currentMovesJson = JSON.stringify(currentMoves);
+  const movesChanged = currentMovesJson !== prevMovesJson;
+
+  if (movesChanged) {
+    if (
+      currentMoves.length > prevMoveCount &&
+      gameStage.value !== GameStage.Completed &&
+      playEffects
+    ) {
       const lastMove = currentMoves[currentMoves.length - 1];
 
       if (lastMove?.kind === "play") {
@@ -154,19 +162,21 @@ function syncBoardMoves(
     }
 
     prevMoveCount = currentMoves.length;
-    b.updateBaseMoves(JSON.stringify(currentMoves));
+    prevMovesJson = currentMovesJson;
+    b.updateBaseMoves(currentMovesJson);
     b.save();
     onNewMove?.();
   }
 
-  if (!analysisMode.value) {
+  if (!analysisMode.value || movesChanged) {
     b.render();
   }
 }
 
-/** Reset the move count tracker (call when board loads with initial moves). */
-export function resetMovesTracker(count: number): void {
-  prevMoveCount = count;
+/** Reset the move tracker (call when board loads with initial moves). */
+export function resetMovesTracker(currentMoves: unknown[]): void {
+  prevMoveCount = currentMoves.length;
+  prevMovesJson = JSON.stringify(currentMoves);
 }
 
 export function handleGameMessage(

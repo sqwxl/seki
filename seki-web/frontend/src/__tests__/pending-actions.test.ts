@@ -1,17 +1,19 @@
 import { batch } from "@preact/signals";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GameMessageDeps } from "../game/messages";
-import { handleGameMessage } from "../game/messages";
+import { handleGameMessage, resetMovesTracker } from "../game/messages";
 import {
   addPendingChatMessage,
   allowUndo,
   black,
+  board,
   chatMessages,
   clearGameFlashMessage,
   clearPendingAction,
   currentTurn,
   currentUserId,
   gameFlashMessage,
+  gamePhase,
   gameStage,
   initialProps,
   pendingAction,
@@ -25,6 +27,11 @@ import {
   white,
 } from "../game/state";
 import { GameStage, type GameState, type UserData } from "../game/types";
+
+vi.mock("../game/sound", () => ({
+  playPassSound: vi.fn(),
+  playStoneSound: vi.fn(),
+}));
 
 const defaultState: GameState = {
   board: Array(361).fill(0),
@@ -99,7 +106,9 @@ function buildDeps(): GameMessageDeps {
 
 function resetSignals() {
   resetGameRuntimeState();
+  resetMovesTracker([]);
   batch(() => {
+    gamePhase.value = { phase: "live" };
     gameStage.value = GameStage.Unstarted;
     currentTurn.value = null;
     currentUserId.value = 0;
@@ -345,6 +354,79 @@ describe("chat hydration", () => {
       { id: 1, text: "one" },
       { id: 2, text: "two" },
     ]);
+  });
+});
+
+describe("board move syncing", () => {
+  function setMockBoard() {
+    const mockBoard = {
+      updateBaseMoves: vi.fn(),
+      save: vi.fn(),
+      render: vi.fn(),
+    };
+
+    board.value = mockBoard as unknown as typeof board.value;
+
+    return mockBoard;
+  }
+
+  function stateMessage(moves: GameStateMessageMoves) {
+    return {
+      kind: "state" as const,
+      stage: GameStage.WhiteToPlay,
+      state: defaultState,
+      current_turn_stone: -1,
+      moves,
+      black: null,
+      white: null,
+      result: null,
+      undo_rejected: false,
+    };
+  }
+
+  type GameStateMessageMoves = Array<{
+    kind: "play" | "pass" | "resign";
+    stone: number;
+    pos: [number, number] | null;
+  }>;
+
+  it("renders analysis move tree when a new live move arrives", () => {
+    const mockBoard = setMockBoard();
+    const nextMoves: GameStateMessageMoves = [
+      { kind: "play", stone: 1, pos: [3, 3] },
+    ];
+
+    gameStage.value = GameStage.BlackToPlay;
+    gamePhase.value = { phase: "analysis" };
+
+    handleGameMessage(stateMessage(nextMoves), buildDeps());
+
+    expect(mockBoard.updateBaseMoves).toHaveBeenCalledWith(
+      JSON.stringify(nextMoves),
+    );
+    expect(mockBoard.render).toHaveBeenCalled();
+    expect(gamePhase.value).toEqual({ phase: "analysis" });
+  });
+
+  it("syncs same-length mainline replacements", () => {
+    const mockBoard = setMockBoard();
+    const oldMoves: GameStateMessageMoves = [
+      { kind: "play", stone: 1, pos: [3, 3] },
+    ];
+    const nextMoves: GameStateMessageMoves = [
+      { kind: "play", stone: 1, pos: [4, 4] },
+    ];
+
+    resetMovesTracker(oldMoves);
+    gameStage.value = GameStage.BlackToPlay;
+    gamePhase.value = { phase: "analysis" };
+
+    handleGameMessage(stateMessage(nextMoves), buildDeps());
+
+    expect(mockBoard.updateBaseMoves).toHaveBeenCalledWith(
+      JSON.stringify(nextMoves),
+    );
+    expect(mockBoard.render).toHaveBeenCalled();
   });
 });
 

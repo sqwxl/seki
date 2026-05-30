@@ -195,6 +195,11 @@ export function liveGame(
     board.value?.render();
   }
 
+  function returnToLiveMainline() {
+    toLive();
+    board.value?.navigate("main-end");
+  }
+
   function exitAnalysis() {
     if (gamePhase.value.phase === "estimate") {
       doExitEstimate();
@@ -211,8 +216,7 @@ export function liveGame(
         board.value.importSnapshot(lastPresentationSnapshot);
       }
     } else {
-      toLive();
-      board.value?.restoreBaseMoves();
+      returnToLiveMainline();
     }
 
     mobileTab.value = "board";
@@ -494,7 +498,7 @@ export function liveGame(
     if (moves.value.length > 0) {
       const movesJson = JSON.stringify(moves.value);
 
-      resetMovesTracker(moves.value.length);
+      resetMovesTracker(moves.value);
       board.value.updateBaseMoves(movesJson);
     }
 
@@ -722,8 +726,7 @@ export function liveGame(
           }
           clearPendingMove();
           saveAnalysis(board.value, analysisMode.value, analysisKey, false);
-          toLive();
-          board.value?.restoreBaseMoves();
+          returnToLiveMainline();
           board.value?.render();
         });
       } else if (tab === "board" && analysisMode.peek()) {
