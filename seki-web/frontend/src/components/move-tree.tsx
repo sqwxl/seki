@@ -1,5 +1,5 @@
-import { h } from "preact";
-import { useEffect, useMemo, useRef } from "preact/hooks";
+import { h, type RefObject } from "preact";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { GameTreeData } from "../game/types";
 
 const isDesktop =
@@ -65,22 +65,73 @@ type MoveTreeProps = {
   currentNodeId: number;
   branchAfterNodes?: Set<number>;
   direction?: "horizontal" | "vertical";
+  verticalGrowth?: "auto" | "left" | "right";
   onNavigate: (nodeId: number) => void;
 };
+
+function useContainerLayout(ref: RefObject<HTMLDivElement>) {
+  const [direction, setDirection] = useState<"horizontal" | "vertical">(
+    "horizontal",
+  );
+  const [growth, setGrowth] = useState<"left" | "right">("left");
+
+  useEffect(() => {
+    const el = ref.current;
+
+    if (!el) {
+      return;
+    }
+
+    const target = el;
+
+    function update() {
+      const { width, height } = target.getBoundingClientRect();
+
+      if (width <= 0 || height <= 0) {
+        return;
+      }
+
+      setDirection(height > width ? "vertical" : "horizontal");
+      setGrowth(
+        target.getBoundingClientRect().left + width / 2 < window.innerWidth / 2
+          ? "left"
+          : "right",
+      );
+    }
+
+    update();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(update);
+    observer.observe(target);
+
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return { direction, growth };
+}
 
 export function MoveTree({
   tree,
   currentNodeId,
   branchAfterNodes,
-  direction = "horizontal",
+  direction,
+  verticalGrowth = "auto",
   onNavigate,
 }: MoveTreeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const containerLayout = useContainerLayout(scrollRef);
   const layout = useMemo(
     () => layoutTree(tree, branchAfterNodes),
     [tree, branchAfterNodes],
   );
-  const vertical = direction === "vertical";
+  const resolvedDirection = direction ?? containerLayout.direction;
+  const vertical = resolvedDirection === "vertical";
+  const resolvedGrowth =
+    verticalGrowth === "auto" ? containerLayout.growth : verticalGrowth;
 
   if (layout.length === 0) {
     return null;
@@ -113,9 +164,13 @@ export function MoveTree({
     : (maxRow + 1) * ROW_SPACING + PADDING * 2;
 
   function cx(col: number, row: number): number {
-    return vertical
+    if (!vertical) {
+      return PADDING + (col + 1) * COL_SPACING;
+    }
+
+    return resolvedGrowth === "left"
       ? PADDING + (maxRow - row) * ROW_SPACING
-      : PADDING + (col + 1) * COL_SPACING;
+      : PADDING + row * ROW_SPACING;
   }
   function cy(col: number, row: number): number {
     return vertical
@@ -165,7 +220,7 @@ export function MoveTree({
     } else if (y + pad > st + h) {
       el.scrollTop = y + pad - h;
     }
-  }, [currentNodeId, tree]);
+  }, [currentNodeId, tree, resolvedDirection, resolvedGrowth, maxRow]);
 
   // Build edges
   const edges: h.JSX.Element[] = [];
@@ -371,7 +426,14 @@ export function MoveTree({
       }}
     >
       <svg
-        style={vertical ? { display: "block", marginLeft: "auto" } : undefined}
+        style={
+          vertical
+            ? {
+                display: "block",
+                marginLeft: resolvedGrowth === "left" ? "auto" : undefined,
+              }
+            : undefined
+        }
         width={svgWidth}
         height={svgHeight}
       >

@@ -4,7 +4,6 @@ import {
   type PresentationSnapshot,
   type ScoreData,
 } from "../game/types";
-import { DESKTOP_BREAKPOINT } from "../utils/constants";
 import { storage } from "../utils/storage";
 import { ensureWasm, type TerritoryOverlay } from "./init-wasm";
 import {
@@ -358,11 +357,9 @@ class BoardController implements Board {
   // ---- Rendering ----
 
   private resolveTreeDirection(): "horizontal" | "vertical" | undefined {
-    if (this.config.moveTreeDirection === "responsive") {
-      return window.innerWidth < DESKTOP_BREAKPOINT ? "horizontal" : "vertical";
-    }
-
-    return this.config.moveTreeDirection;
+    return this.config.moveTreeDirection === "responsive"
+      ? undefined
+      : this.config.moveTreeDirection;
   }
 
   private renderBoard(): TerritoryInfo {

@@ -581,6 +581,10 @@ a.nav-dropdown-item {
   display: none;
 }
 
+.game-board-column {
+  display: contents;
+}
+
 @media (max-width: 767px) {
   .mobile-hidden {
     display: none !important;

@@ -1,11 +1,11 @@
-import { DESKTOP_MQ } from "../utils/constants";
+import { GAME_GRID_MQ } from "../utils/constants";
 import type { MarkerData, Point } from "./types";
 
 // ---------------------------------------------------------------------------
 // WASM singleton
 // ---------------------------------------------------------------------------
 
-const desktopMQ = window.matchMedia(DESKTOP_MQ);
+const desktopMQ = window.matchMedia(GAME_GRID_MQ);
 
 export { desktopMQ };
 

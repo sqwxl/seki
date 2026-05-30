@@ -27,26 +27,28 @@ export function GamePageLayout(props: GamePageLayoutProps) {
   return (
     <>
       {props.header && <div class="game-header">{props.header}</div>}
-      {props.status && <div class="game-status-slot">{props.status}</div>}
       <div class="game-board-view">
-        <div class="board-main">
-          {props.playerTop && (
-            <div class="player-panel player-top">{props.playerTop}</div>
-          )}
-          <div class="game-board-area">
-            <div
-              class={gobanClass}
-              style={props.gobanStyle}
-              ref={props.gobanRef}
-            />
+        <div class="game-board-column">
+          {props.status && <div class="game-status-slot">{props.status}</div>}
+          <div class="board-main">
+            {props.playerTop && (
+              <div class="player-panel player-top">{props.playerTop}</div>
+            )}
+            <div class="game-board-area">
+              <div
+                class={gobanClass}
+                style={props.gobanStyle}
+                ref={props.gobanRef}
+              />
+            </div>
+            {props.playerBottom && (
+              <div class="player-panel player-bottom">{props.playerBottom}</div>
+            )}
           </div>
-          {props.playerBottom && (
-            <div class="player-panel player-bottom">{props.playerBottom}</div>
+          {!showChat && props.controls && (
+            <div class="controls">{props.controls}</div>
           )}
         </div>
-        {!showChat && props.controls && (
-          <div class="controls">{props.controls}</div>
-        )}
         {hasChat && (
           <div class={`game-chat-slot${!showChat ? " mobile-hidden" : ""}`}>
             {props.chat}

@@ -1,0 +1,206 @@
+@media (min-width: 768px) and (max-width: 1199px) {
+  .mobile-nav-brand,
+  .mobile-only {
+    display: none;
+  }
+
+  .desktop-nav-primary,
+  .desktop-only {
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+  }
+
+  .game-page-body {
+    --col-width: min(64vw, var(--goban-max-size));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(30ch, 28vw);
+    grid-template-rows: auto auto auto auto;
+    align-items: start;
+    align-content: start;
+    justify-content: center;
+    gap: 0.75em 1em;
+    padding: 0 1em 1em;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .game-page-body .game-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .game-page-body .game-status-slot {
+    width: 100%;
+    max-width: none;
+    align-self: auto;
+  }
+
+  .game-page-body .game-status {
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 0.5em;
+  }
+
+  .game-page-body .board-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5em;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .game-page-body .player-panel.player-top {
+    width: min(100%, max(22rem, calc(100dvh - 25rem)));
+    max-width: var(--goban-max-size);
+  }
+
+  .game-page-body .game-board-area {
+    align-self: center;
+    min-height: 0;
+    width: min(100%, max(22rem, calc(100dvh - 25rem)));
+    max-width: none;
+  }
+
+  .game-page-body .goban-container {
+    height: auto;
+    width: 100%;
+    aspect-ratio: inherit;
+    max-width: var(--goban-max-size);
+    max-height: var(--goban-max-size);
+  }
+
+  .game-page-body .player-panel.player-bottom {
+    width: min(100%, max(22rem, calc(100dvh - 25rem)));
+    max-width: var(--goban-max-size);
+  }
+
+  .game-page-body .move-tree-slot {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .game-page-body .move-tree-slot.hidden {
+    display: flex;
+  }
+
+  .game-page-body:not(:has(.game-chat-slot)) .move-tree-slot {
+    grid-row: 2 / 5;
+  }
+
+  .game-page-body .move-tree {
+    flex: 1;
+    min-height: 0;
+    width: auto;
+    overflow: auto;
+  }
+
+  .game-page-body .game-chat-slot {
+    flex: none;
+    grid-column: 2;
+    grid-row: 3 / 5;
+    align-self: stretch;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .game-page-body .game-chat-slot .chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .game-page-body .game-chat-slot .chat-box {
+    flex: 1;
+    height: auto;
+    overflow: auto;
+  }
+
+  .game-page-body .game-chat-slot .chat form input[type="text"] {
+    width: 0;
+    min-width: 0;
+  }
+
+  .game-page-body .game-chat-slot .chat form button[type="submit"] {
+    flex: 0 0 auto;
+    min-width: 2.4em;
+    padding-inline: 0.65em;
+  }
+
+  .game-page-body .controls {
+    justify-self: center;
+    margin-top: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .game-page-body .game-board-column {
+    grid-column: 1;
+    grid-row: 2 / 5;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+    min-height: 0;
+  }
+
+  .game-board-view {
+    display: contents !important;
+  }
+
+  .mobile-tab-bar {
+    display: none;
+  }
+
+  .controls .analysis-toggle {
+    display: inline-flex;
+  }
+
+  .controls-menu {
+    display: none;
+  }
+
+  .game-page-body:has(.mobile-tab-bar) .controls-row > .controls-end {
+    display: inline-flex;
+  }
+
+  .controls-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75em;
+    justify-content: center;
+  }
+
+  .controls-row > .controls-start,
+  .controls-row > .controls-nav,
+  .controls-row > .controls-middle,
+  .controls-row > .controls-end {
+    order: 0;
+  }
+
+  .controls-row > .controls-start {
+    justify-content: flex-end;
+  }
+
+  .controls-row > .controls-end {
+    display: inline-flex;
+    justify-content: flex-start;
+  }
+}
