@@ -1,5 +1,5 @@
-import { ensureWasm } from "./goban/init-wasm";
 import { mountApp } from "./app";
+import { ensureWasm } from "./goban/init-wasm";
 
 import { isNativeApp } from "./native/bridge";
 
