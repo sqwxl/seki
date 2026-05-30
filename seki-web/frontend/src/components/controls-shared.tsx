@@ -351,23 +351,32 @@ export function SgfImportButton({
 }
 
 export function CopyInviteLinkButton({ onClick }: { onClick: () => void }) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>();
+
+  useEffect(
+    () => () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    },
+    [],
+  );
 
   return (
     <button
       class="btn-raised"
       title="Copy access link"
-      onClick={(e) => {
+      onClick={() => {
         onClick();
-        const btn = e.currentTarget;
-        btn.textContent = "Copied!";
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          btn.textContent = "Invite";
+        setCopied(true);
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => {
+          setCopied(false);
         }, 1500);
       }}
     >
-      Invite
+      {copied ? "Copied!" : "Invite"}
     </button>
   );
 }

@@ -8,6 +8,7 @@ import { analysisCapabilities } from "../game/capabilities";
 import { playStoneSound } from "../game/sound";
 import { GameStage } from "../game/types";
 import { formatN } from "../utils/format";
+import { useMediaQuery } from "../utils/media-query";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import {
   analysisBoard,
@@ -165,9 +166,7 @@ function AnalysisBottomPanel() {
 
 function AnalysisControlsSlot(props: AnalysisPageProps) {
   const caps = analysisCapabilities.value;
-  const compact =
-    typeof window !== "undefined" &&
-    window.matchMedia("(max-width: 767px)").matches;
+  const compact = useMediaQuery("(max-width: 767px)");
   return <Controls {...buildAnalysisControls(caps, props)} compact={compact} />;
 }
 

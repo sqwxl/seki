@@ -52,6 +52,7 @@ import {
 import { GameStage } from "../game/types";
 import { readUserData } from "../game/util";
 import { formatResult } from "../utils/format";
+import { useMediaQuery } from "../utils/media-query";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { postForm, type WebRequestError } from "../utils/web-client";
 import { Controls } from "./controls";
@@ -102,7 +103,8 @@ function LiveGameBottomPanel() {
 }
 
 function LiveGameControls(props: LiveGamePageProps) {
-  const compact = IS_MOBILE && mobileTab.value === "analysis";
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  const compact = isMobile && mobileTab.value === "analysis";
   return (
     <Controls
       {...buildControls(liveGameControlsState.value, props.channel, props.mc, {
@@ -346,12 +348,9 @@ function LiveGameStatusSlot(
   );
 }
 
-const IS_MOBILE =
-  typeof window !== "undefined" &&
-  window.matchMedia("(max-width: 767px)").matches;
-
 function LiveGameMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
-  const visible = !IS_MOBILE || mobileTab.value === "analysis";
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  const visible = !isMobile || mobileTab.value === "analysis";
 
   return (
     <div

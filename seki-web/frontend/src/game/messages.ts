@@ -192,7 +192,7 @@ export function handleGameMessage(
       const isLiveUpdate = data.kind === "state";
 
       const prevStage = gameStage.value;
-      applyGameStateMessage(data);
+      applyGameStateMessage(data, { emitApprovalMessages: isLiveUpdate });
 
       if (isLiveUpdate) {
         const gameJustStarted =

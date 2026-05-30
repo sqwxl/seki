@@ -8,9 +8,11 @@ export function getFcmToken(): string | undefined {
   }
 
   try {
-    const bridge = (
-      window as unknown as { SekiBridge: { getFcmToken(): string } }
-    ).SekiBridge;
+    const bridge = window.SekiBridge;
+    if (!bridge) {
+      return undefined;
+    }
+
     const token = bridge.getFcmToken();
     return token || undefined;
   } catch {
@@ -23,7 +25,7 @@ export function onBridgeReady(callback: () => void): void {
     return;
   }
 
-  if ((window as unknown as { SekiBridgeReady?: boolean }).SekiBridgeReady) {
+  if (window.SekiBridgeReady) {
     callback();
     return;
   }

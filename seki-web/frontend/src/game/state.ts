@@ -295,6 +295,8 @@ export function resetGameRuntimeState(): void {
   });
 
   clearFlash();
+  _prevBlackApproved = false;
+  _prevWhiteApproved = false;
 }
 
 // Track territory approval for chat messages (local to this module)
@@ -326,14 +328,27 @@ function upsertChatMessages(nextEntry: ChatEntry): void {
 }
 
 /** Called from WS "state" message handler. Uses batch() for atomic update. */
-export function applyGameStateMessage(data: StateMessage): void {
+export function applyGameStateMessage(
+  data: StateMessage,
+  opts: { emitApprovalMessages?: boolean } = {},
+): void {
   const approvalMessages: ChatEntry[] = [];
+  const emitApprovalMessages = opts.emitApprovalMessages ?? true;
+
   if (data.territory) {
-    if (data.territory.black_approved && !_prevBlackApproved) {
+    if (
+      emitApprovalMessages &&
+      data.territory.black_approved &&
+      !_prevBlackApproved
+    ) {
       approvalMessages.push({ text: "Black accepted the score" });
     }
 
-    if (data.territory.white_approved && !_prevWhiteApproved) {
+    if (
+      emitApprovalMessages &&
+      data.territory.white_approved &&
+      !_prevWhiteApproved
+    ) {
       approvalMessages.push({ text: "White accepted the score" });
     }
 

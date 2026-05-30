@@ -256,7 +256,9 @@ function joinGame(gameId: number, handler: Handler): () => void {
 
   return () => {
     gameHandlers.delete(gameId);
-    send({ action: "leave_game", game_id: gameId });
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: "leave_game", game_id: gameId }));
+    }
   };
 }
 

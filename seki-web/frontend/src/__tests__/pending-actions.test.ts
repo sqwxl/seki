@@ -17,6 +17,7 @@ import {
   pendingAction,
   playerStone,
   replaceChatMessages,
+  resetGameRuntimeState,
   result,
   setPendingAction,
   territory,
@@ -97,6 +98,7 @@ function buildDeps(): GameMessageDeps {
 }
 
 function resetSignals() {
+  resetGameRuntimeState();
   batch(() => {
     gameStage.value = GameStage.Unstarted;
     currentTurn.value = null;
@@ -343,5 +345,58 @@ describe("chat hydration", () => {
       { id: 1, text: "one" },
       { id: 2, text: "two" },
     ]);
+  });
+});
+
+describe("territory approval messages", () => {
+  const approvedTerritory = {
+    ownership: Array(361).fill(0),
+    dead_stones: [],
+    score: {
+      black: { territory: 0, captures: 0 },
+      white: { territory: 0, captures: 0 },
+    },
+    black_approved: true,
+    white_approved: false,
+  };
+
+  it("does not emit approval chat during state sync hydration", () => {
+    handleGameMessage(
+      {
+        kind: "state_sync",
+        stage: GameStage.TerritoryReview,
+        state: defaultState,
+        current_turn_stone: null,
+        moves: [],
+        black: null,
+        white: null,
+        result: null,
+        undo_rejected: false,
+        territory: approvedTerritory,
+      },
+      buildDeps(),
+    );
+
+    expect(chatMessages.value).toEqual([]);
+  });
+
+  it("emits approval chat for live territory approval changes", () => {
+    handleGameMessage(
+      {
+        kind: "state",
+        stage: GameStage.TerritoryReview,
+        state: defaultState,
+        current_turn_stone: null,
+        moves: [],
+        black: null,
+        white: null,
+        result: null,
+        undo_rejected: false,
+        territory: approvedTerritory,
+      },
+      buildDeps(),
+    );
+
+    expect(chatMessages.value).toEqual([{ text: "Black accepted the score" }]);
   });
 });

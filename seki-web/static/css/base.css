@@ -3,6 +3,8 @@
   --bg: #fff;
   --fg: #282828;
   --bg-muted: #eee;
+  --bg-input: var(--bg);
+  --fg-muted: color-mix(in srgb, var(--fg) 60%, var(--bg));
   --border: #ccc;
   --red: #fb4934;
   --green: #b8bb26;
@@ -33,6 +35,8 @@
   --bg: #282828;
   --fg: #ebdbb2;
   --bg-muted: #3c3836;
+  --bg-input: var(--bg);
+  --fg-muted: color-mix(in srgb, var(--fg) 60%, var(--bg));
   --border: #504945;
   --red: #cc241d;
   --green: #98971a;

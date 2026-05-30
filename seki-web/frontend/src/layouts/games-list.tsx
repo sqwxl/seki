@@ -28,7 +28,7 @@ export type GameRemovedMessage = {
   game_id: number;
 };
 
-function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
+export function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
   const map = new Map<number, LiveGameItem>();
 
   for (const g of msg.player_games) {
@@ -42,7 +42,7 @@ function buildGamesMap(msg: InitMessage): Map<number, LiveGameItem> {
   return map;
 }
 
-function GameSection({
+export function GameSection({
   title,
   games,
   playerId,
@@ -81,7 +81,7 @@ function GameSection({
   );
 }
 
-export function GamesList({ initial }: { initial?: InitMessage }) {
+export function useLiveGames(initial?: InitMessage) {
   const [games, setGames] = useState<Map<number, LiveGameItem>>(() =>
     initial ? buildGamesMap(initial) : new Map(),
   );
@@ -156,6 +156,11 @@ export function GamesList({ initial }: { initial?: InitMessage }) {
     };
   }, []);
 
+  return { games, playerId, viewMode, toggleView };
+}
+
+export function GamesList({ initial }: { initial?: InitMessage }) {
+  const { games, playerId, viewMode, toggleView } = useLiveGames(initial);
   const allGames = [...games.values()];
 
   const isMyGame = (g: LiveGameItem) =>

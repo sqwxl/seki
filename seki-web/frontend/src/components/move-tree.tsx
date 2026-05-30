@@ -1,16 +1,12 @@
 import { h, type RefObject } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { GameTreeData } from "../game/types";
+import { useMediaQuery } from "../utils/media-query";
 
-const isDesktop =
-  typeof window !== "undefined" &&
-  window.matchMedia("(min-width: 768px)").matches;
-const SCALE = isDesktop ? 2 : 1;
-const NODE_RADIUS = 12 * SCALE;
-const COL_SPACING = 32 * SCALE;
-const ROW_SPACING = 34 * SCALE;
-const PADDING = 20 * SCALE;
-const TREE_EDGE_PADDING = NODE_RADIUS + 4 * SCALE;
+const BASE_NODE_RADIUS = 12;
+const BASE_COL_SPACING = 32;
+const BASE_ROW_SPACING = 34;
+const BASE_PADDING = 20;
 
 type LayoutNode = {
   id: number;
@@ -124,6 +120,7 @@ export function MoveTree({
   onNavigate,
 }: MoveTreeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const containerLayout = useContainerLayout(scrollRef);
   const layout = useMemo(
     () => layoutTree(tree, branchAfterNodes),
@@ -133,10 +130,12 @@ export function MoveTree({
   const vertical = resolvedDirection === "vertical";
   const resolvedGrowth =
     verticalGrowth === "auto" ? containerLayout.growth : verticalGrowth;
-
-  if (layout.length === 0) {
-    return null;
-  }
+  const scale = isDesktop ? 2 : 1;
+  const nodeRadius = BASE_NODE_RADIUS * scale;
+  const colSpacing = BASE_COL_SPACING * scale;
+  const rowSpacing = BASE_ROW_SPACING * scale;
+  const padding = BASE_PADDING * scale;
+  const treeEdgePadding = nodeRadius + 4 * scale;
 
   // Compute active path: ancestors from current node to root
   const activePath = useMemo(() => {
@@ -158,25 +157,25 @@ export function MoveTree({
   const maxRow = layout.reduce((m, n) => (n ? Math.max(m, n.row) : m), 0);
 
   const svgWidth = vertical
-    ? maxRow * ROW_SPACING + TREE_EDGE_PADDING * 2
-    : maxCol * COL_SPACING + TREE_EDGE_PADDING * 2;
+    ? maxRow * rowSpacing + treeEdgePadding * 2
+    : maxCol * colSpacing + treeEdgePadding * 2;
   const svgHeight = vertical
-    ? maxCol * COL_SPACING + TREE_EDGE_PADDING * 2
-    : maxRow * ROW_SPACING + TREE_EDGE_PADDING * 2;
+    ? maxCol * colSpacing + treeEdgePadding * 2
+    : maxRow * rowSpacing + treeEdgePadding * 2;
 
   function cx(col: number, row: number): number {
     if (!vertical) {
-      return TREE_EDGE_PADDING + col * COL_SPACING;
+      return treeEdgePadding + col * colSpacing;
     }
 
     return resolvedGrowth === "left"
-      ? svgWidth - TREE_EDGE_PADDING - row * ROW_SPACING
-      : TREE_EDGE_PADDING + row * ROW_SPACING;
+      ? svgWidth - treeEdgePadding - row * rowSpacing
+      : treeEdgePadding + row * rowSpacing;
   }
   function cy(col: number, row: number): number {
     return vertical
-      ? TREE_EDGE_PADDING + col * COL_SPACING
-      : TREE_EDGE_PADDING + row * ROW_SPACING;
+      ? treeEdgePadding + col * colSpacing
+      : treeEdgePadding + row * rowSpacing;
   }
 
   // Auto-scroll to keep current node visible
@@ -204,7 +203,7 @@ export function MoveTree({
       y = cy(cur.col, cur.row);
     }
 
-    const pad = vertical ? TREE_EDGE_PADDING : PADDING;
+    const pad = vertical ? treeEdgePadding : padding;
     const sl = el.scrollLeft;
     const st = el.scrollTop;
     const w = el.clientWidth;
@@ -221,7 +220,20 @@ export function MoveTree({
     } else if (y + pad > st + h) {
       el.scrollTop = y + pad - h;
     }
-  }, [currentNodeId, tree, resolvedDirection, resolvedGrowth, maxRow]);
+  }, [
+    currentNodeId,
+    tree,
+    layout,
+    resolvedDirection,
+    resolvedGrowth,
+    maxRow,
+    maxCol,
+    isDesktop,
+  ]);
+
+  if (layout.length === 0) {
+    return null;
+  }
 
   // Build edges
   const edges: h.JSX.Element[] = [];
@@ -293,7 +305,7 @@ export function MoveTree({
     const isPass = treeNode.turn.kind === "pass";
     const isRoot = stone === 0;
     const onPath = isRoot || activePath.has(node.id);
-    const radius = NODE_RADIUS;
+    const radius = nodeRadius;
     const strokeColor = onPath
       ? "var(--tree-stroke)"
       : "var(--tree-stroke-muted)";
@@ -317,11 +329,11 @@ export function MoveTree({
               <circle
                 cx={x}
                 cy={y}
-                r={radius + 3 * SCALE}
+                r={radius + 3 * scale}
                 style={{
                   fill: "none",
                   stroke: "var(--blue)",
-                  strokeWidth: 1.5 * SCALE,
+                  strokeWidth: 1.5 * scale,
                 }}
               />
             )}
@@ -352,7 +364,7 @@ export function MoveTree({
             y={y - radius}
             width={radius * 2}
             height={radius * 2}
-            rx={2 * SCALE}
+            rx={2 * scale}
             style={{
               fill: stoneFill,
               stroke: strokeColor,
@@ -375,26 +387,26 @@ export function MoveTree({
           !isRoot &&
           (isPass ? (
             <rect
-              x={x - radius - 3 * SCALE}
-              y={y - radius - 3 * SCALE}
-              width={(radius + 3 * SCALE) * 2}
-              height={(radius + 3 * SCALE) * 2}
-              rx={3 * SCALE}
+              x={x - radius - 3 * scale}
+              y={y - radius - 3 * scale}
+              width={(radius + 3 * scale) * 2}
+              height={(radius + 3 * scale) * 2}
+              rx={3 * scale}
               style={{
                 fill: "none",
                 stroke: "var(--blue)",
-                strokeWidth: 1.5 * SCALE,
+                strokeWidth: 1.5 * scale,
               }}
             />
           ) : (
             <circle
               cx={x}
               cy={y}
-              r={radius + 3 * SCALE}
+              r={radius + 3 * scale}
               style={{
                 fill: "none",
                 stroke: "var(--blue)",
-                strokeWidth: 1.5 * SCALE,
+                strokeWidth: 1.5 * scale,
               }}
             />
           ))}
@@ -405,7 +417,7 @@ export function MoveTree({
             text-anchor="middle"
             dominant-baseline="central"
             style={{
-              fontSize: 10 * SCALE,
+              fontSize: 10 * scale,
               fill: textFill,
             }}
           >
