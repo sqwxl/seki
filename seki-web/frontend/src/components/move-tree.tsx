@@ -10,6 +10,7 @@ const NODE_RADIUS = 12 * SCALE;
 const COL_SPACING = 32 * SCALE;
 const ROW_SPACING = 34 * SCALE;
 const PADDING = 20 * SCALE;
+const TREE_EDGE_PADDING = NODE_RADIUS + 4 * SCALE;
 
 type LayoutNode = {
   id: number;
@@ -157,25 +158,25 @@ export function MoveTree({
   const maxRow = layout.reduce((m, n) => (n ? Math.max(m, n.row) : m), 0);
 
   const svgWidth = vertical
-    ? (maxRow + 1) * ROW_SPACING + PADDING * 2
-    : (maxCol + 1) * COL_SPACING + PADDING * 2 + COL_SPACING;
+    ? maxRow * ROW_SPACING + TREE_EDGE_PADDING * 2
+    : maxCol * COL_SPACING + TREE_EDGE_PADDING * 2;
   const svgHeight = vertical
-    ? (maxCol + 1) * COL_SPACING + PADDING * 2 + COL_SPACING
-    : (maxRow + 1) * ROW_SPACING + PADDING * 2;
+    ? maxCol * COL_SPACING + TREE_EDGE_PADDING * 2
+    : maxRow * ROW_SPACING + TREE_EDGE_PADDING * 2;
 
   function cx(col: number, row: number): number {
     if (!vertical) {
-      return PADDING + (col + 1) * COL_SPACING;
+      return TREE_EDGE_PADDING + col * COL_SPACING;
     }
 
     return resolvedGrowth === "left"
-      ? PADDING + (maxRow - row) * ROW_SPACING
-      : PADDING + row * ROW_SPACING;
+      ? svgWidth - TREE_EDGE_PADDING - row * ROW_SPACING
+      : TREE_EDGE_PADDING + row * ROW_SPACING;
   }
   function cy(col: number, row: number): number {
     return vertical
-      ? PADDING + (col + 1) * COL_SPACING
-      : PADDING + row * ROW_SPACING;
+      ? TREE_EDGE_PADDING + col * COL_SPACING
+      : TREE_EDGE_PADDING + row * ROW_SPACING;
   }
 
   // Auto-scroll to keep current node visible
@@ -203,7 +204,7 @@ export function MoveTree({
       y = cy(cur.col, cur.row);
     }
 
-    const pad = PADDING;
+    const pad = vertical ? TREE_EDGE_PADDING : PADDING;
     const sl = el.scrollLeft;
     const st = el.scrollTop;
     const w = el.clientWidth;

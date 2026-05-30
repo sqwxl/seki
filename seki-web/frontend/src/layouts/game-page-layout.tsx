@@ -49,12 +49,14 @@ export function GamePageLayout(props: GamePageLayoutProps) {
             <div class="controls">{props.controls}</div>
           )}
         </div>
-        {hasChat && (
-          <div class={`game-chat-slot${!showChat ? " mobile-hidden" : ""}`}>
-            {props.chat}
-          </div>
-        )}
-        {props.moveTree}
+        <div class="game-sidebar-column">
+          {props.moveTree}
+          {hasChat && (
+            <div class={`game-chat-slot${!showChat ? " mobile-hidden" : ""}`}>
+              {props.chat}
+            </div>
+          )}
+        </div>
       </div>
       {hasChat && props.tabBar}
     </>

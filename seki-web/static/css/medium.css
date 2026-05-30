@@ -79,8 +79,7 @@
   }
 
   .game-page-body .move-tree-slot {
-    grid-column: 2;
-    grid-row: 2;
+    flex: 1;
     align-self: stretch;
     display: flex;
     flex-direction: column;
@@ -95,7 +94,7 @@
   }
 
   .game-page-body:not(:has(.game-chat-slot)) .move-tree-slot {
-    grid-row: 2 / 5;
+    flex: 1;
   }
 
   .game-page-body .move-tree {
@@ -107,8 +106,6 @@
 
   .game-page-body .game-chat-slot {
     flex: none;
-    grid-column: 2;
-    grid-row: 3 / 5;
     align-self: stretch;
     width: auto;
     max-width: none;
@@ -120,7 +117,7 @@
   }
 
   .game-page-body .game-chat-slot .chat {
-    flex: 1;
+    flex: none;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -129,8 +126,9 @@
   }
 
   .game-page-body .game-chat-slot .chat-box {
-    flex: 1;
-    height: auto;
+    flex: none;
+    height: calc(5lh + 1rem);
+    max-height: calc(5lh + 1rem);
     overflow: auto;
   }
 
@@ -155,6 +153,16 @@
   .game-page-body .game-board-column {
     grid-column: 1;
     grid-row: 2 / 5;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+    min-height: 0;
+  }
+
+  .game-page-body .game-sidebar-column {
+    grid-column: 2;
+    grid-row: 2 / 5;
+    align-self: stretch;
     display: flex;
     flex-direction: column;
     gap: 0.75em;

@@ -585,6 +585,10 @@ a.nav-dropdown-item {
   display: contents;
 }
 
+.game-sidebar-column {
+  display: contents;
+}
+
 @media (max-width: 767px) {
   .mobile-hidden {
     display: none !important;
