@@ -8,13 +8,22 @@
         <meta name="color-scheme" content="light dark">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="mobile-web-app-capable" content="yes">
-        <meta name="theme-color" content="#1a1a2e">
+        <meta name="theme_color"
+              content="#fff"
+              media="(prefers-color-scheme: light)">
+        <meta name="theme_color"
+              content="#282828"
+              media="(prefers-color-scheme: dark)">
         <link rel="manifest" href="/manifest.json">
         <meta property="og:site_name" content="Seki">
         <meta property="og:type" content="website">
         <meta property="og:title" content="Seki — Play Go Online">
-        <meta property="og:description" content="Play Go (Weiqi/Baduk) online with friends">
-        <link rel="icon" id="favicon" href="/static/images/favicon-light.svg" type="image/svg+xml">
+        <meta property="og:description"
+              content="Play Go (Weiqi/Baduk) online with friends">
+        <link rel="icon"
+              id="favicon"
+              href="/static/images/favicon-light.svg"
+              type="image/svg+xml">
         <script>
             (function() {
                 var m = localStorage.getItem("seki:theme") || "auto";
@@ -28,7 +37,11 @@
         </script>
         <link rel="stylesheet" href="/static/css/styles.css">
         <link rel="modulepreload" href="/static/wasm/go_engine_wasm.js">
-        <link rel="preload" href="/static/wasm/go_engine_wasm_bg.wasm" as="fetch" type="application/wasm" crossorigin>
+        <link rel="preload"
+              href="/static/wasm/go_engine_wasm_bg.wasm"
+              as="fetch"
+              type="application/wasm"
+              crossorigin>
         <script id="bootstrap-data" type="application/json">{{ bootstrap_json|safe }}</script>
         <script src="/static/dist/bundle.js" type="module" defer></script>
     </head>

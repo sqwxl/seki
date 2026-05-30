@@ -10,13 +10,23 @@
         <meta name="color-scheme" content="light dark">
         <meta name="apple-mobile-web-app-capable" content="yes">
         <meta name="mobile-web-app-capable" content="yes">
+        <meta name="theme_color"
+              content="#fff"
+              media="(prefers-color-scheme: light)">
+        <meta name="theme_color"
+              content="#282828"
+              media="(prefers-color-scheme: dark)">
         {% block og %}
-        <meta property="og:site_name" content="Seki">
-        <meta property="og:type" content="website">
-        <meta property="og:title" content="Seki — Play Go Online">
-        <meta property="og:description" content="Play Go (Weiqi/Baduk) online with friends">
+            <meta property="og:site_name" content="Seki">
+            <meta property="og:type" content="website">
+            <meta property="og:title" content="Seki — Play Go Online">
+            <meta property="og:description"
+                  content="Play Go (Weiqi/Baduk) online with friends">
         {% endblock %}
-        <link rel="icon" id="favicon" href="/static/images/favicon-light.svg" type="image/svg+xml">
+        <link rel="icon"
+              id="favicon"
+              href="/static/images/favicon-light.svg"
+              type="image/svg+xml">
         <script>
             (function() {
                 var m = localStorage.getItem("seki:theme") || "auto";
@@ -36,7 +46,15 @@
     <body>
         <nav>
             <div>
-                <a href="/games/new" title="New game"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 -960 960 960" fill="currentColor"><path d="M451.5-131.5Q440-143 440-160v-280H160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520h280v-280q0-17 11.5-28.5T480-840q17 0 28.5 11.5T520-800v280h280q17 0 28.5 11.5T840-480q0 17-11.5 28.5T800-440H520v280q0 17-11.5 28.5T480-120q-17 0-28.5-11.5Z"/></svg></a>
+                <a href="/games/new" title="New game">
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         width="20"
+                         height="20"
+                         viewBox="0 -960 960 960"
+                         fill="currentColor">
+                        <path d="M451.5-131.5Q440-143 440-160v-280H160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520h280v-280q0-17 11.5-28.5T480-840q17 0 28.5 11.5T520-800v280h280q17 0 28.5 11.5T840-480q0 17-11.5 28.5T800-440H520v280q0 17-11.5 28.5T480-120q-17 0-28.5-11.5Z" />
+                    </svg>
+                </a>
                 <a href="/games">Games</a>
                 <a href="/analysis">Analysis</a>
             </div>
