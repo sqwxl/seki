@@ -456,8 +456,12 @@ class BoardController implements Board {
         return;
       }
 
+      const oldTreeNodeCount = this.engine.tree_node_count();
+
       if (this.engine.try_play(col, row)) {
-        this.config.onStonePlay?.();
+        if (this.engine.tree_node_count() > oldTreeNodeCount) {
+          this.config.onStonePlay?.();
+        }
         this.save();
         this.render();
       }
@@ -559,8 +563,12 @@ class BoardController implements Board {
       this.territoryState = undefined;
     }
 
+    const oldTreeNodeCount = this.engine.tree_node_count();
+
     if (this.engine.pass()) {
-      this.config.onPass?.();
+      if (this.engine.tree_node_count() > oldTreeNodeCount) {
+        this.config.onPass?.();
+      }
       this.save();
       flashPassEffect(this.config.gobanEl);
 

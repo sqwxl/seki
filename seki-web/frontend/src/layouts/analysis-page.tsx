@@ -101,8 +101,12 @@ function buildAnalysisControls(
           mc.clear();
           analysisPendingMove.value = undefined;
 
+          const oldTreeNodeCount = board.engine.tree_node_count();
+
           if (board.engine.try_play(col, row)) {
-            playStoneSound();
+            if (board.engine.tree_node_count() > oldTreeNodeCount) {
+              playStoneSound();
+            }
             board.save();
             board.render();
           }

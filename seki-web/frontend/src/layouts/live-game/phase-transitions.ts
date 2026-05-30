@@ -366,8 +366,12 @@ export function buildControls(
             mc.clear();
             pendingMove.value = undefined;
 
+            const oldTreeNodeCount = board.value.engine.tree_node_count();
+
             if (board.value.engine.try_play(col, row)) {
-              playStoneSound();
+              if (board.value.engine.tree_node_count() > oldTreeNodeCount) {
+                playStoneSound();
+              }
               board.value.save();
               board.value.render();
             }
