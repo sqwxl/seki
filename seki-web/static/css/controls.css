@@ -104,8 +104,21 @@
 .btn-group {
   display: inline-flex;
   flex-wrap: nowrap;
-  gap: 0.5em;
   align-items: center;
+
+  & button:first-of-type:not(:only-of-type) {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  & button + button:not(:last-of-type) {
+    border-radius: 0;
+  }
+
+  & button:last-of-type:not(:only-of-type) {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
 }
 
 /* --- Controls menu (hamburger, lives in tab bar) --- */
@@ -152,11 +165,24 @@
 }
 
 .controls-row--compact {
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
   column-gap: 0.75em;
   row-gap: 0.25em;
+
+  > .controls-middle {
+    justify-self: start;
+  }
+
+  > .controls-start {
+    justify-self: center;
+    justify-content: center;
+  }
+
+  > .controls-end {
+    justify-self: end;
+  }
 
   > .controls-start,
   > .controls-middle {
@@ -193,28 +219,36 @@
 
 .controls-nav {
   display: flex;
-  gap: 0.5em;
+  gap: 0;
   justify-content: center;
   align-items: center;
-}
+  font-size: 1.25em;
 
-.controls button.controls-counter {
-  min-width: 7ch;
-  min-height: 3.5em;
-  padding: 0 0.4em;
-  border-radius: 1.25em;
+  .controls-nav-prev {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .controls-counter {
+    min-width: 5ch;
+    border-radius: 0;
+    &:disabled {
+      opacity: 1;
+      color: var(--fg);
+      border-color: color-mix(in srgb, var(--border) 40%, transparent);
+      background: color-mix(in srgb, var(--bg-muted) 40%, transparent);
+      cursor: default;
+    }
+  }
+
+  .controls-nav-next {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
 }
 
 .inline-control-group {
   display: inline-flex;
   align-items: center;
   gap: 0.25em;
-}
-
-.controls button.controls-counter:disabled {
-  opacity: 1;
-  color: var(--fg);
-  border-color: color-mix(in srgb, var(--border) 40%, transparent);
-  background: color-mix(in srgb, var(--bg-muted) 40%, transparent);
-  cursor: default;
 }

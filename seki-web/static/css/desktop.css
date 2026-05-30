@@ -163,8 +163,7 @@
     min-width: 2em;
   }
 
-  .controls-group,
-  .btn-group {
+  .controls-group {
     gap: 0.25em;
   }
 
@@ -202,9 +201,5 @@
   .confirm-actions button:focus {
     outline: 2px solid Highlight;
     outline-offset: 2px;
-  }
-
-  .controls-nav {
-    gap: 0.25em;
   }
 }

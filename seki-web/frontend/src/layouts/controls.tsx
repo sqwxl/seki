@@ -48,11 +48,11 @@ export function Controls(props: ControlsProps) {
 
   return (
     <div class={`controls-row${props.compact ? " controls-row--compact" : ""}`}>
-      <span class="btn-group controls-start">
-        <NavControls nav={props.nav} counterOverride={counterOverride} />
-      </span>
       <span class="btn-group controls-middle">
         <GameControls {...props} />
+      </span>
+      <span class="btn-group controls-start">
+        <NavControls nav={props.nav} counterOverride={counterOverride} />
       </span>
       <span class="btn-group controls-end">
         {props.compact ? (

@@ -53,7 +53,7 @@ export function UIControls(
   return (
     <>
       {!props.excludeAnalysis && props.analyze && (
-        <span class="analysis-toggle">
+        <>
           {props.analyzeChoice && !props.analyze.active ? (
             <>
               <button
@@ -108,7 +108,7 @@ export function UIControls(
               />
             </button>
           )}
-        </span>
+        </>
       )}
       {props.estimate && (
         <button

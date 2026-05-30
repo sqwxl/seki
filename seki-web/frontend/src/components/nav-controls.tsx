@@ -16,7 +16,7 @@ export function NavControls({
   return (
     <div class="controls-nav">
       <button
-        class="btn-raised"
+        class="btn-raised controls-nav-prev"
         title="Back"
         disabled={nav.atStart}
         onClick={() => nav.onNavigate("back")}
@@ -40,7 +40,7 @@ export function NavControls({
         {counterOverride ? counterOverride.content : nav.counter}
       </button>
       <button
-        class="btn-raised"
+        class="btn-raised controls-nav-next"
         title="Forward"
         disabled={nav.atLatest}
         onClick={() => nav.onNavigate("forward")}
