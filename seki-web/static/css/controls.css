@@ -87,6 +87,12 @@
   padding: 0.25rem;
 }
 
+@media (max-width: 767px) {
+  .analysis-page .move-tree-slot {
+    padding-bottom: var(--viewport-padding);
+  }
+}
+
 .controls button.controls-confirm {
   background: var(--green);
   border-color: var(--green);
