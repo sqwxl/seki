@@ -1,5 +1,11 @@
 import { h, type RefObject } from "preact";
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "preact/hooks";
 import type { GameTreeData } from "../game/types";
 import { useMediaQuery } from "../utils/media-query";
 
@@ -272,6 +278,7 @@ export function MoveTree({
   onNavigate,
 }: MoveTreeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const containerLayout = useContainerLayout(scrollRef);
   const layout = useMemo(() => layoutTree(tree), [tree]);
@@ -327,17 +334,27 @@ export function MoveTree({
       : treeEdgePadding + row * rowSpacing;
   }
 
-  // Auto-scroll to keep current node visible
-  useEffect(() => {
+  // Auto-scroll to keep current node visible.
+  useLayoutEffect(() => {
     const el = scrollRef.current;
+    const svg = svgRef.current;
 
-    if (!el) {
+    if (!el || !svg) {
       return;
     }
 
     const scrollEl = el;
+    const svgEl = svg;
+    let frames: number[] = [];
 
-    function scrollToCurrent(): void {
+    function clearFrames(): void {
+      for (const frame of frames) {
+        cancelAnimationFrame(frame);
+      }
+      frames = [];
+    }
+
+    function currentPoint(): { x: number; y: number } | undefined {
       let x: number;
       let y: number;
 
@@ -348,11 +365,27 @@ export function MoveTree({
         const cur = layout.find((n) => n && n.id === currentNodeId);
 
         if (!cur) {
-          return;
+          return undefined;
         }
 
         x = cx(cur.col, cur.row);
         y = cy(cur.col, cur.row);
+      }
+
+      const scrollRect = scrollEl.getBoundingClientRect();
+      const svgRect = svgEl.getBoundingClientRect();
+
+      return {
+        x: scrollEl.scrollLeft + svgRect.left - scrollRect.left + x,
+        y: scrollEl.scrollTop + svgRect.top - scrollRect.top + y,
+      };
+    }
+
+    function scrollToCurrent(): void {
+      const point = currentPoint();
+
+      if (!point) {
+        return;
       }
 
       const w = scrollEl.clientWidth;
@@ -365,35 +398,79 @@ export function MoveTree({
       const pad = vertical ? treeEdgePadding : padding;
       const sl = scrollEl.scrollLeft;
       const st = scrollEl.scrollTop;
+      let nextLeft = sl;
+      let nextTop = st;
 
-      if (x - pad < sl) {
-        scrollEl.scrollLeft = Math.max(0, x - pad);
-      } else if (x + pad > sl + w) {
-        scrollEl.scrollLeft = x + pad - w;
+      if (point.x - pad < sl) {
+        nextLeft = point.x - pad;
+      } else if (point.x + pad > sl + w) {
+        nextLeft = point.x + pad - w;
       }
 
-      if (y - pad < st) {
-        scrollEl.scrollTop = Math.max(0, y - pad);
-      } else if (y + pad > st + h) {
-        scrollEl.scrollTop = y + pad - h;
+      if (point.y - pad < st) {
+        nextTop = point.y - pad;
+      } else if (point.y + pad > st + h) {
+        nextTop = point.y + pad - h;
+      }
+
+      const maxLeft = Math.max(0, scrollEl.scrollWidth - w);
+      const maxTop = Math.max(0, scrollEl.scrollHeight - h);
+
+      nextLeft = Math.min(maxLeft, Math.max(0, nextLeft));
+      nextTop = Math.min(maxTop, Math.max(0, nextTop));
+
+      if (nextLeft !== sl || nextTop !== st) {
+        scrollEl.scrollTo({
+          left: nextLeft,
+          top: nextTop,
+          behavior: "auto",
+        });
       }
     }
 
-    let frame = requestAnimationFrame(() => {
-      scrollToCurrent();
-      frame = requestAnimationFrame(scrollToCurrent);
-    });
+    function scheduleScroll(): void {
+      clearFrames();
+      const firstFrame = requestAnimationFrame(() => {
+        scrollToCurrent();
+        const secondFrame = requestAnimationFrame(() => {
+          scrollToCurrent();
+          frames = [];
+        });
+        frames = [secondFrame];
+      });
+      frames = [firstFrame];
+    }
+
+    scheduleScroll();
 
     if (typeof ResizeObserver === "undefined") {
-      return () => cancelAnimationFrame(frame);
+      return clearFrames;
     }
 
-    const observer = new ResizeObserver(scrollToCurrent);
+    const observer = new ResizeObserver(scheduleScroll);
     observer.observe(scrollEl);
+    const parentEl = scrollEl.parentElement;
+
+    if (parentEl) {
+      observer.observe(parentEl);
+    }
+
+    const mutationObserver =
+      typeof MutationObserver === "undefined" || !parentEl
+        ? undefined
+        : new MutationObserver(scheduleScroll);
+
+    if (parentEl) {
+      mutationObserver?.observe(parentEl, {
+        attributeFilter: ["class", "style"],
+        attributes: true,
+      });
+    }
 
     return () => {
-      cancelAnimationFrame(frame);
+      clearFrames();
       observer.disconnect();
+      mutationObserver?.disconnect();
     };
   }, [
     currentNodeId,
@@ -624,6 +701,7 @@ export function MoveTree({
       }}
     >
       <svg
+        ref={svgRef}
         style={
           vertical
             ? {
