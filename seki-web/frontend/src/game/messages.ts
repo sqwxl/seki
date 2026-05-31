@@ -193,8 +193,6 @@ export function handleGameMessage(
     onNewMove,
   } = deps;
 
-  console.debug("Game message:", data);
-
   switch (data.kind) {
     case "state_sync":
     case "state": {
