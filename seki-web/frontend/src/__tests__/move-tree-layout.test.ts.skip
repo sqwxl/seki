@@ -1,0 +1,272 @@
+import { describe, expect, it } from "vitest";
+
+// ---------------------------------------------------------------------------
+// Inline copy of layoutTree from move-tree.tsx (kept in sync manually).
+// This is a pure function so testing it here is safe.
+// ---------------------------------------------------------------------------
+
+type LayoutNode = { id: number; col: number; row: number };
+
+function layoutTree(tree: {
+  nodes: Array<{ children: number[] }>;
+  root_children: number[];
+}): LayoutNode[] {
+  if (tree.nodes.length === 0) return [];
+
+  const layout: LayoutNode[] = new Array(tree.nodes.length);
+
+  const occupied = new Set<string>();
+  const drops = new Set<string>();
+
+  function key(r: number, c: number): string {
+    return `${r},${c}`;
+  }
+  function isFree(r: number, c: number): boolean {
+    const k = key(r, c);
+    return !occupied.has(k) && !drops.has(k);
+  }
+  function isFreeDrop(r: number, c: number): boolean {
+    return !occupied.has(key(r, c));
+  }
+  function markNode(r: number, c: number): void {
+    occupied.add(key(r, c));
+  }
+  function markConnector(r: number, c: number): void {
+    occupied.add(key(r, c));
+  }
+  function markDrop(r: number, c: number): void {
+    drops.add(key(r, c));
+  }
+
+  // ---- Mainline ----
+  function walkMainline(): number[] {
+    const order: number[] = [];
+    let col = 0;
+    function walk(ids: number[]): void {
+      for (const id of ids) {
+        layout[id] = { id, col, row: 0 };
+        markNode(0, col);
+        order.push(id);
+        col++;
+        const kids = tree.nodes[id].children;
+        if (kids.length > 0) walk([kids[0]]);
+      }
+    }
+    walk(tree.root_children);
+    return order;
+  }
+
+  const mainlineOrder = walkMainline();
+
+  function chainLen(nodeId: number): number {
+    let len = 1;
+    let cur = nodeId;
+    while (true) {
+      const kids = tree.nodes[cur].children;
+      if (kids.length === 0) break;
+      cur = kids[0];
+      len++;
+    }
+    return len;
+  }
+
+  function placeChain(
+    nodeId: number,
+    parentRow: number,
+    parentCol: number,
+  ): void {
+    const len = chainLen(nodeId);
+
+    // Find first row that fits
+    let R = parentRow + 1;
+    findRow: for (; ; R++) {
+      // Node cells
+      for (let c = parentCol + 1; c <= parentCol + len; c++) {
+        if (!isFree(R, c)) continue findRow;
+      }
+      // Connector cell
+      if (!isFree(R, parentCol)) continue;
+      // Drop cells
+      for (let r = parentRow + 1; r < R; r++) {
+        if (!isFreeDrop(r, parentCol)) continue findRow;
+      }
+      break;
+    }
+
+    // Place connector
+    markConnector(R, parentCol);
+
+    // Place drops
+    for (let r = parentRow + 1; r < R; r++) {
+      markDrop(r, parentCol);
+    }
+
+    // Place chain nodes
+    {
+      let col = parentCol + 1;
+      let cur = nodeId;
+      while (true) {
+        layout[cur] = { id: cur, col, row: R };
+        markNode(R, col);
+        col++;
+        const kids = tree.nodes[cur].children;
+        if (kids.length === 0) break;
+        cur = kids[0];
+      }
+    }
+
+    // Recurse into sub-variants
+    {
+      let cur = nodeId;
+      let col = parentCol + 1;
+      while (true) {
+        const kids = tree.nodes[cur].children;
+        for (let j = 1; j < kids.length; j++) {
+          placeChain(kids[j], R, col);
+        }
+        if (kids.length === 0) break;
+        cur = kids[0];
+        col++;
+      }
+    }
+  }
+
+  // Place variants in reverse mainline order
+  for (let i = mainlineOrder.length - 1; i >= 0; i--) {
+    const nodeId = mainlineOrder[i];
+    const pos = layout[nodeId];
+    const kids = tree.nodes[nodeId].children;
+    for (let j = 1; j < kids.length; j++) {
+      placeChain(kids[j], pos.row, pos.col);
+    }
+  }
+
+  return layout;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function t(children: number[][]): {
+  nodes: Array<{ children: number[] }>;
+  root_children: number[];
+} {
+  const nodes = children.map((c) => ({ children: c }));
+  return { nodes, root_children: [0] };
+}
+
+/** Helper to check row/col pairs (order-independent). */
+function expectLayout(
+  actual: LayoutNode[],
+  expected: Array<{ id: number; col: number; row: number }>,
+) {
+  for (const e of expected) {
+    expect(actual[e.id]).toEqual({ id: e.id, col: e.col, row: e.row });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe("layoutTree packing", () => {
+  it("mainline only: all on row 0", () => {
+    const tree = t([[1], [2], []]);
+    const lay = layoutTree(tree);
+
+    expectLayout(lay, [
+      { id: 0, col: 0, row: 0 },
+      { id: 1, col: 1, row: 0 },
+      { id: 2, col: 2, row: 0 },
+    ]);
+  });
+
+  it("single variant off mainline", () => {
+    const tree = t([[1, 2], [], []]);
+    const lay = layoutTree(tree);
+
+    // 0 at (0,0), 1 at (1,0) on mainline
+    // 2 is variant off 0: connector col 0 row 1, node col 1 row 1
+    expectLayout(lay, [
+      { id: 0, col: 0, row: 0 },
+      { id: 1, col: 1, row: 0 },
+      { id: 2, col: 1, row: 1 },
+    ]);
+  });
+
+  it("two variants on different branches share a row", () => {
+    // 0 → 1 → 2(main)
+    // 1 has variant 3
+    // 2 has variant 4
+    const tree = t([[1], [2, 3], [4], [], []]);
+    const lay = layoutTree(tree);
+
+    // Mainline
+    expectLayout(lay, [
+      { id: 0, col: 0, row: 0 },
+      { id: 1, col: 1, row: 0 },
+      { id: 2, col: 2, row: 0 },
+    ]);
+
+    // Both on row 1, different cols
+    expectLayout(lay, [
+      { id: 3, col: 2, row: 1 },
+      { id: 4, col: 3, row: 1 },
+    ]);
+  });
+
+  it("variant chain of 2 nodes", () => {
+    // 0 → 1(main)
+    // 0 → 2 → 3 (variant chain)
+    const tree = t([[1, 2], [], [3], []]);
+    const lay = layoutTree(tree);
+
+    expectLayout(lay, [
+      { id: 0, col: 0, row: 0 },
+      { id: 1, col: 1, row: 0 },
+      { id: 2, col: 1, row: 1 },
+      { id: 3, col: 2, row: 1 },
+    ]);
+  });
+
+  it("variant bumps to next row on collision", () => {
+    // 0 → 1 → 2(main)
+    // 1 has variant 3 and variant 4
+    // Both try row 1, col 2 → second bumps to row 2
+    const tree = t([[1], [2, 3, 4], [], [], []]);
+    const lay = layoutTree(tree);
+
+    // Mainline
+    expectLayout(lay, [
+      { id: 0, col: 0, row: 0 },
+      { id: 1, col: 1, row: 0 },
+      { id: 2, col: 2, row: 0 },
+    ]);
+
+    // Processing order: mainline tip→root. Node 2 first (no variants),
+    // then node 1. Node 1's variants: children[1]=3, children[2]=4.
+    // 3 placed first → connector col 1 row 1, node col 2 row 1.
+    // 4 → connector col 1 row 1 CONFLICT → row 2.
+    expectLayout(lay, [
+      { id: 3, col: 2, row: 1 },
+      { id: 4, col: 2, row: 2 },
+    ]);
+  });
+
+  it("sub-variant of a variant chain", () => {
+    // 0 → 1(main)
+    // 1 has variant 2 → 3 (chain)
+    // 2 has variant 4 (sub-variant)
+    const tree = t([[1], [2], [3, 4], [], []]);
+    const lay = layoutTree(tree);
+
+    expectLayout(lay, [
+      { id: 0, col: 0, row: 0 },
+      { id: 1, col: 1, row: 0 },
+      { id: 2, col: 2, row: 1 },
+      { id: 3, col: 3, row: 1 },
+      { id: 4, col: 3, row: 2 }, // sub-variant of node 2 at col 2 row 1
+    ]);
+  });
+});

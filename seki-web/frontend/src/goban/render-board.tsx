@@ -108,7 +108,6 @@ function renderMoveTree(
   moveTreeEl: HTMLElement,
   doRender: () => void,
   direction?: "horizontal" | "vertical",
-  branchAfterNodes?: Set<number>,
 ): void {
   const nodeCount = engine.tree_node_count();
 
@@ -155,7 +154,6 @@ function renderMoveTree(
     <MoveTree
       tree={tree}
       currentNodeId={currentNodeId}
-      branchAfterNodes={branchAfterNodes}
       direction={direction}
       onNavigate={(nodeId) => {
         if (nodeId === rootId) {

@@ -14,44 +14,198 @@ type LayoutNode = {
   row: number;
 };
 
-function layoutTree(
-  tree: GameTreeData,
-  branchAfterNodes?: Set<number>,
-): LayoutNode[] {
+// ---------------------------------------------------------------------------
+// Packing tree layout
+//
+// Mainline (children[0] chain) always stays on row 0.
+// Variant chains are packed tightly against the mainline: each chain tries
+// rows 1, 2, … and settles on the first row where its connector, drop path,
+// and node span don't collide with existing nodes or connector turns.
+// │ (drop) cells can stack; └ (connector) and node cells are exclusive.
+//
+// Processing order: mainline tip → root (reverse).  Deeper variants claim
+// lower rows first; shallower ones fill gaps above them.
+// ---------------------------------------------------------------------------
+
+function layoutTree(tree: GameTreeData): LayoutNode[] {
   if (tree.nodes.length === 0) {
     return [];
   }
 
   const layout: LayoutNode[] = new Array(tree.nodes.length);
-  let nextRow = 0;
 
-  function walk(nodeId: number, col: number, row: number): void {
-    layout[nodeId] = { id: nodeId, col, row };
+  // Node cells — exclusive (nothing else can occupy)
+  const nodeCells = new Set<string>();
+  // Connector-turn cells (└ / ├) — exclusive with nodes and other connectors,
+  // but drops (│) can pass through them.
+  const connectorCells = new Set<string>();
+  // Drop cells (│) — can stack with other drops and with connectors,
+  // but blocked by nodes.
+  const dropCells = new Set<string>();
 
-    const children = tree.nodes[nodeId].children;
-    const allBranch = branchAfterNodes?.has(nodeId) ?? false;
+  function key(row: number, col: number): string {
+    return `${row},${col}`;
+  }
 
-    for (let i = 0; i < children.length; i++) {
-      if (i === 0 && !allBranch) {
-        // First child stays on the same row
-        walk(children[i], col + 1, row);
-      } else {
-        // Additional children (or all children when branching) get new rows
-        nextRow++;
-        walk(children[i], col + 1, nextRow);
+  /** True if no node, connector, or drop occupies the cell. */
+  function isFree(row: number, col: number): boolean {
+    const k = key(row, col);
+    return !nodeCells.has(k) && !dropCells.has(k);
+  }
+
+  /** True if a drop (│) can pass through — blocked only by nodes. */
+  function isFreeDrop(row: number, col: number): boolean {
+    return !nodeCells.has(key(row, col));
+  }
+
+  /** True if a connector (└) can go here — blocked by nodes and other connectors. */
+  function isFreeConnector(row: number, col: number): boolean {
+    const k = key(row, col);
+    return !nodeCells.has(k) && !connectorCells.has(k);
+  }
+
+  function markNode(row: number, col: number): void {
+    nodeCells.add(key(row, col));
+  }
+
+  function markConnector(row: number, col: number): void {
+    connectorCells.add(key(row, col));
+  }
+
+  function markDrop(row: number, col: number): void {
+    dropCells.add(key(row, col));
+  }
+
+  // ---- Mainline ----
+  function walkMainline(): number[] {
+    const order: number[] = [];
+    let col = 0;
+
+    function walk(ids: number[]): void {
+      for (const id of ids) {
+        layout[id] = { id, col, row: 0 };
+        markNode(0, col);
+        order.push(id);
+        col++;
+        const children = tree.nodes[id].children;
+        if (children.length > 0) {
+          walk([children[0]]);
+        }
+      }
+    }
+
+    walk(tree.root_children);
+    return order;
+  }
+
+  const mainlineOrder = walkMainline();
+
+  // ---- Chain helpers ----
+
+  /** Return the length of the children[0] chain starting at nodeId (including nodeId). */
+  function chainLen(nodeId: number): number {
+    let len = 1;
+    let cur = nodeId;
+    while (true) {
+      const kids = tree.nodes[cur].children;
+      if (kids.length === 0) break;
+      cur = kids[0];
+      len++;
+    }
+    return len;
+  }
+
+  /** Place a variant chain (nodeId and its children[0] descendants).
+   *  parentRow / parentCol refer to the node this chain branches from. */
+  function placeChain(
+    nodeId: number,
+    parentRow: number,
+    parentCol: number,
+  ): void {
+    const len = chainLen(nodeId);
+
+    // Find the first row that fits
+    let bestRow = -1;
+    for (let R = parentRow + 1; ; R++) {
+      // Node cells: cols parentCol+1 .. parentCol+len on row R
+      let ok = true;
+      for (let c = parentCol + 1; c <= parentCol + len; c++) {
+        if (!isFree(R, c)) {
+          ok = false;
+          break;
+        }
+      }
+      if (!ok) continue;
+
+      // Connector cell: col parentCol on row R
+      if (!isFreeConnector(R, parentCol)) continue;
+
+      // Drop cells: col parentCol on rows parentRow+1 .. R-1
+      for (let r = parentRow + 1; r < R; r++) {
+        if (!isFreeDrop(r, parentCol)) {
+          ok = false;
+          break;
+        }
+      }
+      if (!ok) continue;
+
+      bestRow = R;
+      break;
+    }
+
+    const R = bestRow;
+
+    // Place connector
+    markConnector(R, parentCol);
+
+    // Place drop cells
+    for (let r = parentRow + 1; r < R; r++) {
+      markDrop(r, parentCol);
+    }
+
+    // Place chain nodes (children[0] walk)
+    {
+      let col = parentCol + 1;
+      let cur = nodeId;
+      while (true) {
+        layout[cur] = { id: cur, col, row: R };
+        markNode(R, col);
+        col++;
+        const kids = tree.nodes[cur].children;
+        if (kids.length === 0) break;
+        cur = kids[0];
+      }
+    }
+
+    // Recurse into sub-variants of the chain nodes
+    {
+      let cur = nodeId;
+      let col = parentCol + 1;
+      while (true) {
+        const kids = tree.nodes[cur].children;
+        for (let j = 1; j < kids.length; j++) {
+          placeChain(kids[j], R, col);
+        }
+        if (kids.length === 0) break;
+        cur = kids[0];
+        col++;
       }
     }
   }
 
-  for (let i = 0; i < tree.root_children.length; i++) {
-    const rootId = tree.root_children[i];
-
-    if (i === 0) {
-      walk(rootId, 0, nextRow);
-    } else {
-      nextRow++;
-      walk(rootId, 0, nextRow);
+  // ---- Place variant chains in reverse mainline order ----
+  for (let i = mainlineOrder.length - 1; i >= 0; i--) {
+    const nodeId = mainlineOrder[i];
+    const pos = layout[nodeId];
+    const children = tree.nodes[nodeId].children;
+    for (let j = 1; j < children.length; j++) {
+      placeChain(children[j], pos.row, pos.col);
     }
+  }
+
+  // Also handle root_children beyond the first (variants branching from root)
+  for (let j = 1; j < tree.root_children.length; j++) {
+    placeChain(tree.root_children[j], 0, -1);
   }
 
   return layout;
@@ -60,7 +214,6 @@ function layoutTree(
 type MoveTreeProps = {
   tree: GameTreeData;
   currentNodeId: number;
-  branchAfterNodes?: Set<number>;
   direction?: "horizontal" | "vertical";
   verticalGrowth?: "auto" | "left" | "right";
   onNavigate: (nodeId: number) => void;
@@ -114,7 +267,6 @@ function useContainerLayout(ref: RefObject<HTMLDivElement>) {
 export function MoveTree({
   tree,
   currentNodeId,
-  branchAfterNodes,
   direction,
   verticalGrowth = "auto",
   onNavigate,
@@ -122,10 +274,7 @@ export function MoveTree({
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const containerLayout = useContainerLayout(scrollRef);
-  const layout = useMemo(
-    () => layoutTree(tree, branchAfterNodes),
-    [tree, branchAfterNodes],
-  );
+  const layout = useMemo(() => layoutTree(tree), [tree]);
   const resolvedDirection = direction ?? containerLayout.direction;
   const vertical = resolvedDirection === "vertical";
   const resolvedGrowth =
@@ -274,12 +423,22 @@ export function MoveTree({
             />,
           );
         } else {
-          // L-shaped: horizontal = down then across, vertical = across then down
-          const mid = vertical ? `${x2},${y1}` : `${x1},${y2}`;
+          // diagonal connector
+          const s = resolvedGrowth === "left" ? 1 : -1;
+          const ortho = vertical
+            ? `H ${x2 + s * colSpacing}`
+            : `V ${y2 - colSpacing}`;
+          const c = colSpacing * 0.5; // curvature
+          const C = vertical
+            ? `C ${x2 + s * c},${y1} ${x2},${y2 - c} ${x2},${y2}`
+            : `C ${x1},${y2 - colSpacing + c} ${x2 - c},${y2} ${x2},${y2}`;
           edges.push(
-            <polyline
+            <path
               key={`e-${treeNode.parent}-${node.id}`}
-              points={`${x1},${y1} ${mid} ${x2},${y2}`}
+              d={`M ${x1}, ${y1}
+                  ${ortho}
+                  ${C}
+                  `}
               fill="none"
               style={edgeStyle}
             />,

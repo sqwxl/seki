@@ -488,28 +488,11 @@ class BoardController implements Board {
     const territoryInfo = this.renderBoard();
 
     if (this.config.moveTreeEl) {
-      let branchNodes: Set<number> | undefined;
-
-      if (this.config.branchAtBaseTip && this._baseTipNodeId >= 0) {
-        branchNodes = new Set([this._baseTipNodeId]);
-      }
-
-      if (this.finalizedNodes.size > 0) {
-        if (!branchNodes) {
-          branchNodes = new Set();
-        }
-
-        for (const id of this.finalizedNodes.keys()) {
-          branchNodes.add(id);
-        }
-      }
-
       renderMoveTree(
         this.engine,
         this.config.moveTreeEl,
         () => this.render(),
         this.resolveTreeDirection(),
-        branchNodes,
       );
     }
 
