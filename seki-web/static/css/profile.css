@@ -1,0 +1,59 @@
+.rating-graph {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.rating-graph svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-muted) 45%, var(--bg));
+}
+
+.rating-graph-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.rating-graph-line {
+  fill: none;
+  stroke: var(--blue);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.rating-graph-point {
+  fill: var(--blue);
+  stroke: var(--blue);
+  stroke-width: 2;
+}
+
+.rating-graph-label {
+  fill: var(--fg);
+  font-size: 16px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.rating-graph-meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--fg-muted);
+  font-size: 0.85em;
+}
+
+.rating-graph-empty {
+  color: var(--fg-muted);
+}
+
+@media (min-width: 768px) {
+  .rating-graph-point {
+    fill: var(--bg);
+  }
+}
