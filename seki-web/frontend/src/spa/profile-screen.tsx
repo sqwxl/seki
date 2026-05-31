@@ -167,9 +167,15 @@ export function ProfileScreen({
     clearFlash();
 
     const form = e.currentTarget as HTMLFormElement;
+    const formData = new FormData(form);
+    const displayName = form.elements.namedItem("display_name");
+
+    if (displayName instanceof HTMLInputElement) {
+      formData.set("username", displayName.value);
+    }
 
     try {
-      const result = await postForm(form.action, new FormData(form));
+      const result = await postForm(form.action, formData);
       await refreshSession();
       if (typeof result.redirect === "string") {
         navigate(result.redirect);
@@ -268,9 +274,10 @@ export function ProfileScreen({
               >
                 <input
                   type="text"
-                  name="username"
+                  name="display_name"
                   defaultValue={data.profile_username}
                   maxLength={30}
+                  autocomplete="nickname"
                 />
                 <button type="submit">Update</button>
               </form>

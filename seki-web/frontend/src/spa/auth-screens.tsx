@@ -108,6 +108,7 @@ export function AuthFormScreen({
             defaultValue={
               mode === "register" ? (currentUser?.display_name ?? "") : ""
             }
+            autocomplete="username"
             autoFocus
           />
         </div>
@@ -119,6 +120,9 @@ export function AuthFormScreen({
             id="password"
             required
             minLength={8}
+            autocomplete={
+              mode === "login" ? "current-password" : "new-password"
+            }
           />
         </div>
         {mode === "register" && (
@@ -130,6 +134,7 @@ export function AuthFormScreen({
               id="password_confirmation"
               required
               minLength={8}
+              autocomplete="new-password"
             />
           </div>
         )}
