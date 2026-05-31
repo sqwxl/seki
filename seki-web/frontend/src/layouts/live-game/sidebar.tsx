@@ -1,4 +1,5 @@
 import type { Board } from "../../goban/create-board";
+import { invalidateTreeCache } from "../../goban/render-board";
 import { storage } from "../../utils/storage";
 
 type SavedAnalysis = {
@@ -57,11 +58,8 @@ export function loadSavedAnalysisTree(
     return saved;
   }
 
+  invalidateTreeCache();
   board.engine.replace_tree(saved.tree);
-
-  if (movesValue.length > 0) {
-    board.engine.merge_base_moves(JSON.stringify(movesValue));
-  }
 
   return saved;
 }

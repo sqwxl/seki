@@ -612,11 +612,14 @@ class BoardController implements Board {
       if (wasAtBaseTip) {
         this.engine.to_latest();
       }
-    } else {
-      // Same length, different content — full replace (rare: e.g. reconnect glitch)
+    } else if (newCount > 0) {
+      // Same length, different content — merge so analysis branches survive
       invalidateTreeCache();
-      this.engine.replace_moves(movesJson);
-      this._baseTipNodeId = newCount > 0 ? newCount - 1 : -1;
+      const newTipId = this.engine.merge_base_moves(movesJson);
+      this._baseTipNodeId = newTipId;
+    } else {
+      invalidateTreeCache();
+      this._baseTipNodeId = -1;
     }
 
     this.baseMoves = movesJson;

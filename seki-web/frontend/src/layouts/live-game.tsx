@@ -179,7 +179,11 @@ export function liveGame(
     }
 
     mobileTab.value = "analysis";
-    const saved = loadSavedAnalysisTree(board.value, analysisKey, moves.value);
+
+    // Tree is already loaded by the page setup path — just restore the
+    // analysis position if needed. Avoid replace_tree here because it
+    // would clobber the _baseTipNodeId set by updateBaseMoves.
+    const saved = readSavedAnalysis(analysisKey);
 
     if (nodeId != null && board.value) {
       if (nodeId >= 0) {
@@ -495,18 +499,22 @@ export function liveGame(
     board.value = b;
     board.value.setMoveTreeEl(moveTreeEl);
 
+    if (settledTerritory.value) {
+      board.value.markSettled(settledTerritory.value.dead_stones);
+    }
+
+    const saved = readSavedAnalysis(analysisKey);
+
+    if (saved?.tree) {
+      loadSavedAnalysisTree(board.value, analysisKey, moves.value);
+    }
+
     if (moves.value.length > 0) {
       const movesJson = JSON.stringify(moves.value);
 
       resetMovesTracker(moves.value);
       board.value.updateBaseMoves(movesJson);
     }
-
-    if (settledTerritory.value) {
-      board.value.markSettled(settledTerritory.value.dead_stones);
-    }
-
-    const saved = readSavedAnalysis(analysisKey);
 
     if (saved?.active) {
       enterAnalysis();
