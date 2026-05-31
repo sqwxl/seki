@@ -82,3 +82,4 @@ Rating response fields:
 - game data responses include `ranked` status and derived ranked settings when applicable
 - rating history is exposed through user profile endpoints with protected-game visibility filtering
 - `/api/web/games` accepts optional `rated_status` (ranked/unranked), `min_rating`, and `max_rating` query parameters for server-side filtering
+- `/api/web/players` returns paginated player-directory rows and accepts `offset`, `limit`, `exclude_uncertain`, `include_unranked`, and `online_now`

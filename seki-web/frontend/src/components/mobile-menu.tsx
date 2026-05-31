@@ -106,6 +106,13 @@ export function MobileMenu({
               >
                 <IconAnalysis /> Analysis Board
               </a>
+              <a
+                class="nav-dropdown-item"
+                href="/players"
+                onClick={() => setOpen(false)}
+              >
+                <IconUser /> Players
+              </a>
             </div>
           )}
           <SettingsDropdownContent showLabel={false} />

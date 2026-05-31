@@ -59,6 +59,10 @@
   --tree-root: #555;
 }
 
+.fg-green {
+  color: var(--green);
+}
+
 .fg-red {
   color: var(--red);
 }

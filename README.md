@@ -109,6 +109,7 @@ Look in `./justfile` for recipe details
 - [x] Browser app credentials (JWT with 90-day rolling expiry for PWA identity persistence)
 - [x] Settings page with API token management
 - [x] Basic user profile and game history
+- [x] Players directory with rank filters, presence, and rating trends
 - [ ] User profile customization
 - [x] Username update from profile
 - [x] User online status (presence indicators in game, chat, and user search)

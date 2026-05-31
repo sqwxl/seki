@@ -140,6 +140,7 @@ pub async fn build_router_with_registry_and_presence(
     let app = Router::new()
         .merge(sw_route)
         .route("/analysis", get(routes::spa::shell))
+        .route("/players", get(routes::spa::shell))
         .route("/", get(routes::spa::shell))
         .route("/games", get(routes::spa::shell))
         .route("/games/new", get(routes::spa::shell))

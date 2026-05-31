@@ -1,4 +1,5 @@
 mod games;
+mod players;
 mod settings;
 mod users;
 
@@ -22,6 +23,7 @@ pub fn router() -> Router<AppState> {
         .route("/web/games/new", axum::routing::get(games::new_game))
         .route("/web/games/{id}", axum::routing::get(games::game_show))
         .route("/web/analysis", axum::routing::get(games::analysis))
+        .route("/web/players", axum::routing::get(players::players_index))
         .route(
             "/web/users/{username}",
             axum::routing::get(users::user_profile),
@@ -67,6 +69,19 @@ pub(crate) async fn bootstrap_for_location(
             serde_json::to_value(games::load_new_game(state, current_user, Some(username)).await?)?
         }
         "/analysis" => serde_json::to_value(games::AnalysisData {})?,
+        "/players" => serde_json::to_value(
+            players::load_players_index(
+                state,
+                players::PlayersQuery {
+                    offset: None,
+                    limit: None,
+                    exclude_uncertain: None,
+                    include_unranked: None,
+                    online_now: None,
+                },
+            )
+            .await?,
+        )?,
         _ if path.starts_with("/games/") => {
             let game_id = path
                 .trim_start_matches("/games/")
@@ -119,6 +134,7 @@ fn route_data_url(path: &str, query: Option<&str>) -> Option<String> {
             })
         }
         "/analysis" => Some("/api/web/analysis".to_string()),
+        "/players" => Some("/api/web/players".to_string()),
         _ if path.starts_with("/games/challenge/") => {
             let username = path.trim_start_matches("/games/challenge/");
             Some(format!("/api/web/games/new?opponent={}", username))

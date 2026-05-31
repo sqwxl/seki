@@ -500,6 +500,19 @@ Rank qualifier visibility:
 - the rank qualifier should be shown in the player profile title
 - the rank qualifier should be shown in challenge-user selection UI
 
+### Players directory
+
+The `/players` screen shows a filterable, paginated table of registered players.
+
+- default view shows the top 50 ranked players by rating
+- uncertain ranked players are excluded by default and included when `Exclude uncertain?` is unchecked
+- unranked and opted-out players are included only when `Include unranked?` is checked
+- `Online now` filters to currently connected users
+- `Favorites` is visible but disabled until favorite users exist
+- rows show row number, username with presence indicator, full rating/rank text, wins/losses, compact rating trend, and relative last-active text
+- each row links to the user's profile
+- scrolling near the bottom appends the next page
+
 Game-bound rank semantics:
 
 - when a rank qualifier is tied to a specific game context, it should be treated as static from the time of game creation or seat fill

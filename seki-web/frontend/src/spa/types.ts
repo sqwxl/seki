@@ -11,6 +11,7 @@ import type { FlashMessage } from "../utils/flash";
 export type Route =
   | { kind: "games" }
   | { kind: "spectate" }
+  | { kind: "players" }
   | { kind: "new-game" }
   | { kind: "challenge"; username: string }
   | {
@@ -90,6 +91,22 @@ export type ProfileData = {
   api_token?: string | null;
   user_email?: string | null;
   user_is_registered: boolean;
+};
+
+export type PlayerDirectoryItem = {
+  user: UserData;
+  is_online: boolean;
+  wins: number;
+  losses: number;
+  rating_trend: number[];
+  last_active_at: string;
+};
+
+export type PlayersData = {
+  players: PlayerDirectoryItem[];
+  offset: number;
+  limit: number;
+  has_more: boolean;
 };
 
 export type BootstrapPayload = {

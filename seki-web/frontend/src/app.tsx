@@ -460,6 +460,7 @@ function App() {
               <a href="/games">Games</a>
               <a href="/games/spectate">Spectate</a>
               <a href="/analysis">Analysis</a>
+              <a href="/players">Players</a>
             </>
           )}
         </div>

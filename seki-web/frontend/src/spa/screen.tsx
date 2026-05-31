@@ -14,6 +14,7 @@ import {
   NewGameScreen,
   SpectateScreen,
 } from "./game-screens";
+import { PlayersScreen } from "./players-screen";
 import { ProfileScreen } from "./profile-screen";
 import type { NavigateFn, Route } from "./types";
 
@@ -42,6 +43,7 @@ export function Screen({
       case "new-game":
       case "challenge":
       case "analysis":
+      case "players":
       case "game":
         if (
           `${window.location.pathname}${window.location.search}` !==
@@ -65,6 +67,8 @@ export function Screen({
       return <GamesScreen />;
     case "spectate":
       return <SpectateScreen />;
+    case "players":
+      return <PlayersScreen />;
     case "new-game":
       return <NewGameScreen navigate={navigate} />;
     case "challenge":

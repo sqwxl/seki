@@ -118,4 +118,13 @@ impl UserPresence {
             .filter(|id| inner.connections.get(id).is_some_and(|c| *c > 0))
             .collect()
     }
+
+    pub async fn all_connected_ids(&self) -> std::collections::HashSet<i64> {
+        let inner = self.inner.read().await;
+        inner
+            .connections
+            .iter()
+            .filter_map(|(id, count)| if *count > 0 { Some(*id) } else { None })
+            .collect()
+    }
 }
