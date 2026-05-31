@@ -335,40 +335,66 @@ export function MoveTree({
       return;
     }
 
-    let x: number;
-    let y: number;
+    const scrollEl = el;
 
-    if (currentNodeId === -1) {
-      x = cx(0, 0);
-      y = cy(0, 0);
-    } else {
-      const cur = layout.find((n) => n && n.id === currentNodeId);
+    function scrollToCurrent(): void {
+      let x: number;
+      let y: number;
 
-      if (!cur) {
+      if (currentNodeId === -1) {
+        x = cx(0, 0);
+        y = cy(0, 0);
+      } else {
+        const cur = layout.find((n) => n && n.id === currentNodeId);
+
+        if (!cur) {
+          return;
+        }
+
+        x = cx(cur.col, cur.row);
+        y = cy(cur.col, cur.row);
+      }
+
+      const w = scrollEl.clientWidth;
+      const h = scrollEl.clientHeight;
+
+      if (w === 0 || h === 0) {
         return;
       }
 
-      x = cx(cur.col, cur.row);
-      y = cy(cur.col, cur.row);
+      const pad = vertical ? treeEdgePadding : padding;
+      const sl = scrollEl.scrollLeft;
+      const st = scrollEl.scrollTop;
+
+      if (x - pad < sl) {
+        scrollEl.scrollLeft = Math.max(0, x - pad);
+      } else if (x + pad > sl + w) {
+        scrollEl.scrollLeft = x + pad - w;
+      }
+
+      if (y - pad < st) {
+        scrollEl.scrollTop = Math.max(0, y - pad);
+      } else if (y + pad > st + h) {
+        scrollEl.scrollTop = y + pad - h;
+      }
     }
 
-    const pad = vertical ? treeEdgePadding : padding;
-    const sl = el.scrollLeft;
-    const st = el.scrollTop;
-    const w = el.clientWidth;
-    const h = el.clientHeight;
+    let frame = requestAnimationFrame(() => {
+      scrollToCurrent();
+      frame = requestAnimationFrame(scrollToCurrent);
+    });
 
-    if (x - pad < sl) {
-      el.scrollLeft = Math.max(0, x - pad);
-    } else if (x + pad > sl + w) {
-      el.scrollLeft = x + pad - w;
+    if (typeof ResizeObserver === "undefined") {
+      return () => cancelAnimationFrame(frame);
     }
 
-    if (y - pad < st) {
-      el.scrollTop = Math.max(0, y - pad);
-    } else if (y + pad > st + h) {
-      el.scrollTop = y + pad - h;
-    }
+    const observer = new ResizeObserver(scrollToCurrent);
+    observer.observe(scrollEl);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, [
     currentNodeId,
     tree,
@@ -385,7 +411,8 @@ export function MoveTree({
   }
 
   // Build edges
-  const edges: h.JSX.Element[] = [];
+  const inactiveEdges: h.JSX.Element[] = [];
+  const activeEdges: h.JSX.Element[] = [];
 
   for (const node of layout) {
     if (!node) {
@@ -413,6 +440,7 @@ export function MoveTree({
           strokeWidth: onActivePath ? 2.5 * scale : 2,
           pointerEvents: "none",
         };
+        const edges = onActivePath ? activeEdges : inactiveEdges;
 
         if (straight) {
           edges.push(
@@ -607,7 +635,8 @@ export function MoveTree({
         width={svgWidth}
         height={svgHeight}
       >
-        {edges}
+        {inactiveEdges}
+        {activeEdges}
         {rootNodes}
         {nodes}
       </svg>
