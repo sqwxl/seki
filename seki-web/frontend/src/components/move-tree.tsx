@@ -406,9 +406,12 @@ export function MoveTree({
         // Same-branch check: horizontal checks y, vertical checks x
         const straight = vertical ? x1 === x2 : y1 === y2;
 
+        const onActivePath =
+          activePath.has(treeNode.parent) && activePath.has(node.id);
         const edgeStyle = {
-          stroke: "var(--tree-edge)",
-          strokeWidth: 2,
+          stroke: onActivePath ? "var(--tree-stroke)" : "var(--tree-edge)",
+          strokeWidth: onActivePath ? 2.5 * scale : 2,
+          pointerEvents: "none",
         };
 
         if (straight) {
@@ -449,6 +452,7 @@ export function MoveTree({
   }
 
   // Build nodes
+  const rootNodes: h.JSX.Element[] = [];
   const nodes: h.JSX.Element[] = [];
 
   for (const node of layout) {
@@ -475,7 +479,7 @@ export function MoveTree({
     const textFill =
       stone === 1 ? "var(--tree-text-on-black)" : "var(--tree-text-on-white)";
 
-    nodes.push(
+    const renderedNode = (
       <g
         key={`n-${node.id}`}
         style={{ cursor: "pointer" }}
@@ -496,24 +500,12 @@ export function MoveTree({
                 }}
               />
             )}
-            <line
-              x1={x - radius}
-              y1={y}
-              x2={x + radius}
-              y2={y}
+            <circle
+              cx={x}
+              cy={y}
+              r={4 * scale}
               style={{
-                stroke: "var(--tree-edge)",
-                strokeWidth: 2,
-              }}
-            />
-            <line
-              x1={x}
-              y1={y - radius}
-              x2={x}
-              y2={y + radius}
-              style={{
-                stroke: "var(--tree-edge)",
-                strokeWidth: 2,
+                fill: "var(--tree-stroke)",
               }}
             />
           </>
@@ -583,8 +575,14 @@ export function MoveTree({
             {node.col}
           </text>
         )}
-      </g>,
+      </g>
     );
+
+    if (isRoot) {
+      rootNodes.push(renderedNode);
+    } else {
+      nodes.push(renderedNode);
+    }
   }
 
   return (
@@ -610,6 +608,7 @@ export function MoveTree({
         height={svgHeight}
       >
         {edges}
+        {rootNodes}
         {nodes}
       </svg>
     </div>
