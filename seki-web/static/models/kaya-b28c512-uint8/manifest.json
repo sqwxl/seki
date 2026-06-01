@@ -1,0 +1,20 @@
+{
+  "id": "kaya-b28c512-uint8",
+  "version": 1,
+  "kind": "onnx",
+  "source": {
+    "name": "Kaya ONNX conversion of KataGo kata1-b28c512nbt-adam-s11165M-d5387M",
+    "url": "https://huggingface.co/kaya-go/kaya/tree/main/kata1-b28c512nbt-adam-s11165M-d5387M"
+  },
+  "artifacts": {
+    "model": "/static/models/kaya-b28c512-uint8/kaya-b28c512-uint8.onnx"
+  },
+  "boardSizes": [19],
+  "outputs": ["policy", "value", "ownership"],
+  "outputMap": {
+    "policy": "policy",
+    "value": "value",
+    "ownership": "ownership"
+  },
+  "inputEncoding": "katago-v7-poc-subset"
+}

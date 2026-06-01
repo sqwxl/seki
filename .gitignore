@@ -10,6 +10,7 @@ dist/
 build/
 seki-web/static/dist/
 seki-web/static/wasm/
+seki-web/static/models/**/*.onnx
 seki-web/frontend/node_modules/
 .env
 .env*

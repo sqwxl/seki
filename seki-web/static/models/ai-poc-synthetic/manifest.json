@@ -1,0 +1,10 @@
+{
+  "id": "ai-poc-synthetic",
+  "version": 1,
+  "kind": "synthetic",
+  "source": {
+    "name": "Synthetic TensorFlow.js smoke model"
+  },
+  "boardSizes": [9, 13, 19],
+  "outputs": ["policy", "value", "ownership"]
+}

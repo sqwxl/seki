@@ -130,3 +130,22 @@ Stop and revise the AI approach if:
 - Desktop and Android/WebView benchmark results.
 - Recommendation: proceed with this model/runtime, pick another model, or change
   runtime strategy.
+
+## Implementation Notes
+
+- Initial harness path: `/static/ai-poc.html`.
+- Initial worker bundle: `/static/dist/ai-poc-worker.js`.
+- Synthetic manifest: `/static/models/ai-poc-synthetic/manifest.json`.
+- Real-model manifest: `/static/models/kaya-b28c512-uint8/manifest.json`.
+- The synthetic manifest exercises TensorFlow.js backend selection and tensor
+  output reporting before a real converted model exists.
+- The real-model path uses ONNX Runtime Web and the already-converted Kaya
+  UINT8 ONNX artifact. Download it locally with the command in
+  `/static/models/kaya-b28c512-uint8/README.md`; the `.onnx` file is ignored by
+  git because it is about 75 MB.
+- The current real-model smoke test feeds a partial KataGo v7 input encoding for
+  empty/simple 19x19 positions. It is still not production-ready: ladder,
+  scoring area, superko, encore, and exact Seki engine snapshots remain part of
+  the AI core plan.
+- Keep the PoC isolated from product UI until real model output and mobile
+  benchmark data are captured.

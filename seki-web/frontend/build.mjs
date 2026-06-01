@@ -12,6 +12,8 @@ const srcDir = path.join(root, "src");
 const distDir = path.join(root, "../static/dist");
 const devDir = path.join(distDir, "dev");
 const vendorDir = path.join(devDir, "vendor");
+const aiPocWasmDir = path.join(distDir, "ai-poc-wasm");
+const aiPocOrtDir = path.join(distDir, "ai-poc-ort");
 
 const jsxConfig = {
   jsx: "automatic",
@@ -48,6 +50,31 @@ const swConfig = {
   bundle: true,
   outfile: "../static/dist/sw.js",
   format: "esm",
+  minify: !watchMode,
+  logLevel: "info",
+  define: {
+    __DEV__: watchMode ? "true" : "false",
+  },
+};
+
+const aiPocConfig = {
+  entryPoints: ["src/ai-poc/harness.ts"],
+  bundle: true,
+  outfile: "../static/dist/ai-poc.js",
+  format: "esm",
+  minify: !watchMode,
+  logLevel: "info",
+  define: {
+    __DEV__: watchMode ? "true" : "false",
+  },
+};
+
+const aiPocWorkerConfig = {
+  entryPoints: ["src/ai-poc/worker.ts"],
+  bundle: true,
+  outfile: "../static/dist/ai-poc-worker.js",
+  format: "esm",
+  conditions: ["onnxruntime-web-use-extern-wasm"],
   minify: !watchMode,
   logLevel: "info",
   define: {
@@ -194,6 +221,45 @@ async function writeVendorFiles() {
   await rewriteJsImports(vendorDir);
 }
 
+async function copyAiPocWasmFiles() {
+  await mkdir(aiPocWasmDir, { recursive: true });
+
+  const wasmDir = path.dirname(
+    packagePath("@tensorflow/tfjs-backend-wasm", "dist/tfjs-backend-wasm.wasm"),
+  );
+  const files = [
+    "tfjs-backend-wasm.wasm",
+    "tfjs-backend-wasm-simd.wasm",
+    "tfjs-backend-wasm-threaded-simd.wasm",
+  ];
+
+  await Promise.all(
+    files.map((file) =>
+      copyFile(path.join(wasmDir, file), path.join(aiPocWasmDir, file)),
+    ),
+  );
+}
+
+async function copyAiPocOrtFiles() {
+  await mkdir(aiPocOrtDir, { recursive: true });
+
+  const ortDir = path.dirname(
+    packagePath("onnxruntime-web", "dist/ort-wasm-simd-threaded.wasm"),
+  );
+  const files = [
+    "ort-wasm-simd-threaded.wasm",
+    "ort-wasm-simd-threaded.mjs",
+    "ort-wasm-simd-threaded.jsep.wasm",
+    "ort-wasm-simd-threaded.jsep.mjs",
+  ];
+
+  await Promise.all(
+    files.map((file) =>
+      copyFile(path.join(ortDir, file), path.join(aiPocOrtDir, file)),
+    ),
+  );
+}
+
 async function writeDevEntryShim() {
   await writeFile(
     path.join(distDir, "bundle.js"),
@@ -203,6 +269,8 @@ async function writeDevEntryShim() {
 
 async function finalizeDevBuild() {
   await writeVendorFiles();
+  await copyAiPocWasmFiles();
+  await copyAiPocOrtFiles();
   await rewriteJsImports(devDir);
   await writeDevEntryShim();
 
@@ -247,12 +315,25 @@ async function main() {
     await rm(devDir, { recursive: true, force: true });
     const appCtx = await createDevContext();
     const swCtx = await esbuild.context(swConfig);
+    const aiPocCtx = await esbuild.context(aiPocConfig);
+    const aiPocWorkerCtx = await esbuild.context(aiPocWorkerConfig);
     await appCtx.watch();
     await swCtx.watch();
+    await aiPocCtx.watch();
+    await aiPocWorkerCtx.watch();
+    await copyAiPocWasmFiles();
+    await copyAiPocOrtFiles();
 
     console.log("Watching unbundled frontend modules...");
   } else {
-    await Promise.all([esbuild.build(appConfig), esbuild.build(swConfig)]);
+    await Promise.all([
+      esbuild.build(appConfig),
+      esbuild.build(swConfig),
+      esbuild.build(aiPocConfig),
+      esbuild.build(aiPocWorkerConfig),
+      copyAiPocWasmFiles(),
+      copyAiPocOrtFiles(),
+    ]);
   }
 }
 
