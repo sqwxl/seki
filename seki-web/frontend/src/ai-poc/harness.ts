@@ -41,6 +41,14 @@ app.innerHTML = `
       <input id="komi" type="number" step="0.5" value="6.5" />
     </div>
     <div>
+      <label for="backend-preference">Backend</label>
+      <select id="backend-preference">
+        <option value="auto" selected>Auto</option>
+        <option value="webgpu">WebGPU</option>
+        <option value="wasm">WASM</option>
+      </select>
+    </div>
+    <div>
       <label for="runs">Runs</label>
       <input id="runs" type="number" min="1" max="200" value="30" />
     </div>
@@ -57,6 +65,9 @@ const positionPresetInput =
 const nextPlayerInput =
   document.querySelector<HTMLSelectElement>("#next-player")!;
 const komiInput = document.querySelector<HTMLInputElement>("#komi")!;
+const backendPreferenceInput = document.querySelector<HTMLSelectElement>(
+  "#backend-preference",
+)!;
 const runsInput = document.querySelector<HTMLInputElement>("#runs")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run-poc")!;
 const output = document.querySelector<HTMLPreElement>("#ai-poc-output")!;
@@ -81,8 +92,10 @@ function formatResult(result: AiPocResult): string {
       },
       runtime: result.runtime,
       backend: result.backend,
+      backendPreference: result.backendPreference,
       fallbackReason: result.fallbackReason,
       model: result.model,
+      webgpu: result.webgpu,
       input: result.input,
       timings: result.timings,
       outputs: result.outputs,
@@ -103,6 +116,8 @@ function runPoc() {
     positionPreset: positionPresetInput.value,
     nextPlayer: nextPlayerInput.value as "black" | "white",
     komi: Number(komiInput.value),
+    backendPreference:
+      backendPreferenceInput.value as AiPocRequest["backendPreference"],
     runs: Number(runsInput.value),
   };
   const activeWorker = ensureWorker();

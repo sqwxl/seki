@@ -15,9 +15,20 @@ import type {
   AiPocRequest,
   AiPocResponse,
   AiPocResult,
+  AiPocWebGpuStatus,
 } from "./types";
 
 const workerStartedAt = performance.now();
+
+type BrowserGpu = {
+  requestAdapter(options?: {
+    powerPreference?: "low-power" | "high-performance";
+  }): Promise<BrowserGpuAdapter | null>;
+};
+
+type BrowserGpuAdapter = {
+  requestDevice(): Promise<unknown>;
+};
 
 function post(response: AiPocResponse) {
   self.postMessage(response);
@@ -305,9 +316,13 @@ function sampleOrtData(
   return sample;
 }
 
-async function loadOnnxSession(manifest: AiPocManifest): Promise<{
+async function loadOnnxSession(
+  manifest: AiPocManifest,
+  backendPreference: AiPocRequest["backendPreference"],
+): Promise<{
   backend: AiPocBackend;
   fallbackReason?: string;
+  webgpu: AiPocWebGpuStatus;
   session: ort.InferenceSession;
 }> {
   if (!manifest.artifacts?.model) {
@@ -318,11 +333,11 @@ async function loadOnnxSession(manifest: AiPocManifest): Promise<{
   ort.env.wasm.numThreads = self.crossOriginIsolated ? 0 : 1;
 
   const failures: string[] = [];
-  const candidates: AiPocBackend[] =
-    "gpu" in navigator ? ["webgpu", "wasm"] : ["wasm"];
+  const webgpu = await probeWorkerWebGpu();
+  const candidates = chooseOnnxBackendCandidates(backendPreference, webgpu);
 
-  if (!("gpu" in navigator)) {
-    failures.push("webgpu: navigator.gpu is unavailable");
+  if (!webgpu.available && backendPreference !== "wasm") {
+    failures.push(`webgpu probe: ${webgpu.reason}`);
   }
 
   for (const backend of candidates) {
@@ -338,6 +353,7 @@ async function loadOnnxSession(manifest: AiPocManifest): Promise<{
       return {
         backend,
         fallbackReason: failures.length > 0 ? failures.join("; ") : undefined,
+        webgpu,
         session,
       };
     } catch (err) {
@@ -350,6 +366,58 @@ async function loadOnnxSession(manifest: AiPocManifest): Promise<{
   throw new Error(
     `No ONNX Runtime Web backend initialized: ${failures.join("; ")}`,
   );
+}
+
+function chooseOnnxBackendCandidates(
+  preference: AiPocRequest["backendPreference"],
+  webgpu: AiPocWebGpuStatus,
+): AiPocBackend[] {
+  if (preference === "wasm") {
+    return ["wasm"];
+  }
+
+  if (preference === "webgpu") {
+    return webgpu.available ? ["webgpu"] : [];
+  }
+
+  return webgpu.available ? ["webgpu", "wasm"] : ["wasm"];
+}
+
+async function probeWorkerWebGpu(): Promise<AiPocWebGpuStatus> {
+  if (!self.isSecureContext) {
+    return {
+      available: false,
+      reason: "worker is not in a secure context",
+    };
+  }
+
+  const gpu = (navigator as Navigator & { gpu?: BrowserGpu }).gpu;
+  if (!gpu) {
+    return {
+      available: false,
+      reason: "navigator.gpu is unavailable in worker",
+    };
+  }
+
+  try {
+    const adapter = await gpu.requestAdapter({
+      powerPreference: "high-performance",
+    });
+
+    if (!adapter) {
+      return {
+        available: false,
+        reason: "navigator.gpu.requestAdapter returned null",
+      };
+    }
+
+    return { available: true };
+  } catch (err) {
+    return {
+      available: false,
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 async function predictOnnx(
@@ -533,6 +601,7 @@ async function runTfPoc(
     manifest,
     runtime: "tfjs",
     backend: backend.backend,
+    backendPreference: request.backendPreference,
     fallbackReason: backend.fallbackReason,
     model: {
       artifactBytes,
@@ -564,7 +633,7 @@ async function runOnnxPoc(
   const backendMs = performance.now() - backendStart;
 
   const modelStart = performance.now();
-  const loaded = await loadOnnxSession(manifest);
+  const loaded = await loadOnnxSession(manifest, request.backendPreference);
   const modelLoadMs = performance.now() - modelStart;
   const input = makeOnnxFeeds(loaded.session, request);
 
@@ -613,8 +682,10 @@ async function runOnnxPoc(
     manifest,
     runtime: "onnxruntime-web",
     backend: loaded.backend,
+    backendPreference: request.backendPreference,
     fallbackReason: loaded.fallbackReason,
     model: modelMetadata,
+    webgpu: loaded.webgpu,
     input: input.input,
     timings: {
       workerStartedAt,

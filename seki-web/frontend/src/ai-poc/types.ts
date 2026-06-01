@@ -1,5 +1,7 @@
 export type AiPocBackend = "webgpu" | "wasm" | "cpu";
 
+export type AiPocBackendPreference = "auto" | "webgpu" | "wasm";
+
 export type AiPocRuntime = "tfjs" | "onnxruntime-web";
 
 export type AiPocManifest = {
@@ -28,6 +30,7 @@ export type AiPocRequest = {
   positionPreset: string;
   nextPlayer: "black" | "white";
   komi: number;
+  backendPreference: AiPocBackendPreference;
   runs: number;
 };
 
@@ -38,10 +41,16 @@ export type AiPocMetricSummary = {
   maxMs: number;
 };
 
+export type AiPocWebGpuStatus = {
+  available: boolean;
+  reason?: string;
+};
+
 export type AiPocResult = {
   manifest: AiPocManifest;
   runtime: AiPocRuntime;
   backend: AiPocBackend;
+  backendPreference: AiPocBackendPreference;
   fallbackReason?: string;
   model?: {
     artifactBytes?: number;
@@ -49,6 +58,7 @@ export type AiPocResult = {
     outputNames?: string[];
     rawOutputCount?: number;
   };
+  webgpu?: AiPocWebGpuStatus;
   input?: {
     encoding: string;
     boardSize: number;
