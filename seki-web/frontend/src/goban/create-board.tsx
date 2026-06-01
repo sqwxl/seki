@@ -493,6 +493,9 @@ class BoardController implements Board {
         this.config.moveTreeEl,
         () => this.render(),
         this.resolveTreeDirection(),
+        this.config.branchAtBaseTip && this._baseTipNodeId >= 0
+          ? this._baseTipNodeId
+          : undefined,
       );
     }
 

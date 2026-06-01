@@ -108,6 +108,7 @@ function renderMoveTree(
   moveTreeEl: HTMLElement,
   doRender: () => void,
   direction?: "horizontal" | "vertical",
+  mainLineTipNodeId?: number,
 ): void {
   const nodeCount = engine.tree_node_count();
 
@@ -155,6 +156,7 @@ function renderMoveTree(
       tree={tree}
       currentNodeId={currentNodeId}
       direction={direction}
+      mainLineTipNodeId={mainLineTipNodeId}
       onNavigate={(nodeId) => {
         if (nodeId === rootId) {
           engine.to_start();

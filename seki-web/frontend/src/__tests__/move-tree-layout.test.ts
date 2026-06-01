@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 
 type LayoutNode = { id: number; col: number; row: number };
 
-function layoutTree(tree: {
-  nodes: Array<{ children: number[] }>;
-  root_children: number[];
-}): LayoutNode[] {
+function layoutTree(
+  tree: {
+    nodes: Array<{ children: number[]; parent?: number | null }>;
+    root_children: number[];
+  },
+  mainLineTipNodeId?: number,
+): LayoutNode[] {
   if (tree.nodes.length === 0) return [];
 
   const layout: LayoutNode[] = new Array(tree.nodes.length);
@@ -38,15 +41,59 @@ function layoutTree(tree: {
     dropCells.add(key(r, c));
   }
 
+  function mainlinePathFromTip(): number[] | undefined {
+    if (
+      mainLineTipNodeId == null ||
+      mainLineTipNodeId < 0 ||
+      mainLineTipNodeId >= tree.nodes.length
+    ) {
+      return undefined;
+    }
+
+    const path: number[] = [];
+    const seen = new Set<number>();
+    let id: number | null = mainLineTipNodeId;
+
+    while (id != null) {
+      if (id < 0 || id >= tree.nodes.length || seen.has(id)) {
+        return undefined;
+      }
+
+      path.push(id);
+      seen.add(id);
+      id = tree.nodes[id].parent ?? null;
+    }
+
+    path.reverse();
+
+    return tree.root_children.includes(path[0]) ? path : undefined;
+  }
+
+  const mainlinePath = mainlinePathFromTip();
+  const mainlineNext = new Map<number, number>();
+
+  if (mainlinePath) {
+    for (let i = 0; i < mainlinePath.length - 1; i++) {
+      mainlineNext.set(mainlinePath[i], mainlinePath[i + 1]);
+    }
+  }
+
   function walkMainline(): number[] {
     const order: number[] = [];
     let col = 0;
+    function place(id: number): void {
+      layout[id] = { id, col, row: 0 };
+      markNode(0, col);
+      order.push(id);
+      col++;
+    }
+    if (mainlinePath) {
+      for (const id of mainlinePath) place(id);
+      return order;
+    }
     function walk(ids: number[]): void {
       for (const id of ids) {
-        layout[id] = { id, col, row: 0 };
-        markNode(0, col);
-        order.push(id);
-        col++;
+        place(id);
         const kids = tree.nodes[id].children;
         if (kids.length > 0) walk([kids[0]]);
       }
@@ -123,7 +170,10 @@ function layoutTree(tree: {
     const nodeId = mainlineOrder[i];
     const pos = layout[nodeId];
     const kids = tree.nodes[nodeId].children;
-    for (let j = 1; j < kids.length; j++) placeChain(kids[j], pos.row, pos.col);
+    const mainlineChild = mainlinePath ? mainlineNext.get(nodeId) : kids[0];
+    for (const child of kids) {
+      if (child !== mainlineChild) placeChain(child, pos.row, pos.col);
+    }
   }
 
   return layout;
@@ -146,5 +196,41 @@ describe("layoutTree", () => {
     expect(lay[1]).toEqual({ id: 1, col: 1, row: 0 });
     expect(lay[2]).toEqual({ id: 2, col: 1, row: 1 });
     expect(lay[3]).toEqual({ id: 3, col: 2, row: 1 });
+  });
+
+  it("places first child of main line tip as a variation", () => {
+    const tree = {
+      nodes: [
+        { children: [1], parent: null },
+        { children: [2], parent: 0 },
+        { children: [], parent: 1 },
+      ],
+      root_children: [0],
+    };
+    const lay = layoutTree(tree, 1);
+
+    expect(lay[0]).toEqual({ id: 0, col: 0, row: 0 });
+    expect(lay[1]).toEqual({ id: 1, col: 1, row: 0 });
+    expect(lay[2]).toEqual({ id: 2, col: 2, row: 1 });
+  });
+
+  it("keeps later live moves on main line after an analysis branch", () => {
+    const tree = {
+      nodes: [
+        { children: [1], parent: null },
+        { children: [2], parent: 0 },
+        { children: [3, 4], parent: 1 },
+        { children: [], parent: 2 },
+        { children: [], parent: 2 },
+      ],
+      root_children: [0],
+    };
+    const lay = layoutTree(tree, 4);
+
+    expect(lay[0]).toEqual({ id: 0, col: 0, row: 0 });
+    expect(lay[1]).toEqual({ id: 1, col: 1, row: 0 });
+    expect(lay[2]).toEqual({ id: 2, col: 2, row: 0 });
+    expect(lay[3]).toEqual({ id: 3, col: 3, row: 1 });
+    expect(lay[4]).toEqual({ id: 4, col: 3, row: 0 });
   });
 });

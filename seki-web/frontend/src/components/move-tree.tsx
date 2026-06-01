@@ -33,7 +33,10 @@ type LayoutNode = {
 // lower rows first; shallower ones fill gaps above them.
 // ---------------------------------------------------------------------------
 
-function layoutTree(tree: GameTreeData): LayoutNode[] {
+function layoutTree(
+  tree: GameTreeData,
+  mainLineTipNodeId?: number,
+): LayoutNode[] {
   if (tree.nodes.length === 0) {
     return [];
   }
@@ -82,17 +85,66 @@ function layoutTree(tree: GameTreeData): LayoutNode[] {
     dropCells.add(key(row, col));
   }
 
+  function mainlinePathFromTip(): number[] | undefined {
+    if (
+      mainLineTipNodeId == null ||
+      mainLineTipNodeId < 0 ||
+      mainLineTipNodeId >= tree.nodes.length
+    ) {
+      return undefined;
+    }
+
+    const path: number[] = [];
+    const seen = new Set<number>();
+    let id: number | null = mainLineTipNodeId;
+
+    while (id != null) {
+      if (id < 0 || id >= tree.nodes.length || seen.has(id)) {
+        return undefined;
+      }
+
+      path.push(id);
+      seen.add(id);
+      id = tree.nodes[id].parent;
+    }
+
+    path.reverse();
+
+    return tree.root_children.includes(path[0]) ? path : undefined;
+  }
+
   // ---- Mainline ----
+  const mainlinePath = mainlinePathFromTip();
+  const mainlineNext = new Map<number, number>();
+
+  if (mainlinePath) {
+    for (let i = 0; i < mainlinePath.length - 1; i++) {
+      mainlineNext.set(mainlinePath[i], mainlinePath[i + 1]);
+    }
+  }
+
   function walkMainline(): number[] {
     const order: number[] = [];
     let col = 0;
 
+    function place(id: number): void {
+      layout[id] = { id, col, row: 0 };
+      markNode(0, col);
+      order.push(id);
+      col++;
+    }
+
+    if (mainlinePath) {
+      for (const id of mainlinePath) {
+        place(id);
+      }
+
+      return order;
+    }
+
     function walk(ids: number[]): void {
       for (const id of ids) {
-        layout[id] = { id, col, row: 0 };
-        markNode(0, col);
-        order.push(id);
-        col++;
+        place(id);
         const children = tree.nodes[id].children;
         if (children.length > 0) {
           walk([children[0]]);
@@ -204,14 +256,21 @@ function layoutTree(tree: GameTreeData): LayoutNode[] {
     const nodeId = mainlineOrder[i];
     const pos = layout[nodeId];
     const children = tree.nodes[nodeId].children;
-    for (let j = 1; j < children.length; j++) {
-      placeChain(children[j], pos.row, pos.col);
+    const mainlineChild = mainlinePath ? mainlineNext.get(nodeId) : children[0];
+
+    for (const child of children) {
+      if (child !== mainlineChild) {
+        placeChain(child, pos.row, pos.col);
+      }
     }
   }
 
-  // Also handle root_children beyond the first (variants branching from root)
-  for (let j = 1; j < tree.root_children.length; j++) {
-    placeChain(tree.root_children[j], 0, -1);
+  // Also handle root_children beyond the mainline root
+  const mainlineRoot = mainlineOrder[0];
+  for (const rootChild of tree.root_children) {
+    if (rootChild !== mainlineRoot) {
+      placeChain(rootChild, 0, -1);
+    }
   }
 
   return layout;
@@ -221,6 +280,7 @@ type MoveTreeProps = {
   tree: GameTreeData;
   currentNodeId: number;
   direction?: "horizontal" | "vertical";
+  mainLineTipNodeId?: number;
   verticalGrowth?: "auto" | "left" | "right";
   onNavigate: (nodeId: number) => void;
 };
@@ -274,6 +334,7 @@ export function MoveTree({
   tree,
   currentNodeId,
   direction,
+  mainLineTipNodeId,
   verticalGrowth = "auto",
   onNavigate,
 }: MoveTreeProps) {
@@ -281,7 +342,10 @@ export function MoveTree({
   const svgRef = useRef<SVGSVGElement>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const containerLayout = useContainerLayout(scrollRef);
-  const layout = useMemo(() => layoutTree(tree), [tree]);
+  const layout = useMemo(
+    () => layoutTree(tree, mainLineTipNodeId),
+    [tree, mainLineTipNodeId],
+  );
   const resolvedDirection = direction ?? containerLayout.direction;
   const vertical = resolvedDirection === "vertical";
   const resolvedGrowth =
