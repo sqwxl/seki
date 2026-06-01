@@ -46,6 +46,24 @@ export type AiPocWebGpuStatus = {
   reason?: string;
 };
 
+export type AiPocInterpretation = {
+  value?: {
+    win: number;
+    loss: number;
+    noResult: number;
+  };
+  topPolicyMoves?: Array<{
+    move: string;
+    probability: number;
+    logit: number;
+  }>;
+  ownership?: {
+    min: number;
+    max: number;
+    mean: number;
+  };
+};
+
 export type AiPocResult = {
   manifest: AiPocManifest;
   runtime: AiPocRuntime;
@@ -83,6 +101,7 @@ export type AiPocResult = {
     dtype: string;
     sample: Array<number | string>;
   }>;
+  interpretation?: AiPocInterpretation;
   environment: {
     userAgent: string;
     crossOriginIsolated: boolean;

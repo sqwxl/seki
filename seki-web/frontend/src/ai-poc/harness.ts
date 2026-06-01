@@ -99,6 +99,7 @@ function formatResult(result: AiPocResult): string {
       input: result.input,
       timings: result.timings,
       outputs: result.outputs,
+      interpretation: result.interpretation,
       environment: result.environment,
     },
     null,

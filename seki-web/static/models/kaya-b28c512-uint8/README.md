@@ -19,3 +19,8 @@ The current PoC uses a partial KataGo v7 input encoder based on KataGo's
 liberty-count planes, simple ko, recent moves, komi, core rules, and komi parity.
 It intentionally leaves advanced history/rules features at zero until the
 production AI core is wired to Seki engine snapshots.
+
+The PoC output interpreter treats `value[0..3]` as side-to-move win/loss/no-result
+logits and policy head 0 as the move-policy logits over `19*19 + pass`. This is
+enough to sanity-check browser inference; production AI should verify the exact
+Kaya/KataGo output semantics before MCTS uses them.

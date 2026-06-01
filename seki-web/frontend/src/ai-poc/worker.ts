@@ -11,6 +11,7 @@ import {
 } from "./feature-encoder";
 import type {
   AiPocBackend,
+  AiPocInterpretation,
   AiPocManifest,
   AiPocRequest,
   AiPocResponse,
@@ -526,6 +527,103 @@ async function describeMappedOnnxOutputs(
   return entries;
 }
 
+async function interpretOnnxOutputs(
+  outputs: ort.InferenceSession.ReturnType,
+  boardSize: number,
+): Promise<AiPocInterpretation> {
+  const policy = await getOrtFloatData(outputs.policy);
+  const value = await getOrtFloatData(outputs.value);
+  const ownership = await getOrtFloatData(outputs.ownership);
+
+  return {
+    value: value ? interpretValue(value) : undefined,
+    topPolicyMoves: policy ? interpretPolicy(policy, boardSize, 8) : undefined,
+    ownership: ownership ? summarizeFloatData(ownership) : undefined,
+  };
+}
+
+async function getOrtFloatData(
+  value: ort.OnnxValue | undefined,
+): Promise<Float32Array | undefined> {
+  if (!value || !isOrtTensor(value) || value.type !== "float32") {
+    return undefined;
+  }
+
+  return value.getData() as Promise<Float32Array>;
+}
+
+function interpretValue(data: Float32Array) {
+  const probs = softmax(Array.from(data.slice(0, 3)));
+
+  return {
+    win: probs[0] ?? 0,
+    loss: probs[1] ?? 0,
+    noResult: probs[2] ?? 0,
+  };
+}
+
+function interpretPolicy(
+  data: Float32Array,
+  boardSize: number,
+  limit: number,
+): AiPocInterpretation["topPolicyMoves"] {
+  const policySize = boardSize * boardSize + 1;
+  const logits = Array.from(data.slice(0, policySize));
+  const probabilities = softmax(logits);
+
+  return probabilities
+    .map((probability, index) => ({
+      move: policyIndexToMove(index, boardSize),
+      probability,
+      logit: logits[index] ?? 0,
+    }))
+    .sort((a, b) => b.probability - a.probability)
+    .slice(0, limit);
+}
+
+function summarizeFloatData(data: Float32Array) {
+  let min = Infinity;
+  let max = -Infinity;
+  let sum = 0;
+
+  for (const value of data) {
+    min = Math.min(min, value);
+    max = Math.max(max, value);
+    sum += value;
+  }
+
+  return {
+    min,
+    max,
+    mean: sum / data.length,
+  };
+}
+
+function softmax(logits: number[]): number[] {
+  const max = Math.max(...logits);
+  const exps = logits.map((value) => Math.exp(value - max));
+  const sum = exps.reduce((total, value) => total + value, 0);
+
+  return exps.map((value) => value / sum);
+}
+
+function policyIndexToMove(index: number, boardSize: number): string {
+  if (index === boardSize * boardSize) {
+    return "pass";
+  }
+
+  const col = index % boardSize;
+  const row = Math.floor(index / boardSize);
+
+  return `${gtpColumn(col)}${boardSize - row}`;
+}
+
+function gtpColumn(col: number): string {
+  const code = "A".charCodeAt(0) + col + (col >= 8 ? 1 : 0);
+
+  return String.fromCharCode(code);
+}
+
 function disposeTfOutputs(outputs: Record<string, tf.Tensor>) {
   for (const tensor of Object.values(outputs)) {
     tensor.dispose();
@@ -615,6 +713,7 @@ async function runTfPoc(
       eval: summarize(times),
     },
     outputs: outputDescriptions,
+    interpretation: undefined,
     environment: {
       userAgent: navigator.userAgent,
       crossOriginIsolated: self.crossOriginIsolated,
@@ -665,6 +764,9 @@ async function runOnnxPoc(
   const outputDescriptions = lastOutputs
     ? await describeMappedOnnxOutputs(lastOutputs, manifest.outputMap)
     : [];
+  const interpretation = lastOutputs
+    ? await interpretOnnxOutputs(lastOutputs, request.boardSize)
+    : undefined;
   const modelMetadata = {
     artifactBytes,
     inputNames: Array.from(loaded.session.inputNames),
@@ -696,6 +798,7 @@ async function runOnnxPoc(
       eval: summarize(times),
     },
     outputs: outputDescriptions,
+    interpretation,
     environment: {
       userAgent: navigator.userAgent,
       crossOriginIsolated: self.crossOriginIsolated,
