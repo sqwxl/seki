@@ -45,8 +45,14 @@ label {
 
 .inline-form {
   display: flex;
+  flex-direction: row;
   align-items: stretch;
   gap: 0.5em;
+
+  button {
+    flex: 1;
+    max-width: 10em;
+  }
 }
 
 legend {

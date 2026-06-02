@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { IconRenew } from "../components/icons";
 import { NotificationSettings } from "../components/notification-settings";
 import { RatingParticipationSettings } from "../components/rating-participation-settings";
 import { UserLabel } from "../components/user-label";
@@ -31,10 +32,14 @@ export type RatingGraphData = {
   currentRating: number;
 };
 
+type GenerateTokenResult = {
+  api_token?: string | null;
+  error?: string;
+};
+
 const GRAPH_WIDTH = 640;
 const GRAPH_HEIGHT = 220;
 const GRAPH_PADDING = 32;
-const HIDDEN_API_TOKEN = "********************************";
 
 export function buildRatingGraphData(
   history: RatingHistoryEntryData[],
@@ -157,11 +162,15 @@ export function ProfileScreen({
   const { data, error } = useRouteData<ProfileData>(
     `/api/web/users/${encodeURIComponent(username)}`,
   );
-  const [tokenVisible, setTokenVisible] = useState(false);
+  const [apiToken, setApiToken] = useState<string | null>(null);
 
   useEffect(() => {
     setHead(pageTitle(username), `${username}'s Go profile on Seki`);
   }, [username]);
+
+  useEffect(() => {
+    setApiToken(data?.api_token ?? null);
+  }, [data?.api_token]);
 
   async function submitUsername(e: Event) {
     e.preventDefault();
@@ -205,14 +214,14 @@ export function ProfileScreen({
         method: "POST",
         headers: { Accept: "application/json" },
       });
-      const result = await response.json();
+      const result = (await response.json()) as GenerateTokenResult;
 
       if (!response.ok) {
         throw new Error(result.error ?? "Request failed");
       }
 
-      if (typeof result.redirect === "string") {
-        navigate(result.redirect, true, true);
+      if (typeof result.api_token === "string") {
+        setApiToken(result.api_token);
       }
     } catch (err) {
       setFlash((err as Error).message);
@@ -272,6 +281,7 @@ export function ProfileScreen({
                   name="username"
                   defaultValue={data.profile_username}
                   maxLength={30}
+                  style={{ width: "30ch" }}
                 />
                 <button type="submit">Update</button>
               </form>
@@ -290,6 +300,7 @@ export function ProfileScreen({
                       name="email"
                       defaultValue={data.user_email ?? ""}
                       placeholder="your@email.com"
+                      style={{ width: "30ch" }}
                     />
                     <button type="submit">
                       {data.user_email ? "Update" : "Save"}
@@ -300,36 +311,11 @@ export function ProfileScreen({
                 </>
               )}
               <h3>API Token</h3>
-              <p>
-                Use this token to authenticate with the API via{" "}
-                <code>Authorization: Bearer &lt;token&gt;</code>.
-              </p>
-              <div class="inline-form">
-                {data.api_token ? (
-                  <>
-                    <input
-                      id="api-token"
-                      type="text"
-                      value={tokenVisible ? data.api_token : HIDDEN_API_TOKEN}
-                      readOnly
-                      autocomplete="off"
-                      style={{ fontFamily: "monospace" }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setTokenVisible((visible) => !visible)}
-                    >
-                      {tokenVisible ? "Hide" : "Show"}
-                    </button>
-                    <button type="button" onClick={generateToken}>
-                      Regenerate Token
-                    </button>
-                  </>
-                ) : (
-                  <button type="button" onClick={generateToken}>
-                    Generate Token
-                  </button>
-                )}
+              <div class="api-token">
+                <code id="api-token">{apiToken}</code>
+                <button class="btn" type="button" onClick={generateToken}>
+                  <IconRenew />
+                </button>
               </div>
             </>
           ) : (

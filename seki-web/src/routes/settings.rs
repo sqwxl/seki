@@ -32,11 +32,11 @@ pub async fn generate_token(
         return Ok(Redirect::to("/login").into_response());
     }
 
-    User::generate_api_token(&state.db, current_user.id).await?;
+    let user = User::generate_api_token(&state.db, current_user.id).await?;
 
     let url = format!("/users/{}", current_user.username);
     if json {
-        Ok(Json(json!({"redirect": url})).into_response())
+        Ok(Json(json!({"redirect": url, "api_token": user.api_token})).into_response())
     } else {
         Ok(Redirect::to(&url).into_response())
     }
