@@ -339,6 +339,34 @@ a:visited {
   overflow-y: auto;
 }
 
+@media (max-width: 767px) {
+  .nav-dropdown.notification-dropdown {
+    position: fixed;
+    top: var(--nav-height, 0px);
+    right: 0;
+    left: 0;
+    min-width: 0;
+    max-width: none;
+    max-height: calc(100dvh - var(--nav-height, 0px) - 60dvh);
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+    box-shadow: none;
+    margin-top: 0;
+    overflow: hidden;
+  }
+
+  .notification-dropdown .nav-dropdown-section {
+    flex-shrink: 0;
+  }
+
+  .notification-dropdown .notification-list-section {
+    min-height: 0;
+    overflow-y: auto;
+    flex-shrink: 1;
+  }
+}
+
 .flash {
   position: relative;
   z-index: 325;

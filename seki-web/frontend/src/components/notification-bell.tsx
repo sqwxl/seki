@@ -58,8 +58,8 @@ export function NotificationBell() {
         <BellIcon />
       </button>
       {open && (
-        <div class="nav-dropdown">
-          <div class="nav-dropdown-section">
+        <div class="nav-dropdown notification-dropdown">
+          <div class="nav-dropdown-section notification-list-section">
             {games.length > 0 ? (
               games.map((g) => {
                 const label = gameLabel(g);
