@@ -17,8 +17,10 @@ import {
   clearPresentation,
   controlRequest,
   currentTurn,
+  currentUserId,
   gameId,
   gameStage,
+  initialProps,
   isPresenter,
   moves,
   opponentDisconnected,
@@ -110,8 +112,7 @@ function reconcilePendingActionFromState(): void {
     case "accept-pregame-settings":
       if (
         gameStage.value !== GameStage.Unstarted ||
-        pregameSettings.value?.black_approved ||
-        pregameSettings.value?.white_approved
+        currentUserAcceptedPregameSettings()
       ) {
         clearPendingAction("accept-pregame-settings");
       }
@@ -128,6 +129,21 @@ function reconcilePendingActionFromState(): void {
 
 function currentTurnChangedAwayFromPlayer(): boolean {
   return playerStone.value !== 0 && currentTurn.value !== playerStone.value;
+}
+
+function currentUserAcceptedPregameSettings(): boolean {
+  const pregame = pregameSettings.value;
+  if (!pregame) return false;
+
+  if (currentUserId.value === initialProps.value.creator_id) {
+    return pregame.creator_approved;
+  }
+
+  if (currentUserId.value === initialProps.value.opponent?.id) {
+    return pregame.opponent_approved;
+  }
+
+  return false;
 }
 
 function syncBoardMoves(

@@ -112,8 +112,8 @@ export type PregameSettingsData = {
   handicap: number;
   komi: number;
   color: "black" | "white" | "random";
-  black_approved: boolean;
-  white_approved: boolean;
+  creator_approved: boolean;
+  opponent_approved: boolean;
   expires_at?: string;
   max_handicap: number;
 };

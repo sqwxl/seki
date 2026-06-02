@@ -220,6 +220,10 @@ nav {
   gap: 0.5em;
   font-size: 1.125em;
 
+  * {
+    font-size: inherit;
+  }
+
   div {
     display: flex;
     align-items: center;

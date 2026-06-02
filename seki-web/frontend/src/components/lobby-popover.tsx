@@ -232,11 +232,11 @@ export function PregameSettingsPopover({
   const tc = formatTimeControl(settings);
   const opponent = isCreator ? joiner : creator;
   const currentPlayerApproved = isCreator
-    ? pregame.black_approved
-    : pregame.white_approved;
+    ? pregame.creator_approved
+    : pregame.opponent_approved;
   const opponentApproved = isCreator
-    ? pregame.white_approved
-    : pregame.black_approved;
+    ? pregame.opponent_approved
+    : pregame.creator_approved;
   const acceptLabel = currentPlayerApproved ? "Accepted" : "Accept";
   const acceptDisabled =
     disabled || pendingAction != null || currentPlayerApproved;

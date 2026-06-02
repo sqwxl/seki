@@ -7,8 +7,8 @@ pub struct PregameSettingsNegotiation {
     pub handicap: i32,
     pub komi: f64,
     pub color: String,
-    pub black_approved: bool,
-    pub white_approved: bool,
+    pub creator_approved: bool,
+    pub opponent_approved: bool,
     pub expires_at: Option<DateTime<Utc>>,
 }
 
@@ -25,8 +25,8 @@ impl PregameSettingsNegotiation {
              VALUES ($1, $2, $3, $4) \
              ON CONFLICT(game_id) DO UPDATE SET \
              handicap = excluded.handicap, komi = excluded.komi, color = excluded.color, \
-             black_approved = false, white_approved = false, expires_at = NULL, updated_at = CURRENT_TIMESTAMP \
-             RETURNING game_id, handicap, komi, color, black_approved, white_approved, expires_at",
+             creator_approved = false, opponent_approved = false, expires_at = NULL, updated_at = CURRENT_TIMESTAMP \
+             RETURNING game_id, handicap, komi, color, creator_approved, opponent_approved, expires_at",
         )
         .bind(game_id)
         .bind(handicap)
@@ -46,9 +46,9 @@ impl PregameSettingsNegotiation {
         sqlx::query_as::<_, Self>(
             "UPDATE pregame_setting_negotiations SET \
              handicap = $2, komi = $3, color = $4, \
-             black_approved = false, white_approved = false, expires_at = NULL, updated_at = CURRENT_TIMESTAMP \
+             creator_approved = false, opponent_approved = false, expires_at = NULL, updated_at = CURRENT_TIMESTAMP \
              WHERE game_id = $1 \
-             RETURNING game_id, handicap, komi, color, black_approved, white_approved, expires_at",
+             RETURNING game_id, handicap, komi, color, creator_approved, opponent_approved, expires_at",
         )
         .bind(game_id)
         .bind(handicap)
@@ -63,7 +63,7 @@ impl PregameSettingsNegotiation {
         game_id: i64,
     ) -> Result<Option<Self>, sqlx::Error> {
         sqlx::query_as::<_, Self>(
-            "SELECT game_id, handicap, komi, color, black_approved, white_approved, expires_at \
+            "SELECT game_id, handicap, komi, color, creator_approved, opponent_approved, expires_at \
              FROM pregame_setting_negotiations WHERE game_id = $1",
         )
         .bind(game_id)
@@ -74,19 +74,19 @@ impl PregameSettingsNegotiation {
     pub async fn set_approved(
         executor: impl sqlx::SqliteExecutor<'_>,
         game_id: i64,
-        black_approved: bool,
-        white_approved: bool,
+        creator_approved: bool,
+        opponent_approved: bool,
         expires_at: Option<DateTime<Utc>>,
     ) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Self>(
             "UPDATE pregame_setting_negotiations SET \
-             black_approved = $2, white_approved = $3, expires_at = $4, updated_at = CURRENT_TIMESTAMP \
+             creator_approved = $2, opponent_approved = $3, expires_at = $4, updated_at = CURRENT_TIMESTAMP \
              WHERE game_id = $1 \
-             RETURNING game_id, handicap, komi, color, black_approved, white_approved, expires_at",
+             RETURNING game_id, handicap, komi, color, creator_approved, opponent_approved, expires_at",
         )
         .bind(game_id)
-        .bind(black_approved)
-        .bind(white_approved)
+        .bind(creator_approved)
+        .bind(opponent_approved)
         .bind(expires_at)
         .fetch_one(executor)
         .await

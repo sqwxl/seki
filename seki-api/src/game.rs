@@ -124,8 +124,8 @@ pub struct PregameSettingsData {
     pub handicap: i32,
     pub komi: f64,
     pub color: String,
-    pub black_approved: bool,
-    pub white_approved: bool,
+    pub creator_approved: bool,
+    pub opponent_approved: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
     pub max_handicap: u8,

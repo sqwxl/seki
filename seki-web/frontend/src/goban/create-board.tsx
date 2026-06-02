@@ -61,6 +61,7 @@ export type Board = {
   navigate: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string) => void;
   restoreBaseMoves: () => void;
+  setHandicap: (handicap: number) => void;
   setKomi: (komi: number) => void;
   setShowCoordinates: (show: boolean) => void;
   setMoveTreeEl: (el: HTMLElement | null) => void;
@@ -97,6 +98,7 @@ class BoardController implements Board {
   readonly restoredWithAnalysis: boolean;
 
   private config: BoardConfig;
+  private handicap: number;
   private komi: number;
   private showCoords: boolean;
   private baseMoves: string;
@@ -125,6 +127,7 @@ class BoardController implements Board {
   ) {
     this.engine = engine;
     this.config = config;
+    this.handicap = config.handicap ?? 0;
     this.komi = config.komi ?? 6.5;
     this.showCoords = config.showCoordinates ?? false;
     this.restoredWithAnalysis = opts.restoredWithAnalysis;
@@ -618,6 +621,17 @@ class BoardController implements Board {
     this.engine.replace_moves(this.baseMoves);
     this._baseTipNodeId = this.baseMoveCount > 0 ? this.baseMoveCount - 1 : -1;
     this.engine.to_latest();
+  }
+
+  setHandicap(handicap: number): void {
+    if (handicap === this.handicap) {
+      return;
+    }
+
+    this.handicap = handicap;
+    this.territoryState = undefined;
+    invalidateTreeCache();
+    this.engine.set_handicap(handicap);
   }
 
   setKomi(komi: number): void {

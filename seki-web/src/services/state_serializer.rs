@@ -32,8 +32,8 @@ pub struct PregameSettingsData {
     pub handicap: i32,
     pub komi: f64,
     pub color: String,
-    pub black_approved: bool,
-    pub white_approved: bool,
+    pub creator_approved: bool,
+    pub opponent_approved: bool,
     pub expires_at: Option<String>,
     pub max_handicap: u8,
 }
@@ -44,8 +44,8 @@ impl PregameSettingsData {
             handicap: settings.handicap,
             komi: settings.komi,
             color: settings.color.clone(),
-            black_approved: settings.black_approved,
-            white_approved: settings.white_approved,
+            creator_approved: settings.creator_approved,
+            opponent_approved: settings.opponent_approved,
             expires_at: settings.expires_at.map(|dt| dt.to_rfc3339()),
             max_handicap: go_engine::handicap::max_handicap(
                 engine.goban().cols(),

@@ -105,6 +105,8 @@ impl Bot {
                 stage,
                 moves,
                 current_turn_stone,
+                creator,
+                opponent,
                 black,
                 white,
                 komi,
@@ -119,6 +121,8 @@ impl Bot {
                     &serde_json::Value::Null,
                     &moves,
                     current_turn_stone,
+                    &creator,
+                    &opponent,
                     &black,
                     &white,
                     komi,
@@ -136,6 +140,8 @@ impl Bot {
                 stage,
                 moves,
                 current_turn_stone,
+                creator,
+                opponent,
                 black,
                 white,
                 komi,
@@ -150,6 +156,8 @@ impl Bot {
                     &serde_json::Value::Null,
                     &moves,
                     current_turn_stone,
+                    &creator,
+                    &opponent,
                     &black,
                     &white,
                     komi,
@@ -397,6 +405,8 @@ impl Bot {
         _state: &serde_json::Value,
         moves: &[Turn],
         current_turn_stone: i32,
+        creator: &Option<seki_api::user::UserData>,
+        opponent: &Option<seki_api::user::UserData>,
         black: &Option<seki_api::user::UserData>,
         white: &Option<seki_api::user::UserData>,
         komi: f64,
@@ -463,11 +473,12 @@ impl Bot {
                     {
                         gs.stage = GameStage::Pregame;
                         if !gs.pregame_accepted {
-                            let opponent_approved = match gs.our_stone {
-                                Some(Stone::Black) => pg.white_approved,
-                                Some(Stone::White) => pg.black_approved,
-                                None => false,
-                            };
+                            let opponent_approved = opponent_accepted_pregame_settings(
+                                self.user_id,
+                                creator,
+                                opponent,
+                                pg,
+                            );
                             if opponent_approved {
                                 info!("Accepting pregame settings game={game_id}");
                                 gs.pregame_accepted = true;
@@ -750,4 +761,21 @@ impl Bot {
             }
         }
     }
+}
+
+fn opponent_accepted_pregame_settings(
+    user_id: i64,
+    creator: &Option<seki_api::user::UserData>,
+    opponent: &Option<seki_api::user::UserData>,
+    settings: &seki_api::game::PregameSettingsData,
+) -> bool {
+    if creator.as_ref().is_some_and(|u| u.id == user_id) {
+        return settings.opponent_approved;
+    }
+
+    if opponent.as_ref().is_some_and(|u| u.id == user_id) {
+        return settings.creator_approved;
+    }
+
+    false
 }

@@ -48,11 +48,11 @@ pub async fn accept_pregame_settings(
         })?;
 
     match role {
-        ParticipantRole::Creator => negotiation.black_approved = true,
-        ParticipantRole::Opponent => negotiation.white_approved = true,
+        ParticipantRole::Creator => negotiation.creator_approved = true,
+        ParticipantRole::Opponent => negotiation.opponent_approved = true,
     }
 
-    if negotiation.black_approved && negotiation.white_approved {
+    if negotiation.creator_approved && negotiation.opponent_approved {
         finalize_pregame_settings(state, gwp, negotiation).await?;
         return Ok(());
     }
@@ -60,8 +60,8 @@ pub async fn accept_pregame_settings(
     PregameSettingsNegotiation::set_approved(
         &state.db,
         game_id,
-        negotiation.black_approved,
-        negotiation.white_approved,
+        negotiation.creator_approved,
+        negotiation.opponent_approved,
         None,
     )
     .await?;

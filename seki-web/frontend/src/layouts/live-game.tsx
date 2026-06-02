@@ -41,6 +41,7 @@ import {
   originatorId,
   pendingMove,
   playerStone,
+  pregameSettings,
   presentationActive,
   replaceChatMessages,
   resetGameRuntimeState,
@@ -445,7 +446,7 @@ export function liveGame(
   createBoard({
     cols: gameState.value.cols,
     rows: gameState.value.rows,
-    handicap: initialProps.settings.handicap,
+    handicap: pregameSettings.value?.handicap ?? initialProps.settings.handicap,
     showCoordinates: showCoordinates.value,
     gobanEl: gobanRef.current!,
     ghostStone,
@@ -650,6 +651,24 @@ export function liveGame(
         clearPendingMove();
         board.value?.render();
       }
+    }),
+  );
+
+  // --- Preview negotiated handicap stones before both players accept ---
+  disposers.push(
+    effect(() => {
+      const b = board.value;
+
+      if (!b || moves.value.length > 0) {
+        return;
+      }
+
+      const handicap =
+        pregameSettings.value?.handicap ??
+        initialPropsSignal.value.settings.handicap;
+
+      b.setHandicap(handicap);
+      b.render();
     }),
   );
 
