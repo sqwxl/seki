@@ -34,6 +34,7 @@ export type RatingGraphData = {
 const GRAPH_WIDTH = 640;
 const GRAPH_HEIGHT = 220;
 const GRAPH_PADDING = 32;
+const HIDDEN_API_TOKEN = "********************************";
 
 export function buildRatingGraphData(
   history: RatingHistoryEntryData[],
@@ -167,15 +168,9 @@ export function ProfileScreen({
     clearFlash();
 
     const form = e.currentTarget as HTMLFormElement;
-    const formData = new FormData(form);
-    const displayName = form.elements.namedItem("display_name");
-
-    if (displayName instanceof HTMLInputElement) {
-      formData.set("username", displayName.value);
-    }
 
     try {
-      const result = await postForm(form.action, formData);
+      const result = await postForm(form.action, new FormData(form));
       await refreshSession();
       if (typeof result.redirect === "string") {
         navigate(result.redirect);
@@ -274,10 +269,9 @@ export function ProfileScreen({
               >
                 <input
                   type="text"
-                  name="display_name"
+                  name="username"
                   defaultValue={data.profile_username}
                   maxLength={30}
-                  autocomplete="nickname"
                 />
                 <button type="submit">Update</button>
               </form>
@@ -315,9 +309,10 @@ export function ProfileScreen({
                   <>
                     <input
                       id="api-token"
-                      type={tokenVisible ? "text" : "password"}
-                      value={data.api_token}
+                      type="text"
+                      value={tokenVisible ? data.api_token : HIDDEN_API_TOKEN}
                       readOnly
+                      autocomplete="off"
                       style={{ fontFamily: "monospace" }}
                     />
                     <button
