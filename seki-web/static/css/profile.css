@@ -6,7 +6,7 @@
   margin-top: 0.75rem;
 }
 
-.rating-graph svg {
+.rating-graph > svg {
   display: block;
   width: 100%;
   height: auto;
@@ -34,6 +34,10 @@
   stroke-width: 2;
 }
 
+.rating-graph-game-point {
+  cursor: pointer;
+}
+
 .rating-graph-label {
   fill: var(--fg);
   font-size: 16px;
@@ -55,6 +59,29 @@
 @media (min-width: 768px) {
   .rating-graph-point {
     fill: var(--bg);
+  }
+}
+
+.rating-graph-tooltip {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .rating-graph-tooltip {
+    display: block;
+    position: fixed;
+    z-index: 600;
+    width: max-content;
+    max-width: 17rem;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    box-shadow: var(--shadow-elevated);
+    color: var(--fg);
+    font-size: 0.85rem;
+    line-height: 1.35;
+    pointer-events: none;
   }
 }
 

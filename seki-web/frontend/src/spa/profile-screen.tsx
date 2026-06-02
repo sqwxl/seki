@@ -1,154 +1,22 @@
 import { useEffect, useState } from "preact/hooks";
 import { IconRenew } from "../components/icons";
 import { NotificationSettings } from "../components/notification-settings";
+import { RatingProfileSummary } from "../components/profile-rating-graph";
 import { RatingParticipationSettings } from "../components/rating-participation-settings";
 import { UserLabel } from "../components/user-label";
 import { UserGames } from "../layouts/user-games";
 import { clearFlash, setFlash } from "../utils/flash";
-import { formatNumericRating, fullRankText } from "../utils/rating";
 import { authUrl } from "../utils/spa-navigation";
 import { postForm } from "../utils/web-client";
 import { pageTitle, setHead } from "./head";
 import { useRouteData } from "./route-data";
 import { ErrorState, LoadingState } from "./screen-state";
-import type {
-  NavigateFn,
-  ProfileData,
-  ProfileRatingData,
-  RatingHistoryEntryData,
-} from "./types";
-
-type RatingGraphPoint = {
-  x: number;
-  y: number;
-  rating: number;
-};
-
-export type RatingGraphData = {
-  points: RatingGraphPoint[];
-  path: string;
-  minRating: number;
-  maxRating: number;
-  currentRating: number;
-};
+import type { NavigateFn, ProfileData } from "./types";
 
 type GenerateTokenResult = {
   api_token?: string | null;
   error?: string;
 };
-
-const GRAPH_WIDTH = 640;
-const GRAPH_HEIGHT = 220;
-const GRAPH_PADDING = 32;
-
-export function buildRatingGraphData(
-  history: RatingHistoryEntryData[],
-): RatingGraphData | null {
-  if (history.length === 0) {
-    return null;
-  }
-
-  const ratings = [
-    history[0].rating_before,
-    ...history.map((entry) => entry.rating_after),
-  ];
-  const minRating = Math.min(...ratings);
-  const maxRating = Math.max(...ratings);
-  const ratingRange = maxRating - minRating || 1;
-  const xRange = ratings.length - 1 || 1;
-  const width = GRAPH_WIDTH - GRAPH_PADDING * 2;
-  const height = GRAPH_HEIGHT - GRAPH_PADDING * 2;
-
-  const points = ratings.map((rating, index) => ({
-    x: GRAPH_PADDING + (index / xRange) * width,
-    y: GRAPH_PADDING + ((maxRating - rating) / ratingRange) * height,
-    rating,
-  }));
-  const path = points
-    .map((point, index) => `${index === 0 ? "M" : "L"}${point.x},${point.y}`)
-    .join(" ");
-
-  return {
-    points,
-    path,
-    minRating,
-    maxRating,
-    currentRating: ratings[ratings.length - 1],
-  };
-}
-
-function RatingGraph({ history }: { history: RatingHistoryEntryData[] }) {
-  const graph = buildRatingGraphData(history);
-
-  if (!graph) {
-    return <p class="rating-graph-empty">No visible rated games yet.</p>;
-  }
-
-  const lastPoint = graph.points[graph.points.length - 1];
-
-  return (
-    <div class="rating-graph">
-      <svg
-        viewBox={`0 0 ${GRAPH_WIDTH} ${GRAPH_HEIGHT}`}
-        role="img"
-        aria-label={`Rating graph, current rating ${formatNumericRating(graph.currentRating)}`}
-      >
-        <line
-          class="rating-graph-grid"
-          x1={GRAPH_PADDING}
-          y1={GRAPH_PADDING}
-          x2={GRAPH_PADDING}
-          y2={GRAPH_HEIGHT - GRAPH_PADDING}
-        />
-        <line
-          class="rating-graph-grid"
-          x1={GRAPH_PADDING}
-          y1={GRAPH_HEIGHT - GRAPH_PADDING}
-          x2={GRAPH_WIDTH - GRAPH_PADDING}
-          y2={GRAPH_HEIGHT - GRAPH_PADDING}
-        />
-        <path class="rating-graph-line" d={graph.path} />
-        {graph.points.map((point, index) => (
-          <circle
-            key={index}
-            class="rating-graph-point"
-            cx={point.x}
-            cy={point.y}
-            r={index === graph.points.length - 1 ? 4 : 3}
-          >
-            <title>{formatNumericRating(point.rating)}</title>
-          </circle>
-        ))}
-        <text class="rating-graph-label" x={lastPoint.x} y={lastPoint.y - 10}>
-          {formatNumericRating(graph.currentRating)}
-        </text>
-      </svg>
-      <div class="rating-graph-meta">
-        <span>
-          Range {formatNumericRating(graph.minRating)}-
-          {formatNumericRating(graph.maxRating)}
-        </span>
-        <span>{history.length} games</span>
-      </div>
-    </div>
-  );
-}
-
-function RatingProfileSummary({ rating }: { rating: ProfileRatingData }) {
-  const rankText = fullRankText(rating.rank);
-
-  return (
-    <section>
-      <h2>Rating</h2>
-      <p>
-        {rankText}
-        {rating.participating ? "" : " (-)"}
-        {` · ${rating.rated_games} rated games`}
-      </p>
-      <RatingGraph history={rating.history} />
-    </section>
-  );
-}
 
 export function ProfileScreen({
   username,
@@ -254,7 +122,9 @@ export function ProfileScreen({
           Challenge
         </button>
       )}
-      {data.rating && <RatingProfileSummary rating={data.rating} />}
+      {data.rating && (
+        <RatingProfileSummary rating={data.rating} navigate={navigate} />
+      )}
       <h2>Games</h2>
       <UserGames initial={data.initial_games} />
       {data.is_own_profile && (

@@ -4,10 +4,13 @@ use serde::Serialize;
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::game::Game;
+use crate::models::game::TimeControlType;
 use crate::models::rating::{RatingAdjustment, RatingProfile};
 use crate::models::user::User;
 use crate::services::game_access::{GameViewTokens, can_view_game};
-use crate::services::rating::{RankDto, rank_for_user};
+use crate::services::rating::{
+    PROVISIONAL_DEVIATION_THRESHOLD, RankDto, RankStatus, RatingCalibrationPolicy, rank_for_user,
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct RatingHistoryEntryDto {
@@ -21,6 +24,19 @@ pub struct RatingHistoryEntryDto {
     pub volatility_after: f64,
     pub rating_delta: f64,
     pub created_at: DateTime<Utc>,
+    pub black_player: Option<String>,
+    pub white_player: Option<String>,
+    pub black_rank_before: Option<RankDto>,
+    pub white_rank_before: Option<RankDto>,
+    pub cols: i32,
+    pub rows: i32,
+    pub handicap: i32,
+    pub komi: f64,
+    pub time_control: TimeControlType,
+    pub main_time_secs: Option<i32>,
+    pub increment_secs: Option<i32>,
+    pub byoyomi_time_secs: Option<i32>,
+    pub byoyomi_periods: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -83,8 +99,52 @@ async fn visible_rating_history(
             volatility_after: adjustment.volatility_after,
             rating_delta: adjustment.rating_delta,
             created_at: adjustment.created_at,
+            black_player: gwp
+                .black
+                .as_ref()
+                .map(|user| user.display_name().to_string()),
+            white_player: gwp
+                .white
+                .as_ref()
+                .map(|user| user.display_name().to_string()),
+            black_rank_before: rank_from_snapshot(&gwp.game, true),
+            white_rank_before: rank_from_snapshot(&gwp.game, false),
+            cols: gwp.game.cols,
+            rows: gwp.game.rows,
+            handicap: gwp.game.handicap,
+            komi: gwp.game.komi,
+            time_control: gwp.game.time_control,
+            main_time_secs: gwp.game.main_time_secs,
+            increment_secs: gwp.game.increment_secs,
+            byoyomi_time_secs: gwp.game.byoyomi_time_secs,
+            byoyomi_periods: gwp.game.byoyomi_periods,
         });
     }
 
     Ok(visible)
+}
+
+fn rank_from_snapshot(game: &Game, is_black: bool) -> Option<RankDto> {
+    let (rating, deviation, volatility) = if is_black {
+        (
+            game.black_rating_before?,
+            game.black_deviation_before?,
+            game.black_volatility_before?,
+        )
+    } else {
+        (
+            game.white_rating_before?,
+            game.white_deviation_before?,
+            game.white_volatility_before?,
+        )
+    };
+
+    Some(RankDto {
+        qualifier: Some(RatingCalibrationPolicy::default().rank_label(rating)),
+        status: RankStatus::Ranked,
+        rating: Some(rating),
+        deviation: Some(deviation),
+        volatility: Some(volatility),
+        uncertain: deviation > PROVISIONAL_DEVIATION_THRESHOLD,
+    })
 }

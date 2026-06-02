@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { buildRatingGraphData } from "../spa/profile-screen";
+import { buildRatingGraphData } from "../components/profile-rating-graph";
 import type { RatingHistoryEntryData } from "../spa/types";
 
 function historyEntry(
   overrides: Partial<RatingHistoryEntryData> = {},
 ): RatingHistoryEntryData {
-  return {
+  const entry: RatingHistoryEntryData = {
     game_id: 1,
     result: "win",
     rating_before: 1500,
@@ -17,8 +17,15 @@ function historyEntry(
     volatility_after: 0.06,
     rating_delta: 20,
     created_at: "2026-05-31T00:00:00Z",
+    cols: 19,
+    rows: 19,
+    handicap: 0,
+    komi: 6.5,
+    time_control: "none",
     ...overrides,
   };
+
+  return entry;
 }
 
 describe("buildRatingGraphData", () => {

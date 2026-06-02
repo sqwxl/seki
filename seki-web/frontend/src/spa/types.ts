@@ -70,6 +70,19 @@ export type RatingHistoryEntryData = {
   volatility_after: number;
   rating_delta: number;
   created_at: string;
+  black_player?: string | null;
+  white_player?: string | null;
+  black_rank_before?: RankData | null;
+  white_rank_before?: RankData | null;
+  cols: number;
+  rows: number;
+  handicap: number;
+  komi: number;
+  time_control: "none" | "fischer" | "byoyomi" | "correspondence";
+  main_time_secs?: number | null;
+  increment_secs?: number | null;
+  byoyomi_time_secs?: number | null;
+  byoyomi_periods?: number | null;
 };
 
 export type ProfileRatingData = {
