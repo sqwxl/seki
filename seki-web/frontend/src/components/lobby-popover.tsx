@@ -11,7 +11,7 @@ import {
   CopyInviteLinkButton,
   HandicapSelect,
 } from "./controls-shared";
-import { IconStonesBw } from "./icons";
+import { IconCheck, IconStonesBw } from "./icons";
 import { UserLabel } from "./user-label";
 
 export function LobbyPopover({
@@ -230,26 +230,14 @@ export function PregameSettingsPopover({
 }) {
   const size = formatSize(settings.cols, settings.rows);
   const tc = formatTimeControl(settings);
-  const [now, setNow] = useState(() => Date.now());
   const opponent = isCreator ? joiner : creator;
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
-  const remaining =
-    pregame.expires_at == null
-      ? undefined
-      : Math.max(
-          0,
-          Math.round((new Date(pregame.expires_at).getTime() - now) / 1000),
-        );
   const currentPlayerApproved = isCreator
     ? pregame.black_approved
     : pregame.white_approved;
-  const anyPlayerApproved = pregame.black_approved || pregame.white_approved;
-  const acceptLabel = anyPlayerApproved
-    ? `Accepted${remaining == null ? "" : ` (${remaining}s)`}`
-    : "Accept";
+  const opponentApproved = isCreator
+    ? pregame.white_approved
+    : pregame.black_approved;
+  const acceptLabel = currentPlayerApproved ? "Accepted" : "Accept";
   const acceptDisabled =
     disabled || pendingAction != null || currentPlayerApproved;
   const rejectDisabled = disabled || pendingAction != null;
@@ -327,7 +315,12 @@ export function PregameSettingsPopover({
           {!disabled && (
             <>
               <dt>Opponent</dt>
-              <dd>{opponent ? <UserLabel user={opponent} /> : "Opponent"}</dd>
+              <dd>
+                <span class="pregame-opponent-status">
+                  {opponent ? <UserLabel user={opponent} /> : "Opponent"}
+                  {opponentApproved && <IconCheck title="Accepted" />}
+                </span>
+              </dd>
             </>
           )}
           <dt>Rated</dt>

@@ -764,21 +764,6 @@ impl Game {
         .fetch_all(executor)
         .await
     }
-
-    pub async fn find_expired_pregame_settings(
-        executor: impl sqlx::SqliteExecutor<'_>,
-    ) -> Result<Vec<Game>, sqlx::Error> {
-        sqlx::query_as::<_, Game>(
-            "SELECT games.* FROM games \
-             JOIN pregame_setting_negotiations ON pregame_setting_negotiations.game_id = games.id \
-             WHERE games.result IS NULL \
-             AND games.stage = 'unstarted' \
-             AND pregame_setting_negotiations.expires_at IS NOT NULL \
-             AND pregame_setting_negotiations.expires_at < CURRENT_TIMESTAMP",
-        )
-        .fetch_all(executor)
-        .await
-    }
 }
 
 #[derive(Debug, Clone)]

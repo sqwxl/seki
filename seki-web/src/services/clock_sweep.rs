@@ -132,14 +132,5 @@ async fn sweep(state: &AppState) -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let pregame_games = Game::find_expired_pregame_settings(&state.db).await?;
-    for game in pregame_games {
-        let game_id = game.id;
-        tracing::info!("Pre-game settings sweep: finalizing game {game_id}");
-        if let Err(e) = game_actions::finalize_expired_pregame_settings(state, game).await {
-            tracing::error!("Pre-game settings sweep: failed to finalize game {game_id}: {e}");
-        }
-    }
-
     Ok(())
 }

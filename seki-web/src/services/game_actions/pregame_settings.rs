@@ -1,4 +1,3 @@
-use chrono::Utc;
 use rand::RngExt;
 
 use crate::AppState;
@@ -8,8 +7,6 @@ use crate::models::pregame_settings::PregameSettingsNegotiation;
 use crate::services::engine_builder;
 
 use super::{broadcast_game_state, load_game_and_check_player, require_both_players};
-
-const ACCEPT_DEADLINE_SECS: i64 = 60;
 
 pub async fn update_pregame_settings(
     state: &AppState,
@@ -60,13 +57,12 @@ pub async fn accept_pregame_settings(
         return Ok(());
     }
 
-    let deadline = Some(Utc::now() + chrono::Duration::seconds(ACCEPT_DEADLINE_SECS));
     PregameSettingsNegotiation::set_approved(
         &state.db,
         game_id,
         negotiation.black_approved,
         negotiation.white_approved,
-        deadline,
+        None,
     )
     .await?;
 
@@ -102,48 +98,6 @@ pub async fn reject_pregame_settings(
         .await?;
     broadcast_game_state(state, &updated, &engine).await;
     Ok(())
-}
-
-pub async fn handle_pregame_settings_timeout_flag(
-    state: &AppState,
-    game_id: i64,
-    player_id: i64,
-) -> Result<(), AppError> {
-    let gwp = load_game_and_check_player(state, game_id, player_id).await?;
-    if gwp.game.ranked || gwp.game.stage != "unstarted" || gwp.is_open() {
-        return Ok(());
-    }
-    let negotiation = match PregameSettingsNegotiation::find(&state.db, game_id).await? {
-        Some(n) => n,
-        None => return Ok(()),
-    };
-    let Some(deadline) = negotiation.expires_at else {
-        return Err(AppError::UnprocessableEntity(
-            "Pre-game settings have no active timer".to_string(),
-        ));
-    };
-    if deadline > Utc::now() {
-        return Err(AppError::UnprocessableEntity(
-            "Pre-game settings timer has not expired".to_string(),
-        ));
-    }
-
-    finalize_pregame_settings(state, gwp, negotiation).await
-}
-
-pub async fn finalize_expired_pregame_settings(
-    state: &AppState,
-    game: Game,
-) -> Result<(), AppError> {
-    let game_id = game.id;
-    let gwp = game.with_players(&state.db).await?;
-    require_pregame_settings(&gwp)?;
-    let negotiation = PregameSettingsNegotiation::find(&state.db, game_id)
-        .await?
-        .ok_or_else(|| {
-            AppError::UnprocessableEntity("No pre-game settings to finalize".to_string())
-        })?;
-    finalize_pregame_settings(state, gwp, negotiation).await
 }
 
 async fn finalize_pregame_settings(

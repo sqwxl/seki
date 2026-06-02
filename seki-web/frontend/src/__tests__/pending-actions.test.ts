@@ -76,7 +76,6 @@ function buildDeps(): GameMessageDeps {
       updatePregameSettings: () => {},
       acceptPregameSettings: () => {},
       rejectPregameSettings: () => {},
-      pregameSettingsTimeoutFlag: () => {},
       abort: () => {},
       claimVictory: () => {},
       acceptChallenge: () => {},

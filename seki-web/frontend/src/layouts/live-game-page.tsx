@@ -161,22 +161,6 @@ function LiveGameStatusSlot(
       ? (estimateScore.value ?? finalizedScore)
       : undefined;
 
-  useEffect(() => {
-    const expiresAt = pregameSettings.value?.expires_at;
-
-    if (!expiresAt) {
-      return;
-    }
-
-    const delay = Math.max(0, new Date(expiresAt).getTime() - Date.now() + 250);
-    const id = window.setTimeout(
-      () => props.channel.pregameSettingsTimeoutFlag(),
-      delay,
-    );
-
-    return () => window.clearTimeout(id);
-  }, [pregameSettings.value?.expires_at, props.channel]);
-
   return (
     <>
       {fullStatusText && (

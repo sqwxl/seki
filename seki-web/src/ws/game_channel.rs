@@ -184,9 +184,6 @@ pub async fn handle_message(
         "territory_timeout_flag" => {
             game_actions::handle_territory_timeout_flag(state, game_id, player_id).await
         }
-        "pregame_settings_timeout_flag" => {
-            game_actions::handle_pregame_settings_timeout_flag(state, game_id, player_id).await
-        }
         "start_presentation" => {
             presentation_actions::start_presentation(state, game_id, player_id).await
         }

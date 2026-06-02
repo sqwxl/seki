@@ -15,8 +15,7 @@ pub use disconnect::claim_victory;
 pub use end_game::end_game_on_time;
 pub use play::{pass, play_move};
 pub use pregame_settings::{
-    accept_pregame_settings, finalize_expired_pregame_settings,
-    handle_pregame_settings_timeout_flag, reject_pregame_settings, update_pregame_settings,
+    accept_pregame_settings, reject_pregame_settings, update_pregame_settings,
 };
 pub use rematch::rematch_game;
 pub use resign::{abort, resign};

@@ -143,6 +143,12 @@ input[type="radio"] {
   margin: 0;
 }
 
+.pregame-opponent-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
 .confirm-actions {
   display: flex;
   gap: 0.5em;

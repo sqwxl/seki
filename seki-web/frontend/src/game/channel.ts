@@ -17,7 +17,6 @@ export type GameChannel = {
   }): void;
   acceptPregameSettings(): void;
   rejectPregameSettings(): void;
-  pregameSettingsTimeoutFlag(): void;
   abort(): void;
   claimVictory(): void;
   acceptChallenge(): void;
@@ -92,9 +91,6 @@ export function createGameChannel(
     },
     rejectPregameSettings() {
       gameSend({ action: "reject_pregame_settings" });
-    },
-    pregameSettingsTimeoutFlag() {
-      gameSend({ action: "pregame_settings_timeout_flag" });
     },
     abort() {
       gameSend({ action: "abort" });
