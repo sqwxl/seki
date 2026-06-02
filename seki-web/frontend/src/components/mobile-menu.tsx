@@ -6,10 +6,10 @@ import {
   IconAnalysis,
   IconLogin,
   IconLogout,
-  IconMenu,
   IconPlus,
   IconPublic,
   IconRegister,
+  IconSettings,
   IconUser,
 } from "./icons";
 import { SettingsDropdownContent } from "./settings-menu";
@@ -58,31 +58,22 @@ export function MobileMenu({
         title="Menu"
         aria-expanded={open}
       >
-        <IconMenu />
+        {user ? (
+          <UserLabel
+            user={user}
+            noLink
+            options={{
+              rank: { displayMode: ratingDisplayPreference.value },
+            }}
+          />
+        ) : (
+          <>
+            <IconUser /> Guest
+          </>
+        )}
       </button>
       {open && (
         <div class="nav-dropdown mobile-menu-dropdown">
-          <div class="nav-dropdown-section">
-            <a
-              class="nav-dropdown-item"
-              href={`/users/${username}`}
-              onClick={() => setOpen(false)}
-            >
-              {user ? (
-                <UserLabel
-                  user={user}
-                  noLink
-                  options={{
-                    rank: { displayMode: ratingDisplayPreference.value },
-                  }}
-                />
-              ) : (
-                <>
-                  <IconUser /> Guest
-                </>
-              )}
-            </a>
-          </div>
           {showNavigation && (
             <div class="nav-dropdown-section">
               <a
@@ -117,6 +108,13 @@ export function MobileMenu({
           )}
           <SettingsDropdownContent showLabel={false} />
           <div class="nav-dropdown-section">
+            <a
+              class="nav-dropdown-item"
+              href={`/users/${username}`}
+              onClick={() => setOpen(false)}
+            >
+              <IconSettings /> Profile
+            </a>
             {isRegistered ? (
               <button
                 type="button"

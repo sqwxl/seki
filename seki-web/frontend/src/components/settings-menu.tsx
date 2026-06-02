@@ -17,7 +17,7 @@ import {
   getThemeLabel,
   themeMode,
 } from "../utils/theme";
-import { IconSettings } from "./icons";
+import { IconBalance, IconSettings } from "./icons";
 import { ToggleButton } from "./toggle-button";
 
 function ThemeButton() {
@@ -98,7 +98,7 @@ export function SettingsDropdownContent({
         class="nav-dropdown-item"
         onClick={handleRatingDisplayToggle}
       >
-        Ratings: {ratingDisplay === "kyu_dan" ? "Kyu/dan" : "Elo"}
+        <IconBalance /> {ratingDisplay === "kyu_dan" ? "Kyu/Dan" : "Elo"}
       </button>
     </div>
   );
