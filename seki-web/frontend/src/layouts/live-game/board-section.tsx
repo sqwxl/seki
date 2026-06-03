@@ -71,16 +71,24 @@ export function onRenderCallback(
     estimateScore.value = territoryInfo.score;
   }
 
+  const currentNodeId = engine.current_node_id();
+  const baseTipNodeId = board.value?.baseTipNodeId ?? -1;
+  const viewIndex = engine.view_index();
+  const atLiveTip =
+    (baseTipNodeId >= 0
+      ? currentNodeId === baseTipNodeId
+      : currentNodeId < 0) && viewIndex === moves.value.length;
+
   if (
     board.value &&
     !analysisMode.value &&
     !estimateMode.value &&
-    (engine.view_index() < moves.value.length || !engine.is_on_main_line()) &&
+    !atLiveTip &&
     !(presentationActive.value && !isPresenter.value)
   ) {
     enterAnalysis({
       restorePosition: false,
-      nodeId: engine.current_node_id(),
+      nodeId: currentNodeId,
     });
   }
 
@@ -92,7 +100,7 @@ export function onRenderCallback(
     atStart: engine.is_at_start(),
     atLatest: engine.is_at_latest(),
     atMainEnd: engine.is_at_main_end(),
-    counter: `${engine.view_index()}`,
+    counter: `${viewIndex}`,
     boardTurnStone: engine.current_turn_stone(),
     boardLastMoveWasPass: engine.last_move_was_pass(),
   };

@@ -599,16 +599,24 @@ class BoardController implements Board {
 
       // Auto-navigate to new tip if user was watching live play
       if (wasAtBaseTip) {
-        this.engine.to_latest();
+        this.engine.to_main_end();
       }
     } else if (newCount > 0) {
       // Same length, different content — merge so analysis branches survive
       invalidateTreeCache();
       const newTipId = this.engine.merge_base_moves(movesJson);
       this._baseTipNodeId = newTipId;
+
+      if (wasAtBaseTip) {
+        this.engine.to_main_end();
+      }
     } else {
       invalidateTreeCache();
       this._baseTipNodeId = -1;
+
+      if (wasAtBaseTip) {
+        this.engine.to_start();
+      }
     }
 
     this.baseMoves = movesJson;

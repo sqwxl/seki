@@ -88,10 +88,16 @@ impl Replay {
         }
     }
 
-    /// Build the main-line path (following children[0] from root).
-    /// When `base_tip` is set, stops there instead of continuing into
-    /// analysis branches beyond the base game moves.
+    /// Build the main-line path.
+    /// When `base_tip` is set, the server move path is authoritative even if
+    /// saved analysis branches were inserted earlier in sibling order.
     fn main_line_path_impl(tree: &GameTree, base_tip: Option<NodeId>) -> Vec<NodeId> {
+        if let Some(tip) = base_tip
+            && tip < tree.len()
+        {
+            return tree.path_to(tip);
+        }
+
         let roots = tree.root_children();
         if roots.is_empty() {
             return Vec::new();
@@ -919,6 +925,31 @@ mod tests {
             Some(3),
             "to_main_end should stop at base_tip"
         );
+    }
+
+    #[test]
+    fn to_main_end_prefers_base_tip_over_saved_analysis_sibling() {
+        let old_base = vec![Turn::play(Stone::Black, (0, 0))];
+        let new_base = vec![
+            Turn::play(Stone::Black, (0, 0)),
+            Turn::play(Stone::White, (2, 2)),
+        ];
+
+        let mut saved_tree = GameTree::from_moves(&old_base);
+        saved_tree.add_child(Some(0), Turn::play(Stone::White, (1, 1)));
+
+        let mut r = Replay::new(9, 9);
+        r.replace_tree(saved_tree);
+
+        let base_tip = r.merge_base_moves(new_base).unwrap();
+        assert_eq!(base_tip, 2);
+        assert_eq!(r.tree().children_of(Some(0)), &[1, 2]);
+
+        r.to_main_end();
+
+        assert_eq!(r.current_node(), Some(base_tip));
+        assert_eq!(r.last_play_pos(), Some((2, 2)));
+        assert!(r.is_at_main_end());
     }
 
     #[test]
