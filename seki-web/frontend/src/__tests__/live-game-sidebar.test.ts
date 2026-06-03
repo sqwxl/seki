@@ -8,6 +8,7 @@ import { invalidateTreeCache } from "../goban/render-board";
 import {
   loadSavedAnalysisTree,
   readSavedAnalysis,
+  saveAnalysis,
 } from "../layouts/live-game/sidebar";
 import { gameAnalysisKey, storage } from "../utils/storage";
 
@@ -38,7 +39,6 @@ describe("live game analysis storage", () => {
     storage.setJson(analysisKey, {
       tree: JSON.stringify(savedTree),
       nodeId: 1,
-      active: false,
     });
 
     const replaceTree = vi.fn();
@@ -55,11 +55,27 @@ describe("live game analysis storage", () => {
     expect(saved).toEqual({
       tree: JSON.stringify(savedTree),
       nodeId: 1,
-      active: false,
     });
     expect(invalidateTreeCache).toHaveBeenCalled();
     expect(replaceTree).toHaveBeenCalledWith(JSON.stringify(savedTree));
     expect(mergeBaseMoves).not.toHaveBeenCalled();
     expect(readSavedAnalysis(analysisKey)).toEqual(saved);
+  });
+
+  it("saves analysis trees without restoring analysis mode", () => {
+    const analysisKey = gameAnalysisKey(42);
+    const board = {
+      engine: {
+        tree_json: () => "tree",
+        current_node_id: () => 7,
+      },
+    };
+
+    saveAnalysis(board as never, true, analysisKey);
+
+    expect(readSavedAnalysis(analysisKey)).toEqual({
+      tree: "tree",
+      nodeId: 7,
+    });
   });
 });

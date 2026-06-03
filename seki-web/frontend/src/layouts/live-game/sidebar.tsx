@@ -5,7 +5,6 @@ import { storage } from "../../utils/storage";
 type SavedAnalysis = {
   tree: string;
   nodeId: number;
-  active?: boolean;
 };
 
 export function readSavedAnalysis(
@@ -18,29 +17,15 @@ export function saveAnalysis(
   board: Board | undefined,
   analysisMode: boolean,
   analysisKey: string,
-  active?: boolean,
 ) {
-  if (!board) {
+  if (!board || !analysisMode) {
     return;
   }
 
-  const nextActive = active ?? analysisMode;
-
-  if (analysisMode || nextActive) {
-    storage.setJson(analysisKey, {
-      tree: board.engine.tree_json(),
-      nodeId: board.engine.current_node_id(),
-      active: nextActive,
-    });
-
-    return;
-  }
-
-  const saved = readSavedAnalysis(analysisKey);
-
-  if (saved) {
-    storage.setJson(analysisKey, { ...saved, active: nextActive });
-  }
+  storage.setJson(analysisKey, {
+    tree: board.engine.tree_json(),
+    nodeId: board.engine.current_node_id(),
+  });
 }
 
 export function loadSavedAnalysisTree(

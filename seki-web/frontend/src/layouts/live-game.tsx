@@ -211,7 +211,7 @@ export function liveGame(
     }
 
     clearPendingMove();
-    saveAnalysis(board.value, analysisMode.value, analysisKey, false);
+    saveAnalysis(board.value, analysisMode.value, analysisKey);
     const cur = gamePhase.value;
 
     if (cur.phase === "presentation" && cur.role === "local-analysis") {
@@ -484,8 +484,8 @@ export function liveGame(
         isPresenter,
         navState,
         broadcastSnapshot,
-        saveAnalysis: (active) =>
-          saveAnalysis(board.value, analysisMode.value, analysisKey, active),
+        saveAnalysis: () =>
+          saveAnalysis(board.value, analysisMode.value, analysisKey),
         enterAnalysis,
         exitEstimateFn: doExitEstimate,
         enterEstimateFn: enterEstimate,
@@ -517,13 +517,7 @@ export function liveGame(
       board.value.updateBaseMoves(movesJson);
     }
 
-    if (saved?.active) {
-      enterAnalysis();
-    } else if (saved && saved.active !== false && result.value) {
-      enterAnalysis();
-    } else {
-      board.value.navigate("main-end");
-    }
+    board.value.navigate("main-end");
   });
 
   // --- Dismiss pending move confirmation on click outside goban ---
@@ -579,8 +573,8 @@ export function liveGame(
       setLastPresentationSnapshot: (v: string) => {
         lastPresentationSnapshot = v;
       },
-      saveAnalysis: (active) =>
-        saveAnalysis(board.value, analysisMode.value, analysisKey, active),
+      saveAnalysis: () =>
+        saveAnalysis(board.value, analysisMode.value, analysisKey),
       exitAnalysis,
       restoreAnalysisPosition: () => restoreAnalysisPosition(board.value),
     }),
@@ -752,7 +746,7 @@ export function liveGame(
             doExitEstimate();
           }
           clearPendingMove();
-          saveAnalysis(board.value, analysisMode.value, analysisKey, false);
+          saveAnalysis(board.value, analysisMode.value, analysisKey);
           returnToLiveMainline();
           board.value?.render();
         });

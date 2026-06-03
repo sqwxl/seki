@@ -25,7 +25,7 @@ export function onRenderCallback(
       boardLastMoveWasPass: boolean;
     }>;
     broadcastSnapshot: () => void;
-    saveAnalysis: (active?: boolean) => void;
+    saveAnalysis: () => void;
     enterAnalysis: (opts?: {
       restorePosition?: boolean;
       nodeId?: number;

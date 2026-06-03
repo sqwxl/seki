@@ -21,7 +21,7 @@ export function buildWebSocketDeps(params: {
   analysisKey: string;
   lastPresentationSnapshot: () => string;
   setLastPresentationSnapshot: (v: string) => void;
-  saveAnalysis: (active?: boolean) => void;
+  saveAnalysis: () => void;
   exitAnalysis: () => void;
   restoreAnalysisPosition: () => void;
 }) {
