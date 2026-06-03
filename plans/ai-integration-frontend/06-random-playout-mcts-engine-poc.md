@@ -277,6 +277,9 @@ Rules:
 - Current Rust status: `PositionKey`, `NodeId`, `GraphNode`, and `EdgeStats`
   exist with tests proving parent-action edge stats are distinct from shared
   child-node stats.
+- Current Rust status: first `search`/`genmove` graph driver exists with PUCT
+  selection, expansion from evaluator priors, edge/node backup, and final move
+  by root edge visits. Cycle guards, batching, and WASM API are still pending.
 
 Cycle handling:
 

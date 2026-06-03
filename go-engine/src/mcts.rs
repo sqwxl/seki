@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::territory::{estimate_territory, score};
 use crate::{Engine, GoError, Point, Stage, Stone};
@@ -43,7 +43,7 @@ impl PositionKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(pub usize);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EdgeStats {
     // KataGo GraphSearch.md: graph MCTS must keep parent-action stats separate
     // from shared child-node stats, because multiple parents can reach a node.
@@ -145,6 +145,174 @@ impl GraphNode {
 
 pub trait MctsEvaluator {
     fn evaluate(&mut self, engine: &Engine, to_play: Stone) -> Evaluation;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MctsConfig {
+    pub visits: u32,
+    pub cpuct: f32,
+}
+
+impl Default for MctsConfig {
+    fn default() -> Self {
+        Self {
+            visits: 64,
+            cpuct: 1.5,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SearchSummary {
+    pub best_move: Option<BotMove>,
+    pub visits: u32,
+    pub root_value: f32,
+    pub root_edges: Vec<EdgeStats>,
+}
+
+#[derive(Debug)]
+struct GraphSearch<'a, E> {
+    config: MctsConfig,
+    evaluator: &'a mut E,
+    nodes: Vec<GraphNode>,
+    node_by_key: HashMap<PositionKey, NodeId>,
+}
+
+impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
+    fn new(config: MctsConfig, evaluator: &'a mut E) -> Self {
+        Self {
+            config,
+            evaluator,
+            nodes: Vec::new(),
+            node_by_key: HashMap::new(),
+        }
+    }
+
+    fn search(&mut self, root: &Engine) -> SearchSummary {
+        let root_id = self.intern_node(root);
+
+        for _ in 0..self.config.visits {
+            self.visit(root_id, root.clone());
+        }
+
+        let root_node = &self.nodes[root_id.0];
+        let mut root_edges = root_node.edges.clone();
+        root_edges.sort_by(|a, b| {
+            b.visits
+                .cmp(&a.visits)
+                .then_with(|| b.prior.total_cmp(&a.prior))
+        });
+
+        SearchSummary {
+            best_move: root_edges.first().map(EdgeStats::action),
+            visits: root_node.visits,
+            root_value: root_node.mean_value(),
+            root_edges,
+        }
+    }
+
+    fn visit(&mut self, root_id: NodeId, root: Engine) {
+        let mut node_id = root_id;
+        let mut engine = root;
+        let mut path: Vec<(NodeId, usize)> = Vec::new();
+
+        loop {
+            if self.nodes[node_id.0].edges.is_empty() {
+                let to_play = engine.current_turn_stone();
+                let evaluation = self.evaluator.evaluate(&engine, to_play);
+                self.expand_node(node_id, &engine, evaluation.priors);
+                self.backup(node_id, &path, evaluation.value);
+                return;
+            }
+
+            let edge_index = self.select_edge(node_id);
+            let action = self.nodes[node_id.0].edges[edge_index].action;
+            let child = self.nodes[node_id.0].edges[edge_index].child;
+
+            if apply_action(&mut engine, action).is_err() {
+                self.backup(node_id, &path, -1.0);
+                return;
+            }
+
+            path.push((node_id, edge_index));
+            node_id = child;
+        }
+    }
+
+    fn expand_node(&mut self, node_id: NodeId, engine: &Engine, priors: Vec<ActionPrior>) {
+        let mut edges = Vec::with_capacity(priors.len());
+
+        for prior in priors {
+            let mut child_engine = engine.clone();
+            if apply_action(&mut child_engine, prior.action).is_err() {
+                continue;
+            }
+            let child = self.intern_node(&child_engine);
+            edges.push(EdgeStats::new(prior.action, child, prior.prior.max(0.0)));
+        }
+
+        self.nodes[node_id.0].edges = edges;
+    }
+
+    fn select_edge(&self, node_id: NodeId) -> usize {
+        let node = &self.nodes[node_id.0];
+        let parent_visits = node.visits.max(1) as f32;
+        let mut best_index = 0;
+        let mut best_score = f32::NEG_INFINITY;
+
+        for (index, edge) in node.edges.iter().enumerate() {
+            let q = -edge.mean_value();
+            let u =
+                self.config.cpuct * edge.prior * parent_visits.sqrt() / (1 + edge.visits) as f32;
+            let score = q + u;
+
+            if score > best_score {
+                best_index = index;
+                best_score = score;
+            }
+        }
+
+        best_index
+    }
+
+    fn backup(&mut self, leaf_id: NodeId, path: &[(NodeId, usize)], leaf_value: f32) {
+        let mut value = leaf_value;
+        self.nodes[leaf_id.0].backup_node(value);
+
+        for &(node_id, edge_index) in path.iter().rev() {
+            value = -value;
+            self.nodes[node_id.0].backup_node(value);
+            self.nodes[node_id.0].edges[edge_index].backup(value);
+        }
+    }
+
+    fn intern_node(&mut self, engine: &Engine) -> NodeId {
+        let key = PositionKey::from_engine(engine);
+        if let Some(id) = self.node_by_key.get(&key) {
+            return *id;
+        }
+
+        let id = NodeId(self.nodes.len());
+        self.nodes.push(GraphNode::new(key.clone()));
+        self.node_by_key.insert(key, id);
+        id
+    }
+}
+
+pub fn search<E: MctsEvaluator>(
+    engine: &Engine,
+    config: MctsConfig,
+    evaluator: &mut E,
+) -> SearchSummary {
+    GraphSearch::new(config, evaluator).search(engine)
+}
+
+pub fn genmove<E: MctsEvaluator>(
+    engine: &Engine,
+    config: MctsConfig,
+    evaluator: &mut E,
+) -> Option<BotMove> {
+    search(engine, config, evaluator).best_move
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -316,9 +484,34 @@ fn pass_streak(engine: &Engine) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     fn play(engine: &mut Engine, stone: Stone, point: Point) {
         engine.try_play(stone, point).expect("test move is legal");
+    }
+
+    #[derive(Debug)]
+    struct StaticEvaluator {
+        value: f32,
+        priors: HashMap<BotMove, f32>,
+    }
+
+    impl MctsEvaluator for StaticEvaluator {
+        fn evaluate(&mut self, engine: &Engine, to_play: Stone) -> Evaluation {
+            let actions = legal_actions(engine, to_play);
+            let priors = actions
+                .into_iter()
+                .map(|action| ActionPrior {
+                    action,
+                    prior: self.priors.get(&action).copied().unwrap_or(0.01),
+                })
+                .collect();
+
+            Evaluation {
+                value: self.value,
+                priors,
+            }
+        }
     }
 
     #[test]
@@ -508,5 +701,43 @@ mod tests {
         assert_eq!(from_b.visits, 1);
         assert_eq!(from_a.mean_value(), 0.75);
         assert_eq!(from_b.mean_value(), -0.5);
+    }
+
+    #[test]
+    fn graph_search_prefers_high_prior_root_edge() {
+        let engine = Engine::new(3, 3);
+        let mut evaluator = StaticEvaluator {
+            value: 0.0,
+            priors: HashMap::from([(BotMove::Play((2, 2)), 10.0), (BotMove::Play((0, 0)), 1.0)]),
+        };
+
+        let summary = search(
+            &engine,
+            MctsConfig {
+                visits: 12,
+                cpuct: 1.5,
+            },
+            &mut evaluator,
+        );
+
+        assert_eq!(summary.best_move, Some(BotMove::Play((2, 2))));
+        assert_eq!(summary.visits, 12);
+        assert_eq!(summary.root_edges[0].action(), BotMove::Play((2, 2)));
+        assert!(summary.root_edges[0].visits() > summary.root_edges[1].visits());
+    }
+
+    #[test]
+    fn genmove_returns_none_when_no_actions_exist() {
+        let mut engine = Engine::new(3, 3);
+        engine.try_pass(Stone::Black).expect("black pass");
+        engine.try_pass(Stone::White).expect("white pass");
+        let mut evaluator = StaticEvaluator {
+            value: 0.0,
+            priors: HashMap::new(),
+        };
+
+        let best = genmove(&engine, MctsConfig::default(), &mut evaluator);
+
+        assert_eq!(best, None);
     }
 }
