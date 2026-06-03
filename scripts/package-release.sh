@@ -66,24 +66,34 @@ fi
 ARCHIVE_BASENAME="seki-$GIT_SHA$TARGET_SUFFIX"
 STAGE_DIR="$(mktemp -d)"
 trap 'rm -rf "$STAGE_DIR"' EXIT
+STAGE_STATIC_DIR="$STAGE_DIR/static"
 
 echo "Installing frontend dependencies" >&2
 pnpm --dir "$FRONTEND_DIR" install --frozen-lockfile
 
+mkdir -p "$ARTIFACTS_DIR" "$STAGE_DIR/bin" "$STAGE_STATIC_DIR"
+find "$ROOT_DIR/seki-web/static" \
+    -mindepth 1 \
+    -maxdepth 1 \
+    ! -name dist \
+    ! -name wasm \
+    -exec cp -R {} "$STAGE_STATIC_DIR/" \;
+
 echo "Building WASM bundle" >&2
-rm -rf "$ROOT_DIR/seki-web/static/wasm"
-wasm-pack build go-engine-wasm --target web --out-dir ../seki-web/static/wasm
+wasm-pack build go-engine-wasm --target web --out-dir "$STAGE_STATIC_DIR/wasm"
 
 echo "Building frontend bundle" >&2
-rm -rf "$ROOT_DIR/seki-web/static/dist"
-pnpm --dir "$FRONTEND_DIR" run build
+SEKI_STATIC_DIR="$STAGE_STATIC_DIR" pnpm --dir "$FRONTEND_DIR" run build
+
+if grep -q "/static/dist/dev/" "$STAGE_STATIC_DIR/dist/bundle.js"; then
+    echo "Release bundle unexpectedly references dev modules" >&2
+    exit 1
+fi
 
 toolbox_build_release_binary
 BIN_PATH="$ROOT_DIR/target/$BUILD_TARGET/release/seki-web"
 
-mkdir -p "$ARTIFACTS_DIR" "$STAGE_DIR/bin"
 cp "$BIN_PATH" "$STAGE_DIR/bin/seki-web"
-cp -R "$ROOT_DIR/seki-web/static" "$STAGE_DIR/static"
 
 tar -C "$STAGE_DIR" -czf "$ARTIFACTS_DIR/$ARCHIVE_BASENAME.tar.gz" .
 

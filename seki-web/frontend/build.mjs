@@ -9,7 +9,10 @@ const require = createRequire(import.meta.url);
 const root = path.dirname(fileURLToPath(import.meta.url));
 const watchMode = process.argv.includes("--watch");
 const srcDir = path.join(root, "src");
-const distDir = path.join(root, "../static/dist");
+const staticDir = process.env.SEKI_STATIC_DIR
+  ? path.resolve(process.env.SEKI_STATIC_DIR)
+  : path.join(root, "../static");
+const distDir = path.join(staticDir, "dist");
 const devDir = path.join(distDir, "dev");
 const vendorDir = path.join(devDir, "vendor");
 const aiPocWasmDir = path.join(distDir, "ai-poc-wasm");
@@ -32,7 +35,7 @@ const appConfig = {
   entryPoints: ["src/index.ts"],
   ...jsxConfig,
   bundle: true,
-  outdir: "../static/dist",
+  outdir: distDir,
   entryNames: "bundle",
   chunkNames: "chunks/[name]-[hash]",
   format: "esm",
@@ -48,7 +51,7 @@ const appConfig = {
 const swConfig = {
   entryPoints: ["src/service-worker.ts"],
   bundle: true,
-  outfile: "../static/dist/sw.js",
+  outfile: path.join(distDir, "sw.js"),
   format: "esm",
   minify: !watchMode,
   logLevel: "info",
@@ -60,7 +63,7 @@ const swConfig = {
 const aiPocConfig = {
   entryPoints: ["src/ai-poc/harness.ts"],
   bundle: true,
-  outfile: "../static/dist/ai-poc.js",
+  outfile: path.join(distDir, "ai-poc.js"),
   format: "esm",
   minify: !watchMode,
   logLevel: "info",
@@ -72,7 +75,7 @@ const aiPocConfig = {
 const aiPocWorkerConfig = {
   entryPoints: ["src/ai-poc/worker.ts"],
   bundle: true,
-  outfile: "../static/dist/ai-poc-worker.js",
+  outfile: path.join(distDir, "ai-poc-worker.js"),
   format: "esm",
   conditions: ["onnxruntime-web-use-extern-wasm"],
   minify: !watchMode,
