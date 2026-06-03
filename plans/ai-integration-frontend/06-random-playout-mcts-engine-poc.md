@@ -22,6 +22,18 @@ and value guidance.
 Build in `go-engine` first. Expose through WASM only after the core search is
 deterministic, tested, and reasonably fast.
 
+Architecture direction:
+
+- Implement MCTS core in Rust/WASM, not TypeScript.
+- Keep TypeScript as worker orchestration for model loading, batching, progress,
+  cancellation, and UI messages.
+- Keep legal move generation and graph search close to `go-engine` rules to
+  avoid duplicating Go legality in JS.
+- Start single-threaded. Browser WASM threads require cross-origin isolation
+  (`SharedArrayBuffer`), and the current PoC environment is not isolated.
+- Optimize model-eval count and batching before adding threading; current mobile
+  NN eval latency dominates MCTS loop overhead.
+
 Frontend PoC exception: the browser inference harness may host a tiny temporary
 policy-backed search loop to validate that model policy/value output can drive
 move selection before the Rust engine MCTS exists. Keep that code isolated from

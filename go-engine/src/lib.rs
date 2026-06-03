@@ -4,6 +4,7 @@ pub mod game_tree;
 pub mod goban;
 pub mod handicap;
 pub mod ko;
+pub mod mcts;
 pub mod replay;
 pub mod sgf;
 pub mod stone;
