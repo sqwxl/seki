@@ -1,6 +1,6 @@
 import type { AiPocRequest, AiPocResponse, AiPocResult } from "./types";
 
-const defaultManifest = "/static/models/kaya-b28c512-uint8/manifest.json";
+const defaultManifest = "/static/models/lionffen-b6c64-19x19/manifest.json";
 
 const app = document.querySelector<HTMLDivElement>("#ai-poc");
 
@@ -12,7 +12,12 @@ app.innerHTML = `
   <section class="ai-poc-panel">
     <div>
       <label for="manifest-url">Manifest</label>
-      <input id="manifest-url" type="text" value="${defaultManifest}" />
+      <input id="manifest-url" type="text" list="manifest-options" value="${defaultManifest}" />
+      <datalist id="manifest-options">
+        <option value="/static/models/lionffen-b6c64-19x19/manifest.json">Lionffen b6c64 official ONNX</option>
+        <option value="/static/models/kaya-b28c512-uint8/manifest.json">Kaya b28c512 uint8 ONNX</option>
+        <option value="/static/models/ai-poc-synthetic/manifest.json">Synthetic runtime check</option>
+      </datalist>
     </div>
     <div>
       <label for="board-size">Board size</label>
@@ -54,6 +59,10 @@ app.innerHTML = `
     </div>
     <button id="run-poc" type="button">Run inference</button>
   </section>
+  <section class="ai-poc-actions">
+    <button id="copy-result" type="button" disabled>Copy JSON</button>
+    <button id="download-result" type="button" disabled>Download JSON</button>
+  </section>
   <pre id="ai-poc-output">Idle.</pre>
 `;
 
@@ -70,9 +79,13 @@ const backendPreferenceInput = document.querySelector<HTMLSelectElement>(
 )!;
 const runsInput = document.querySelector<HTMLInputElement>("#runs")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run-poc")!;
+const copyButton = document.querySelector<HTMLButtonElement>("#copy-result")!;
+const downloadButton =
+  document.querySelector<HTMLButtonElement>("#download-result")!;
 const output = document.querySelector<HTMLPreElement>("#ai-poc-output")!;
 
 let worker: Worker | undefined;
+let lastResultText: string | undefined;
 
 function ensureWorker(): Worker {
   if (!worker) {
@@ -85,6 +98,19 @@ function ensureWorker(): Worker {
 function formatResult(result: AiPocResult): string {
   return JSON.stringify(
     {
+      benchmark: {
+        model: result.manifest.id,
+        runtime: result.runtime,
+        backend: result.backend,
+        backendPreference: result.backendPreference,
+        boardSize: result.input?.boardSize,
+        positionPreset: positionPresetInput.value,
+        runs: Number(runsInput.value),
+        p50Ms: result.timings.eval.p50Ms,
+        p95Ms: result.timings.eval.p95Ms,
+        modelLoadMs: result.timings.modelLoadMs,
+        warmupMs: result.timings.warmupMs,
+      },
       manifest: {
         id: result.manifest.id,
         kind: result.manifest.kind,
@@ -124,6 +150,9 @@ function runPoc() {
   const activeWorker = ensureWorker();
 
   runButton.disabled = true;
+  copyButton.disabled = true;
+  downloadButton.disabled = true;
+  lastResultText = undefined;
   output.textContent = "Running...";
 
   const onMessage = (event: MessageEvent<AiPocResponse>) => {
@@ -142,7 +171,10 @@ function runPoc() {
       return;
     }
 
-    output.textContent = formatResult(response.result);
+    lastResultText = formatResult(response.result);
+    output.textContent = lastResultText;
+    copyButton.disabled = false;
+    downloadButton.disabled = false;
   };
 
   activeWorker.addEventListener("message", onMessage);
@@ -150,6 +182,27 @@ function runPoc() {
 }
 
 runButton.addEventListener("click", runPoc);
+copyButton.addEventListener("click", () => {
+  if (lastResultText) {
+    navigator.clipboard.writeText(lastResultText).catch(() => {
+      output.textContent = lastResultText!;
+    });
+  }
+});
+downloadButton.addEventListener("click", () => {
+  if (!lastResultText) {
+    return;
+  }
+
+  const blob = new Blob([lastResultText], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `seki-ai-poc-${new Date().toISOString()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+});
 
 if (new URLSearchParams(window.location.search).get("autorun") === "1") {
   runPoc();

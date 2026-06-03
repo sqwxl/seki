@@ -147,5 +147,80 @@ Stop and revise the AI approach if:
   empty/simple 19x19 positions. It is still not production-ready: ladder,
   scoring area, superko, encore, and exact Seki engine snapshots remain part of
   the AI core plan.
+- The harness can export benchmark JSON from desktop or Android runs. Keep these
+  measurements in this plan until a dedicated benchmark notes file is warranted.
 - Keep the PoC isolated from product UI until real model output and mobile
   benchmark data are captured.
+
+## Benchmark Notes
+
+### Chrome Android WebGPU — Kaya B28C512 UINT8 ONNX
+
+- Date captured: 2026-06-01.
+- Browser/device label: Chrome Android user agent
+  `Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36`.
+- Runtime/backend: ONNX Runtime Web, WebGPU.
+- WebGPU status: available.
+- Model: `kaya-b28c512-uint8`.
+- Artifact bytes: 75,176,902.
+- Board/input: 19x19 empty board, `katago-v7-poc-subset`, black to move,
+  komi 6.5.
+- Runs: 3.
+- Model load: 4,092.5 ms.
+- Warmup: 7,086.8 ms.
+- Eval p50/p95: 7,004.2 ms / 7,028.3 ms.
+- Output sanity:
+  - Policy/value/ownership tensors present.
+  - Value softmax roughly win 57.7%, loss 42.3%, no-result ~0.0016%.
+  - Top policy moves are star-point/opening-like (`Q16`, `D4`, `Q4`, `D16`).
+
+Recommendation from this benchmark: do not proceed to mobile MCTS with this
+large 19x19 B28C512 model. It proves ONNX WebGPU execution works on the target
+browser, but single-eval latency is far too high for search. Use it only as a
+correctness/protocol PoC while selecting or exporting a much smaller model.
+
+## Smaller Model Candidate Notes
+
+The ready-made Kaya ONNX repository currently gives us convenient browser
+artifacts, but only for large B28C512 KataGo models. Smaller public KataGo nets
+exist, but they are native KataGo weight files or raw training checkpoints, so
+the next risk moves back to conversion.
+
+Candidate order:
+
+1. `lionffen-b6c64-19x19`
+   - Source:
+     `https://media.katagotraining.org/uploaded/networks/models_extra/lionffen_b6c64_3x3_v10.txt.gz`
+   - Download size: 2,196,103 bytes.
+   - Board size: 19x19-specific.
+   - Why first: tiny 6-block, 64-channel net. Best chance to make mobile
+     single-eval latency plausible.
+   - Risk: native KataGo `.txt.gz`, not ONNX and not a raw PyTorch checkpoint.
+     The existing `kaya-go/katago-onnx` converter targets PyTorch checkpoints,
+     so this requires either finding a raw checkpoint for this net or adding an
+     offline native-weight conversion path.
+
+2. `lionffen-b24c64-19x19`
+   - Source:
+     `https://media.katagotraining.org/uploaded/networks/models_extra/lionffen_b24c64_3x3_v3_12300.bin.gz`
+   - Download size: 4,842,138 bytes.
+   - Board size: 19x19-oriented.
+   - Why second: still small, likely stronger than the 6-block net.
+   - Risk: more compute than B6C64 and still native KataGo format.
+
+3. `kata9x9-b18c384nbt-20231025`
+   - Source:
+     `https://media.katagotraining.org/uploaded/networks/models_extra/kata9x9-b18c384nbt-20231025.bin.gz`
+   - Download size: 97,878,277 bytes.
+   - Board size: 9x9 only.
+   - Why keep: strong dedicated 9x9 candidate and useful if first product scope
+     targets 9x9.
+   - Risk: too large as a download, not useful for 13x13 or 19x19, and still
+     needs conversion.
+
+Recommendation: pursue `lionffen-b6c64-19x19` first, but treat conversion as the
+gate. First try to locate or request a raw checkpoint for this net. If none is
+available, decide whether an offline native KataGo-weight converter is worth the
+work. Fall back to the 9x9 raw checkpoint path only if the product decision is
+to ship 9x9 AI before 19x19 AI. Keep `kaya-b28c512-uint8` only as the known-good
+ONNX runtime fixture.

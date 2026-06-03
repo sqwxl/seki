@@ -43,6 +43,9 @@ Out of scope for v1:
    - Add board API support, passive AI overlay, `/bot` route, and game loop.
 5. `05-mobile-performance-and-release.md`
    - Lock mobile budgets, smoke tests, fallback UX, and release checklist.
+6. `06-random-playout-mcts-engine-poc.md`
+   - Alternate proof path: model-agnostic MCTS with random playout evaluator,
+     designed so NN policy/value can replace the evaluator later.
 
 Each plan should be implemented only after the prior plan's acceptance criteria
 pass. This prevents UI and MCTS work from depending on an unproven inference path.

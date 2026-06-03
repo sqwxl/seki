@@ -1,0 +1,22 @@
+{
+  "id": "lionffen-b6c64-19x19",
+  "version": 1,
+  "kind": "onnx",
+  "source": {
+    "name": "KataGo lionffen b6c64 exported with official KataGo ONNX builder",
+    "url": "https://media.katagotraining.org/uploaded/networks/models_extra/lionffen_b6c64_3x3_v10.txt.gz"
+  },
+  "artifacts": {
+    "model": "/static/models/lionffen-b6c64-19x19/lionffen-b6c64-19x19.onnx"
+  },
+  "boardSizes": [19],
+  "outputs": ["policy", "policyPass", "value", "scoreValue", "ownership"],
+  "outputMap": {
+    "policy": "OutputPolicy",
+    "policyPass": "OutputPolicyPass",
+    "value": "OutputValue",
+    "scoreValue": "OutputScoreValue",
+    "ownership": "OutputOwnership"
+  },
+  "inputEncoding": "katago-v7-poc-subset"
+}

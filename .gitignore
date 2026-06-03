@@ -41,3 +41,4 @@ seki-android/local.properties
 seki-android/captures/
 seki-android/.externalNativeBuild/
 .pi
+vendor/

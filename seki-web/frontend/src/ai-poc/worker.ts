@@ -271,6 +271,42 @@ function makeOnnxFeeds(
     };
   }
 
+  if (
+    session.inputNames.includes("InputMask") &&
+    session.inputNames.includes("InputSpatial") &&
+    session.inputNames.includes("InputGlobal")
+  ) {
+    const position = createAiPocPosition(
+      request.positionPreset,
+      request.boardSize,
+      request.nextPlayer,
+      request.komi,
+    );
+    const encoded = encodeKataGoV7PocFeatures(position);
+
+    return {
+      feeds: {
+        InputMask: new ort.Tensor(
+          "float32",
+          new Float32Array(request.boardSize * request.boardSize).fill(1),
+          [1, 1, request.boardSize, request.boardSize],
+        ),
+        InputSpatial: new ort.Tensor(
+          "float32",
+          encoded.binInput,
+          encoded.binShape,
+        ),
+        InputGlobal: new ort.Tensor("float32", encoded.globalInput, [
+          1,
+          encoded.globalInput.length,
+          1,
+          1,
+        ]),
+      },
+      input: encoded.summary,
+    };
+  }
+
   return {
     feeds: Object.fromEntries(
       session.inputMetadata.map((metadata) => [
@@ -531,9 +567,15 @@ async function interpretOnnxOutputs(
   outputs: ort.InferenceSession.ReturnType,
   boardSize: number,
 ): Promise<AiPocInterpretation> {
-  const policy = await getOrtFloatData(outputs.policy);
-  const value = await getOrtFloatData(outputs.value);
-  const ownership = await getOrtFloatData(outputs.ownership);
+  const policy =
+    (await getOrtFloatData(outputs.policy)) ??
+    (await getOfficialKatagoPolicyData(outputs, boardSize));
+  const value =
+    (await getOrtFloatData(outputs.value)) ??
+    (await getOrtFloatData(outputs.OutputValue));
+  const ownership =
+    (await getOrtFloatData(outputs.ownership)) ??
+    (await getOrtFloatData(outputs.OutputOwnership));
 
   return {
     value: value ? interpretValue(value) : undefined,
@@ -550,6 +592,25 @@ async function getOrtFloatData(
   }
 
   return value.getData() as Promise<Float32Array>;
+}
+
+async function getOfficialKatagoPolicyData(
+  outputs: ort.InferenceSession.ReturnType,
+  boardSize: number,
+): Promise<Float32Array | undefined> {
+  const spatial = await getOrtFloatData(outputs.OutputPolicy);
+  const pass = await getOrtFloatData(outputs.OutputPolicyPass);
+
+  if (!spatial || !pass) {
+    return undefined;
+  }
+
+  const policySize = boardSize * boardSize;
+  const policy = new Float32Array(policySize + 1);
+  policy.set(spatial.slice(0, policySize), 0);
+  policy[policySize] = pass[0] ?? 0;
+
+  return policy;
 }
 
 function interpretValue(data: Float32Array) {
