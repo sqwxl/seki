@@ -1,4 +1,9 @@
-import type { AiPocRequest, AiPocResponse, AiPocResult } from "./types";
+import type {
+  AiPocRequest,
+  AiPocResponse,
+  AiPocResult,
+  AiPocSearchResult,
+} from "./types";
 
 const defaultManifest = "/static/models/lionffen-b6c64-19x19/manifest.json";
 
@@ -57,7 +62,16 @@ app.innerHTML = `
       <label for="runs">Runs</label>
       <input id="runs" type="number" min="1" max="200" value="30" />
     </div>
+    <div>
+      <label for="mcts-visits">MCTS visits</label>
+      <input id="mcts-visits" type="number" min="1" max="200" value="24" />
+    </div>
+    <div>
+      <label for="mcts-max-children">MCTS max children</label>
+      <input id="mcts-max-children" type="number" min="1" max="100" value="32" />
+    </div>
     <button id="run-poc" type="button">Run inference</button>
+    <button id="run-search" type="button">Run policy MCTS</button>
   </section>
   <section class="ai-poc-actions">
     <button id="copy-result" type="button" disabled>Copy JSON</button>
@@ -78,7 +92,11 @@ const backendPreferenceInput = document.querySelector<HTMLSelectElement>(
   "#backend-preference",
 )!;
 const runsInput = document.querySelector<HTMLInputElement>("#runs")!;
+const visitsInput = document.querySelector<HTMLInputElement>("#mcts-visits")!;
+const maxChildrenInput =
+  document.querySelector<HTMLInputElement>("#mcts-max-children")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run-poc")!;
+const searchButton = document.querySelector<HTMLButtonElement>("#run-search")!;
 const copyButton = document.querySelector<HTMLButtonElement>("#copy-result")!;
 const downloadButton =
   document.querySelector<HTMLButtonElement>("#download-result")!;
@@ -95,7 +113,43 @@ function ensureWorker(): Worker {
   return worker;
 }
 
-function formatResult(result: AiPocResult): string {
+function formatResult(result: AiPocResult | AiPocSearchResult): string {
+  if ("search" in result) {
+    return JSON.stringify(
+      {
+        search: {
+          model: result.manifest.id,
+          runtime: result.runtime,
+          backend: result.backend,
+          backendPreference: result.backendPreference,
+          boardSize: result.input?.boardSize,
+          positionPreset: positionPresetInput.value,
+          visits: result.search.visits,
+          maxChildren: result.search.maxChildren,
+          elapsedMs: result.search.elapsedMs,
+          bestMove: result.search.bestMove,
+          rootValue: result.search.rootValue,
+          topMoves: result.search.topMoves,
+        },
+        manifest: {
+          id: result.manifest.id,
+          kind: result.manifest.kind,
+          version: result.manifest.version,
+        },
+        runtime: result.runtime,
+        backend: result.backend,
+        backendPreference: result.backendPreference,
+        fallbackReason: result.fallbackReason,
+        model: result.model,
+        webgpu: result.webgpu,
+        input: result.input,
+        environment: result.environment,
+      },
+      null,
+      2,
+    );
+  }
+
   return JSON.stringify(
     {
       benchmark: {
@@ -133,11 +187,9 @@ function formatResult(result: AiPocResult): string {
   );
 }
 
-function runPoc() {
-  const id = crypto.randomUUID();
-  const request: AiPocRequest = {
-    id,
-    type: "run",
+function baseRequest() {
+  return {
+    id: crypto.randomUUID(),
     manifestUrl: manifestInput.value,
     boardSize: Number(sizeInput.value),
     positionPreset: positionPresetInput.value,
@@ -145,25 +197,50 @@ function runPoc() {
     komi: Number(komiInput.value),
     backendPreference:
       backendPreferenceInput.value as AiPocRequest["backendPreference"],
+  };
+}
+
+function runPoc() {
+  const request: AiPocRequest = {
+    ...baseRequest(),
+    type: "run",
     runs: Number(runsInput.value),
   };
+
+  postRequest(request, "Running...");
+}
+
+function runSearch() {
+  const request: AiPocRequest = {
+    ...baseRequest(),
+    type: "search",
+    visits: Number(visitsInput.value),
+    maxChildren: Number(maxChildrenInput.value),
+  };
+
+  postRequest(request, "Searching...");
+}
+
+function postRequest(request: AiPocRequest, runningText: string) {
   const activeWorker = ensureWorker();
 
   runButton.disabled = true;
+  searchButton.disabled = true;
   copyButton.disabled = true;
   downloadButton.disabled = true;
   lastResultText = undefined;
-  output.textContent = "Running...";
+  output.textContent = runningText;
 
   const onMessage = (event: MessageEvent<AiPocResponse>) => {
     const response = event.data;
 
-    if (response.id !== id) {
+    if (response.id !== request.id) {
       return;
     }
 
     activeWorker.removeEventListener("message", onMessage);
     runButton.disabled = false;
+    searchButton.disabled = false;
 
     if (response.type === "error") {
       output.textContent = response.stack ?? response.message;
@@ -182,6 +259,7 @@ function runPoc() {
 }
 
 runButton.addEventListener("click", runPoc);
+searchButton.addEventListener("click", runSearch);
 copyButton.addEventListener("click", () => {
   if (lastResultText) {
     navigator.clipboard.writeText(lastResultText).catch(() => {

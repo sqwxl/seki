@@ -8,7 +8,9 @@ import {
   createAiPocPosition,
   encodeKataGoV7PocFeatures,
   type AiPocEncodedFeatures,
+  type AiPocPosition,
 } from "./feature-encoder";
+import { runPolicyMcts } from "./mcts";
 import type {
   AiPocBackend,
   AiPocInterpretation,
@@ -16,6 +18,7 @@ import type {
   AiPocRequest,
   AiPocResponse,
   AiPocResult,
+  AiPocSearchResult,
   AiPocWebGpuStatus,
 } from "./types";
 
@@ -237,7 +240,7 @@ function makeOnnxInputTensor(
 
 function makeOnnxFeeds(
   session: ort.InferenceSession,
-  request: AiPocRequest,
+  request: Extract<AiPocRequest, { type: "run" }>,
 ): {
   feeds: ort.InferenceSession.FeedsType;
   input?: AiPocEncodedFeatures["summary"];
@@ -255,18 +258,7 @@ function makeOnnxFeeds(
     const encoded = encodeKataGoV7PocFeatures(position);
 
     return {
-      feeds: {
-        bin_input: new ort.Tensor(
-          "float32",
-          encoded.binInput,
-          encoded.binShape,
-        ),
-        global_input: new ort.Tensor(
-          "float32",
-          encoded.globalInput,
-          encoded.globalShape,
-        ),
-      },
+      feeds: makeKayaOnnxFeeds(encoded),
       input: encoded.summary,
     };
   }
@@ -285,24 +277,7 @@ function makeOnnxFeeds(
     const encoded = encodeKataGoV7PocFeatures(position);
 
     return {
-      feeds: {
-        InputMask: new ort.Tensor(
-          "float32",
-          new Float32Array(request.boardSize * request.boardSize).fill(1),
-          [1, 1, request.boardSize, request.boardSize],
-        ),
-        InputSpatial: new ort.Tensor(
-          "float32",
-          encoded.binInput,
-          encoded.binShape,
-        ),
-        InputGlobal: new ort.Tensor("float32", encoded.globalInput, [
-          1,
-          encoded.globalInput.length,
-          1,
-          1,
-        ]),
-      },
+      feeds: makeOfficialKataGoOnnxFeeds(encoded),
       input: encoded.summary,
     };
   }
@@ -314,6 +289,73 @@ function makeOnnxFeeds(
         makeOnnxInputTensor(metadata, request.boardSize),
       ]),
     ),
+  };
+}
+
+function makeOnnxFeedsForPosition(
+  session: ort.InferenceSession,
+  position: AiPocPosition,
+): {
+  feeds: ort.InferenceSession.FeedsType;
+  input: AiPocEncodedFeatures["summary"];
+} {
+  const encoded = encodeKataGoV7PocFeatures(position);
+
+  if (
+    session.inputNames.includes("bin_input") &&
+    session.inputNames.includes("global_input")
+  ) {
+    return {
+      feeds: makeKayaOnnxFeeds(encoded),
+      input: encoded.summary,
+    };
+  }
+
+  if (
+    session.inputNames.includes("InputMask") &&
+    session.inputNames.includes("InputSpatial") &&
+    session.inputNames.includes("InputGlobal")
+  ) {
+    return {
+      feeds: makeOfficialKataGoOnnxFeeds(encoded),
+      input: encoded.summary,
+    };
+  }
+
+  throw new Error("Model inputs do not match a supported KataGo ONNX layout");
+}
+
+function makeKayaOnnxFeeds(
+  encoded: AiPocEncodedFeatures,
+): ort.InferenceSession.FeedsType {
+  return {
+    bin_input: new ort.Tensor("float32", encoded.binInput, encoded.binShape),
+    global_input: new ort.Tensor(
+      "float32",
+      encoded.globalInput,
+      encoded.globalShape,
+    ),
+  };
+}
+
+function makeOfficialKataGoOnnxFeeds(
+  encoded: AiPocEncodedFeatures,
+): ort.InferenceSession.FeedsType {
+  const boardSize = encoded.summary.boardSize;
+
+  return {
+    InputMask: new ort.Tensor(
+      "float32",
+      new Float32Array(boardSize * boardSize).fill(1),
+      [1, 1, boardSize, boardSize],
+    ),
+    InputSpatial: new ort.Tensor("float32", encoded.binInput, encoded.binShape),
+    InputGlobal: new ort.Tensor("float32", encoded.globalInput, [
+      1,
+      encoded.globalInput.length,
+      1,
+      1,
+    ]),
   };
 }
 
@@ -623,6 +665,12 @@ function interpretValue(data: Float32Array) {
   };
 }
 
+function sideToMoveValue(data: Float32Array): number {
+  const value = interpretValue(data);
+
+  return value.win - value.loss;
+}
+
 function interpretPolicy(
   data: Float32Array,
   boardSize: number,
@@ -710,7 +758,7 @@ function disposeOnnxFeeds(feeds: ort.InferenceSession.FeedsType) {
 async function runTfPoc(
   manifest: AiPocManifest,
   manifestMs: number,
-  request: AiPocRequest,
+  request: Extract<AiPocRequest, { type: "run" }>,
   artifactBytes: number | undefined,
 ): Promise<AiPocResult> {
   setWasmPaths("/static/dist/ai-poc-wasm/");
@@ -786,7 +834,7 @@ async function runTfPoc(
 async function runOnnxPoc(
   manifest: AiPocManifest,
   manifestMs: number,
-  request: AiPocRequest,
+  request: Extract<AiPocRequest, { type: "run" }>,
   artifactBytes: number | undefined,
 ): Promise<AiPocResult> {
   const backendStart = performance.now();
@@ -868,7 +916,79 @@ async function runOnnxPoc(
   };
 }
 
-async function runPoc(request: AiPocRequest): Promise<AiPocResult> {
+async function runOnnxSearch(
+  manifest: AiPocManifest,
+  request: Extract<AiPocRequest, { type: "search" }>,
+): Promise<AiPocSearchResult> {
+  const loaded = await loadOnnxSession(manifest, request.backendPreference);
+  const rootPosition = createAiPocPosition(
+    request.positionPreset,
+    request.boardSize,
+    request.nextPlayer,
+    request.komi,
+  );
+  let input: AiPocEncodedFeatures["summary"] | undefined;
+  const search = await runPolicyMcts(
+    rootPosition,
+    {
+      visits: request.visits,
+      maxChildren: request.maxChildren,
+    },
+    async (position) => {
+      const nextInput = makeOnnxFeedsForPosition(loaded.session, position);
+      input ??= nextInput.input;
+      const outputs = await predictOnnx(loaded.session, nextInput.feeds);
+
+      try {
+        const policy =
+          (await getOrtFloatData(outputs.policy)) ??
+          (await getOfficialKatagoPolicyData(outputs, position.boardSize));
+        const valueData =
+          (await getOrtFloatData(outputs.value)) ??
+          (await getOrtFloatData(outputs.OutputValue));
+
+        if (!policy) {
+          throw new Error("ONNX output is missing a policy tensor");
+        }
+
+        return {
+          policy,
+          value: valueData ? sideToMoveValue(valueData) : 0,
+        };
+      } finally {
+        disposeOnnxValues(outputs);
+        disposeOnnxFeeds(nextInput.feeds);
+      }
+    },
+  );
+  const modelMetadata = {
+    inputNames: Array.from(loaded.session.inputNames),
+    outputNames: Array.from(loaded.session.outputNames),
+  };
+
+  await loaded.session.release();
+
+  return {
+    manifest,
+    runtime: "onnxruntime-web",
+    backend: loaded.backend,
+    backendPreference: request.backendPreference,
+    fallbackReason: loaded.fallbackReason,
+    model: modelMetadata,
+    webgpu: loaded.webgpu,
+    input,
+    search,
+    environment: {
+      userAgent: navigator.userAgent,
+      crossOriginIsolated: self.crossOriginIsolated,
+      hardwareConcurrency: navigator.hardwareConcurrency,
+    },
+  };
+}
+
+async function runPoc(
+  request: Extract<AiPocRequest, { type: "run" }>,
+): Promise<AiPocResult> {
   const manifestStart = performance.now();
   const manifest = await fetchManifest(request.manifestUrl);
   const manifestMs = performance.now() - manifestStart;
@@ -889,20 +1009,30 @@ async function runPoc(request: AiPocRequest): Promise<AiPocResult> {
   return runTfPoc(manifest, manifestMs, request, artifactBytes);
 }
 
+async function runSearch(
+  request: Extract<AiPocRequest, { type: "search" }>,
+): Promise<AiPocSearchResult> {
+  const manifest = await fetchManifest(request.manifestUrl);
+
+  if (!manifest.boardSizes.includes(request.boardSize)) {
+    throw new Error(
+      `Model ${manifest.id} does not support ${request.boardSize}x${request.boardSize}`,
+    );
+  }
+
+  if (manifest.kind !== "onnx") {
+    throw new Error("Policy MCTS PoC requires an ONNX model");
+  }
+
+  return runOnnxSearch(manifest, request);
+}
+
 self.addEventListener("message", (event: MessageEvent<AiPocRequest>) => {
   const request = event.data;
 
-  if (request.type !== "run") {
-    post({
-      id: request.id,
-      type: "error",
-      message: `Unknown request: ${request.type}`,
-    });
+  const result = request.type === "run" ? runPoc(request) : runSearch(request);
 
-    return;
-  }
-
-  runPoc(request)
+  result
     .then((result) => post({ id: request.id, type: "result", result }))
     .catch((err) =>
       post({

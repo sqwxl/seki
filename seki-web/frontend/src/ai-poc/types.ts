@@ -22,7 +22,7 @@ export type AiPocManifest = {
   outputMap?: Record<string, string>;
 };
 
-export type AiPocRequest = {
+export type AiPocRunRequest = {
   id: string;
   type: "run";
   manifestUrl: string;
@@ -33,6 +33,14 @@ export type AiPocRequest = {
   backendPreference: AiPocBackendPreference;
   runs: number;
 };
+
+export type AiPocSearchRequest = Omit<AiPocRunRequest, "type" | "runs"> & {
+  type: "search";
+  visits: number;
+  maxChildren: number;
+};
+
+export type AiPocRequest = AiPocRunRequest | AiPocSearchRequest;
 
 export type AiPocMetricSummary = {
   p50Ms: number;
@@ -109,6 +117,33 @@ export type AiPocResult = {
   };
 };
 
+export type AiPocSearchMove = {
+  move: string;
+  visits: number;
+  prior: number;
+  value: number;
+};
+
+export type AiPocSearchResult = {
+  manifest: AiPocManifest;
+  runtime: AiPocRuntime;
+  backend: AiPocBackend;
+  backendPreference: AiPocBackendPreference;
+  fallbackReason?: string;
+  model?: AiPocResult["model"];
+  webgpu?: AiPocWebGpuStatus;
+  input?: AiPocResult["input"];
+  search: {
+    visits: number;
+    maxChildren: number;
+    elapsedMs: number;
+    bestMove?: string;
+    rootValue: number;
+    topMoves: AiPocSearchMove[];
+  };
+  environment: AiPocResult["environment"];
+};
+
 export type AiPocResponse =
-  | { id: string; type: "result"; result: AiPocResult }
+  | { id: string; type: "result"; result: AiPocResult | AiPocSearchResult }
   | { id: string; type: "error"; message: string; stack?: string };

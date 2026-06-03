@@ -5,8 +5,7 @@ This is a small official KataGo network exported through KataGo's own
 before running `/static/ai-poc.html` with this manifest:
 
 ```bash
-curl -L -o /tmp/lionffen_b6c64_3x3_v10.txt.gz https://media.katagotraining.org/uploaded/networks/models_extra/lionffen_b6c64_3x3_v10.txt.gz
-LD_LIBRARY_PATH=/home/linuxbrew/.linuxbrew/lib /tmp/katago-export-onnx /tmp/lionffen_b6c64_3x3_v10.txt.gz seki-web/static/models/lionffen-b6c64-19x19/lionffen-b6c64-19x19.onnx 19 true false
+tools/export-lionffen-b6c64-19x19.sh
 ```
 
 The exported model uses official KataGo ONNX IO:

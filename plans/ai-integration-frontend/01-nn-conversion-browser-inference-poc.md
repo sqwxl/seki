@@ -137,6 +137,8 @@ Stop and revise the AI approach if:
 - Initial worker bundle: `/static/dist/ai-poc-worker.js`.
 - Synthetic manifest: `/static/models/ai-poc-synthetic/manifest.json`.
 - Real-model manifest: `/static/models/kaya-b28c512-uint8/manifest.json`.
+- Small official-export manifest:
+  `/static/models/lionffen-b6c64-19x19/manifest.json`.
 - The synthetic manifest exercises TensorFlow.js backend selection and tensor
   output reporting before a real converted model exists.
 - The real-model path uses ONNX Runtime Web and the already-converted Kaya
@@ -151,6 +153,10 @@ Stop and revise the AI approach if:
   measurements in this plan until a dedicated benchmark notes file is warranted.
 - Keep the PoC isolated from product UI until real model output and mobile
   benchmark data are captured.
+- `tools/katago-export-onnx.cpp` wraps official KataGo `OnnxModelBuilder` for
+  offline `.bin.gz`/`.txt.gz` to ONNX export. `tools/build-katago-export-onnx.sh`
+  builds it from ignored vendored KataGo source. `tools/export-lionffen-b6c64-19x19.sh`
+  exports the current small PoC model into the ignored static artifact path.
 
 ## Benchmark Notes
 
@@ -179,6 +185,35 @@ large 19x19 B28C512 model. It proves ONNX WebGPU execution works on the target
 browser, but single-eval latency is far too high for search. Use it only as a
 correctness/protocol PoC while selecting or exporting a much smaller model.
 
+### Chrome Android WebGPU — Lionffen B6C64 Official KataGo ONNX
+
+- Date captured: 2026-06-03.
+- Browser/device label: Chrome Android user agent
+  `Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36`.
+- Runtime/backend: ONNX Runtime Web, WebGPU.
+- WebGPU status: available.
+- Model: `lionffen-b6c64-19x19`.
+- Artifact bytes: 1,837,658.
+- Board/input: 19x19 empty board, `katago-v7-poc-subset`, black to move,
+  komi 6.5.
+- Runs: 30.
+- Cold model load: 72,379.2 ms.
+- Warm-tab model load: 123 ms.
+- Warmup: 645.9 ms.
+- Eval p50/p95: 244.3 ms / 364.1 ms.
+- Output sanity:
+  - Policy, policy-pass, value, score-value, and ownership tensors present.
+  - Value softmax roughly win 43.2%, loss 43.6%, no-result 13.3%.
+  - Top policy moves are plausible low-corner/opening moves (`D3`, `D17`,
+    `Q3`, `C4`).
+  - Ownership output is all zero for this empty-board test. Do not rely on
+    ownership until semantics are verified on non-empty positions.
+
+Recommendation from this benchmark: proceed with `lionffen-b6c64-19x19` for a
+policy-backed MCTS PoC. Eval latency is plausible for shallow browser-side
+search. Cold load requires preload/cache UX before production use, but warm-tab
+load is acceptable.
+
 ## Smaller Model Candidate Notes
 
 The ready-made Kaya ONNX repository currently gives us convenient browser
@@ -199,6 +234,10 @@ Candidate order:
      The existing `kaya-go/katago-onnx` converter targets PyTorch checkpoints,
      so this requires either finding a raw checkpoint for this net or adding an
      offline native-weight conversion path.
+   - Current result: official KataGo `OnnxModelBuilder` exports this model to a
+     1,837,658 byte ONNX file. ONNX Runtime Web can load and run it locally and
+     on Chrome Android WebGPU. This is the current model for policy-backed MCTS
+     PoC work.
 
 2. `lionffen-b24c64-19x19`
    - Source:
@@ -218,9 +257,7 @@ Candidate order:
    - Risk: too large as a download, not useful for 13x13 or 19x19, and still
      needs conversion.
 
-Recommendation: pursue `lionffen-b6c64-19x19` first, but treat conversion as the
-gate. First try to locate or request a raw checkpoint for this net. If none is
-available, decide whether an offline native KataGo-weight converter is worth the
-work. Fall back to the 9x9 raw checkpoint path only if the product decision is
-to ship 9x9 AI before 19x19 AI. Keep `kaya-b28c512-uint8` only as the known-good
-ONNX runtime fixture.
+Recommendation: use `lionffen-b6c64-19x19` for the next MCTS PoC. Keep
+`kaya-b28c512-uint8` only as the known-good large ONNX runtime fixture. Revisit
+`lionffen-b24c64-19x19` only after the MCTS loop proves useful enough to justify
+benchmarking a stronger/slower net.

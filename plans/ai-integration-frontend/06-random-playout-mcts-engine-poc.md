@@ -14,7 +14,7 @@ and value guidance.
 
 - Existing `go-engine` rules, legal move checks, pass handling, and scoring.
 - Existing random playout implementation in `go-engine/src/territory`.
-- KataGo graph-search note:
+- KataGo graph-search note, target algorithm constraints:
   `https://github.com/lightvector/KataGo/blob/master/docs/GraphSearch.md#doing-monte-carlo-graph-search-correctly`
 
 ## Scope
@@ -22,15 +22,21 @@ and value guidance.
 Build in `go-engine` first. Expose through WASM only after the core search is
 deterministic, tested, and reasonably fast.
 
+Frontend PoC exception: the browser inference harness may host a tiny temporary
+policy-backed search loop to validate that model policy/value output can drive
+move selection before the Rust engine MCTS exists. Keep that code isolated from
+product UI and do not treat it as legal Go search.
+
 In scope:
 
 - Legal move generation, including pass.
 - Random rollout evaluation behind a pluggable policy/value interface.
-- Tree MCTS baseline.
+- Small tree MCTS scaffold only if useful for tests.
+- Graph MCTS following KataGo's parent-edge/action-stat guidance.
 - Deterministic search seeds for tests.
 - Small-board performance checks.
 - NN policy/value adapter shape, without requiring a model in this phase.
-- Later graph-search upgrade with edge/action statistics.
+- Edge/action statistics as first-class search state.
 
 Out of scope:
 
@@ -41,13 +47,41 @@ Out of scope:
 - Ranked play.
 - Advanced life-and-death solver.
 
+## Frontend Policy-MCTS Probe
+
+Current implementation:
+
+- `seki-web/frontend/src/ai-poc/mcts.ts` contains a small async PUCT tree search.
+- The AI PoC worker accepts `type: "search"` requests.
+- Search loads one ONNX session, evaluates leaf positions with model
+  policy/value, and returns best move plus root visit stats.
+- `/static/ai-poc.html` has a `Run policy MCTS` button with visit and max-child
+  controls.
+
+Known limits:
+
+- Legal move generation is temporary: empty intersections plus pass only.
+- Captures, suicide, ko, superko, pass-ending, and scoring are not implemented.
+- Positions use the PoC feature-encoder shape, not live Seki engine snapshots.
+- This is a feasibility bridge from NN output to search. Production move
+  generation still belongs in `go-engine`.
+
+Chrome Android WebGPU timing from 2026-06-03:
+
+- `lionffen-b6c64-19x19`, empty 19x19 position, warm tab.
+- 24 visits / 32 max children: 5,128.8 ms, best move `D3`.
+- 48 visits / 96 max children: 10,711.4 ms, best move `D3`.
+- Search time scales roughly linearly with leaf evaluations. Current PoC is
+  useful for proving the NN-to-search bridge, but too slow for interactive
+  high-visit MCTS without batching, caching, or fewer model evals.
+
 ## Core Design
 
 Add a small search module under `go-engine`, for example `mcts/`.
 
 Separate search from evaluation:
 
-- **Search core:** tree/graph traversal, visit counts, action selection, backup.
+- **Search core:** graph traversal, visit counts, action selection, backup.
 - **Evaluator:** supplies priors and leaf values for a position.
 - **Rollout evaluator:** v1 implementation using random playouts.
 - **NN evaluator:** future implementation using model policy/value output.
@@ -148,7 +182,9 @@ Rollout evaluator v1:
 
 ## Phase 3 — Tree MCTS Baseline
 
-Implement tree MCTS before graph MCTS.
+Implement only enough tree MCTS to validate evaluator boundaries and backup math.
+This phase is allowed to be short-lived. The production target is graph search
+using the KataGo GraphSearch guidance.
 
 Node state:
 
@@ -186,9 +222,16 @@ Final move:
 - Pick the root action with the highest visit count.
 - Use value only as a tie-breaker.
 
-## Phase 4 — Graph Search Upgrade
+Exit criteria:
 
-After tree MCTS is correct, add a transposition table.
+- Evaluator boundary compiles and is tested.
+- Backup perspective math is tested.
+- Legal action generation is tested.
+- No product/WASM API depends on tree-only internals.
+
+## Phase 4 — KataGo-Style Graph Search
+
+Implement the real MCTS core as graph search, not just tree search with a cache.
 
 Follow the KataGo graph-search warning: parent action statistics are not the
 same as child node statistics. Track edge/action visits separately from node
@@ -197,12 +240,25 @@ visits.
 Required graph state:
 
 - Position key.
-- Node visits/value.
+- Node visits/value for shared position-level information.
 - Per-parent action stats:
   - action,
   - child key,
   - edge visits,
   - edge value.
+  - edge virtual loss or in-flight marker if async/batched eval is added later.
+- Root action stats are authoritative for final move selection.
+
+Rules:
+
+- Selection reads action stats from the current parent, not only child node
+  stats.
+- Backup updates each traversed parent-action edge and the reached node.
+- Final move selection uses root edge visits.
+- Shared child node value may inform selection, but must not replace per-edge
+  visit/value accounting.
+- Code comments should cite the KataGo graph-search note where the edge/node
+  distinction is implemented.
 
 Cycle handling:
 
@@ -304,6 +360,7 @@ Stop and rethink if:
 
 ## Recommendation
 
-Build tree MCTS first. Do not implement graph search until tree MCTS has tests,
-benchmarks, and a WASM-facing API shape. Graph search is valuable, but only after
-the baseline proves that random playouts are fast enough and not obviously bad.
+Build the evaluator/action boundary first, then implement KataGo-style graph
+search with explicit parent-edge/action statistics. A tiny tree search scaffold
+is acceptable only as a temporary way to test backup math and evaluator plumbing.
+Do not expose product/WASM APIs that depend on tree-only internals.
