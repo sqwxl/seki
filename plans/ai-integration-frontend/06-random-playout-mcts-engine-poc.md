@@ -158,6 +158,9 @@ For random playouts:
 
 - Priors are uniform over legal actions.
 - Value comes from random rollout score.
+- Current Rust status: `go-engine::mcts` has action/evaluation types,
+  `legal_actions`, `uniform_priors`, `apply_action`, deterministic PRNG, and
+  `RandomRolloutEvaluator`.
 
 For NN later:
 
@@ -271,6 +274,9 @@ Rules:
   visit/value accounting.
 - Code comments should cite the KataGo graph-search note where the edge/node
   distinction is implemented.
+- Current Rust status: `PositionKey`, `NodeId`, `GraphNode`, and `EdgeStats`
+  exist with tests proving parent-action edge stats are distinct from shared
+  child-node stats.
 
 Cycle handling:
 
