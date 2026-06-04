@@ -11,6 +11,7 @@ import {
   type AiPocPosition,
 } from "./feature-encoder";
 import { runPolicyMcts } from "./mcts";
+import { runRandomMcts } from "./random-mcts-worker";
 import type {
   AiPocBackend,
   AiPocInterpretation,
@@ -1030,7 +1031,12 @@ async function runSearch(
 self.addEventListener("message", (event: MessageEvent<AiPocRequest>) => {
   const request = event.data;
 
-  const result = request.type === "run" ? runPoc(request) : runSearch(request);
+  const result =
+    request.type === "run"
+      ? runPoc(request)
+      : request.type === "search"
+        ? runSearch(request)
+        : runRandomMcts(request);
 
   result
     .then((result) => post({ id: request.id, type: "result", result }))

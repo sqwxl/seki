@@ -289,7 +289,7 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
                 continue;
             }
 
-            let q = -edge.mean_value();
+            let q = edge.mean_value();
             let u =
                 self.config.cpuct * edge.prior * parent_visits.sqrt() / (1 + edge.visits) as f32;
             let score = q + u;
@@ -781,6 +781,38 @@ mod tests {
 
         assert_eq!(search.nodes[0].visits(), 1);
         assert_eq!(search.nodes[0].edges()[0].visits(), 1);
+    }
+
+    #[test]
+    fn graph_search_selection_uses_parent_perspective_edge_value() {
+        let engine = Engine::new(3, 3);
+        let key = PositionKey::from_engine(&engine);
+        let mut evaluator = StaticEvaluator {
+            value: 0.0,
+            priors: HashMap::new(),
+        };
+        let mut search = GraphSearch::new(
+            MctsConfig {
+                visits: 1,
+                cpuct: 0.01,
+            },
+            &mut evaluator,
+        );
+        search.nodes = vec![
+            GraphNode::new(key.clone()),
+            GraphNode::new(key.clone()),
+            GraphNode::new(key),
+        ];
+        let mut good_for_parent = EdgeStats::new(BotMove::Play((0, 0)), NodeId(1), 1.0);
+        good_for_parent.backup(0.8);
+        let mut bad_for_parent = EdgeStats::new(BotMove::Play((1, 0)), NodeId(2), 1.0);
+        bad_for_parent.backup(-0.8);
+        search.nodes[0].backup_node(0.0);
+        search.nodes[0].backup_node(0.0);
+        search.nodes[0].push_edge(bad_for_parent);
+        search.nodes[0].push_edge(good_for_parent);
+
+        assert_eq!(search.select_edge(NodeId(0), &HashSet::new()), Some(1));
     }
 
     #[test]

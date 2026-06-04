@@ -22,6 +22,7 @@ const jsxConfig = {
   jsx: "automatic",
   jsxImportSource: "preact",
 };
+const staticExternals = ["/static/wasm/*", "/static/images/*"];
 
 const vendorImports = new Map([
   ["preact", "/static/dist/dev/vendor/preact.js"],
@@ -41,7 +42,7 @@ const appConfig = {
   format: "esm",
   splitting: true,
   minify: true,
-  external: ["/static/wasm/*", "/static/images/*"],
+  external: staticExternals,
   logLevel: "info",
   define: {
     __DEV__: "false",
@@ -78,6 +79,7 @@ const aiPocWorkerConfig = {
   outfile: path.join(distDir, "ai-poc-worker.js"),
   format: "esm",
   conditions: ["onnxruntime-web-use-extern-wasm"],
+  external: staticExternals,
   minify: !watchMode,
   logLevel: "info",
   define: {

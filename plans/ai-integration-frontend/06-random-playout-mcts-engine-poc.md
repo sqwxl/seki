@@ -343,6 +343,21 @@ type RandomMctsResponse = {
 The frontend should still replay the returned move through the existing board
 API. The bot search never mutates visible board state directly.
 
+Current Rust/WASM status:
+
+- `WasmEngine.random_mcts_json(requestJson)` exists.
+- It runs sync random-rollout graph MCTS against the current visible replay
+  position.
+- It returns best move, side-to-play winrate, root value, root edge stats, and
+  a one-move principal variation placeholder.
+- It does not mutate visible board state.
+- `wasm-pack build` generates bindings with `random_mcts_json`.
+- `/static/ai-poc.html` has a separate `Run Rust random MCTS` path through the
+  AI PoC worker. This supplements the temporary TypeScript policy-MCTS probe
+  instead of replacing it.
+- Next pending step: benchmark Rust random MCTS on Android and tune visits /
+  rollout limits before wiring it into real bot gameplay.
+
 ## Tests
 
 Rust tests:

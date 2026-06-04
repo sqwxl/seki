@@ -5,6 +5,8 @@ use go_engine::sgf::convert::MoveTime;
 use go_engine::{GameTree, Point, Replay, Stone};
 use wasm_bindgen::prelude::*;
 
+mod random_mcts;
+
 /// Parse SGF text and return metadata as JSON.
 /// Returns JSON: `{ cols, rows, komi?, handicap?, black_name?, ... }`
 /// On parse error: `{ "error": "message" }`
@@ -339,6 +341,12 @@ impl WasmEngine {
             r#"{{"black":{{"territory":{},"captures":{}}},"white":{{"territory":{},"captures":{}}},"result":"{}"}}"#,
             gs.black.territory, gs.black.captures, gs.white.territory, gs.white.captures, result,
         )
+    }
+
+    /// Run random-rollout graph MCTS against the current visible position.
+    /// Returns JSON and does not mutate the replay tree or board.
+    pub fn random_mcts_json(&self, request_json: &str) -> String {
+        random_mcts::run(self.inner.engine(), request_json)
     }
 }
 

@@ -1,4 +1,5 @@
 import type {
+  AiPocRandomMctsResult,
   AiPocRequest,
   AiPocResponse,
   AiPocResult,
@@ -70,8 +71,17 @@ app.innerHTML = `
       <label for="mcts-max-children">MCTS max children</label>
       <input id="mcts-max-children" type="number" min="1" max="100" value="32" />
     </div>
+    <div>
+      <label for="rollout-limit">Rollout limit</label>
+      <input id="rollout-limit" type="number" min="1" max="500" value="120" />
+    </div>
+    <div>
+      <label for="mcts-seed">MCTS seed</label>
+      <input id="mcts-seed" type="number" min="0" value="99" />
+    </div>
     <button id="run-poc" type="button">Run inference</button>
     <button id="run-search" type="button">Run policy MCTS</button>
+    <button id="run-random-mcts" type="button">Run Rust random MCTS</button>
   </section>
   <section class="ai-poc-actions">
     <button id="copy-result" type="button" disabled>Copy JSON</button>
@@ -95,8 +105,13 @@ const runsInput = document.querySelector<HTMLInputElement>("#runs")!;
 const visitsInput = document.querySelector<HTMLInputElement>("#mcts-visits")!;
 const maxChildrenInput =
   document.querySelector<HTMLInputElement>("#mcts-max-children")!;
+const rolloutLimitInput =
+  document.querySelector<HTMLInputElement>("#rollout-limit")!;
+const seedInput = document.querySelector<HTMLInputElement>("#mcts-seed")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run-poc")!;
 const searchButton = document.querySelector<HTMLButtonElement>("#run-search")!;
+const randomMctsButton =
+  document.querySelector<HTMLButtonElement>("#run-random-mcts")!;
 const copyButton = document.querySelector<HTMLButtonElement>("#copy-result")!;
 const downloadButton =
   document.querySelector<HTMLButtonElement>("#download-result")!;
@@ -113,7 +128,35 @@ function ensureWorker(): Worker {
   return worker;
 }
 
-function formatResult(result: AiPocResult | AiPocSearchResult): string {
+function formatResult(
+  result: AiPocResult | AiPocSearchResult | AiPocRandomMctsResult,
+): string {
+  if ("randomSearch" in result) {
+    return JSON.stringify(
+      {
+        randomSearch: {
+          runtime: result.runtime,
+          boardSize: result.input.boardSize,
+          positionPreset: result.input.positionPreset,
+          nextPlayer: result.input.nextPlayer,
+          visits: result.randomSearch.visits,
+          rolloutLimit: result.randomSearch.rolloutLimit,
+          seed: result.randomSearch.seed,
+          elapsedMs: result.randomSearch.elapsedMs,
+          bestMove: result.randomSearch.bestMove,
+          winrate: result.randomSearch.winrate,
+          rootValue: result.randomSearch.rootValue,
+          rootEdges: result.randomSearch.rootEdges.slice(0, 12),
+          principalVariation: result.randomSearch.principalVariation,
+        },
+        input: result.input,
+        environment: result.environment,
+      },
+      null,
+      2,
+    );
+  }
+
   if ("search" in result) {
     return JSON.stringify(
       {
@@ -221,11 +264,24 @@ function runSearch() {
   postRequest(request, "Searching...");
 }
 
+function runRandomMcts() {
+  const request: AiPocRequest = {
+    ...baseRequest(),
+    type: "random-mcts",
+    visits: Number(visitsInput.value),
+    rolloutLimit: Number(rolloutLimitInput.value),
+    seed: Number(seedInput.value),
+  };
+
+  postRequest(request, "Running Rust MCTS...");
+}
+
 function postRequest(request: AiPocRequest, runningText: string) {
   const activeWorker = ensureWorker();
 
   runButton.disabled = true;
   searchButton.disabled = true;
+  randomMctsButton.disabled = true;
   copyButton.disabled = true;
   downloadButton.disabled = true;
   lastResultText = undefined;
@@ -241,6 +297,7 @@ function postRequest(request: AiPocRequest, runningText: string) {
     activeWorker.removeEventListener("message", onMessage);
     runButton.disabled = false;
     searchButton.disabled = false;
+    randomMctsButton.disabled = false;
 
     if (response.type === "error") {
       output.textContent = response.stack ?? response.message;
@@ -260,6 +317,7 @@ function postRequest(request: AiPocRequest, runningText: string) {
 
 runButton.addEventListener("click", runPoc);
 searchButton.addEventListener("click", runSearch);
+randomMctsButton.addEventListener("click", runRandomMcts);
 copyButton.addEventListener("click", () => {
   if (lastResultText) {
     navigator.clipboard.writeText(lastResultText).catch(() => {

@@ -40,7 +40,17 @@ export type AiPocSearchRequest = Omit<AiPocRunRequest, "type" | "runs"> & {
   maxChildren: number;
 };
 
-export type AiPocRequest = AiPocRunRequest | AiPocSearchRequest;
+export type AiPocRandomMctsRequest = Omit<AiPocRunRequest, "type" | "runs"> & {
+  type: "random-mcts";
+  visits: number;
+  rolloutLimit: number;
+  seed: number;
+};
+
+export type AiPocRequest =
+  | AiPocRunRequest
+  | AiPocSearchRequest
+  | AiPocRandomMctsRequest;
 
 export type AiPocMetricSummary = {
   p50Ms: number;
@@ -144,6 +154,47 @@ export type AiPocSearchResult = {
   environment: AiPocResult["environment"];
 };
 
+export type AiPocRandomMctsMove =
+  | {
+      kind: "play";
+      col: number;
+      row: number;
+    }
+  | { kind: "pass" };
+
+export type AiPocRandomMctsEdge = {
+  action: AiPocRandomMctsMove;
+  visits: number;
+  prior: number;
+  value: number;
+};
+
+export type AiPocRandomMctsResult = {
+  runtime: "go-engine-wasm";
+  input: {
+    boardSize: number;
+    positionPreset: string;
+    nextPlayer: string;
+    komi: number;
+  };
+  randomSearch: {
+    visits: number;
+    rolloutLimit: number;
+    seed: number;
+    elapsedMs: number;
+    bestMove?: string;
+    winrate: number;
+    rootValue: number;
+    rootEdges: AiPocRandomMctsEdge[];
+    principalVariation: AiPocRandomMctsMove[];
+  };
+  environment: AiPocResult["environment"];
+};
+
 export type AiPocResponse =
-  | { id: string; type: "result"; result: AiPocResult | AiPocSearchResult }
+  | {
+      id: string;
+      type: "result";
+      result: AiPocResult | AiPocSearchResult | AiPocRandomMctsResult;
+    }
   | { id: string; type: "error"; message: string; stack?: string };
