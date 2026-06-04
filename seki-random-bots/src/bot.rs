@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use go_engine::{GameState, Stone};
+use go_engine::{GameState, Goban, Stone};
 use rand::Rng;
 use seki_api::ws::{ClientMsg, LiveGameItem, ServerMsg};
 use tokio::sync::mpsc;
@@ -27,6 +27,9 @@ pub struct BotRunner {
     my_games: HashMap<i64, ActiveGame>,
     lobby_games: Vec<i64>,
     rng: rand::rngs::StdRng,
+    /// Consecutive ticks with no active games (playing or waiting with opponent).
+    /// Used to detect and clean up stale unstarted games.
+    idle_ticks: u64,
 }
 
 fn send_json(tx: &mpsc::UnboundedSender<String>, msg: &ClientMsg) {
@@ -62,6 +65,7 @@ impl BotRunner {
             my_games: HashMap::new(),
             lobby_games: Vec::new(),
             rng,
+            idle_ticks: 0,
         };
 
         let interval = bot.config.timing.action_interval_ms;
@@ -82,6 +86,7 @@ impl BotRunner {
                             bot.ws_tx = ws_handle.tx.clone();
                             bot.my_games.clear();
                             bot.lobby_games.clear();
+                            bot.idle_ticks = 0;
                         }
                     }
                 }
@@ -326,34 +331,42 @@ impl BotRunner {
     }
 
     async fn handle_game_stage_hook(&mut self, game_id: i64) {
-        if let Some(ag) = self.my_games.get(&game_id) {
-            match ag.stage.as_str() {
-                "challenge" if ag.has_opponent => {
-                    info!(
-                        "{} auto-accepting challenge game={game_id}",
-                        self.bot_name()
-                    );
-                    send_json(&self.ws_tx, &ClientMsg::accept_challenge(game_id));
-                }
-                "unstarted" if ag.has_opponent => {
-                    info!(
-                        "{} auto-accepting pregame settings game={game_id}",
-                        self.bot_name()
-                    );
-                    send_json(&self.ws_tx, &ClientMsg::accept_pregame_settings(game_id));
-                }
-                "territory_review" => {
-                    info!(
-                        "{} auto-approving territory game={game_id}",
-                        self.bot_name()
-                    );
-                    send_json(&self.ws_tx, &ClientMsg::approve_territory(game_id));
-                }
-                "completed" | "resigned" | "aborted" | "declined" | "timeout" => {
-                    self.my_games.remove(&game_id);
-                }
-                _ => {}
+        // Re-read current state to avoid acting on stale transitions when
+        // multiple messages (GameCreated/Updated/StateSync/State) fire the
+        // hook for the same state change.
+        let stage = self.my_games.get(&game_id).map(|ag| ag.stage.clone());
+        let has_opponent = self
+            .my_games
+            .get(&game_id)
+            .map(|ag| ag.has_opponent)
+            .unwrap_or(false);
+
+        match stage.as_deref() {
+            Some("challenge") if has_opponent => {
+                info!(
+                    "{} auto-accepting challenge game={game_id}",
+                    self.bot_name()
+                );
+                send_json(&self.ws_tx, &ClientMsg::accept_challenge(game_id));
             }
+            Some("unstarted") if has_opponent => {
+                info!(
+                    "{} auto-accepting pregame settings game={game_id}",
+                    self.bot_name()
+                );
+                send_json(&self.ws_tx, &ClientMsg::accept_pregame_settings(game_id));
+            }
+            Some("territory_review") => {
+                info!(
+                    "{} auto-approving territory game={game_id}",
+                    self.bot_name()
+                );
+                send_json(&self.ws_tx, &ClientMsg::approve_territory(game_id));
+            }
+            Some("completed" | "resigned" | "aborted" | "declined" | "timeout") => {
+                self.my_games.remove(&game_id);
+            }
+            _ => {}
         }
     }
 
@@ -375,70 +388,97 @@ impl BotRunner {
         self.lobby_games
             .retain(|id| !self.my_games.contains_key(id));
 
-        // Determine if we're idle (no active games) or in-game
-        let has_active_games = self.my_games.values().any(|g| {
-            matches!(
-                g.stage.as_str(),
-                "black_to_play" | "white_to_play" | "territory_review"
-            ) || (matches!(g.stage.as_str(), "challenge" | "unstarted") && g.has_opponent)
-        });
+        // Count active games (playing or waiting with opponent)
+        let active_game_count = self
+            .my_games
+            .values()
+            .filter(|g| {
+                matches!(
+                    g.stage.as_str(),
+                    "black_to_play" | "white_to_play" | "territory_review"
+                ) || (matches!(g.stage.as_str(), "challenge" | "unstarted") && g.has_opponent)
+            })
+            .count();
+
+        if active_game_count == 0 {
+            self.idle_ticks += 1;
+        } else {
+            self.idle_ticks = 0;
+        }
+
+        // After 30 idle ticks (~15s at default interval), clean up stale
+        // unstarted games that never got an opponent so we can re-create.
+        const STALE_IDLE_TICKS: u64 = 30;
+        if self.idle_ticks >= STALE_IDLE_TICKS {
+            let stale: Vec<i64> = self
+                .my_games
+                .iter()
+                .filter(|(_, g)| g.stage == "unstarted" && !g.has_opponent)
+                .map(|(id, _)| *id)
+                .collect();
+            for gid in &stale {
+                info!(
+                    "{} abandoning stale unstarted game {gid} (no opponent after {STALE_IDLE_TICKS} idle ticks)",
+                    self.bot_name()
+                );
+                self.my_games.remove(gid);
+            }
+            self.idle_ticks = 0;
+        }
 
         // Always try to join from lobby
         if !self.lobby_games.is_empty() {
             self.join_random_game().await;
         }
 
-        // Create if we have no games at all
-        if self.my_games.is_empty() {
+        // Create if we have no active games and not too many pending games
+        let pending_game_count = self.my_games.len();
+        if active_game_count == 0 && pending_game_count < 2 {
             self.create_random_game().await;
         }
 
-        if !has_active_games {
-            // Nothing to do: no playable games and no reason to create
-        } else {
-            // Pick a random active game where we can do something
-            let playable: Vec<i64> = self
-                .my_games
-                .iter()
-                .filter(|(_, g)| {
-                    matches!(g.stage.as_str(), "black_to_play" | "white_to_play")
-                        && g.board.is_some()
-                        && g.our_stone.is_some_and(|s| match s {
-                            Stone::Black => g.stage == "black_to_play",
-                            Stone::White => g.stage == "white_to_play",
-                        })
-                })
-                .map(|(id, _)| *id)
-                .collect();
+        // Pick a random active game where we can do something
+        let playable: Vec<i64> = self
+            .my_games
+            .iter()
+            .filter(|(_, g)| {
+                matches!(g.stage.as_str(), "black_to_play" | "white_to_play")
+                    && g.board.is_some()
+                    && g.our_stone.is_some_and(|s| match s {
+                        Stone::Black => g.stage == "black_to_play",
+                        Stone::White => g.stage == "white_to_play",
+                    })
+            })
+            .map(|(id, _)| *id)
+            .collect();
 
-            for game_id in &playable {
-                let action = pick_game_action(&mut self.rng, &self.config.probabilities);
-                match action {
-                    GameAction::Play => {
-                        self.play_random_move(*game_id);
-                    }
-                    GameAction::Pass => {
-                        info!("{} passing in game {game_id}", self.bot_name());
-                        send_json(&self.ws_tx, &ClientMsg::pass(*game_id));
-                    }
-                    GameAction::Resign => {
-                        info!("{} resigning game {game_id}", self.bot_name());
-                        send_json(&self.ws_tx, &ClientMsg::resign(*game_id));
-                    }
-                    GameAction::RequestUndo => {
-                        info!("{} requesting undo in game {game_id}", self.bot_name());
-                        send_json(&self.ws_tx, &ClientMsg::respond_to_undo(*game_id, "accept"));
-                    }
-                    GameAction::Chat => {
-                        let msg = random_chat_message(&mut self.rng);
-                        let json = serde_json::json!({
-                            "action": "chat",
-                            "game_id": game_id,
-                            "message": msg,
-                        });
-                        if let Ok(s) = serde_json::to_string(&json) {
-                            let _ = self.ws_tx.send(s);
-                        }
+        for game_id in &playable {
+            let action = pick_game_action(&mut self.rng, &self.config.probabilities);
+            match action {
+                GameAction::Play => {
+                    self.play_random_move(*game_id);
+                }
+                GameAction::Pass => {
+                    info!("{} passing in game {game_id}", self.bot_name());
+                    send_json(&self.ws_tx, &ClientMsg::pass(*game_id));
+                }
+                GameAction::Resign => {
+                    info!("{} resigning game {game_id}", self.bot_name());
+                    send_json(&self.ws_tx, &ClientMsg::resign(*game_id));
+                }
+                GameAction::RequestUndo => {
+                    // Undo requests are server-initiated; bot can only respond.
+                    // This action slot is intentionally a no-op.
+                }
+                GameAction::Chat => {
+                    let msg = random_chat_message(&mut self.rng);
+                    let json = serde_json::json!({
+                        "action": "chat",
+                        "game_id": game_id,
+                        "message": msg,
+                    });
+                    if let Ok(s) = serde_json::to_string(&json) {
+                        let _ = self.ws_tx.send(s);
                     }
                 }
             }
@@ -500,16 +540,21 @@ impl BotRunner {
     fn play_random_move(&mut self, game_id: i64) {
         if let Some(ag) = self.my_games.get(&game_id)
             && let Some(board) = &ag.board
+            && let Some(stone) = ag.our_stone
         {
-            if let Some((col, row)) = pick_random_move(&mut self.rng, board) {
+            let goban = Goban::from_state(board.clone());
+            if let Some((col, row)) = pick_random_move(&mut self.rng, &goban, stone) {
                 info!(
                     "{} playing ({col},{row}) in game {game_id}",
                     self.bot_name()
                 );
-                send_json(&self.ws_tx, &ClientMsg::play(game_id, col, row));
+                send_json(
+                    &self.ws_tx,
+                    &ClientMsg::play(game_id, col as i32, row as i32),
+                );
             } else {
                 info!(
-                    "{} no empty spots, passing in game {game_id}",
+                    "{} no legal moves, passing in game {game_id}",
                     self.bot_name()
                 );
                 send_json(&self.ws_tx, &ClientMsg::pass(game_id));

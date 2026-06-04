@@ -1,4 +1,4 @@
-use go_engine::GameState;
+use go_engine::{Goban, Stone};
 use rand::Rng;
 
 use crate::config::{GameSettings, Probabilities};
@@ -82,22 +82,28 @@ pub fn random_create_game_body(rng: &mut impl Rng, settings: &GameSettings) -> s
     body
 }
 
-pub fn pick_random_move(rng: &mut impl Rng, state: &GameState) -> Option<(i32, i32)> {
-    let empty_positions: Vec<usize> = state
-        .board
-        .iter()
-        .enumerate()
-        .filter(|(_, v)| **v == 0)
-        .map(|(i, _)| i)
+pub fn pick_random_move(rng: &mut impl Rng, goban: &Goban, stone: Stone) -> Option<(u8, u8)> {
+    let cols = goban.cols();
+    let rows = goban.rows();
+    let total = cols as usize * rows as usize;
+
+    // Collect all positions that are empty AND legal
+    let legal: Vec<u8> = (0..total)
+        .filter(|&idx| {
+            let col = (idx % cols as usize) as u8;
+            let row = (idx / cols as usize) as u8;
+            goban.is_legal_move((col, row), stone)
+        })
+        .map(|i| i as u8)
         .collect();
 
-    if empty_positions.is_empty() {
+    if legal.is_empty() {
         return None;
     }
 
-    let idx = empty_positions[rng.random_range(0..empty_positions.len())];
-    let col = (idx % state.cols as usize) as i32;
-    let row = (idx / state.cols as usize) as i32;
+    let idx = legal[rng.random_range(0..legal.len())] as usize;
+    let col = (idx % cols as usize) as u8;
+    let row = (idx / cols as usize) as u8;
     Some((col, row))
 }
 
