@@ -5,6 +5,7 @@ use go_engine::sgf::convert::MoveTime;
 use go_engine::{GameTree, Point, Replay, Stone};
 use wasm_bindgen::prelude::*;
 
+mod policy_mcts;
 mod random_mcts;
 
 /// Parse SGF text and return metadata as JSON.
@@ -347,6 +348,12 @@ impl WasmEngine {
     /// Returns JSON and does not mutate the replay tree or board.
     pub fn random_mcts_json(&self, request_json: &str) -> String {
         random_mcts::run(self.inner.engine(), request_json)
+    }
+
+    /// Start resumable policy/value graph MCTS against the current visible position.
+    /// The returned search object requests model evaluations through JSON batches.
+    pub fn policy_mcts_json(&self, request_json: &str) -> policy_mcts::WasmPolicyMcts {
+        policy_mcts::create(self.inner.engine(), request_json)
     }
 }
 

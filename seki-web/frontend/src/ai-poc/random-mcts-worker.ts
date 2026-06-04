@@ -14,16 +14,25 @@ import type {
   AiPocRandomMctsResult,
   AiPocResult,
   AiPocRuntime,
+  AiPocRustLeafPolicyMctsRequest,
   AiPocRustPolicyMctsRequest,
   AiPocWebGpuStatus,
 } from "./types";
 
 type EngineWasmModule = typeof import("/static/wasm/go_engine_wasm.js");
 type EngineWasm = InstanceType<EngineWasmModule["WasmEngine"]>;
+type PolicyMctsSearch = {
+  next_batch_json(batchSize: number): string;
+  apply_batch_json(evaluationsJson: string): string;
+  summary_json(): string;
+};
 type RustMctsRequest = AiPocRandomMctsRequest | AiPocRustPolicyMctsRequest;
 type RustMctsOptions = {
   rootPolicyLogits?: Float32Array;
   rootValue?: number;
+  totalStartedAt?: number;
+  modelLoadMs?: number;
+  rootInferenceMs?: number;
   manifest?: AiPocManifest;
   policyRuntime?: AiPocRuntime;
   backend?: AiPocBackend;
@@ -31,6 +40,16 @@ type RustMctsOptions = {
   fallbackReason?: string;
   model?: AiPocResult["model"];
   webgpu?: AiPocWebGpuStatus;
+};
+type LeafPolicyMctsOptions = Omit<
+  RustMctsOptions,
+  "rootPolicyLogits" | "rootValue"
+> & {
+  evaluate: (position: AiPocPosition) => Promise<{
+    policy: Float32Array;
+    value: number;
+    elapsedMs: number;
+  }>;
 };
 
 type RustRandomMctsResponse = {
@@ -44,6 +63,26 @@ type RustRandomMctsResponse = {
   valueSource?: string;
   rootEdges: AiPocRandomMctsEdge[];
   principalVariation: AiPocRandomMctsMove[];
+};
+
+type PolicyMctsBatchResponse = {
+  error?: string | null;
+  requests: Array<{
+    id: number;
+    position: AiPocPosition;
+  }>;
+  completedVisits: number;
+  pending: number;
+  complete: boolean;
+};
+
+type PolicyMctsSummaryResponse = {
+  error?: string | null;
+  bestMove?: AiPocRandomMctsMove | null;
+  visits: number;
+  winrate: number;
+  rootValue: number;
+  rootEdges: AiPocRandomMctsEdge[];
 };
 
 let engineWasmModule: EngineWasmModule | undefined;
@@ -83,6 +122,8 @@ export async function runRandomMcts(
     throw new Error(response.error);
   }
 
+  const wasmSearchMs = performance.now() - startedAt;
+
   return {
     runtime: "go-engine-wasm",
     policyRuntime: options.policyRuntime,
@@ -103,7 +144,11 @@ export async function runRandomMcts(
       rolloutLimit: request.rolloutLimit,
       maxPolicyActions: response.maxPolicyActions ?? request.maxPolicyActions,
       seed: request.seed,
-      elapsedMs: performance.now() - startedAt,
+      elapsedMs: wasmSearchMs,
+      modelLoadMs: options.modelLoadMs,
+      rootInferenceMs: options.rootInferenceMs,
+      wasmSearchMs,
+      totalElapsedMs: performance.now() - (options.totalStartedAt ?? startedAt),
       bestMove: formatRandomMctsMove(response.bestMove, request.boardSize),
       winrate: response.winrate,
       rootValue: response.rootValue,
@@ -111,6 +156,132 @@ export async function runRandomMcts(
       valueSource: response.valueSource ?? "rollout",
       rootEdges: response.rootEdges,
       principalVariation: response.principalVariation,
+    },
+    environment: {
+      userAgent: navigator.userAgent,
+      crossOriginIsolated: self.crossOriginIsolated,
+      hardwareConcurrency: navigator.hardwareConcurrency,
+    },
+  };
+}
+
+export async function runLeafPolicyMcts(
+  request: AiPocRustLeafPolicyMctsRequest,
+  options: LeafPolicyMctsOptions,
+): Promise<AiPocRandomMctsResult> {
+  const wasm = await ensureEngineWasm();
+  const position = createAiPocPosition(
+    request.positionPreset,
+    request.boardSize,
+    request.nextPlayer,
+    request.komi,
+  );
+  const engine = new wasm.WasmEngine(request.boardSize, request.boardSize);
+
+  applyAiPocPosition(engine, position);
+
+  const search = (
+    engine as EngineWasm & {
+      policy_mcts_json(requestJson: string): PolicyMctsSearch;
+    }
+  ).policy_mcts_json(
+    JSON.stringify({
+      visits: request.visits,
+      maxPolicyActions: request.maxPolicyActions,
+      komi: request.komi,
+    }),
+  );
+  const wasmStartedAt = performance.now();
+  let wasmSearchMs = 0;
+  let modelEvalMs = 0;
+  let modelEvaluations = 0;
+
+  while (true) {
+    const nextBatchStartedAt = performance.now();
+    const batchJson = search.next_batch_json(request.batchSize);
+    wasmSearchMs += performance.now() - nextBatchStartedAt;
+    const batch = JSON.parse(batchJson) as PolicyMctsBatchResponse;
+
+    if (batch.error) {
+      throw new Error(batch.error);
+    }
+
+    if (batch.requests.length === 0) {
+      if (batch.complete) {
+        break;
+      }
+
+      throw new Error("policy MCTS search stalled without eval requests");
+    }
+
+    const evaluations = [];
+
+    for (const evalRequest of batch.requests) {
+      const evaluation = await options.evaluate(evalRequest.position);
+
+      modelEvalMs += evaluation.elapsedMs;
+      modelEvaluations += 1;
+      evaluations.push({
+        id: evalRequest.id,
+        policyLogits: Array.from(evaluation.policy),
+        value: evaluation.value,
+      });
+    }
+
+    const applyStartedAt = performance.now();
+    const statusJson = search.apply_batch_json(JSON.stringify({ evaluations }));
+    wasmSearchMs += performance.now() - applyStartedAt;
+    const status = JSON.parse(statusJson) as { error?: string | null };
+
+    if (status.error) {
+      throw new Error(status.error);
+    }
+  }
+
+  const summaryStartedAt = performance.now();
+  const summaryJson = search.summary_json();
+  wasmSearchMs += performance.now() - summaryStartedAt;
+  const summary = JSON.parse(summaryJson) as PolicyMctsSummaryResponse;
+
+  if (summary.error) {
+    throw new Error(summary.error);
+  }
+
+  return {
+    runtime: "go-engine-wasm",
+    policyRuntime: options.policyRuntime,
+    manifest: options.manifest,
+    backend: options.backend,
+    backendPreference: options.backendPreference,
+    fallbackReason: options.fallbackReason,
+    model: options.model,
+    webgpu: options.webgpu,
+    input: {
+      boardSize: request.boardSize,
+      positionPreset: request.positionPreset,
+      nextPlayer: request.nextPlayer,
+      komi: request.komi,
+    },
+    randomSearch: {
+      visits: summary.visits,
+      rolloutLimit: 0,
+      maxPolicyActions: request.maxPolicyActions,
+      seed: 0,
+      elapsedMs: wasmSearchMs,
+      modelLoadMs: options.modelLoadMs,
+      wasmSearchMs,
+      totalElapsedMs:
+        performance.now() - (options.totalStartedAt ?? wasmStartedAt),
+      modelEvaluations,
+      modelEvalMs,
+      batchSize: request.batchSize,
+      bestMove: formatRandomMctsMove(summary.bestMove, request.boardSize),
+      winrate: summary.winrate,
+      rootValue: summary.rootValue,
+      policySource: "external-leaf",
+      valueSource: "external-leaf",
+      rootEdges: summary.rootEdges,
+      principalVariation: summary.bestMove ? [summary.bestMove] : [],
     },
     environment: {
       userAgent: navigator.userAgent,

@@ -170,6 +170,32 @@ pub struct SearchSummary {
     pub root_edges: Vec<EdgeStats>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ExternalMctsConfig {
+    pub search: MctsConfig,
+    pub max_policy_actions: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PendingEvaluation {
+    pub id: u32,
+    pub engine: Engine,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExternalEvaluation {
+    pub id: u32,
+    pub policy_logits: Vec<f32>,
+    pub value: f32,
+}
+
+#[derive(Debug, Clone)]
+struct PendingPath {
+    node_id: NodeId,
+    path: Vec<(NodeId, usize)>,
+    engine: Engine,
+}
+
 #[derive(Debug)]
 struct GraphSearch<'a, E> {
     config: MctsConfig,
@@ -292,6 +318,278 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
             let q = edge.mean_value();
             let u =
                 self.config.cpuct * edge.prior * parent_visits.sqrt() / (1 + edge.visits) as f32;
+            let score = q + u;
+
+            if score > best_score {
+                best_index = Some(index);
+                best_score = score;
+            }
+        }
+
+        best_index
+    }
+
+    fn backup(&mut self, leaf_id: NodeId, path: &[(NodeId, usize)], leaf_value: f32) {
+        let mut value = leaf_value;
+        self.nodes[leaf_id.0].backup_node(value);
+
+        for &(node_id, edge_index) in path.iter().rev() {
+            value = -value;
+            self.nodes[node_id.0].backup_node(value);
+            self.nodes[node_id.0].edges[edge_index].backup(value);
+        }
+    }
+
+    fn backup_cycle(&mut self, path: &[(NodeId, usize)], cycle_value: f32) {
+        let mut value = cycle_value;
+
+        for &(node_id, edge_index) in path.iter().rev() {
+            self.nodes[node_id.0].backup_node(value);
+            self.nodes[node_id.0].edges[edge_index].backup(value);
+            value = -value;
+        }
+    }
+
+    fn intern_node(&mut self, engine: &Engine) -> NodeId {
+        let key = PositionKey::from_engine(engine);
+        if let Some(id) = self.node_by_key.get(&key) {
+            return *id;
+        }
+
+        let id = NodeId(self.nodes.len());
+        self.nodes.push(GraphNode::new(key.clone()));
+        self.node_by_key.insert(key, id);
+        id
+    }
+}
+
+#[derive(Debug)]
+pub struct ExternalMctsSearch {
+    config: ExternalMctsConfig,
+    root: Engine,
+    root_id: NodeId,
+    nodes: Vec<GraphNode>,
+    node_by_key: HashMap<PositionKey, NodeId>,
+    pending: HashMap<u32, PendingPath>,
+    pending_nodes: HashSet<NodeId>,
+    next_eval_id: u32,
+    completed_visits: u32,
+}
+
+impl ExternalMctsSearch {
+    pub fn new(root: Engine, config: ExternalMctsConfig) -> Self {
+        let root_key = PositionKey::from_engine(&root);
+        let root_id = NodeId(0);
+        let mut node_by_key = HashMap::new();
+
+        node_by_key.insert(root_key.clone(), root_id);
+
+        Self {
+            config,
+            root,
+            root_id,
+            nodes: vec![GraphNode::new(root_key)],
+            node_by_key,
+            pending: HashMap::new(),
+            pending_nodes: HashSet::new(),
+            next_eval_id: 1,
+            completed_visits: 0,
+        }
+    }
+
+    pub fn completed_visits(&self) -> u32 {
+        self.completed_visits
+    }
+
+    pub fn pending_count(&self) -> usize {
+        self.pending.len()
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.completed_visits >= self.config.search.visits && self.pending.is_empty()
+    }
+
+    pub fn next_evaluations(&mut self, max_batch_size: usize) -> Vec<PendingEvaluation> {
+        let batch_size = max_batch_size.max(1);
+        let mut evaluations = Vec::with_capacity(batch_size);
+
+        while evaluations.len() < batch_size
+            && self.completed_visits + (self.pending.len() as u32) < self.config.search.visits
+        {
+            let Some(evaluation) = self.prepare_evaluation() else {
+                break;
+            };
+            evaluations.push(evaluation);
+        }
+
+        evaluations
+    }
+
+    pub fn apply_evaluations(&mut self, evaluations: Vec<ExternalEvaluation>) {
+        for evaluation in evaluations {
+            let Some(pending) = self.pending.remove(&evaluation.id) else {
+                continue;
+            };
+
+            self.pending_nodes.remove(&pending.node_id);
+            let to_play = pending.engine.current_turn_stone();
+            let priors = policy_priors_from_logits(
+                &pending.engine,
+                to_play,
+                &evaluation.policy_logits,
+                self.config.max_policy_actions,
+            );
+            let value = if evaluation.value.is_finite() {
+                evaluation.value.clamp(-1.0, 1.0)
+            } else {
+                0.0
+            };
+
+            self.expand_node(pending.node_id, &pending.engine, priors);
+            self.backup(pending.node_id, &pending.path, value);
+            self.completed_visits += 1;
+        }
+    }
+
+    pub fn summary(&self) -> SearchSummary {
+        let root_node = &self.nodes[self.root_id.0];
+        let mut root_edges = root_node.edges.clone();
+        root_edges.sort_by(|a, b| {
+            b.visits
+                .cmp(&a.visits)
+                .then_with(|| b.prior.total_cmp(&a.prior))
+        });
+
+        SearchSummary {
+            best_move: root_edges.first().map(EdgeStats::action),
+            visits: root_node.visits,
+            root_value: root_node.mean_value(),
+            root_edges,
+        }
+    }
+
+    fn prepare_evaluation(&mut self) -> Option<PendingEvaluation> {
+        loop {
+            let mut node_id = self.root_id;
+            let mut engine = self.root.clone();
+            let mut path: Vec<(NodeId, usize)> = Vec::new();
+            let mut active_nodes = HashSet::from([self.root_id]);
+
+            loop {
+                if self.nodes[node_id.0].edges.is_empty() {
+                    if self.pending_nodes.contains(&node_id) {
+                        return None;
+                    }
+
+                    return Some(self.push_pending(node_id, path, engine));
+                }
+
+                let Some(edge_index) = self.select_edge(node_id, &active_nodes) else {
+                    if self.nodes.get(node_id.0).is_some_and(|node| {
+                        node.edges
+                            .iter()
+                            .any(|edge| self.pending_nodes.contains(&edge.child))
+                    }) {
+                        return None;
+                    }
+
+                    let edge_index = self.select_edge_allowing_cycle(node_id);
+                    path.push((node_id, edge_index));
+                    self.backup_cycle(&path, 0.0);
+                    self.completed_visits += 1;
+
+                    if self.completed_visits >= self.config.search.visits {
+                        return None;
+                    }
+
+                    break;
+                };
+
+                let action = self.nodes[node_id.0].edges[edge_index].action;
+                let child = self.nodes[node_id.0].edges[edge_index].child;
+
+                if apply_action(&mut engine, action).is_err() {
+                    self.backup(node_id, &path, -1.0);
+                    self.completed_visits += 1;
+                    break;
+                }
+
+                path.push((node_id, edge_index));
+                node_id = child;
+                if !active_nodes.insert(node_id) {
+                    self.backup_cycle(&path, 0.0);
+                    self.completed_visits += 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    fn push_pending(
+        &mut self,
+        node_id: NodeId,
+        path: Vec<(NodeId, usize)>,
+        engine: Engine,
+    ) -> PendingEvaluation {
+        let id = self.next_eval_id;
+        self.next_eval_id += 1;
+        self.pending_nodes.insert(node_id);
+        self.pending.insert(
+            id,
+            PendingPath {
+                node_id,
+                path,
+                engine: engine.clone(),
+            },
+        );
+
+        PendingEvaluation { id, engine }
+    }
+
+    fn expand_node(&mut self, node_id: NodeId, engine: &Engine, priors: Vec<ActionPrior>) {
+        let mut edges = Vec::with_capacity(priors.len());
+
+        for prior in priors {
+            let mut child_engine = engine.clone();
+            if apply_action(&mut child_engine, prior.action).is_err() {
+                continue;
+            }
+            let child = self.intern_node(&child_engine);
+            edges.push(EdgeStats::new(prior.action, child, prior.prior.max(0.0)));
+        }
+
+        self.nodes[node_id.0].edges = edges;
+    }
+
+    fn select_edge(&self, node_id: NodeId, active_nodes: &HashSet<NodeId>) -> Option<usize> {
+        self.best_edge(node_id, |edge| {
+            !active_nodes.contains(&edge.child) && !self.pending_nodes.contains(&edge.child)
+        })
+    }
+
+    fn select_edge_allowing_cycle(&self, node_id: NodeId) -> usize {
+        self.best_edge(node_id, |_| true)
+            .expect("expanded graph node has at least one edge")
+    }
+
+    fn best_edge(
+        &self,
+        node_id: NodeId,
+        mut include: impl FnMut(&EdgeStats) -> bool,
+    ) -> Option<usize> {
+        let node = &self.nodes[node_id.0];
+        let parent_visits = node.visits.max(1) as f32;
+        let mut best_index = None;
+        let mut best_score = f32::NEG_INFINITY;
+
+        for (index, edge) in node.edges.iter().enumerate() {
+            if !include(edge) {
+                continue;
+            }
+
+            let q = edge.mean_value();
+            let u = self.config.search.cpuct * edge.prior * parent_visits.sqrt()
+                / (1 + edge.visits) as f32;
             let score = q + u;
 
             if score > best_score {
@@ -968,6 +1266,75 @@ mod tests {
         assert_eq!(evaluation.priors.len(), 1);
         assert_eq!(evaluation.priors[0].action, BotMove::Play((2, 2)));
         assert_eq!(evaluation.priors[0].prior, 1.0);
+    }
+
+    #[test]
+    fn external_mcts_requests_root_then_child_evaluation() {
+        let engine = Engine::new(3, 3);
+        let mut search = ExternalMctsSearch::new(
+            engine,
+            ExternalMctsConfig {
+                search: MctsConfig {
+                    visits: 2,
+                    cpuct: 1.5,
+                },
+                max_policy_actions: Some(2),
+            },
+        );
+        let root = search.next_evaluations(4);
+        let mut root_logits = vec![0.0; 10];
+        root_logits[policy_logit_index(BotMove::Play((2, 2)), 3, 3)] = 8.0;
+
+        assert_eq!(root.len(), 1);
+        search.apply_evaluations(vec![ExternalEvaluation {
+            id: root[0].id,
+            policy_logits: root_logits,
+            value: 0.25,
+        }]);
+
+        let child = search.next_evaluations(4);
+        assert_eq!(child.len(), 1);
+        search.apply_evaluations(vec![ExternalEvaluation {
+            id: child[0].id,
+            policy_logits: vec![0.0; 10],
+            value: -0.5,
+        }]);
+
+        let summary = search.summary();
+        assert_eq!(summary.visits, 2);
+        assert_eq!(summary.best_move, Some(BotMove::Play((2, 2))));
+        assert!(search.is_complete());
+    }
+
+    #[test]
+    fn external_mcts_batches_different_pending_leaf_nodes() {
+        let engine = Engine::new(3, 3);
+        let mut search = ExternalMctsSearch::new(
+            engine,
+            ExternalMctsConfig {
+                search: MctsConfig {
+                    visits: 4,
+                    cpuct: 1.5,
+                },
+                max_policy_actions: Some(4),
+            },
+        );
+        let root = search.next_evaluations(1);
+
+        search.apply_evaluations(vec![ExternalEvaluation {
+            id: root[0].id,
+            policy_logits: vec![0.0; 10],
+            value: 0.0,
+        }]);
+
+        let batch = search.next_evaluations(3);
+        let unique_positions: HashSet<PositionKey> = batch
+            .iter()
+            .map(|pending| PositionKey::from_engine(&pending.engine))
+            .collect();
+
+        assert_eq!(batch.len(), 3);
+        assert_eq!(unique_positions.len(), 3);
     }
 
     #[test]

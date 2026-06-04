@@ -11,7 +11,7 @@ import {
   type AiPocPosition,
 } from "./feature-encoder";
 import { runPolicyMcts } from "./mcts";
-import { runRandomMcts } from "./random-mcts-worker";
+import { runLeafPolicyMcts, runRandomMcts } from "./random-mcts-worker";
 import type {
   AiPocBackend,
   AiPocInterpretation,
@@ -992,13 +992,17 @@ async function runOnnxRustPolicyMcts(
   manifest: AiPocManifest,
   request: Extract<AiPocRequest, { type: "rust-policy-mcts" }>,
 ): Promise<AiPocRandomMctsResult> {
+  const totalStartedAt = performance.now();
+  const modelLoadStartedAt = performance.now();
   const loaded = await loadOnnxSession(manifest, request.backendPreference);
+  const modelLoadMs = performance.now() - modelLoadStartedAt;
   const rootPosition = createAiPocPosition(
     request.positionPreset,
     request.boardSize,
     request.nextPlayer,
     request.komi,
   );
+  const rootInferenceStartedAt = performance.now();
   const input = makeOnnxFeedsForPosition(loaded.session, rootPosition);
   const outputs = await predictOnnx(loaded.session, input.feeds);
 
@@ -1013,10 +1017,14 @@ async function runOnnxRustPolicyMcts(
     if (!policy) {
       throw new Error("ONNX output is missing a policy tensor");
     }
+    const rootInferenceMs = performance.now() - rootInferenceStartedAt;
 
     return await runRandomMcts(request, {
       rootPolicyLogits: new Float32Array(policy),
       rootValue: valueData ? sideToMoveValue(valueData) : undefined,
+      totalStartedAt,
+      modelLoadMs,
+      rootInferenceMs,
       manifest,
       policyRuntime: "onnxruntime-web",
       backend: loaded.backend,
@@ -1031,6 +1039,62 @@ async function runOnnxRustPolicyMcts(
   } finally {
     disposeOnnxValues(outputs);
     disposeOnnxFeeds(input.feeds);
+    await loaded.session.release();
+  }
+}
+
+async function runOnnxRustLeafPolicyMcts(
+  manifest: AiPocManifest,
+  request: Extract<AiPocRequest, { type: "rust-leaf-policy-mcts" }>,
+): Promise<AiPocRandomMctsResult> {
+  const totalStartedAt = performance.now();
+  const modelLoadStartedAt = performance.now();
+  const loaded = await loadOnnxSession(manifest, request.backendPreference);
+  const modelLoadMs = performance.now() - modelLoadStartedAt;
+
+  try {
+    return await runLeafPolicyMcts(request, {
+      totalStartedAt,
+      modelLoadMs,
+      manifest,
+      policyRuntime: "onnxruntime-web",
+      backend: loaded.backend,
+      backendPreference: request.backendPreference,
+      fallbackReason: loaded.fallbackReason,
+      model: {
+        inputNames: Array.from(loaded.session.inputNames),
+        outputNames: Array.from(loaded.session.outputNames),
+      },
+      webgpu: loaded.webgpu,
+      evaluate: async (position) => {
+        const startedAt = performance.now();
+        const input = makeOnnxFeedsForPosition(loaded.session, position);
+        const outputs = await predictOnnx(loaded.session, input.feeds);
+
+        try {
+          const policy =
+            (await getOrtFloatData(outputs.policy)) ??
+            (await getOfficialKatagoPolicyData(outputs, position.boardSize));
+          const valueData =
+            (await getOrtFloatData(outputs.value)) ??
+            (await getOrtFloatData(outputs.OutputValue));
+
+          if (!policy) {
+            throw new Error("ONNX output is missing a policy tensor");
+          }
+
+          return {
+            policy: new Float32Array(policy),
+            value: valueData ? sideToMoveValue(valueData) : 0,
+            elapsedMs: performance.now() - startedAt,
+          };
+        } finally {
+          disposeOnnxValues(outputs);
+          disposeOnnxFeeds(input.feeds);
+        }
+      },
+    });
+  } finally {
     await loaded.session.release();
   }
 }
@@ -1094,6 +1158,24 @@ async function runRustPolicyMcts(
   return runOnnxRustPolicyMcts(manifest, request);
 }
 
+async function runRustLeafPolicyMcts(
+  request: Extract<AiPocRequest, { type: "rust-leaf-policy-mcts" }>,
+): Promise<AiPocRandomMctsResult> {
+  const manifest = await fetchManifest(request.manifestUrl);
+
+  if (!manifest.boardSizes.includes(request.boardSize)) {
+    throw new Error(
+      `Model ${manifest.id} does not support ${request.boardSize}x${request.boardSize}`,
+    );
+  }
+
+  if (manifest.kind !== "onnx") {
+    throw new Error("Rust leaf-policy MCTS PoC requires an ONNX model");
+  }
+
+  return runOnnxRustLeafPolicyMcts(manifest, request);
+}
+
 self.addEventListener("message", (event: MessageEvent<AiPocRequest>) => {
   const request = event.data;
 
@@ -1104,7 +1186,9 @@ self.addEventListener("message", (event: MessageEvent<AiPocRequest>) => {
         ? runSearch(request)
         : request.type === "rust-policy-mcts"
           ? runRustPolicyMcts(request)
-          : runRandomMcts(request);
+          : request.type === "rust-leaf-policy-mcts"
+            ? runRustLeafPolicyMcts(request)
+            : runRandomMcts(request);
 
   result
     .then((result) => post({ id: request.id, type: "result", result }))

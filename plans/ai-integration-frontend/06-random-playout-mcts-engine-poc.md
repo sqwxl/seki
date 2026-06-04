@@ -370,9 +370,16 @@ Current Rust/WASM status:
   one ONNX inference on the root position, sends legal-masked policy logits and
   root value to `go-engine-wasm`, and Rust graph MCTS uses rollout fallback for
   non-root leaves. This is an integration bridge, not full NN-guided MCTS.
-- Next pending step: convert Rust search to an async/batched worker-driven loop
-  so every newly expanded leaf can be evaluated by the ONNX model without
-  duplicating Go legality in TypeScript.
+- `go-engine::mcts::ExternalMctsSearch` now supports resumable external
+  evaluation. `go-engine-wasm` exposes this as a search object with
+  `next_batch_json`, `apply_batch_json`, and `summary_json`.
+- `/static/ai-poc.html` has a `Run Rust leaf-policy MCTS` path. Rust owns graph
+  search and legal move generation; the worker evaluates requested leaves with
+  ONNX and feeds policy/value back into Rust. Current implementation batches the
+  WASM requests but still runs ONNX one position at a time; true tensor batching
+  is the next optimization.
+- Next pending step: encode multiple leaf positions into one ONNX batch tensor
+  and compare Android eval throughput against one-position inference.
 
 ## Tests
 

@@ -59,11 +59,22 @@ export type AiPocRustPolicyMctsRequest = Omit<
   seed: number;
 };
 
+export type AiPocRustLeafPolicyMctsRequest = Omit<
+  AiPocRunRequest,
+  "type" | "runs"
+> & {
+  type: "rust-leaf-policy-mcts";
+  visits: number;
+  maxPolicyActions: number;
+  batchSize: number;
+};
+
 export type AiPocRequest =
   | AiPocRunRequest
   | AiPocSearchRequest
   | AiPocRandomMctsRequest
-  | AiPocRustPolicyMctsRequest;
+  | AiPocRustPolicyMctsRequest
+  | AiPocRustLeafPolicyMctsRequest;
 
 export type AiPocMetricSummary = {
   p50Ms: number;
@@ -203,6 +214,13 @@ export type AiPocRandomMctsResult = {
     maxPolicyActions: number;
     seed: number;
     elapsedMs: number;
+    modelLoadMs?: number;
+    rootInferenceMs?: number;
+    wasmSearchMs: number;
+    totalElapsedMs: number;
+    modelEvaluations?: number;
+    modelEvalMs?: number;
+    batchSize?: number;
     bestMove?: string;
     winrate: number;
     rootValue: number;

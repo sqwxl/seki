@@ -72,6 +72,10 @@ app.innerHTML = `
       <input id="mcts-max-children" type="number" min="1" max="100" value="32" />
     </div>
     <div>
+      <label for="mcts-batch-size">MCTS eval batch</label>
+      <input id="mcts-batch-size" type="number" min="1" max="64" value="8" />
+    </div>
+    <div>
       <label for="rollout-limit">Rollout limit</label>
       <input id="rollout-limit" type="number" min="1" max="500" value="120" />
     </div>
@@ -82,6 +86,7 @@ app.innerHTML = `
     <button id="run-poc" type="button">Run inference</button>
     <button id="run-search" type="button">Run policy MCTS</button>
     <button id="run-rust-policy-mcts" type="button">Run Rust root-policy MCTS</button>
+    <button id="run-rust-leaf-policy-mcts" type="button">Run Rust leaf-policy MCTS</button>
     <button id="run-random-mcts" type="button">Run Rust random MCTS</button>
   </section>
   <section class="ai-poc-actions">
@@ -106,6 +111,8 @@ const runsInput = document.querySelector<HTMLInputElement>("#runs")!;
 const visitsInput = document.querySelector<HTMLInputElement>("#mcts-visits")!;
 const maxChildrenInput =
   document.querySelector<HTMLInputElement>("#mcts-max-children")!;
+const batchSizeInput =
+  document.querySelector<HTMLInputElement>("#mcts-batch-size")!;
 const rolloutLimitInput =
   document.querySelector<HTMLInputElement>("#rollout-limit")!;
 const seedInput = document.querySelector<HTMLInputElement>("#mcts-seed")!;
@@ -113,6 +120,9 @@ const runButton = document.querySelector<HTMLButtonElement>("#run-poc")!;
 const searchButton = document.querySelector<HTMLButtonElement>("#run-search")!;
 const rustPolicyMctsButton = document.querySelector<HTMLButtonElement>(
   "#run-rust-policy-mcts",
+)!;
+const rustLeafPolicyMctsButton = document.querySelector<HTMLButtonElement>(
+  "#run-rust-leaf-policy-mcts",
 )!;
 const randomMctsButton =
   document.querySelector<HTMLButtonElement>("#run-random-mcts")!;
@@ -148,6 +158,13 @@ function formatResult(
           maxPolicyActions: result.randomSearch.maxPolicyActions,
           seed: result.randomSearch.seed,
           elapsedMs: result.randomSearch.elapsedMs,
+          modelLoadMs: result.randomSearch.modelLoadMs,
+          rootInferenceMs: result.randomSearch.rootInferenceMs,
+          wasmSearchMs: result.randomSearch.wasmSearchMs,
+          totalElapsedMs: result.randomSearch.totalElapsedMs,
+          modelEvaluations: result.randomSearch.modelEvaluations,
+          modelEvalMs: result.randomSearch.modelEvalMs,
+          batchSize: result.randomSearch.batchSize,
           bestMove: result.randomSearch.bestMove,
           winrate: result.randomSearch.winrate,
           rootValue: result.randomSearch.rootValue,
@@ -310,12 +327,25 @@ function runRustPolicyMcts() {
   postRequest(request, "Running Rust root-policy MCTS...");
 }
 
+function runRustLeafPolicyMcts() {
+  const request: AiPocRequest = {
+    ...baseRequest(),
+    type: "rust-leaf-policy-mcts",
+    visits: Number(visitsInput.value),
+    maxPolicyActions: Number(maxChildrenInput.value),
+    batchSize: Number(batchSizeInput.value),
+  };
+
+  postRequest(request, "Running Rust leaf-policy MCTS...");
+}
+
 function postRequest(request: AiPocRequest, runningText: string) {
   const activeWorker = ensureWorker();
 
   runButton.disabled = true;
   searchButton.disabled = true;
   rustPolicyMctsButton.disabled = true;
+  rustLeafPolicyMctsButton.disabled = true;
   randomMctsButton.disabled = true;
   copyButton.disabled = true;
   downloadButton.disabled = true;
@@ -333,6 +363,7 @@ function postRequest(request: AiPocRequest, runningText: string) {
     runButton.disabled = false;
     searchButton.disabled = false;
     rustPolicyMctsButton.disabled = false;
+    rustLeafPolicyMctsButton.disabled = false;
     randomMctsButton.disabled = false;
 
     if (response.type === "error") {
@@ -354,6 +385,7 @@ function postRequest(request: AiPocRequest, runningText: string) {
 runButton.addEventListener("click", runPoc);
 searchButton.addEventListener("click", runSearch);
 rustPolicyMctsButton.addEventListener("click", runRustPolicyMcts);
+rustLeafPolicyMctsButton.addEventListener("click", runRustLeafPolicyMcts);
 randomMctsButton.addEventListener("click", runRandomMcts);
 copyButton.addEventListener("click", () => {
   if (lastResultText) {
