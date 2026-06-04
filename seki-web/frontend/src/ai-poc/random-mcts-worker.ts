@@ -5,14 +5,33 @@ import {
   type AiPocPosition,
 } from "./feature-encoder";
 import type {
+  AiPocBackend,
+  AiPocBackendPreference,
+  AiPocManifest,
   AiPocRandomMctsEdge,
   AiPocRandomMctsMove,
+  AiPocRandomMctsRequest,
   AiPocRandomMctsResult,
-  AiPocRequest,
+  AiPocResult,
+  AiPocRuntime,
+  AiPocRustPolicyMctsRequest,
+  AiPocWebGpuStatus,
 } from "./types";
 
 type EngineWasmModule = typeof import("/static/wasm/go_engine_wasm.js");
 type EngineWasm = InstanceType<EngineWasmModule["WasmEngine"]>;
+type RustMctsRequest = AiPocRandomMctsRequest | AiPocRustPolicyMctsRequest;
+type RustMctsOptions = {
+  rootPolicyLogits?: Float32Array;
+  rootValue?: number;
+  manifest?: AiPocManifest;
+  policyRuntime?: AiPocRuntime;
+  backend?: AiPocBackend;
+  backendPreference?: AiPocBackendPreference;
+  fallbackReason?: string;
+  model?: AiPocResult["model"];
+  webgpu?: AiPocWebGpuStatus;
+};
 
 type RustRandomMctsResponse = {
   error?: string;
@@ -21,6 +40,8 @@ type RustRandomMctsResponse = {
   winrate: number;
   rootValue: number;
   maxPolicyActions?: number;
+  policySource?: string;
+  valueSource?: string;
   rootEdges: AiPocRandomMctsEdge[];
   principalVariation: AiPocRandomMctsMove[];
 };
@@ -28,7 +49,8 @@ type RustRandomMctsResponse = {
 let engineWasmModule: EngineWasmModule | undefined;
 
 export async function runRandomMcts(
-  request: Extract<AiPocRequest, { type: "random-mcts" }>,
+  request: RustMctsRequest,
+  options: RustMctsOptions = {},
 ): Promise<AiPocRandomMctsResult> {
   const wasm = await ensureEngineWasm();
   const position = createAiPocPosition(
@@ -49,6 +71,10 @@ export async function runRandomMcts(
       maxPolicyActions: request.maxPolicyActions,
       seed: request.seed,
       komi: request.komi,
+      rootPolicyLogits: options.rootPolicyLogits
+        ? Array.from(options.rootPolicyLogits)
+        : undefined,
+      rootValue: options.rootValue,
     }),
   );
   const response = JSON.parse(raw) as RustRandomMctsResponse;
@@ -59,6 +85,13 @@ export async function runRandomMcts(
 
   return {
     runtime: "go-engine-wasm",
+    policyRuntime: options.policyRuntime,
+    manifest: options.manifest,
+    backend: options.backend,
+    backendPreference: options.backendPreference,
+    fallbackReason: options.fallbackReason,
+    model: options.model,
+    webgpu: options.webgpu,
     input: {
       boardSize: request.boardSize,
       positionPreset: request.positionPreset,
@@ -74,6 +107,8 @@ export async function runRandomMcts(
       bestMove: formatRandomMctsMove(response.bestMove, request.boardSize),
       winrate: response.winrate,
       rootValue: response.rootValue,
+      policySource: response.policySource ?? "baseline-rollout",
+      valueSource: response.valueSource ?? "rollout",
       rootEdges: response.rootEdges,
       principalVariation: response.principalVariation,
     },

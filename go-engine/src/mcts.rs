@@ -402,6 +402,56 @@ impl MctsEvaluator for RandomRolloutEvaluator {
 }
 
 #[derive(Debug, Clone)]
+pub struct RootPolicyRolloutEvaluator {
+    root_key: PositionKey,
+    root_value: f32,
+    root_priors: Vec<ActionPrior>,
+    fallback: RandomRolloutEvaluator,
+}
+
+impl RootPolicyRolloutEvaluator {
+    pub fn new(
+        root: &Engine,
+        root_policy_logits: &[f32],
+        root_value: f32,
+        fallback_config: RolloutConfig,
+        komi: f64,
+    ) -> Self {
+        let to_play = root.current_turn_stone();
+        let root_value = if root_value.is_finite() {
+            root_value.clamp(-1.0, 1.0)
+        } else {
+            0.0
+        };
+
+        Self {
+            root_key: PositionKey::from_engine(root),
+            root_value,
+            root_priors: policy_priors_from_logits(
+                root,
+                to_play,
+                root_policy_logits,
+                fallback_config.max_policy_actions,
+            ),
+            fallback: RandomRolloutEvaluator::new(fallback_config, komi),
+        }
+    }
+}
+
+impl MctsEvaluator for RootPolicyRolloutEvaluator {
+    fn evaluate(&mut self, engine: &Engine, to_play: Stone) -> Evaluation {
+        if PositionKey::from_engine(engine) == self.root_key {
+            return Evaluation {
+                value: self.root_value,
+                priors: self.root_priors.clone(),
+            };
+        }
+
+        self.fallback.evaluate(engine, to_play)
+    }
+}
+
+#[derive(Debug, Clone)]
 struct DeterministicRng {
     state: u64,
 }
@@ -435,6 +485,72 @@ pub fn uniform_priors(actions: Vec<BotMove>) -> Vec<ActionPrior> {
     actions
         .into_iter()
         .map(|action| ActionPrior { action, prior })
+        .collect()
+}
+
+pub fn policy_priors_from_logits(
+    engine: &Engine,
+    to_play: Stone,
+    logits: &[f32],
+    max_actions: Option<usize>,
+) -> Vec<ActionPrior> {
+    let actions = legal_actions(engine, to_play);
+    if actions.is_empty() {
+        return Vec::new();
+    }
+
+    let mut scored: Vec<(BotMove, f32)> = actions
+        .iter()
+        .filter_map(|action| {
+            let index = policy_logit_index(*action, engine.cols(), engine.rows());
+            let logit = logits.get(index).copied()?;
+
+            logit.is_finite().then_some((*action, logit))
+        })
+        .collect();
+
+    if scored.is_empty() {
+        return uniform_priors(actions);
+    }
+
+    scored.sort_by(|(a_action, a_logit), (b_action, b_logit)| {
+        b_logit
+            .total_cmp(a_logit)
+            .then_with(|| bot_move_order(*a_action).cmp(&bot_move_order(*b_action)))
+    });
+
+    if let Some(max_actions) = max_actions {
+        scored.truncate(max_actions.max(1));
+    }
+
+    softmax_scored_priors(scored)
+}
+
+fn softmax_scored_priors(scored: Vec<(BotMove, f32)>) -> Vec<ActionPrior> {
+    if scored.is_empty() {
+        return Vec::new();
+    }
+
+    let max_logit = scored
+        .iter()
+        .map(|(_, logit)| *logit)
+        .fold(f32::NEG_INFINITY, f32::max);
+    let weights: Vec<(BotMove, f32)> = scored
+        .iter()
+        .map(|(action, logit)| (*action, (*logit - max_logit).exp()))
+        .collect();
+    let total: f32 = weights.iter().map(|(_, weight)| *weight).sum();
+
+    if !total.is_finite() || total <= f32::EPSILON {
+        return uniform_priors(scored.into_iter().map(|(action, _)| action).collect());
+    }
+
+    weights
+        .into_iter()
+        .map(|(action, weight)| ActionPrior {
+            action,
+            prior: weight / total,
+        })
         .collect()
 }
 
@@ -597,6 +713,13 @@ fn bot_move_order(action: BotMove) -> (u8, u8, u8) {
     match action {
         BotMove::Play((col, row)) => (0, row, col),
         BotMove::Pass => (1, u8::MAX, u8::MAX),
+    }
+}
+
+fn policy_logit_index(action: BotMove, cols: u8, rows: u8) -> usize {
+    match action {
+        BotMove::Play((col, row)) => row as usize * cols as usize + col as usize,
+        BotMove::Pass => cols as usize * rows as usize,
     }
 }
 
@@ -796,6 +919,55 @@ mod tests {
     #[test]
     fn uniform_priors_handles_empty_actions() {
         assert!(uniform_priors(Vec::new()).is_empty());
+    }
+
+    #[test]
+    fn policy_priors_mask_illegal_moves_and_softmax_logits() {
+        let mut engine = Engine::new(3, 3);
+        play(&mut engine, Stone::Black, (2, 2));
+        let mut logits = vec![0.0; 10];
+        logits[policy_logit_index(BotMove::Play((2, 2)), 3, 3)] = 20.0;
+        logits[policy_logit_index(BotMove::Play((0, 0)), 3, 3)] = 5.0;
+        logits[policy_logit_index(BotMove::Pass, 3, 3)] = 4.0;
+
+        let priors = policy_priors_from_logits(&engine, Stone::White, &logits, Some(2));
+        let total: f32 = priors.iter().map(|prior| prior.prior).sum();
+
+        assert_eq!(priors.len(), 2);
+        assert_eq!(priors[0].action, BotMove::Play((0, 0)));
+        assert_eq!(priors[1].action, BotMove::Pass);
+        assert!(
+            priors
+                .iter()
+                .all(|prior| prior.action != BotMove::Play((2, 2)))
+        );
+        assert!(priors[0].prior > priors[1].prior);
+        assert!((total - 1.0).abs() < 0.0001);
+    }
+
+    #[test]
+    fn root_policy_rollout_evaluator_uses_external_root_policy() {
+        let engine = Engine::new(3, 3);
+        let mut logits = vec![0.0; 10];
+        logits[policy_logit_index(BotMove::Play((2, 2)), 3, 3)] = 8.0;
+        let mut evaluator = RootPolicyRolloutEvaluator::new(
+            &engine,
+            &logits,
+            0.75,
+            RolloutConfig {
+                limit: 4,
+                seed: 123,
+                max_policy_actions: Some(1),
+            },
+            0.5,
+        );
+
+        let evaluation = evaluator.evaluate(&engine, Stone::Black);
+
+        assert_eq!(evaluation.value, 0.75);
+        assert_eq!(evaluation.priors.len(), 1);
+        assert_eq!(evaluation.priors[0].action, BotMove::Play((2, 2)));
+        assert_eq!(evaluation.priors[0].prior, 1.0);
     }
 
     #[test]

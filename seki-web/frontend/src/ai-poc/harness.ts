@@ -81,6 +81,7 @@ app.innerHTML = `
     </div>
     <button id="run-poc" type="button">Run inference</button>
     <button id="run-search" type="button">Run policy MCTS</button>
+    <button id="run-rust-policy-mcts" type="button">Run Rust root-policy MCTS</button>
     <button id="run-random-mcts" type="button">Run Rust random MCTS</button>
   </section>
   <section class="ai-poc-actions">
@@ -110,6 +111,9 @@ const rolloutLimitInput =
 const seedInput = document.querySelector<HTMLInputElement>("#mcts-seed")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run-poc")!;
 const searchButton = document.querySelector<HTMLButtonElement>("#run-search")!;
+const rustPolicyMctsButton = document.querySelector<HTMLButtonElement>(
+  "#run-rust-policy-mcts",
+)!;
 const randomMctsButton =
   document.querySelector<HTMLButtonElement>("#run-random-mcts")!;
 const copyButton = document.querySelector<HTMLButtonElement>("#copy-result")!;
@@ -147,10 +151,25 @@ function formatResult(
           bestMove: result.randomSearch.bestMove,
           winrate: result.randomSearch.winrate,
           rootValue: result.randomSearch.rootValue,
+          policySource: result.randomSearch.policySource,
+          valueSource: result.randomSearch.valueSource,
           rootEdges: result.randomSearch.rootEdges.slice(0, 12),
           principalVariation: result.randomSearch.principalVariation,
         },
+        manifest: result.manifest
+          ? {
+              id: result.manifest.id,
+              kind: result.manifest.kind,
+              version: result.manifest.version,
+            }
+          : undefined,
         input: result.input,
+        policyRuntime: result.policyRuntime,
+        backend: result.backend,
+        backendPreference: result.backendPreference,
+        fallbackReason: result.fallbackReason,
+        model: result.model,
+        webgpu: result.webgpu,
         environment: result.environment,
       },
       null,
@@ -278,11 +297,25 @@ function runRandomMcts() {
   postRequest(request, "Running Rust MCTS...");
 }
 
+function runRustPolicyMcts() {
+  const request: AiPocRequest = {
+    ...baseRequest(),
+    type: "rust-policy-mcts",
+    visits: Number(visitsInput.value),
+    rolloutLimit: Number(rolloutLimitInput.value),
+    maxPolicyActions: Number(maxChildrenInput.value),
+    seed: Number(seedInput.value),
+  };
+
+  postRequest(request, "Running Rust root-policy MCTS...");
+}
+
 function postRequest(request: AiPocRequest, runningText: string) {
   const activeWorker = ensureWorker();
 
   runButton.disabled = true;
   searchButton.disabled = true;
+  rustPolicyMctsButton.disabled = true;
   randomMctsButton.disabled = true;
   copyButton.disabled = true;
   downloadButton.disabled = true;
@@ -299,6 +332,7 @@ function postRequest(request: AiPocRequest, runningText: string) {
     activeWorker.removeEventListener("message", onMessage);
     runButton.disabled = false;
     searchButton.disabled = false;
+    rustPolicyMctsButton.disabled = false;
     randomMctsButton.disabled = false;
 
     if (response.type === "error") {
@@ -319,6 +353,7 @@ function postRequest(request: AiPocRequest, runningText: string) {
 
 runButton.addEventListener("click", runPoc);
 searchButton.addEventListener("click", runSearch);
+rustPolicyMctsButton.addEventListener("click", runRustPolicyMcts);
 randomMctsButton.addEventListener("click", runRandomMcts);
 copyButton.addEventListener("click", () => {
   if (lastResultText) {

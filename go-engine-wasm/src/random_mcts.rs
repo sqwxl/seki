@@ -1,5 +1,7 @@
 use go_engine::Engine;
-use go_engine::mcts::{self, BotMove, MctsConfig, RandomRolloutEvaluator, RolloutConfig};
+use go_engine::mcts::{
+    self, BotMove, MctsConfig, RandomRolloutEvaluator, RolloutConfig, RootPolicyRolloutEvaluator,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -11,6 +13,8 @@ struct RandomMctsRequest {
     komi: Option<f64>,
     cpuct: Option<f32>,
     max_policy_actions: Option<usize>,
+    root_policy_logits: Option<Vec<f32>>,
+    root_value: Option<f32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -21,6 +25,8 @@ struct RandomMctsResponse {
     winrate: f32,
     root_value: f32,
     max_policy_actions: Option<usize>,
+    policy_source: &'static str,
+    value_source: &'static str,
     root_edges: Vec<WasmMctsEdge>,
     principal_variation: Vec<WasmBotMove>,
 }
@@ -59,15 +65,42 @@ pub fn run(engine: &Engine, request_json: &str) -> String {
         .max_policy_actions
         .map(|limit| limit.clamp(1, 10_000))
         .or(default_rollout.max_policy_actions);
-    let mut evaluator = RandomRolloutEvaluator::new(
-        RolloutConfig {
-            limit: rollout_limit,
-            seed,
-            max_policy_actions,
-        },
-        komi,
-    );
-    let summary = mcts::search(engine, MctsConfig { visits, cpuct }, &mut evaluator);
+    let rollout_config = RolloutConfig {
+        limit: rollout_limit,
+        seed,
+        max_policy_actions,
+    };
+    let search_config = MctsConfig { visits, cpuct };
+
+    let (summary, policy_source, value_source) =
+        if let Some(root_policy_logits) = request.root_policy_logits.as_deref() {
+            if root_policy_logits.is_empty() {
+                return error_json("rootPolicyLogits must not be empty");
+            }
+
+            let root_value = request.root_value.unwrap_or(0.0);
+            let mut evaluator = RootPolicyRolloutEvaluator::new(
+                engine,
+                root_policy_logits,
+                root_value,
+                rollout_config,
+                komi,
+            );
+
+            (
+                mcts::search(engine, search_config, &mut evaluator),
+                "external-root",
+                "external-root-and-rollout",
+            )
+        } else {
+            let mut evaluator = RandomRolloutEvaluator::new(rollout_config, komi);
+
+            (
+                mcts::search(engine, search_config, &mut evaluator),
+                "baseline-rollout",
+                "rollout",
+            )
+        };
     let best_move = summary.best_move.map(WasmBotMove::from);
     let response = RandomMctsResponse {
         best_move,
@@ -75,6 +108,8 @@ pub fn run(engine: &Engine, request_json: &str) -> String {
         winrate: ((summary.root_value + 1.0) / 2.0).clamp(0.0, 1.0),
         root_value: summary.root_value,
         max_policy_actions,
+        policy_source,
+        value_source,
         root_edges: summary
             .root_edges
             .iter()
@@ -153,6 +188,33 @@ mod tests {
             response["rootEdges"].as_array().expect("root edges").len(),
             32
         );
+    }
+
+    #[test]
+    fn root_policy_logits_drive_root_priors() {
+        let engine = Engine::new(3, 3);
+        let json = run(
+            &engine,
+            r#"{"visits":8,"rolloutLimit":4,"seed":99,"maxPolicyActions":1,"rootPolicyLogits":[0,0,0,0,0,0,0,0,8,0],"rootValue":0.25}"#,
+        );
+        let response: Value = serde_json::from_str(&json).expect("valid response json");
+        let root_edges = response["rootEdges"].as_array().expect("root edges");
+
+        assert_eq!(response["policySource"], "external-root");
+        assert_eq!(response["valueSource"], "external-root-and-rollout");
+        assert_eq!(root_edges.len(), 1);
+        assert_eq!(root_edges[0]["action"]["col"], 2);
+        assert_eq!(root_edges[0]["action"]["row"], 2);
+        assert_eq!(root_edges[0]["prior"], 1.0);
+    }
+
+    #[test]
+    fn rejects_empty_root_policy_logits() {
+        let engine = Engine::new(3, 3);
+        let json = run(&engine, r#"{"rootPolicyLogits":[]}"#);
+        let response: Value = serde_json::from_str(&json).expect("valid error json");
+
+        assert_eq!(response["error"], "rootPolicyLogits must not be empty");
     }
 
     #[test]

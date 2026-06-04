@@ -169,6 +169,9 @@ For NN later:
 - Priors come from policy output after legal-move masking and softmax.
 - Value comes from value head.
 - Rollouts can be disabled, or used only as a fallback if value is unavailable.
+- Current Rust/WASM status: root NN policy logits can seed the root priors via
+  `RootPolicyRolloutEvaluator`; child/leaf expansion still uses rollout
+  fallback until the worker owns an async batched evaluator loop.
 
 ## Phase 2 — Shared Playout Primitives
 
@@ -363,8 +366,13 @@ Current Rust/WASM status:
 - Random-rollout leaf value now avoids hard-clamping raw point margin. Terminal
   rollouts return a win/loss sign; non-terminal score estimates use a
   KataGo-like arctangent transform scaled by `sqrt(board_area)`.
-- Next pending step: benchmark Rust random MCTS on Android and tune visits /
-  rollout limits before wiring it into real bot gameplay.
+- `/static/ai-poc.html` has a `Run Rust root-policy MCTS` path. The worker runs
+  one ONNX inference on the root position, sends legal-masked policy logits and
+  root value to `go-engine-wasm`, and Rust graph MCTS uses rollout fallback for
+  non-root leaves. This is an integration bridge, not full NN-guided MCTS.
+- Next pending step: convert Rust search to an async/batched worker-driven loop
+  so every newly expanded leaf can be evaluated by the ONNX model without
+  duplicating Go legality in TypeScript.
 
 ## Tests
 

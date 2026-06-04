@@ -48,10 +48,22 @@ export type AiPocRandomMctsRequest = Omit<AiPocRunRequest, "type" | "runs"> & {
   seed: number;
 };
 
+export type AiPocRustPolicyMctsRequest = Omit<
+  AiPocRunRequest,
+  "type" | "runs"
+> & {
+  type: "rust-policy-mcts";
+  visits: number;
+  rolloutLimit: number;
+  maxPolicyActions: number;
+  seed: number;
+};
+
 export type AiPocRequest =
   | AiPocRunRequest
   | AiPocSearchRequest
-  | AiPocRandomMctsRequest;
+  | AiPocRandomMctsRequest
+  | AiPocRustPolicyMctsRequest;
 
 export type AiPocMetricSummary = {
   p50Ms: number;
@@ -172,6 +184,13 @@ export type AiPocRandomMctsEdge = {
 
 export type AiPocRandomMctsResult = {
   runtime: "go-engine-wasm";
+  policyRuntime?: AiPocRuntime;
+  manifest?: AiPocManifest;
+  backend?: AiPocBackend;
+  backendPreference?: AiPocBackendPreference;
+  fallbackReason?: string;
+  model?: AiPocResult["model"];
+  webgpu?: AiPocWebGpuStatus;
   input: {
     boardSize: number;
     positionPreset: string;
@@ -187,6 +206,8 @@ export type AiPocRandomMctsResult = {
     bestMove?: string;
     winrate: number;
     rootValue: number;
+    policySource: string;
+    valueSource: string;
     rootEdges: AiPocRandomMctsEdge[];
     principalVariation: AiPocRandomMctsMove[];
   };
