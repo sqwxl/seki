@@ -279,7 +279,12 @@ Rules:
   child-node stats.
 - Current Rust status: first `search`/`genmove` graph driver exists with PUCT
   selection, expansion from evaluator priors, edge/node backup, and final move
-  by root edge visits. Cycle guards, batching, and WASM API are still pending.
+  by root edge visits.
+- Current Rust status: active-path cycle guard exists, following KataGo's
+  `graphPath` approach at a single-thread level. Selection skips children
+  already on the path; if every child cycles, the chosen cycle edge is counted
+  and the playout terminates with neutral value. Batching and WASM API are still
+  pending.
 
 Cycle handling:
 

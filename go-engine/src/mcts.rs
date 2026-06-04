@@ -215,6 +215,7 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
         let mut node_id = root_id;
         let mut engine = root;
         let mut path: Vec<(NodeId, usize)> = Vec::new();
+        let mut active_nodes = HashSet::from([root_id]);
 
         loop {
             if self.nodes[node_id.0].edges.is_empty() {
@@ -225,7 +226,13 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
                 return;
             }
 
-            let edge_index = self.select_edge(node_id);
+            let Some(edge_index) = self.select_edge(node_id, &active_nodes) else {
+                let edge_index = self.select_edge_allowing_cycle(node_id);
+                path.push((node_id, edge_index));
+                self.backup_cycle(&path, 0.0);
+                return;
+            };
+
             let action = self.nodes[node_id.0].edges[edge_index].action;
             let child = self.nodes[node_id.0].edges[edge_index].child;
 
@@ -236,6 +243,10 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
 
             path.push((node_id, edge_index));
             node_id = child;
+            if !active_nodes.insert(node_id) {
+                self.backup_cycle(&path, 0.0);
+                return;
+            }
         }
     }
 
@@ -254,20 +265,37 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
         self.nodes[node_id.0].edges = edges;
     }
 
-    fn select_edge(&self, node_id: NodeId) -> usize {
+    fn select_edge(&self, node_id: NodeId, active_nodes: &HashSet<NodeId>) -> Option<usize> {
+        self.best_edge(node_id, |edge| !active_nodes.contains(&edge.child))
+    }
+
+    fn select_edge_allowing_cycle(&self, node_id: NodeId) -> usize {
+        self.best_edge(node_id, |_| true)
+            .expect("expanded graph node has at least one edge")
+    }
+
+    fn best_edge(
+        &self,
+        node_id: NodeId,
+        mut include: impl FnMut(&EdgeStats) -> bool,
+    ) -> Option<usize> {
         let node = &self.nodes[node_id.0];
         let parent_visits = node.visits.max(1) as f32;
-        let mut best_index = 0;
+        let mut best_index = None;
         let mut best_score = f32::NEG_INFINITY;
 
         for (index, edge) in node.edges.iter().enumerate() {
+            if !include(edge) {
+                continue;
+            }
+
             let q = -edge.mean_value();
             let u =
                 self.config.cpuct * edge.prior * parent_visits.sqrt() / (1 + edge.visits) as f32;
             let score = q + u;
 
             if score > best_score {
-                best_index = index;
+                best_index = Some(index);
                 best_score = score;
             }
         }
@@ -283,6 +311,16 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
             value = -value;
             self.nodes[node_id.0].backup_node(value);
             self.nodes[node_id.0].edges[edge_index].backup(value);
+        }
+    }
+
+    fn backup_cycle(&mut self, path: &[(NodeId, usize)], cycle_value: f32) {
+        let mut value = cycle_value;
+
+        for &(node_id, edge_index) in path.iter().rev() {
+            self.nodes[node_id.0].backup_node(value);
+            self.nodes[node_id.0].edges[edge_index].backup(value);
+            value = -value;
         }
     }
 
@@ -484,7 +522,7 @@ fn pass_streak(engine: &Engine) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     fn play(engine: &mut Engine, stone: Stone, point: Point) {
         engine.try_play(stone, point).expect("test move is legal");
@@ -701,6 +739,48 @@ mod tests {
         assert_eq!(from_b.visits, 1);
         assert_eq!(from_a.mean_value(), 0.75);
         assert_eq!(from_b.mean_value(), -0.5);
+    }
+
+    #[test]
+    fn graph_search_skips_active_path_children_when_selecting() {
+        let engine = Engine::new(3, 3);
+        let key = PositionKey::from_engine(&engine);
+        let mut evaluator = StaticEvaluator {
+            value: 0.0,
+            priors: HashMap::new(),
+        };
+        let mut search = GraphSearch::new(MctsConfig::default(), &mut evaluator);
+        search.nodes = vec![
+            GraphNode::new(key.clone()),
+            GraphNode::new(key.clone()),
+            GraphNode::new(key),
+        ];
+        search.nodes[0].push_edge(EdgeStats::new(BotMove::Pass, NodeId(1), 100.0));
+        search.nodes[0].push_edge(EdgeStats::new(BotMove::Play((0, 0)), NodeId(2), 1.0));
+
+        let active = HashSet::from([NodeId(0), NodeId(1)]);
+        let all_active = HashSet::from([NodeId(0), NodeId(1), NodeId(2)]);
+
+        assert_eq!(search.select_edge(NodeId(0), &active), Some(1));
+        assert_eq!(search.select_edge(NodeId(0), &all_active), None);
+    }
+
+    #[test]
+    fn cycle_backup_counts_edge_without_double_counting_child_node() {
+        let engine = Engine::new(3, 3);
+        let key = PositionKey::from_engine(&engine);
+        let mut evaluator = StaticEvaluator {
+            value: 0.0,
+            priors: HashMap::new(),
+        };
+        let mut search = GraphSearch::new(MctsConfig::default(), &mut evaluator);
+        search.nodes.push(GraphNode::new(key));
+        search.nodes[0].push_edge(EdgeStats::new(BotMove::Pass, NodeId(0), 1.0));
+
+        search.backup_cycle(&[(NodeId(0), 0)], 0.0);
+
+        assert_eq!(search.nodes[0].visits(), 1);
+        assert_eq!(search.nodes[0].edges()[0].visits(), 1);
     }
 
     #[test]
