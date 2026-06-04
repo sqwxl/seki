@@ -44,6 +44,7 @@ export type AiPocRandomMctsRequest = Omit<AiPocRunRequest, "type" | "runs"> & {
   type: "random-mcts";
   visits: number;
   rolloutLimit: number;
+  maxPolicyActions: number;
   seed: number;
 };
 
@@ -180,6 +181,7 @@ export type AiPocRandomMctsResult = {
   randomSearch: {
     visits: number;
     rolloutLimit: number;
+    maxPolicyActions: number;
     seed: number;
     elapsedMs: number;
     bestMove?: string;

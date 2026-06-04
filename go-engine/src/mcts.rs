@@ -357,6 +357,9 @@ pub fn genmove<E: MctsEvaluator>(
 pub struct RolloutConfig {
     pub limit: u32,
     pub seed: u64,
+    // Baseline/fallback policy cap for random-rollout MCTS. NN evaluators
+    // should provide their own priors and bypass this evaluator.
+    pub max_policy_actions: Option<usize>,
 }
 
 impl Default for RolloutConfig {
@@ -364,6 +367,7 @@ impl Default for RolloutConfig {
         Self {
             limit: 200,
             seed: 0x5e71_c0de,
+            max_policy_actions: Some(64),
         }
     }
 }
@@ -392,7 +396,7 @@ impl MctsEvaluator for RandomRolloutEvaluator {
 
         Evaluation {
             value,
-            priors: uniform_priors(actions),
+            priors: baseline_rollout_policy_priors(engine, actions, self.config.max_policy_actions),
         }
     }
 }
@@ -434,6 +438,43 @@ pub fn uniform_priors(actions: Vec<BotMove>) -> Vec<ActionPrior> {
         .collect()
 }
 
+fn baseline_rollout_policy_priors(
+    engine: &Engine,
+    actions: Vec<BotMove>,
+    max_actions: Option<usize>,
+) -> Vec<ActionPrior> {
+    if actions.is_empty() {
+        return Vec::new();
+    }
+
+    let mut scored: Vec<(BotMove, f32)> = actions
+        .into_iter()
+        .map(|action| (action, baseline_rollout_policy_score(engine, action)))
+        .collect();
+    scored.sort_by(|(a_action, a_score), (b_action, b_score)| {
+        b_score
+            .total_cmp(a_score)
+            .then_with(|| bot_move_order(*a_action).cmp(&bot_move_order(*b_action)))
+    });
+
+    if let Some(max_actions) = max_actions {
+        scored.truncate(max_actions.max(1));
+    }
+
+    let total: f32 = scored.iter().map(|(_, score)| *score).sum();
+    if total <= f32::EPSILON {
+        return uniform_priors(scored.into_iter().map(|(action, _)| action).collect());
+    }
+
+    scored
+        .into_iter()
+        .map(|(action, score)| ActionPrior {
+            action,
+            prior: score / total,
+        })
+        .collect()
+}
+
 pub fn apply_action(engine: &mut Engine, action: BotMove) -> Result<Stage, GoError> {
     let stone = engine.current_turn_stone();
 
@@ -465,6 +506,98 @@ pub fn legal_actions(engine: &Engine, to_play: Stone) -> Vec<BotMove> {
 
     actions.push(BotMove::Pass);
     actions
+}
+
+fn baseline_rollout_policy_score(engine: &Engine, action: BotMove) -> f32 {
+    match action {
+        BotMove::Pass => 0.01,
+        BotMove::Play(point) => point_policy_score(engine, point),
+    }
+}
+
+fn point_policy_score(engine: &Engine, point: Point) -> f32 {
+    let (col, row) = point;
+    let cols = engine.cols();
+    let rows = engine.rows();
+    let edge_distance = [
+        col,
+        row,
+        cols.saturating_sub(1).saturating_sub(col),
+        rows.saturating_sub(1).saturating_sub(row),
+    ]
+    .into_iter()
+    .min()
+    .unwrap_or(0);
+    let line_score = match edge_distance {
+        0 => 0.03,
+        1 => 0.25,
+        2 => 1.1,
+        3 => 1.25,
+        _ => 0.8,
+    };
+    let star_bonus = if is_star_like_point(cols, rows, point) {
+        2.5
+    } else {
+        0.0
+    };
+    let shape_bonus = neighbor_shape_bonus(engine, point);
+
+    line_score + star_bonus + shape_bonus
+}
+
+fn is_star_like_point(cols: u8, rows: u8, point: Point) -> bool {
+    let x_lines = star_lines(cols);
+    let y_lines = star_lines(rows);
+
+    x_lines.contains(&point.0) && y_lines.contains(&point.1)
+}
+
+fn star_lines(size: u8) -> Vec<u8> {
+    if size >= 15 {
+        vec![3, size / 2, size - 4]
+    } else if size >= 9 {
+        vec![2, size / 2, size - 3]
+    } else {
+        vec![size / 2]
+    }
+}
+
+fn neighbor_shape_bonus(engine: &Engine, point: Point) -> f32 {
+    let to_play = engine.current_turn_stone();
+    let mut own_neighbors = 0;
+    let mut opponent_neighbors = 0;
+
+    for neighbor in orthogonal_neighbors(engine, point) {
+        match engine.stone_at(neighbor) {
+            Some(stone) if stone == to_play => own_neighbors += 1,
+            Some(_) => opponent_neighbors += 1,
+            None => {}
+        }
+    }
+
+    0.35 * own_neighbors as f32 + 0.2 * opponent_neighbors as f32
+}
+
+fn orthogonal_neighbors(engine: &Engine, (col, row): Point) -> impl Iterator<Item = Point> + '_ {
+    [
+        col.checked_sub(1).map(|next_col| (next_col, row)),
+        row.checked_sub(1).map(|next_row| (col, next_row)),
+        col.checked_add(1)
+            .filter(|next_col| *next_col < engine.cols())
+            .map(|next_col| (next_col, row)),
+        row.checked_add(1)
+            .filter(|next_row| *next_row < engine.rows())
+            .map(|next_row| (col, next_row)),
+    ]
+    .into_iter()
+    .flatten()
+}
+
+fn bot_move_order(action: BotMove) -> (u8, u8, u8) {
+    match action {
+        BotMove::Play((col, row)) => (0, row, col),
+        BotMove::Pass => (1, u8::MAX, u8::MAX),
+    }
 }
 
 fn rollout_value(
@@ -506,7 +639,32 @@ fn score_value(engine: &Engine, to_play: Stone, komi: f64) -> f32 {
         Stone::White => -diff,
     };
 
-    perspective_diff.clamp(-1.0, 1.0) as f32
+    if !engine.stage().is_play() {
+        return score_diff_to_result_value(perspective_diff);
+    }
+
+    score_diff_to_score_utility(perspective_diff, engine.cols(), engine.rows())
+}
+
+fn score_diff_to_result_value(diff: f64) -> f32 {
+    if diff > 0.0 {
+        1.0
+    } else if diff < 0.0 {
+        -1.0
+    } else {
+        0.0
+    }
+}
+
+fn score_diff_to_score_utility(diff: f64, cols: u8, rows: u8) -> f32 {
+    const SCORE_UTILITY_SCALE: f64 = 2.0;
+
+    let board_area = f64::from(cols) * f64::from(rows);
+    if board_area <= 0.0 {
+        return 0.0;
+    }
+
+    (diff / (SCORE_UTILITY_SCALE * board_area.sqrt())).atan() as f32 * std::f32::consts::FRAC_2_PI
 }
 
 fn pass_streak(engine: &Engine) -> u8 {
@@ -651,21 +809,63 @@ mod tests {
     }
 
     #[test]
-    fn random_rollout_evaluator_returns_uniform_priors() {
+    fn random_rollout_evaluator_returns_scored_priors() {
         let engine = Engine::new(3, 3);
         let mut evaluator = RandomRolloutEvaluator::new(
             RolloutConfig {
                 limit: 4,
                 seed: 123,
+                max_policy_actions: None,
+            },
+            6.5,
+        );
+
+        let evaluation = evaluator.evaluate(&engine, Stone::Black);
+        let center = evaluation
+            .priors
+            .iter()
+            .find(|prior| prior.action == BotMove::Play((1, 1)))
+            .expect("center prior");
+        let corner = evaluation
+            .priors
+            .iter()
+            .find(|prior| prior.action == BotMove::Play((0, 0)))
+            .expect("corner prior");
+        let total_prior: f32 = evaluation.priors.iter().map(|prior| prior.prior).sum();
+
+        assert_eq!(evaluation.priors.len(), 10);
+        assert!(center.prior > corner.prior);
+        assert!((total_prior - 1.0).abs() < 0.0001);
+        assert!((-1.0..=1.0).contains(&evaluation.value));
+    }
+
+    #[test]
+    fn random_rollout_evaluator_can_cap_policy_actions() {
+        let engine = Engine::new(19, 19);
+        let mut evaluator = RandomRolloutEvaluator::new(
+            RolloutConfig {
+                limit: 4,
+                seed: 123,
+                max_policy_actions: Some(32),
             },
             6.5,
         );
 
         let evaluation = evaluator.evaluate(&engine, Stone::Black);
 
-        assert_eq!(evaluation.priors.len(), 10);
-        assert_eq!(evaluation.priors[0].prior, 0.1);
-        assert!((-1.0..=1.0).contains(&evaluation.value));
+        assert_eq!(evaluation.priors.len(), 32);
+        assert!(
+            evaluation
+                .priors
+                .iter()
+                .any(|prior| prior.action == BotMove::Play((3, 3)))
+        );
+        assert!(
+            evaluation
+                .priors
+                .iter()
+                .all(|prior| !matches!(prior.action, BotMove::Play((0, _))))
+        );
     }
 
     #[test]
@@ -676,6 +876,7 @@ mod tests {
         let config = RolloutConfig {
             limit: 12,
             seed: 99,
+            max_policy_actions: Some(16),
         };
         let mut a = RandomRolloutEvaluator::new(config, 6.5);
         let mut b = RandomRolloutEvaluator::new(config, 6.5);
@@ -691,8 +892,33 @@ mod tests {
         let mut engine = Engine::new(3, 3);
         play(&mut engine, Stone::Black, (0, 0));
 
-        assert_eq!(score_value(&engine, Stone::Black, 0.5), 1.0);
-        assert_eq!(score_value(&engine, Stone::White, 0.5), -1.0);
+        let black_value = score_value(&engine, Stone::Black, 0.5);
+        let white_value = score_value(&engine, Stone::White, 0.5);
+
+        assert!(black_value > 0.0);
+        assert!(black_value < 1.0);
+        assert!((black_value + white_value).abs() < 0.0001);
+    }
+
+    #[test]
+    fn terminal_score_value_returns_result_sign() {
+        let mut engine = Engine::new(3, 3);
+        engine.try_pass(Stone::Black).expect("black pass");
+        engine.try_pass(Stone::White).expect("white pass");
+
+        assert_eq!(score_value(&engine, Stone::Black, 0.5), -1.0);
+        assert_eq!(score_value(&engine, Stone::White, 0.5), 1.0);
+    }
+
+    #[test]
+    fn score_utility_uses_smooth_board_scale() {
+        let nine_by_nine = score_diff_to_score_utility(9.0, 9, 9);
+        let nineteen_by_nineteen = score_diff_to_score_utility(9.0, 19, 19);
+        let large_margin = score_diff_to_score_utility(200.0, 19, 19);
+
+        assert!(nine_by_nine > nineteen_by_nineteen);
+        assert!(nineteen_by_nineteen > 0.0);
+        assert!(large_margin < 1.0);
     }
 
     #[test]

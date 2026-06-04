@@ -157,7 +157,9 @@ Rules:
 For random playouts:
 
 - Priors are uniform over legal actions.
-- Value comes from random rollout score.
+- Value comes from rollout result when terminal, otherwise from a weak
+  KataGo-style smooth score utility:
+  `atan(score_diff / (2 * sqrt(board_area))) * 2/pi`.
 - Current Rust status: `go-engine::mcts` has action/evaluation types,
   `legal_actions`, `uniform_priors`, `apply_action`, deterministic PRNG, and
   `RandomRolloutEvaluator`.
@@ -355,6 +357,12 @@ Current Rust/WASM status:
 - `/static/ai-poc.html` has a separate `Run Rust random MCTS` path through the
   AI PoC worker. This supplements the temporary TypeScript policy-MCTS probe
   instead of replacing it.
+- Random-rollout MCTS now has temporary baseline priors and an action cap for
+  benchmarking/no-model fallback only. NN policy output should replace these
+  priors at the evaluator boundary; the graph MCTS core should remain unchanged.
+- Random-rollout leaf value now avoids hard-clamping raw point margin. Terminal
+  rollouts return a win/loss sign; non-terminal score estimates use a
+  KataGo-like arctangent transform scaled by `sqrt(board_area)`.
 - Next pending step: benchmark Rust random MCTS on Android and tune visits /
   rollout limits before wiring it into real bot gameplay.
 

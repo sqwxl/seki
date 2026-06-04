@@ -20,6 +20,7 @@ type RustRandomMctsResponse = {
   visits: number;
   winrate: number;
   rootValue: number;
+  maxPolicyActions?: number;
   rootEdges: AiPocRandomMctsEdge[];
   principalVariation: AiPocRandomMctsMove[];
 };
@@ -45,6 +46,7 @@ export async function runRandomMcts(
     JSON.stringify({
       visits: request.visits,
       rolloutLimit: request.rolloutLimit,
+      maxPolicyActions: request.maxPolicyActions,
       seed: request.seed,
       komi: request.komi,
     }),
@@ -66,6 +68,7 @@ export async function runRandomMcts(
     randomSearch: {
       visits: response.visits,
       rolloutLimit: request.rolloutLimit,
+      maxPolicyActions: response.maxPolicyActions ?? request.maxPolicyActions,
       seed: request.seed,
       elapsedMs: performance.now() - startedAt,
       bestMove: formatRandomMctsMove(response.bestMove, request.boardSize),

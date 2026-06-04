@@ -141,6 +141,7 @@ function formatResult(
           nextPlayer: result.input.nextPlayer,
           visits: result.randomSearch.visits,
           rolloutLimit: result.randomSearch.rolloutLimit,
+          maxPolicyActions: result.randomSearch.maxPolicyActions,
           seed: result.randomSearch.seed,
           elapsedMs: result.randomSearch.elapsedMs,
           bestMove: result.randomSearch.bestMove,
@@ -270,6 +271,7 @@ function runRandomMcts() {
     type: "random-mcts",
     visits: Number(visitsInput.value),
     rolloutLimit: Number(rolloutLimitInput.value),
+    maxPolicyActions: Number(maxChildrenInput.value),
     seed: Number(seedInput.value),
   };
 

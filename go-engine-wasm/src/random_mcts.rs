@@ -10,6 +10,7 @@ struct RandomMctsRequest {
     seed: Option<u64>,
     komi: Option<f64>,
     cpuct: Option<f32>,
+    max_policy_actions: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -19,6 +20,7 @@ struct RandomMctsResponse {
     visits: u32,
     winrate: f32,
     root_value: f32,
+    max_policy_actions: Option<usize>,
     root_edges: Vec<WasmMctsEdge>,
     principal_variation: Vec<WasmBotMove>,
 }
@@ -44,15 +46,24 @@ pub fn run(engine: &Engine, request_json: &str) -> String {
         Ok(request) => request,
         Err(err) => return error_json(&format!("invalid random MCTS request: {err}")),
     };
+    let default_rollout = RolloutConfig::default();
     let visits = request.visits.unwrap_or(64).clamp(1, 10_000);
-    let rollout_limit = request.rollout_limit.unwrap_or(200).clamp(1, 10_000);
-    let seed = request.seed.unwrap_or(0x5e71_c0de);
+    let rollout_limit = request
+        .rollout_limit
+        .unwrap_or(default_rollout.limit)
+        .clamp(1, 10_000);
+    let seed = request.seed.unwrap_or(default_rollout.seed);
     let komi = request.komi.unwrap_or(6.5);
     let cpuct = request.cpuct.unwrap_or(1.5).clamp(0.01, 100.0);
+    let max_policy_actions = request
+        .max_policy_actions
+        .map(|limit| limit.clamp(1, 10_000))
+        .or(default_rollout.max_policy_actions);
     let mut evaluator = RandomRolloutEvaluator::new(
         RolloutConfig {
             limit: rollout_limit,
             seed,
+            max_policy_actions,
         },
         komi,
     );
@@ -63,6 +74,7 @@ pub fn run(engine: &Engine, request_json: &str) -> String {
         visits: summary.visits,
         winrate: ((summary.root_value + 1.0) / 2.0).clamp(0.0, 1.0),
         root_value: summary.root_value,
+        max_policy_actions,
         root_edges: summary
             .root_edges
             .iter()
@@ -124,6 +136,23 @@ mod tests {
         let request = r#"{"visits":8,"rolloutLimit":4,"seed":123,"komi":0.5}"#;
 
         assert_eq!(run(&engine, request), run(&engine, request));
+    }
+
+    #[test]
+    fn caps_root_policy_actions() {
+        let engine = Engine::new(19, 19);
+
+        let json = run(
+            &engine,
+            r#"{"visits":8,"rolloutLimit":4,"seed":99,"maxPolicyActions":32}"#,
+        );
+        let response: Value = serde_json::from_str(&json).expect("valid response json");
+
+        assert_eq!(response["maxPolicyActions"], 32);
+        assert_eq!(
+            response["rootEdges"].as_array().expect("root edges").len(),
+            32
+        );
     }
 
     #[test]
