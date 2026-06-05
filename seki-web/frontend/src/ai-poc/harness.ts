@@ -8,6 +8,40 @@ import type {
 
 const defaultManifest = "/static/models/lionffen-b6c64-19x19/manifest.json";
 
+type MctsPreset = {
+  id: string;
+  label: string;
+  visits: number;
+  maxChildren: number;
+  batchSize: number;
+};
+
+const mctsPresets = [
+  {
+    id: "android-fast",
+    label: "Android fast (64 / 16 / 16)",
+    visits: 64,
+    maxChildren: 16,
+    batchSize: 16,
+  },
+  {
+    id: "android-strong",
+    label: "Android stronger (96 / 16 / 16)",
+    visits: 96,
+    maxChildren: 16,
+    batchSize: 16,
+  },
+  {
+    id: "lab-128",
+    label: "Lab 128 (128 / 16 / 16)",
+    visits: 128,
+    maxChildren: 16,
+    batchSize: 16,
+  },
+] satisfies MctsPreset[];
+
+const defaultMctsPreset = mctsPresets[0];
+
 const app = document.querySelector<HTMLDivElement>("#ai-poc");
 
 if (!app) {
@@ -64,16 +98,28 @@ app.innerHTML = `
       <input id="runs" type="number" min="1" max="200" value="30" />
     </div>
     <div>
+      <label for="mcts-preset">MCTS preset</label>
+      <select id="mcts-preset">
+        ${mctsPresets
+          .map(
+            (preset) =>
+              `<option value="${preset.id}"${preset.id === defaultMctsPreset.id ? " selected" : ""}>${preset.label}</option>`,
+          )
+          .join("")}
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div>
       <label for="mcts-visits">MCTS visits</label>
-      <input id="mcts-visits" type="number" min="1" max="200" value="24" />
+      <input id="mcts-visits" type="number" min="1" max="200" value="${defaultMctsPreset.visits}" />
     </div>
     <div>
       <label for="mcts-max-children">MCTS max children</label>
-      <input id="mcts-max-children" type="number" min="1" max="100" value="32" />
+      <input id="mcts-max-children" type="number" min="1" max="100" value="${defaultMctsPreset.maxChildren}" />
     </div>
     <div>
       <label for="mcts-batch-size">MCTS eval batch</label>
-      <input id="mcts-batch-size" type="number" min="1" max="64" value="8" />
+      <input id="mcts-batch-size" type="number" min="1" max="64" value="${defaultMctsPreset.batchSize}" />
     </div>
     <div>
       <label for="rollout-limit">Rollout limit</label>
@@ -108,6 +154,8 @@ const backendPreferenceInput = document.querySelector<HTMLSelectElement>(
   "#backend-preference",
 )!;
 const runsInput = document.querySelector<HTMLInputElement>("#runs")!;
+const mctsPresetInput =
+  document.querySelector<HTMLSelectElement>("#mcts-preset")!;
 const visitsInput = document.querySelector<HTMLInputElement>("#mcts-visits")!;
 const maxChildrenInput =
   document.querySelector<HTMLInputElement>("#mcts-max-children")!;
@@ -163,6 +211,7 @@ function formatResult(
           wasmSearchMs: result.randomSearch.wasmSearchMs,
           totalElapsedMs: result.randomSearch.totalElapsedMs,
           modelEvaluations: result.randomSearch.modelEvaluations,
+          modelBatches: result.randomSearch.modelBatches,
           modelEvalMs: result.randomSearch.modelEvalMs,
           batchSize: result.randomSearch.batchSize,
           bestMove: result.randomSearch.bestMove,
@@ -280,6 +329,29 @@ function baseRequest() {
   };
 }
 
+function applyMctsPreset(presetId: string) {
+  const preset = mctsPresets.find((candidate) => candidate.id === presetId);
+
+  if (!preset) {
+    return;
+  }
+
+  visitsInput.value = String(preset.visits);
+  maxChildrenInput.value = String(preset.maxChildren);
+  batchSizeInput.value = String(preset.batchSize);
+}
+
+function syncMctsPresetSelection() {
+  const matchingPreset = mctsPresets.find(
+    (preset) =>
+      Number(visitsInput.value) === preset.visits &&
+      Number(maxChildrenInput.value) === preset.maxChildren &&
+      Number(batchSizeInput.value) === preset.batchSize,
+  );
+
+  mctsPresetInput.value = matchingPreset?.id ?? "custom";
+}
+
 function runPoc() {
   const request: AiPocRequest = {
     ...baseRequest(),
@@ -387,6 +459,12 @@ searchButton.addEventListener("click", runSearch);
 rustPolicyMctsButton.addEventListener("click", runRustPolicyMcts);
 rustLeafPolicyMctsButton.addEventListener("click", runRustLeafPolicyMcts);
 randomMctsButton.addEventListener("click", runRandomMcts);
+mctsPresetInput.addEventListener("change", () => {
+  applyMctsPreset(mctsPresetInput.value);
+});
+for (const input of [visitsInput, maxChildrenInput, batchSizeInput]) {
+  input.addEventListener("input", syncMctsPresetSelection);
+}
 copyButton.addEventListener("click", () => {
   if (lastResultText) {
     navigator.clipboard.writeText(lastResultText).catch(() => {

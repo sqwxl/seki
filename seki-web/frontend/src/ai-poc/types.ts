@@ -219,6 +219,7 @@ export type AiPocRandomMctsResult = {
     wasmSearchMs: number;
     totalElapsedMs: number;
     modelEvaluations?: number;
+    modelBatches?: number;
     modelEvalMs?: number;
     batchSize?: number;
     bestMove?: string;

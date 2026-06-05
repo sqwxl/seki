@@ -375,11 +375,22 @@ Current Rust/WASM status:
   `next_batch_json`, `apply_batch_json`, and `summary_json`.
 - `/static/ai-poc.html` has a `Run Rust leaf-policy MCTS` path. Rust owns graph
   search and legal move generation; the worker evaluates requested leaves with
-  ONNX and feeds policy/value back into Rust. Current implementation batches the
-  WASM requests but still runs ONNX one position at a time; true tensor batching
-  is the next optimization.
-- Next pending step: encode multiple leaf positions into one ONNX batch tensor
-  and compare Android eval throughput against one-position inference.
+  ONNX and feeds policy/value back into Rust.
+- Current leaf-policy path encodes requested leaves into one ONNX batch tensor
+  when the model layout supports KataGo-style `bin_input`/`global_input` or
+  `InputMask`/`InputSpatial`/`InputGlobal` inputs. Benchmark output reports
+  `modelEvaluations`, `modelBatches`, `modelEvalMs`, `wasmSearchMs`, and
+  `totalElapsedMs`.
+- Android batched eval tests currently favor batch size 16 over 32. Warm-tab
+  WebGPU measurements on Chrome Android:
+  - 64 visits / 16 MCTS max children / 16 eval batch: ~3.3s total.
+  - 96 visits / 16 MCTS max children / 16 eval batch: ~4.5s total.
+  - 128 visits / 16 MCTS max children / 16 eval batch: ~5.7s total.
+  - 128 visits / 16 MCTS max children / 32 eval batch: ~6.4s total.
+- `/static/ai-poc.html` exposes named MCTS presets for the current Android-fast,
+  Android-stronger, and lab 128 settings.
+- Next pending step: use the presets for position-diverse quality tests, then
+  decide the default interactive budget and engine-facing API shape.
 
 ## Tests
 

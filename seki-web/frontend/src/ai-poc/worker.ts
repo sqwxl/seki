@@ -327,6 +327,50 @@ function makeOnnxFeedsForPosition(
   throw new Error("Model inputs do not match a supported KataGo ONNX layout");
 }
 
+function makeOnnxFeedsForPositions(
+  session: ort.InferenceSession,
+  positions: AiPocPosition[],
+): {
+  feeds: ort.InferenceSession.FeedsType;
+  input: AiPocEncodedFeatures["summary"];
+} {
+  if (positions.length === 0) {
+    throw new Error("ONNX batch must contain at least one position");
+  }
+
+  const encoded = positions.map(encodeKataGoV7PocFeatures);
+  const first = encoded[0]!;
+
+  for (const next of encoded.slice(1)) {
+    if (next.summary.boardSize !== first.summary.boardSize) {
+      throw new Error("ONNX batch positions must use one board size");
+    }
+  }
+
+  if (
+    session.inputNames.includes("bin_input") &&
+    session.inputNames.includes("global_input")
+  ) {
+    return {
+      feeds: makeKayaOnnxBatchFeeds(encoded),
+      input: first.summary,
+    };
+  }
+
+  if (
+    session.inputNames.includes("InputMask") &&
+    session.inputNames.includes("InputSpatial") &&
+    session.inputNames.includes("InputGlobal")
+  ) {
+    return {
+      feeds: makeOfficialKataGoOnnxBatchFeeds(encoded),
+      input: first.summary,
+    };
+  }
+
+  throw new Error("Model inputs do not match a supported KataGo ONNX layout");
+}
+
 function makeKayaOnnxFeeds(
   encoded: AiPocEncodedFeatures,
 ): ort.InferenceSession.FeedsType {
@@ -336,6 +380,25 @@ function makeKayaOnnxFeeds(
       "float32",
       encoded.globalInput,
       encoded.globalShape,
+    ),
+  };
+}
+
+function makeKayaOnnxBatchFeeds(
+  encoded: AiPocEncodedFeatures[],
+): ort.InferenceSession.FeedsType {
+  const first = encoded[0]!;
+
+  return {
+    bin_input: new ort.Tensor(
+      "float32",
+      concatFloat32(encoded.map((next) => next.binInput)),
+      [encoded.length, first.binShape[1], first.binShape[2], first.binShape[3]],
+    ),
+    global_input: new ort.Tensor(
+      "float32",
+      concatFloat32(encoded.map((next) => next.globalInput)),
+      [encoded.length, first.globalShape[1]],
     ),
   };
 }
@@ -359,6 +422,44 @@ function makeOfficialKataGoOnnxFeeds(
       1,
     ]),
   };
+}
+
+function makeOfficialKataGoOnnxBatchFeeds(
+  encoded: AiPocEncodedFeatures[],
+): ort.InferenceSession.FeedsType {
+  const first = encoded[0]!;
+  const boardSize = first.summary.boardSize;
+
+  return {
+    InputMask: new ort.Tensor(
+      "float32",
+      new Float32Array(encoded.length * boardSize * boardSize).fill(1),
+      [encoded.length, 1, boardSize, boardSize],
+    ),
+    InputSpatial: new ort.Tensor(
+      "float32",
+      concatFloat32(encoded.map((next) => next.binInput)),
+      [encoded.length, first.binShape[1], first.binShape[2], first.binShape[3]],
+    ),
+    InputGlobal: new ort.Tensor(
+      "float32",
+      concatFloat32(encoded.map((next) => next.globalInput)),
+      [encoded.length, first.globalInput.length, 1, 1],
+    ),
+  };
+}
+
+function concatFloat32(chunks: Float32Array[]): Float32Array {
+  const totalLength = chunks.reduce((total, chunk) => total + chunk.length, 0);
+  const values = new Float32Array(totalLength);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    values.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return values;
 }
 
 function isOrtTensor(value: ort.OnnxValue): value is ort.Tensor {
@@ -657,6 +758,74 @@ async function getOfficialKatagoPolicyData(
   return policy;
 }
 
+async function getPolicyBatchData(
+  outputs: ort.InferenceSession.ReturnType,
+  boardSize: number,
+  batchSize: number,
+): Promise<Float32Array[] | undefined> {
+  return (
+    (await getNamedPolicyBatchData(outputs.policy, boardSize, batchSize)) ??
+    (await getOfficialKatagoPolicyBatchData(outputs, boardSize, batchSize))
+  );
+}
+
+async function getNamedPolicyBatchData(
+  output: ort.OnnxValue | undefined,
+  boardSize: number,
+  batchSize: number,
+): Promise<Float32Array[] | undefined> {
+  const data = await getOrtFloatData(output);
+  if (!data) {
+    return undefined;
+  }
+
+  const policySize = boardSize * boardSize + 1;
+  const stride = Math.floor(data.length / batchSize);
+  if (stride < policySize) {
+    return undefined;
+  }
+
+  return Array.from({ length: batchSize }, (_, index) =>
+    data.slice(index * stride, index * stride + policySize),
+  );
+}
+
+async function getOfficialKatagoPolicyBatchData(
+  outputs: ort.InferenceSession.ReturnType,
+  boardSize: number,
+  batchSize: number,
+): Promise<Float32Array[] | undefined> {
+  const spatial = await getOrtFloatData(outputs.OutputPolicy);
+  const pass = await getOrtFloatData(outputs.OutputPolicyPass);
+
+  if (!spatial || !pass) {
+    return undefined;
+  }
+
+  const boardPolicySize = boardSize * boardSize;
+  const spatialStride = Math.floor(spatial.length / batchSize);
+  const passStride = Math.max(1, Math.floor(pass.length / batchSize));
+
+  if (spatialStride < boardPolicySize) {
+    return undefined;
+  }
+
+  return Array.from({ length: batchSize }, (_, index) => {
+    const policy = new Float32Array(boardPolicySize + 1);
+
+    policy.set(
+      spatial.slice(
+        index * spatialStride,
+        index * spatialStride + boardPolicySize,
+      ),
+      0,
+    );
+    policy[boardPolicySize] = pass[index * passStride] ?? 0;
+
+    return policy;
+  });
+}
+
 function interpretValue(data: Float32Array) {
   const probs = softmax(Array.from(data.slice(0, 3)));
 
@@ -671,6 +840,28 @@ function sideToMoveValue(data: Float32Array): number {
   const value = interpretValue(data);
 
   return value.win - value.loss;
+}
+
+async function getValueBatchData(
+  outputs: ort.InferenceSession.ReturnType,
+  batchSize: number,
+): Promise<number[] | undefined> {
+  const data =
+    (await getOrtFloatData(outputs.value)) ??
+    (await getOrtFloatData(outputs.OutputValue));
+
+  if (!data) {
+    return undefined;
+  }
+
+  const stride = Math.floor(data.length / batchSize);
+  if (stride < 3) {
+    return undefined;
+  }
+
+  return Array.from({ length: batchSize }, (_, index) =>
+    sideToMoveValue(data.slice(index * stride, index * stride + 3)),
+  );
 }
 
 function interpretPolicy(
@@ -1066,26 +1257,28 @@ async function runOnnxRustLeafPolicyMcts(
         outputNames: Array.from(loaded.session.outputNames),
       },
       webgpu: loaded.webgpu,
-      evaluate: async (position) => {
+      evaluateBatch: async (positions) => {
         const startedAt = performance.now();
-        const input = makeOnnxFeedsForPosition(loaded.session, position);
+        const input = makeOnnxFeedsForPositions(loaded.session, positions);
         const outputs = await predictOnnx(loaded.session, input.feeds);
 
         try {
-          const policy =
-            (await getOrtFloatData(outputs.policy)) ??
-            (await getOfficialKatagoPolicyData(outputs, position.boardSize));
-          const valueData =
-            (await getOrtFloatData(outputs.value)) ??
-            (await getOrtFloatData(outputs.OutputValue));
+          const policyBatch = await getPolicyBatchData(
+            outputs,
+            positions[0]!.boardSize,
+            positions.length,
+          );
+          const valueBatch = await getValueBatchData(outputs, positions.length);
 
-          if (!policy) {
+          if (!policyBatch) {
             throw new Error("ONNX output is missing a policy tensor");
           }
 
           return {
-            policy: new Float32Array(policy),
-            value: valueData ? sideToMoveValue(valueData) : 0,
+            evaluations: policyBatch.map((policy, index) => ({
+              policy,
+              value: valueBatch?.[index] ?? 0,
+            })),
             elapsedMs: performance.now() - startedAt,
           };
         } finally {

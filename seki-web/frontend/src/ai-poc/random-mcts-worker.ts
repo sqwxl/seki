@@ -45,9 +45,11 @@ type LeafPolicyMctsOptions = Omit<
   RustMctsOptions,
   "rootPolicyLogits" | "rootValue"
 > & {
-  evaluate: (position: AiPocPosition) => Promise<{
-    policy: Float32Array;
-    value: number;
+  evaluateBatch: (positions: AiPocPosition[]) => Promise<{
+    evaluations: Array<{
+      policy: Float32Array;
+      value: number;
+    }>;
     elapsedMs: number;
   }>;
 };
@@ -195,6 +197,7 @@ export async function runLeafPolicyMcts(
   let wasmSearchMs = 0;
   let modelEvalMs = 0;
   let modelEvaluations = 0;
+  let modelBatches = 0;
 
   while (true) {
     const nextBatchStartedAt = performance.now();
@@ -214,19 +217,27 @@ export async function runLeafPolicyMcts(
       throw new Error("policy MCTS search stalled without eval requests");
     }
 
-    const evaluations = [];
+    const batchEvaluation = await options.evaluateBatch(
+      batch.requests.map((request) => request.position),
+    );
 
-    for (const evalRequest of batch.requests) {
-      const evaluation = await options.evaluate(evalRequest.position);
+    if (batchEvaluation.evaluations.length !== batch.requests.length) {
+      throw new Error("policy MCTS batch eval returned the wrong result count");
+    }
 
-      modelEvalMs += evaluation.elapsedMs;
-      modelEvaluations += 1;
-      evaluations.push({
+    modelEvalMs += batchEvaluation.elapsedMs;
+    modelEvaluations += batchEvaluation.evaluations.length;
+    modelBatches += 1;
+
+    const evaluations = batch.requests.map((evalRequest, index) => {
+      const evaluation = batchEvaluation.evaluations[index]!;
+
+      return {
         id: evalRequest.id,
         policyLogits: Array.from(evaluation.policy),
         value: evaluation.value,
-      });
-    }
+      };
+    });
 
     const applyStartedAt = performance.now();
     const statusJson = search.apply_batch_json(JSON.stringify({ evaluations }));
@@ -273,6 +284,7 @@ export async function runLeafPolicyMcts(
       totalElapsedMs:
         performance.now() - (options.totalStartedAt ?? wasmStartedAt),
       modelEvaluations,
+      modelBatches,
       modelEvalMs,
       batchSize: request.batchSize,
       bestMove: formatRandomMctsMove(summary.bestMove, request.boardSize),
