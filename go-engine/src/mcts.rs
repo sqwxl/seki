@@ -51,7 +51,7 @@ pub struct EdgeStats {
     child: NodeId,
     prior: f32,
     visits: u32,
-    value_sum: f32,
+    value: f32,
 }
 
 impl EdgeStats {
@@ -61,7 +61,7 @@ impl EdgeStats {
             child,
             prior,
             visits: 0,
-            value_sum: 0.0,
+            value: 0.0,
         }
     }
 
@@ -82,16 +82,20 @@ impl EdgeStats {
     }
 
     pub fn mean_value(&self) -> f32 {
-        if self.visits == 0 {
-            0.0
-        } else {
-            self.value_sum / self.visits as f32
-        }
+        self.value
     }
 
     pub fn backup(&mut self, value: f32) {
         self.visits += 1;
-        self.value_sum += value;
+        self.value = value;
+    }
+
+    fn increment_visit(&mut self) {
+        self.visits += 1;
+    }
+
+    fn set_value(&mut self, value: f32) {
+        self.value = value;
     }
 }
 
@@ -99,7 +103,8 @@ impl EdgeStats {
 pub struct GraphNode {
     key: PositionKey,
     visits: u32,
-    value_sum: f32,
+    raw_value: Option<f32>,
+    value: f32,
     edges: Vec<EdgeStats>,
 }
 
@@ -108,7 +113,8 @@ impl GraphNode {
         Self {
             key,
             visits: 0,
-            value_sum: 0.0,
+            raw_value: None,
+            value: 0.0,
             edges: Vec::new(),
         }
     }
@@ -130,16 +136,21 @@ impl GraphNode {
     }
 
     pub fn mean_value(&self) -> f32 {
-        if self.visits == 0 {
-            0.0
-        } else {
-            self.value_sum / self.visits as f32
-        }
+        self.value
     }
 
     pub fn backup_node(&mut self, value: f32) {
+        self.raw_value = Some(value);
         self.visits += 1;
-        self.value_sum += value;
+        self.value = value;
+    }
+
+    fn is_evaluated(&self) -> bool {
+        self.raw_value.is_some()
+    }
+
+    fn set_raw_value(&mut self, value: f32) {
+        self.raw_value = Some(value);
     }
 }
 
@@ -196,6 +207,35 @@ struct PendingPath {
     engine: Engine,
 }
 
+fn recompute_node(nodes: &mut [GraphNode], node_id: NodeId) {
+    let edge_values: Vec<(usize, f32)> = nodes[node_id.0]
+        .edges
+        .iter()
+        .enumerate()
+        .map(|(index, edge)| (index, -nodes[edge.child.0].mean_value()))
+        .collect();
+    let raw_value = nodes[node_id.0].raw_value;
+    let mut visits = u32::from(raw_value.is_some());
+    let mut value_sum = raw_value.unwrap_or(0.0);
+
+    {
+        let node = &mut nodes[node_id.0];
+        for (edge_index, value) in edge_values {
+            let edge = &mut node.edges[edge_index];
+            edge.set_value(value);
+            visits += edge.visits;
+            value_sum += edge.visits as f32 * value;
+        }
+
+        node.visits = visits;
+        node.value = if visits == 0 {
+            0.0
+        } else {
+            value_sum / visits as f32
+        };
+    }
+}
+
 #[derive(Debug)]
 struct GraphSearch<'a, E> {
     config: MctsConfig,
@@ -244,18 +284,25 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
         let mut active_nodes = HashSet::from([root_id]);
 
         loop {
-            if self.nodes[node_id.0].edges.is_empty() {
+            if !self.nodes[node_id.0].is_evaluated() {
                 let to_play = engine.current_turn_stone();
                 let evaluation = self.evaluator.evaluate(&engine, to_play);
+                self.nodes[node_id.0].set_raw_value(evaluation.value);
                 self.expand_node(node_id, &engine, evaluation.priors);
-                self.backup(node_id, &path, evaluation.value);
+                recompute_node(&mut self.nodes, node_id);
+                self.backup_path(&path);
+                return;
+            }
+
+            if self.nodes[node_id.0].edges.is_empty() {
+                self.backup_path(&path);
                 return;
             }
 
             let Some(edge_index) = self.select_edge(node_id, &active_nodes) else {
                 let edge_index = self.select_edge_allowing_cycle(node_id);
                 path.push((node_id, edge_index));
-                self.backup_cycle(&path, 0.0);
+                self.backup_cycle(&path);
                 return;
             };
 
@@ -263,14 +310,16 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
             let child = self.nodes[node_id.0].edges[edge_index].child;
 
             if apply_action(&mut engine, action).is_err() {
-                self.backup(node_id, &path, -1.0);
+                self.nodes[node_id.0].set_raw_value(-1.0);
+                recompute_node(&mut self.nodes, node_id);
+                self.backup_path(&path);
                 return;
             }
 
             path.push((node_id, edge_index));
             node_id = child;
             if !active_nodes.insert(node_id) {
-                self.backup_cycle(&path, 0.0);
+                self.backup_cycle(&path);
                 return;
             }
         }
@@ -329,24 +378,17 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
         best_index
     }
 
-    fn backup(&mut self, leaf_id: NodeId, path: &[(NodeId, usize)], leaf_value: f32) {
-        let mut value = leaf_value;
-        self.nodes[leaf_id.0].backup_node(value);
-
+    fn backup_path(&mut self, path: &[(NodeId, usize)]) {
         for &(node_id, edge_index) in path.iter().rev() {
-            value = -value;
-            self.nodes[node_id.0].backup_node(value);
-            self.nodes[node_id.0].edges[edge_index].backup(value);
+            self.nodes[node_id.0].edges[edge_index].increment_visit();
+            recompute_node(&mut self.nodes, node_id);
         }
     }
 
-    fn backup_cycle(&mut self, path: &[(NodeId, usize)], cycle_value: f32) {
-        let mut value = cycle_value;
-
+    fn backup_cycle(&mut self, path: &[(NodeId, usize)]) {
         for &(node_id, edge_index) in path.iter().rev() {
-            self.nodes[node_id.0].backup_node(value);
-            self.nodes[node_id.0].edges[edge_index].backup(value);
-            value = -value;
+            self.nodes[node_id.0].edges[edge_index].increment_visit();
+            recompute_node(&mut self.nodes, node_id);
         }
     }
 
@@ -445,8 +487,10 @@ impl ExternalMctsSearch {
                 0.0
             };
 
+            self.nodes[pending.node_id.0].set_raw_value(value);
             self.expand_node(pending.node_id, &pending.engine, priors);
-            self.backup(pending.node_id, &pending.path, value);
+            recompute_node(&mut self.nodes, pending.node_id);
+            self.backup_path(&pending.path);
             self.completed_visits += 1;
         }
     }
@@ -476,12 +520,18 @@ impl ExternalMctsSearch {
             let mut active_nodes = HashSet::from([self.root_id]);
 
             loop {
-                if self.nodes[node_id.0].edges.is_empty() {
+                if !self.nodes[node_id.0].is_evaluated() {
                     if self.pending_nodes.contains(&node_id) {
                         return None;
                     }
 
                     return Some(self.push_pending(node_id, path, engine));
+                }
+
+                if self.nodes[node_id.0].edges.is_empty() {
+                    self.backup_path(&path);
+                    self.completed_visits += 1;
+                    break;
                 }
 
                 let Some(edge_index) = self.select_edge(node_id, &active_nodes) else {
@@ -495,7 +545,7 @@ impl ExternalMctsSearch {
 
                     let edge_index = self.select_edge_allowing_cycle(node_id);
                     path.push((node_id, edge_index));
-                    self.backup_cycle(&path, 0.0);
+                    self.backup_cycle(&path);
                     self.completed_visits += 1;
 
                     if self.completed_visits >= self.config.search.visits {
@@ -509,7 +559,9 @@ impl ExternalMctsSearch {
                 let child = self.nodes[node_id.0].edges[edge_index].child;
 
                 if apply_action(&mut engine, action).is_err() {
-                    self.backup(node_id, &path, -1.0);
+                    self.nodes[node_id.0].set_raw_value(-1.0);
+                    recompute_node(&mut self.nodes, node_id);
+                    self.backup_path(&path);
                     self.completed_visits += 1;
                     break;
                 }
@@ -517,7 +569,7 @@ impl ExternalMctsSearch {
                 path.push((node_id, edge_index));
                 node_id = child;
                 if !active_nodes.insert(node_id) {
-                    self.backup_cycle(&path, 0.0);
+                    self.backup_cycle(&path);
                     self.completed_visits += 1;
                     break;
                 }
@@ -601,24 +653,17 @@ impl ExternalMctsSearch {
         best_index
     }
 
-    fn backup(&mut self, leaf_id: NodeId, path: &[(NodeId, usize)], leaf_value: f32) {
-        let mut value = leaf_value;
-        self.nodes[leaf_id.0].backup_node(value);
-
+    fn backup_path(&mut self, path: &[(NodeId, usize)]) {
         for &(node_id, edge_index) in path.iter().rev() {
-            value = -value;
-            self.nodes[node_id.0].backup_node(value);
-            self.nodes[node_id.0].edges[edge_index].backup(value);
+            self.nodes[node_id.0].edges[edge_index].increment_visit();
+            recompute_node(&mut self.nodes, node_id);
         }
     }
 
-    fn backup_cycle(&mut self, path: &[(NodeId, usize)], cycle_value: f32) {
-        let mut value = cycle_value;
-
+    fn backup_cycle(&mut self, path: &[(NodeId, usize)]) {
         for &(node_id, edge_index) in path.iter().rev() {
-            self.nodes[node_id.0].backup_node(value);
-            self.nodes[node_id.0].edges[edge_index].backup(value);
-            value = -value;
+            self.nodes[node_id.0].edges[edge_index].increment_visit();
+            recompute_node(&mut self.nodes, node_id);
         }
     }
 
@@ -1303,6 +1348,7 @@ mod tests {
         let summary = search.summary();
         assert_eq!(summary.visits, 2);
         assert_eq!(summary.best_move, Some(BotMove::Play((2, 2))));
+        assert!((summary.root_value - 0.375).abs() < 0.0001);
         assert!(search.is_complete());
     }
 
@@ -1502,8 +1548,29 @@ mod tests {
         assert_eq!(from_a.child, from_b.child);
         assert_eq!(from_a.visits, 2);
         assert_eq!(from_b.visits, 1);
-        assert_eq!(from_a.mean_value(), 0.75);
+        assert_eq!(from_a.mean_value(), 0.5);
         assert_eq!(from_b.mean_value(), -0.5);
+    }
+
+    #[test]
+    fn graph_node_value_recomputes_from_direct_eval_and_child_edges() {
+        let engine = Engine::new(3, 3);
+        let key = PositionKey::from_engine(&engine);
+        let mut nodes = vec![GraphNode::new(key.clone()), GraphNode::new(key)];
+
+        nodes[1].set_raw_value(-0.6);
+        recompute_node(&mut nodes, NodeId(1));
+        nodes[0].set_raw_value(0.2);
+        nodes[0].push_edge(EdgeStats::new(BotMove::Play((0, 0)), NodeId(1), 1.0));
+        for _ in 0..3 {
+            nodes[0].edges[0].increment_visit();
+        }
+
+        recompute_node(&mut nodes, NodeId(0));
+
+        assert_eq!(nodes[0].visits(), 4);
+        assert!((nodes[0].edges()[0].mean_value() - 0.6).abs() < 0.0001);
+        assert!((nodes[0].mean_value() - 0.5).abs() < 0.0001);
     }
 
     #[test]
@@ -1542,7 +1609,7 @@ mod tests {
         search.nodes.push(GraphNode::new(key));
         search.nodes[0].push_edge(EdgeStats::new(BotMove::Pass, NodeId(0), 1.0));
 
-        search.backup_cycle(&[(NodeId(0), 0)], 0.0);
+        search.backup_cycle(&[(NodeId(0), 0)]);
 
         assert_eq!(search.nodes[0].visits(), 1);
         assert_eq!(search.nodes[0].edges()[0].visits(), 1);

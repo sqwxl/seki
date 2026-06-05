@@ -42,6 +42,37 @@ describe("KataGo v7 PoC feature encoder", () => {
     expect(binAt(encoded.binInput, 19, 10, 3, 3)).toBe(1);
   });
 
+  it("creates Li/Jiang pro-game presets from the mainline", () => {
+    const position = createAiPocPosition("li-jiang-move-32", 19, "white", 7.5);
+    const encoded = encodeKataGoV7PocFeatures(position);
+
+    expect(position.nextPlayer).toBe("black");
+    expect(position.recentMoves).toHaveLength(32);
+    expect(position.recentMoves[0]).toEqual({
+      kind: "play",
+      col: 13,
+      row: 5,
+      player: "white",
+    });
+    expect(binAt(encoded.binInput, 19, 1, 15, 3)).toBe(1);
+    expect(binAt(encoded.binInput, 19, 2, 3, 2)).toBe(1);
+    expect(binAt(encoded.binInput, 19, 9, 13, 5)).toBe(1);
+    expect(binAt(encoded.binInput, 19, 10, 12, 5)).toBe(1);
+  });
+
+  it("replays the later Li/Jiang mainline preset", () => {
+    const position = createAiPocPosition("li-jiang-move-120", 19, "white", 7.5);
+
+    expect(position.nextPlayer).toBe("black");
+    expect(position.recentMoves[0]).toEqual({
+      kind: "play",
+      col: 8,
+      row: 1,
+      player: "white",
+    });
+    expect(position.stones.length).toBeLessThan(120);
+  });
+
   it("marks one-liberty chains", () => {
     const position = createAiPocPosition("empty", 19, "white", 6.5);
     position.stones = [

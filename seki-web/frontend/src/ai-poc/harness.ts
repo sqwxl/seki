@@ -41,6 +41,11 @@ const mctsPresets = [
 ] satisfies MctsPreset[];
 
 const defaultMctsPreset = mctsPresets[0];
+const proGamePositionPresets = new Set([
+  "li-jiang-move-32",
+  "li-jiang-move-72",
+  "li-jiang-move-120",
+]);
 
 const app = document.querySelector<HTMLDivElement>("#ai-poc");
 
@@ -72,6 +77,9 @@ app.innerHTML = `
       <select id="position-preset">
         <option value="empty" selected>Empty board</option>
         <option value="corner-exchange">Corner exchange</option>
+        <option value="li-jiang-move-32">Li Xiangyu vs Jiang Weijie, move 32</option>
+        <option value="li-jiang-move-72">Li Xiangyu vs Jiang Weijie, move 72</option>
+        <option value="li-jiang-move-120">Li Xiangyu vs Jiang Weijie, move 120</option>
       </select>
     </div>
     <div>
@@ -352,6 +360,16 @@ function syncMctsPresetSelection() {
   mctsPresetInput.value = matchingPreset?.id ?? "custom";
 }
 
+function syncPositionPresetMetadata() {
+  if (!proGamePositionPresets.has(positionPresetInput.value)) {
+    return;
+  }
+
+  sizeInput.value = "19";
+  nextPlayerInput.value = "black";
+  komiInput.value = "7.5";
+}
+
 function runPoc() {
   const request: AiPocRequest = {
     ...baseRequest(),
@@ -462,6 +480,7 @@ randomMctsButton.addEventListener("click", runRandomMcts);
 mctsPresetInput.addEventListener("change", () => {
   applyMctsPreset(mctsPresetInput.value);
 });
+positionPresetInput.addEventListener("change", syncPositionPresetMetadata);
 for (const input of [visitsInput, maxChildrenInput, batchSizeInput]) {
   input.addEventListener("input", syncMctsPresetSelection);
 }

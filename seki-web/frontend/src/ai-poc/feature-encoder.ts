@@ -53,6 +53,19 @@ export type AiPocEncodedFeatures = {
 
 const BIN_CHANNELS = 22;
 const GLOBAL_CHANNELS = 19;
+const LI_JIANG_BOARD_SIZE = 19;
+const LI_JIANG_PRO_GAME_PRESETS: Record<string, number> = {
+  "li-jiang-move-32": 32,
+  "li-jiang-move-72": 72,
+  "li-jiang-move-120": 120,
+};
+const LI_JIANG_MAINLINE_COORDS = [
+  "pd dc qp dq ce fd co ep op ci cl qc qd pc nc oc od nb pj nd mc mb lc ne le lf rc rb re sc mf nf kf qg fe de df ee ef cf",
+  "cg bf bg be ff gd pg pf qf lg mg ph rg og qi mh lh kg nh mi me ng ni ke lb nj mj li nk jf ic qh rh oe cd bd cc cb oj qe",
+  "pe rd kh jh ki lj ji lk ih jg kl ll lm ml kk mm ie jd id hf hg if he ii ij jc jb ib kc ja kb ge gf hc hb ha ia md ld ib",
+]
+  .join(" ")
+  .split(" ");
 
 export function defaultAiPocRules(): AiPocRules {
   return {
@@ -70,6 +83,11 @@ export function createAiPocPosition(
   komi: number,
 ): AiPocPosition {
   const rules = defaultAiPocRules();
+  const proGameMoveCount = LI_JIANG_PRO_GAME_PRESETS[preset];
+
+  if (proGameMoveCount !== undefined) {
+    return createLiJiangProGamePosition(proGameMoveCount, boardSize, komi);
+  }
 
   if (preset === "corner-exchange") {
     return {
@@ -100,6 +118,38 @@ export function createAiPocPosition(
     rules,
     stones: [],
     recentMoves: [],
+  };
+}
+
+function createLiJiangProGamePosition(
+  moveCount: number,
+  boardSize: number,
+  komi: number,
+): AiPocPosition {
+  if (boardSize !== LI_JIANG_BOARD_SIZE) {
+    throw new Error("Li/Jiang pro-game presets require a 19x19 board");
+  }
+
+  const moves = LI_JIANG_MAINLINE_COORDS.slice(0, moveCount).map(
+    (coord, index) => ({
+      kind: "play" as const,
+      ...sgfCoordToPoint(coord),
+      player: index % 2 === 0 ? ("black" as const) : ("white" as const),
+    }),
+  );
+  const board = new Array<AiPocPlayer | undefined>(boardSize * boardSize);
+
+  for (const move of moves) {
+    applyMoveToBoard(board, boardSize, move);
+  }
+
+  return {
+    boardSize,
+    nextPlayer: moveCount % 2 === 0 ? "black" : "white",
+    komi,
+    rules: defaultAiPocRules(),
+    stones: stonesFromBoard(board, boardSize),
+    recentMoves: [...moves].reverse(),
   };
 }
 
@@ -188,6 +238,128 @@ function makeBoard(position: AiPocPosition): Array<AiPocPlayer | undefined> {
   }
 
   return board;
+}
+
+function applyMoveToBoard(
+  board: Array<AiPocPlayer | undefined>,
+  boardSize: number,
+  move: Extract<AiPocMove, { kind: "play" }>,
+) {
+  assertPoint(boardSize, move.col, move.row);
+
+  const index = pointIndex(move.col, move.row, boardSize);
+  if (board[index]) {
+    throw new Error(`Li/Jiang pro-game preset has occupied move ${index}`);
+  }
+
+  board[index] = move.player;
+
+  for (const neighbor of neighbors(boardSize, move.col, move.row)) {
+    const neighborIndex = pointIndex(neighbor.col, neighbor.row, boardSize);
+    if (board[neighborIndex] !== oppositePlayer(move.player)) {
+      continue;
+    }
+
+    const group = collectGroup(board, boardSize, neighborIndex);
+    if (countGroupLiberties(board, boardSize, group) === 0) {
+      removeGroup(board, group);
+    }
+  }
+
+  const ownGroup = collectGroup(board, boardSize, index);
+  if (countGroupLiberties(board, boardSize, ownGroup) === 0) {
+    throw new Error(`Li/Jiang pro-game preset has suicide move ${index}`);
+  }
+}
+
+function collectGroup(
+  board: Array<AiPocPlayer | undefined>,
+  boardSize: number,
+  startIndex: number,
+): number[] {
+  const player = board[startIndex];
+  if (!player) {
+    return [];
+  }
+
+  const group: number[] = [];
+  const seen = new Set<number>();
+  const stack = [startIndex];
+
+  while (stack.length > 0) {
+    const index = stack.pop()!;
+    if (seen.has(index)) {
+      continue;
+    }
+    seen.add(index);
+    group.push(index);
+
+    const point = indexToPoint(index, boardSize);
+    for (const neighbor of neighbors(boardSize, point.col, point.row)) {
+      const neighborIndex = pointIndex(neighbor.col, neighbor.row, boardSize);
+      if (board[neighborIndex] === player && !seen.has(neighborIndex)) {
+        stack.push(neighborIndex);
+      }
+    }
+  }
+
+  return group;
+}
+
+function countGroupLiberties(
+  board: Array<AiPocPlayer | undefined>,
+  boardSize: number,
+  group: number[],
+): number {
+  const liberties = new Set<number>();
+
+  for (const index of group) {
+    const point = indexToPoint(index, boardSize);
+    for (const neighbor of neighbors(boardSize, point.col, point.row)) {
+      const neighborIndex = pointIndex(neighbor.col, neighbor.row, boardSize);
+      if (!board[neighborIndex]) {
+        liberties.add(neighborIndex);
+      }
+    }
+  }
+
+  return liberties.size;
+}
+
+function removeGroup(board: Array<AiPocPlayer | undefined>, group: number[]) {
+  for (const index of group) {
+    board[index] = undefined;
+  }
+}
+
+function stonesFromBoard(
+  board: Array<AiPocPlayer | undefined>,
+  boardSize: number,
+): AiPocStone[] {
+  const stones: AiPocStone[] = [];
+
+  for (let index = 0; index < board.length; index++) {
+    const player = board[index];
+    if (!player) {
+      continue;
+    }
+
+    const point = indexToPoint(index, boardSize);
+    stones.push({ ...point, player });
+  }
+
+  return stones;
+}
+
+function sgfCoordToPoint(coord: string) {
+  if (coord.length !== 2) {
+    throw new Error(`Unsupported SGF point in Li/Jiang preset: ${coord}`);
+  }
+
+  return {
+    col: coord.charCodeAt(0) - "a".charCodeAt(0),
+    row: coord.charCodeAt(1) - "a".charCodeAt(0),
+  };
 }
 
 function fillRecentMoveFeatures(

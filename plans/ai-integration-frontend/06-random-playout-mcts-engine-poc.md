@@ -389,8 +389,19 @@ Current Rust/WASM status:
   - 128 visits / 16 MCTS max children / 32 eval batch: ~6.4s total.
 - `/static/ai-poc.html` exposes named MCTS presets for the current Android-fast,
   Android-stronger, and lab 128 settings.
-- Next pending step: use the presets for position-diverse quality tests, then
-  decide the default interactive budget and engine-facing API shape.
+- Position presets now include three 19x19 mainline snapshots from
+  `3hlu-gokifu-20260603-Li_Xiangyu-Jiang_Weijie.sgf` at moves 32, 72, and 120.
+  These give the PoC non-empty pro-game positions for quality and latency tests.
+- Current Rust graph search is being moved toward KataGo's canonical recursive
+  value formulation: each node stores its direct evaluator value, parent-action
+  edge visits remain distinct from child visits, and node values are recomputed
+  from direct value plus edge-visit-weighted child values.
+- Remaining KataGo gaps after that step: transposition catch-up, virtual loss /
+  real parallelism, FPU, dynamic cpuct, root noise/temperature, LCB selection,
+  full feature encoding, and Go-specific repetition hash safety.
+- Next pending step: rerun Android pro-game preset benchmarks after canonical
+  value aggregation, then decide the default interactive budget and
+  engine-facing API shape.
 
 ## Tests
 

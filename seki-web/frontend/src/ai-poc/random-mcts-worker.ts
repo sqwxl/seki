@@ -100,7 +100,7 @@ export async function runRandomMcts(
     request.nextPlayer,
     request.komi,
   );
-  const engine = new wasm.WasmEngine(request.boardSize, request.boardSize);
+  const engine = new wasm.WasmEngine(position.boardSize, position.boardSize);
 
   applyAiPocPosition(engine, position);
 
@@ -111,7 +111,7 @@ export async function runRandomMcts(
       rolloutLimit: request.rolloutLimit,
       maxPolicyActions: request.maxPolicyActions,
       seed: request.seed,
-      komi: request.komi,
+      komi: position.komi,
       rootPolicyLogits: options.rootPolicyLogits
         ? Array.from(options.rootPolicyLogits)
         : undefined,
@@ -136,10 +136,10 @@ export async function runRandomMcts(
     model: options.model,
     webgpu: options.webgpu,
     input: {
-      boardSize: request.boardSize,
+      boardSize: position.boardSize,
       positionPreset: request.positionPreset,
-      nextPlayer: request.nextPlayer,
-      komi: request.komi,
+      nextPlayer: position.nextPlayer,
+      komi: position.komi,
     },
     randomSearch: {
       visits: response.visits,
@@ -151,7 +151,7 @@ export async function runRandomMcts(
       rootInferenceMs: options.rootInferenceMs,
       wasmSearchMs,
       totalElapsedMs: performance.now() - (options.totalStartedAt ?? startedAt),
-      bestMove: formatRandomMctsMove(response.bestMove, request.boardSize),
+      bestMove: formatRandomMctsMove(response.bestMove, position.boardSize),
       winrate: response.winrate,
       rootValue: response.rootValue,
       policySource: response.policySource ?? "baseline-rollout",
@@ -178,7 +178,7 @@ export async function runLeafPolicyMcts(
     request.nextPlayer,
     request.komi,
   );
-  const engine = new wasm.WasmEngine(request.boardSize, request.boardSize);
+  const engine = new wasm.WasmEngine(position.boardSize, position.boardSize);
 
   applyAiPocPosition(engine, position);
 
@@ -190,7 +190,7 @@ export async function runLeafPolicyMcts(
     JSON.stringify({
       visits: request.visits,
       maxPolicyActions: request.maxPolicyActions,
-      komi: request.komi,
+      komi: position.komi,
     }),
   );
   const wasmStartedAt = performance.now();
@@ -268,10 +268,10 @@ export async function runLeafPolicyMcts(
     model: options.model,
     webgpu: options.webgpu,
     input: {
-      boardSize: request.boardSize,
+      boardSize: position.boardSize,
       positionPreset: request.positionPreset,
-      nextPlayer: request.nextPlayer,
-      komi: request.komi,
+      nextPlayer: position.nextPlayer,
+      komi: position.komi,
     },
     randomSearch: {
       visits: summary.visits,
@@ -287,7 +287,7 @@ export async function runLeafPolicyMcts(
       modelBatches,
       modelEvalMs,
       batchSize: request.batchSize,
-      bestMove: formatRandomMctsMove(summary.bestMove, request.boardSize),
+      bestMove: formatRandomMctsMove(summary.bestMove, position.boardSize),
       winrate: summary.winrate,
       rootValue: summary.rootValue,
       policySource: "external-leaf",
