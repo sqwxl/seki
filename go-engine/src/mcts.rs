@@ -236,6 +236,11 @@ fn recompute_node(nodes: &mut [GraphNode], node_id: NodeId) {
     }
 }
 
+fn edge_needs_catch_up(nodes: &[GraphNode], node_id: NodeId, edge_index: usize) -> bool {
+    let edge = &nodes[node_id.0].edges[edge_index];
+    edge.visits < nodes[edge.child.0].visits()
+}
+
 #[derive(Debug)]
 struct GraphSearch<'a, E> {
     config: MctsConfig,
@@ -305,6 +310,12 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
                 self.backup_cycle(&path);
                 return;
             };
+
+            if edge_needs_catch_up(&self.nodes, node_id, edge_index) {
+                path.push((node_id, edge_index));
+                self.backup_path(&path);
+                return;
+            }
 
             let action = self.nodes[node_id.0].edges[edge_index].action;
             let child = self.nodes[node_id.0].edges[edge_index].child;
@@ -554,6 +565,13 @@ impl ExternalMctsSearch {
 
                     break;
                 };
+
+                if edge_needs_catch_up(&self.nodes, node_id, edge_index) {
+                    path.push((node_id, edge_index));
+                    self.backup_path(&path);
+                    self.completed_visits += 1;
+                    break;
+                }
 
                 let action = self.nodes[node_id.0].edges[edge_index].action;
                 let child = self.nodes[node_id.0].edges[edge_index].child;
@@ -1571,6 +1589,26 @@ mod tests {
         assert_eq!(nodes[0].visits(), 4);
         assert!((nodes[0].edges()[0].mean_value() - 0.6).abs() < 0.0001);
         assert!((nodes[0].mean_value() - 0.5).abs() < 0.0001);
+    }
+
+    #[test]
+    fn edge_catch_up_detects_child_visits_ahead_of_parent_action() {
+        let engine = Engine::new(3, 3);
+        let key = PositionKey::from_engine(&engine);
+        let mut nodes = vec![GraphNode::new(key.clone()), GraphNode::new(key)];
+
+        nodes[1].set_raw_value(-0.25);
+        recompute_node(&mut nodes, NodeId(1));
+        nodes[0].set_raw_value(0.0);
+        nodes[0].push_edge(EdgeStats::new(BotMove::Play((0, 0)), NodeId(1), 1.0));
+        recompute_node(&mut nodes, NodeId(0));
+
+        assert!(edge_needs_catch_up(&nodes, NodeId(0), 0));
+
+        nodes[0].edges[0].increment_visit();
+        recompute_node(&mut nodes, NodeId(0));
+
+        assert!(!edge_needs_catch_up(&nodes, NodeId(0), 0));
     }
 
     #[test]

@@ -396,11 +396,15 @@ Current Rust/WASM status:
   value formulation: each node stores its direct evaluator value, parent-action
   edge visits remain distinct from child visits, and node values are recomputed
   from direct value plus edge-visit-weighted child values.
-- Remaining KataGo gaps after that step: transposition catch-up, virtual loss /
-  real parallelism, FPU, dynamic cpuct, root noise/temperature, LCB selection,
-  full feature encoding, and Go-specific repetition hash safety.
+- Transposition catch-up now follows KataGo's default shortcut: when a selected
+  child node has more visits than the parent-action edge, the search increments
+  the edge visit and recomputes ancestors without descending or requesting
+  another NN eval.
+- Remaining KataGo gaps after that step: virtual loss / real parallelism, FPU,
+  dynamic cpuct, root noise/temperature, LCB selection, full feature encoding,
+  leaky catch-up tuning, and Go-specific repetition hash safety.
 - Next pending step: rerun Android pro-game preset benchmarks after canonical
-  value aggregation, then decide the default interactive budget and
+  value aggregation and catch-up, then decide the default interactive budget and
   engine-facing API shape.
 
 ## Tests
