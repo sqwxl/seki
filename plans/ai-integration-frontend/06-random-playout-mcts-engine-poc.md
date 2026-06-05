@@ -400,12 +400,29 @@ Current Rust/WASM status:
   child node has more visits than the parent-action edge, the search increments
   the edge visit and recomputes ancestors without descending or requesting
   another NN eval.
+- Latest Chrome Android runs on the Li/Jiang move 32/72/120 presets after
+  canonical recursive aggregation and catch-up were stable:
+  - 64 visits / 16 max children / 16 eval batch: about 3.2-3.4s total, best
+    moves `L14`, `S12`, `P18`.
+  - 96 visits / 16 max children / 16 eval batch: about 4.6-4.9s total, best
+    moves `L14`, `S12`, `P18`.
+  - The stronger preset did not materially change top-move choice on those
+    three snapshots.
+- Catch-up has not been observed firing on the current Android benchmark set
+  yet. Recent exports still showed `modelEvaluations == visits`, so these
+  positions are not creating the kind of transposition reuse needed to validate
+  that optimization.
 - Remaining KataGo gaps after that step: virtual loss / real parallelism, FPU,
   dynamic cpuct, root noise/temperature, LCB selection, full feature encoding,
   leaky catch-up tuning, and Go-specific repetition hash safety.
-- Next pending step: rerun Android pro-game preset benchmarks after canonical
-  value aggregation and catch-up, then decide the default interactive budget and
-  engine-facing API shape.
+- Next pending steps:
+  1. Add diagnostics for root edge labels/stats, PV beyond one move, visit
+     spread, and explicit catch-up counters such as caught-up edges or skipped
+     leaf evals.
+  2. Add at least one more transposition-heavy or tactical benchmark preset to
+     test whether catch-up ever reduces model eval count in practice.
+  3. Lock the first engine-facing API shape and ship the current default mobile
+     presets only after those measurements confirm where search time is going.
 
 ## Tests
 
