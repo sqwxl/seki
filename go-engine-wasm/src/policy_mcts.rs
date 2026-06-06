@@ -56,6 +56,8 @@ struct PolicyMctsSummaryResponse {
     winrate: f32,
     root_value: f32,
     root_edges: Vec<WasmMctsEdge>,
+    principal_variation: Vec<WasmBotMove>,
+    diagnostics: WasmMctsDiagnostics,
 }
 
 #[derive(Debug, Serialize)]
@@ -118,9 +120,23 @@ struct AiPocRules {
 #[serde(rename_all = "camelCase")]
 struct WasmMctsEdge {
     action: WasmBotMove,
+    #[serde(rename = "move")]
+    move_label: String,
     visits: u32,
     prior: f32,
     value: f32,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WasmMctsDiagnostics {
+    catch_up_visits: u32,
+    cycle_visits: u32,
+    terminal_visits: u32,
+    invalid_action_visits: u32,
+    root_visit_entropy: f32,
+    visited_root_moves: usize,
+    visited_root_policy_mass: f32,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -135,6 +151,7 @@ pub struct WasmPolicyMcts {
     search: Option<ExternalMctsSearch>,
     error: Option<String>,
     komi: f64,
+    board_rows: u8,
 }
 
 #[wasm_bindgen]
@@ -203,6 +220,16 @@ impl WasmPolicyMcts {
                 winrate: 0.5,
                 root_value: 0.0,
                 root_edges: Vec::new(),
+                principal_variation: Vec::new(),
+                diagnostics: WasmMctsDiagnostics {
+                    catch_up_visits: 0,
+                    cycle_visits: 0,
+                    terminal_visits: 0,
+                    invalid_action_visits: 0,
+                    root_visit_entropy: 0.0,
+                    visited_root_moves: 0,
+                    visited_root_policy_mass: 0.0,
+                },
             })
             .unwrap_or_else(|err| error_json(&err.to_string()));
         };
@@ -219,11 +246,27 @@ impl WasmPolicyMcts {
                 .iter()
                 .map(|edge| WasmMctsEdge {
                     action: WasmBotMove::from(edge.action()),
+                    move_label: format_bot_move(edge.action(), self.board_rows),
                     visits: edge.visits(),
                     prior: edge.prior(),
                     value: edge.mean_value(),
                 })
                 .collect(),
+            principal_variation: summary
+                .principal_variation
+                .iter()
+                .copied()
+                .map(WasmBotMove::from)
+                .collect(),
+            diagnostics: WasmMctsDiagnostics {
+                catch_up_visits: summary.diagnostics.catch_up_visits,
+                cycle_visits: summary.diagnostics.cycle_visits,
+                terminal_visits: summary.diagnostics.terminal_visits,
+                invalid_action_visits: summary.diagnostics.invalid_action_visits,
+                root_visit_entropy: summary.diagnostics.root_visit_entropy,
+                visited_root_moves: summary.diagnostics.visited_root_moves,
+                visited_root_policy_mass: summary.diagnostics.visited_root_policy_mass,
+            },
         })
         .unwrap_or_else(|err| error_json(&err.to_string()))
     }
@@ -237,6 +280,7 @@ pub fn create(engine: &Engine, request_json: &str) -> WasmPolicyMcts {
                 search: None,
                 error: Some(format!("invalid policy MCTS request: {err}")),
                 komi: 6.5,
+                board_rows: engine.rows(),
             };
         }
     };
@@ -257,6 +301,7 @@ pub fn create(engine: &Engine, request_json: &str) -> WasmPolicyMcts {
         )),
         error: None,
         komi,
+        board_rows: engine.rows(),
     }
 }
 
@@ -267,6 +312,17 @@ impl From<BotMove> for WasmBotMove {
             BotMove::Pass => Self::Pass,
         }
     }
+}
+
+fn format_bot_move(action: BotMove, board_rows: u8) -> String {
+    match action {
+        BotMove::Play((col, row)) => format!("{}{}", gtp_column(col), board_rows - row),
+        BotMove::Pass => "pass".to_string(),
+    }
+}
+
+fn gtp_column(col: u8) -> char {
+    char::from(b'A' + col + u8::from(col >= 8))
 }
 
 fn position_from_engine(engine: &Engine, komi: f64) -> AiPocPosition {
@@ -418,5 +474,18 @@ mod tests {
         assert_eq!(summary["rootEdges"].as_array().expect("edges").len(), 1);
         assert_eq!(summary["rootEdges"][0]["action"]["col"], 2);
         assert_eq!(summary["rootEdges"][0]["action"]["row"], 2);
+        assert_eq!(summary["rootEdges"][0]["move"], "C1");
+        assert_eq!(
+            summary["principalVariation"]
+                .as_array()
+                .expect("principal variation")
+                .len(),
+            0
+        );
+        assert_eq!(summary["diagnostics"]["catchUpVisits"], 0);
+        assert_eq!(summary["diagnostics"]["cycleVisits"], 0);
+        assert_eq!(summary["diagnostics"]["rootVisitEntropy"], 0.0);
+        assert_eq!(summary["diagnostics"]["visitedRootMoves"], 0);
+        assert_eq!(summary["diagnostics"]["visitedRootPolicyMass"], 0.0);
     }
 }

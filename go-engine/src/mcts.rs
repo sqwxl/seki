@@ -179,6 +179,19 @@ pub struct SearchSummary {
     pub visits: u32,
     pub root_value: f32,
     pub root_edges: Vec<EdgeStats>,
+    pub principal_variation: Vec<BotMove>,
+    pub diagnostics: SearchDiagnostics,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SearchDiagnostics {
+    pub catch_up_visits: u32,
+    pub cycle_visits: u32,
+    pub terminal_visits: u32,
+    pub invalid_action_visits: u32,
+    pub root_visit_entropy: f32,
+    pub visited_root_moves: usize,
+    pub visited_root_policy_mass: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -241,12 +254,66 @@ fn edge_needs_catch_up(nodes: &[GraphNode], node_id: NodeId, edge_index: usize) 
     edge.visits < nodes[edge.child.0].visits()
 }
 
+fn root_visit_entropy(edges: &[EdgeStats]) -> f32 {
+    let total_visits: u32 = edges.iter().map(EdgeStats::visits).sum();
+    if total_visits == 0 {
+        return 0.0;
+    }
+
+    edges
+        .iter()
+        .filter(|edge| edge.visits() > 0)
+        .map(|edge| {
+            let probability = edge.visits() as f32 / total_visits as f32;
+            -probability * probability.ln()
+        })
+        .sum()
+}
+
+fn visited_root_moves(edges: &[EdgeStats]) -> usize {
+    edges.iter().filter(|edge| edge.visits() > 0).count()
+}
+
+fn visited_root_policy_mass(edges: &[EdgeStats]) -> f32 {
+    edges
+        .iter()
+        .filter(|edge| edge.visits() > 0)
+        .map(EdgeStats::prior)
+        .sum()
+}
+
+fn principal_variation(nodes: &[GraphNode], root_id: NodeId, max_len: usize) -> Vec<BotMove> {
+    let mut variation = Vec::with_capacity(max_len);
+    let mut node_id = root_id;
+    let mut seen = HashSet::from([root_id]);
+
+    while variation.len() < max_len {
+        let Some(edge) = nodes[node_id.0].edges.iter().max_by(|a, b| {
+            a.visits()
+                .cmp(&b.visits())
+                .then_with(|| a.prior().total_cmp(&b.prior()))
+        }) else {
+            break;
+        };
+
+        if edge.visits() == 0 || !seen.insert(edge.child()) {
+            break;
+        }
+
+        variation.push(edge.action());
+        node_id = edge.child();
+    }
+
+    variation
+}
+
 #[derive(Debug)]
 struct GraphSearch<'a, E> {
     config: MctsConfig,
     evaluator: &'a mut E,
     nodes: Vec<GraphNode>,
     node_by_key: HashMap<PositionKey, NodeId>,
+    diagnostics: SearchDiagnostics,
 }
 
 impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
@@ -256,6 +323,7 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
             evaluator,
             nodes: Vec::new(),
             node_by_key: HashMap::new(),
+            diagnostics: SearchDiagnostics::default(),
         }
     }
 
@@ -278,6 +346,13 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
             best_move: root_edges.first().map(EdgeStats::action),
             visits: root_node.visits,
             root_value: root_node.mean_value(),
+            principal_variation: principal_variation(&self.nodes, root_id, 8),
+            diagnostics: SearchDiagnostics {
+                root_visit_entropy: root_visit_entropy(&root_edges),
+                visited_root_moves: visited_root_moves(&root_edges),
+                visited_root_policy_mass: visited_root_policy_mass(&root_edges),
+                ..self.diagnostics
+            },
             root_edges,
         }
     }
@@ -300,6 +375,7 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
             }
 
             if self.nodes[node_id.0].edges.is_empty() {
+                self.diagnostics.terminal_visits += 1;
                 self.backup_path(&path);
                 return;
             }
@@ -307,12 +383,14 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
             let Some(edge_index) = self.select_edge(node_id, &active_nodes) else {
                 let edge_index = self.select_edge_allowing_cycle(node_id);
                 path.push((node_id, edge_index));
+                self.diagnostics.cycle_visits += 1;
                 self.backup_cycle(&path);
                 return;
             };
 
             if edge_needs_catch_up(&self.nodes, node_id, edge_index) {
                 path.push((node_id, edge_index));
+                self.diagnostics.catch_up_visits += 1;
                 self.backup_path(&path);
                 return;
             }
@@ -321,6 +399,7 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
             let child = self.nodes[node_id.0].edges[edge_index].child;
 
             if apply_action(&mut engine, action).is_err() {
+                self.diagnostics.invalid_action_visits += 1;
                 self.nodes[node_id.0].set_raw_value(-1.0);
                 recompute_node(&mut self.nodes, node_id);
                 self.backup_path(&path);
@@ -330,6 +409,7 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
             path.push((node_id, edge_index));
             node_id = child;
             if !active_nodes.insert(node_id) {
+                self.diagnostics.cycle_visits += 1;
                 self.backup_cycle(&path);
                 return;
             }
@@ -427,6 +507,7 @@ pub struct ExternalMctsSearch {
     pending_nodes: HashSet<NodeId>,
     next_eval_id: u32,
     completed_visits: u32,
+    diagnostics: SearchDiagnostics,
 }
 
 impl ExternalMctsSearch {
@@ -447,6 +528,7 @@ impl ExternalMctsSearch {
             pending_nodes: HashSet::new(),
             next_eval_id: 1,
             completed_visits: 0,
+            diagnostics: SearchDiagnostics::default(),
         }
     }
 
@@ -519,6 +601,13 @@ impl ExternalMctsSearch {
             best_move: root_edges.first().map(EdgeStats::action),
             visits: root_node.visits,
             root_value: root_node.mean_value(),
+            principal_variation: principal_variation(&self.nodes, self.root_id, 8),
+            diagnostics: SearchDiagnostics {
+                root_visit_entropy: root_visit_entropy(&root_edges),
+                visited_root_moves: visited_root_moves(&root_edges),
+                visited_root_policy_mass: visited_root_policy_mass(&root_edges),
+                ..self.diagnostics
+            },
             root_edges,
         }
     }
@@ -540,6 +629,7 @@ impl ExternalMctsSearch {
                 }
 
                 if self.nodes[node_id.0].edges.is_empty() {
+                    self.diagnostics.terminal_visits += 1;
                     self.backup_path(&path);
                     self.completed_visits += 1;
                     break;
@@ -556,6 +646,7 @@ impl ExternalMctsSearch {
 
                     let edge_index = self.select_edge_allowing_cycle(node_id);
                     path.push((node_id, edge_index));
+                    self.diagnostics.cycle_visits += 1;
                     self.backup_cycle(&path);
                     self.completed_visits += 1;
 
@@ -568,6 +659,7 @@ impl ExternalMctsSearch {
 
                 if edge_needs_catch_up(&self.nodes, node_id, edge_index) {
                     path.push((node_id, edge_index));
+                    self.diagnostics.catch_up_visits += 1;
                     self.backup_path(&path);
                     self.completed_visits += 1;
                     break;
@@ -577,6 +669,7 @@ impl ExternalMctsSearch {
                 let child = self.nodes[node_id.0].edges[edge_index].child;
 
                 if apply_action(&mut engine, action).is_err() {
+                    self.diagnostics.invalid_action_visits += 1;
                     self.nodes[node_id.0].set_raw_value(-1.0);
                     recompute_node(&mut self.nodes, node_id);
                     self.backup_path(&path);
@@ -587,6 +680,7 @@ impl ExternalMctsSearch {
                 path.push((node_id, edge_index));
                 node_id = child;
                 if !active_nodes.insert(node_id) {
+                    self.diagnostics.cycle_visits += 1;
                     self.backup_cycle(&path);
                     self.completed_visits += 1;
                     break;
@@ -1609,6 +1703,21 @@ mod tests {
         recompute_node(&mut nodes, NodeId(0));
 
         assert!(!edge_needs_catch_up(&nodes, NodeId(0), 0));
+    }
+
+    #[test]
+    fn root_visit_entropy_reports_visit_spread() {
+        let mut edges = vec![
+            EdgeStats::new(BotMove::Play((0, 0)), NodeId(0), 0.5),
+            EdgeStats::new(BotMove::Play((1, 0)), NodeId(1), 0.5),
+        ];
+
+        assert_eq!(root_visit_entropy(&[]), 0.0);
+        assert_eq!(root_visit_entropy(&edges), 0.0);
+
+        edges[0].increment_visit();
+        edges[1].increment_visit();
+        assert!((root_visit_entropy(&edges) - std::f32::consts::LN_2).abs() < 0.0001);
     }
 
     #[test]

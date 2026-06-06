@@ -229,6 +229,8 @@ function formatResult(
           valueSource: result.randomSearch.valueSource,
           rootEdges: result.randomSearch.rootEdges.slice(0, 12),
           principalVariation: result.randomSearch.principalVariation,
+          principalVariationMoves: result.randomSearch.principalVariationMoves,
+          diagnostics: result.randomSearch.diagnostics,
         },
         manifest: result.manifest
           ? {
@@ -499,11 +501,17 @@ downloadButton.addEventListener("click", () => {
   const blob = new Blob([lastResultText], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
+  const timestamp = new Date().toISOString().replaceAll(/[:.]/g, "-");
 
   link.href = url;
-  link.download = `seki-ai-poc-${new Date().toISOString()}.json`;
+  link.download = `seki-ai-poc-${timestamp}.json`;
+  link.style.display = "none";
+  document.body.append(link);
   link.click();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, 1_000);
 });
 
 if (new URLSearchParams(window.location.search).get("autorun") === "1") {

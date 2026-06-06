@@ -88,6 +88,16 @@ export type AiPocWebGpuStatus = {
   reason?: string;
 };
 
+export type AiPocRandomMctsDiagnostics = {
+  catchUpVisits: number;
+  cycleVisits: number;
+  terminalVisits: number;
+  invalidActionVisits: number;
+  rootVisitEntropy: number;
+  visitedRootMoves: number;
+  visitedRootPolicyMass: number;
+};
+
 export type AiPocInterpretation = {
   value?: {
     win: number;
@@ -188,6 +198,7 @@ export type AiPocRandomMctsMove =
 
 export type AiPocRandomMctsEdge = {
   action: AiPocRandomMctsMove;
+  move?: string;
   visits: number;
   prior: number;
   value: number;
@@ -229,6 +240,8 @@ export type AiPocRandomMctsResult = {
     valueSource: string;
     rootEdges: AiPocRandomMctsEdge[];
     principalVariation: AiPocRandomMctsMove[];
+    principalVariationMoves?: string[];
+    diagnostics?: AiPocRandomMctsDiagnostics;
   };
   environment: AiPocResult["environment"];
 };

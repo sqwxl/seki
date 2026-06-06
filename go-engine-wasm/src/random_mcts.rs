@@ -29,15 +29,30 @@ struct RandomMctsResponse {
     value_source: &'static str,
     root_edges: Vec<WasmMctsEdge>,
     principal_variation: Vec<WasmBotMove>,
+    diagnostics: WasmMctsDiagnostics,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct WasmMctsEdge {
     action: WasmBotMove,
+    #[serde(rename = "move")]
+    move_label: String,
     visits: u32,
     prior: f32,
     value: f32,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WasmMctsDiagnostics {
+    catch_up_visits: u32,
+    cycle_visits: u32,
+    terminal_visits: u32,
+    invalid_action_visits: u32,
+    root_visit_entropy: f32,
+    visited_root_moves: usize,
+    visited_root_policy_mass: f32,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -102,6 +117,7 @@ pub fn run(engine: &Engine, request_json: &str) -> String {
             )
         };
     let best_move = summary.best_move.map(WasmBotMove::from);
+    let board_rows = engine.rows();
     let response = RandomMctsResponse {
         best_move,
         visits: summary.visits,
@@ -115,12 +131,27 @@ pub fn run(engine: &Engine, request_json: &str) -> String {
             .iter()
             .map(|edge| WasmMctsEdge {
                 action: WasmBotMove::from(edge.action()),
+                move_label: format_bot_move(edge.action(), board_rows),
                 visits: edge.visits(),
                 prior: edge.prior(),
                 value: edge.mean_value(),
             })
             .collect(),
-        principal_variation: best_move.into_iter().collect(),
+        principal_variation: summary
+            .principal_variation
+            .iter()
+            .copied()
+            .map(WasmBotMove::from)
+            .collect(),
+        diagnostics: WasmMctsDiagnostics {
+            catch_up_visits: summary.diagnostics.catch_up_visits,
+            cycle_visits: summary.diagnostics.cycle_visits,
+            terminal_visits: summary.diagnostics.terminal_visits,
+            invalid_action_visits: summary.diagnostics.invalid_action_visits,
+            root_visit_entropy: summary.diagnostics.root_visit_entropy,
+            visited_root_moves: summary.diagnostics.visited_root_moves,
+            visited_root_policy_mass: summary.diagnostics.visited_root_policy_mass,
+        },
     };
 
     serde_json::to_string(&response).unwrap_or_else(|err| error_json(&err.to_string()))
@@ -133,6 +164,17 @@ impl From<BotMove> for WasmBotMove {
             BotMove::Pass => Self::Pass,
         }
     }
+}
+
+fn format_bot_move(action: BotMove, board_rows: u8) -> String {
+    match action {
+        BotMove::Play((col, row)) => format!("{}{}", gtp_column(col), board_rows - row),
+        BotMove::Pass => "pass".to_string(),
+    }
+}
+
+fn gtp_column(col: u8) -> char {
+    char::from(b'A' + col + u8::from(col >= 8))
 }
 
 fn error_json(message: &str) -> String {
@@ -161,6 +203,19 @@ mod tests {
         assert_eq!(
             response["rootEdges"].as_array().expect("root edges").len(),
             10
+        );
+        assert!(response["rootEdges"][0]["move"].is_string());
+        assert!(
+            !response["principalVariation"]
+                .as_array()
+                .expect("principal variation")
+                .is_empty()
+        );
+        assert!(
+            response["diagnostics"]["rootVisitEntropy"]
+                .as_f64()
+                .expect("root entropy")
+                >= 0.0
         );
         assert_eq!(engine.board(), before.as_slice());
     }
@@ -205,6 +260,7 @@ mod tests {
         assert_eq!(root_edges.len(), 1);
         assert_eq!(root_edges[0]["action"]["col"], 2);
         assert_eq!(root_edges[0]["action"]["row"], 2);
+        assert_eq!(root_edges[0]["move"], "C1");
         assert_eq!(root_edges[0]["prior"], 1.0);
     }
 
@@ -226,12 +282,13 @@ mod tests {
         let json = run(&engine, r#"{"visits":4,"rolloutLimit":2}"#);
         let response: Value = serde_json::from_str(&json).expect("valid response json");
 
-        assert_eq!(response["visits"], 4);
+        assert_eq!(response["visits"], 1);
         assert!(response["bestMove"].is_null());
         assert_eq!(
             response["rootEdges"].as_array().expect("root edges").len(),
             0
         );
+        assert_eq!(response["diagnostics"]["terminalVisits"], 3);
     }
 
     #[test]

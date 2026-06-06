@@ -8,6 +8,7 @@ import type {
   AiPocBackend,
   AiPocBackendPreference,
   AiPocManifest,
+  AiPocRandomMctsDiagnostics,
   AiPocRandomMctsEdge,
   AiPocRandomMctsMove,
   AiPocRandomMctsRequest,
@@ -65,6 +66,7 @@ type RustRandomMctsResponse = {
   valueSource?: string;
   rootEdges: AiPocRandomMctsEdge[];
   principalVariation: AiPocRandomMctsMove[];
+  diagnostics?: AiPocRandomMctsDiagnostics;
 };
 
 type PolicyMctsBatchResponse = {
@@ -85,6 +87,8 @@ type PolicyMctsSummaryResponse = {
   winrate: number;
   rootValue: number;
   rootEdges: AiPocRandomMctsEdge[];
+  principalVariation: AiPocRandomMctsMove[];
+  diagnostics: AiPocRandomMctsDiagnostics;
 };
 
 let engineWasmModule: EngineWasmModule | undefined;
@@ -158,6 +162,11 @@ export async function runRandomMcts(
       valueSource: response.valueSource ?? "rollout",
       rootEdges: response.rootEdges,
       principalVariation: response.principalVariation,
+      principalVariationMoves: formatRandomMctsMoves(
+        response.principalVariation,
+        position.boardSize,
+      ),
+      diagnostics: response.diagnostics,
     },
     environment: {
       userAgent: navigator.userAgent,
@@ -293,7 +302,12 @@ export async function runLeafPolicyMcts(
       policySource: "external-leaf",
       valueSource: "external-leaf",
       rootEdges: summary.rootEdges,
-      principalVariation: summary.bestMove ? [summary.bestMove] : [],
+      principalVariation: summary.principalVariation,
+      principalVariationMoves: formatRandomMctsMoves(
+        summary.principalVariation,
+        position.boardSize,
+      ),
+      diagnostics: summary.diagnostics,
     },
     environment: {
       userAgent: navigator.userAgent,
@@ -354,6 +368,15 @@ function formatRandomMctsMove(
   }
 
   return `${gtpColumn(move.col)}${boardSize - move.row}`;
+}
+
+function formatRandomMctsMoves(
+  moves: AiPocRandomMctsMove[],
+  boardSize: number,
+): string[] {
+  return moves
+    .map((move) => formatRandomMctsMove(move, boardSize))
+    .filter((move): move is string => Boolean(move));
 }
 
 function gtpColumn(col: number): string {
