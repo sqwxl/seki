@@ -73,6 +73,52 @@ describe("KataGo v7 PoC feature encoder", () => {
     expect(position.stones.length).toBeLessThan(120);
   });
 
+  it("creates KataGo-derived 9x9 sparse search preset", () => {
+    const position = createAiPocPosition(
+      "katago-search-sparse-9x9",
+      9,
+      "white",
+      6.5,
+    );
+
+    expect(position.nextPlayer).toBe("black");
+    expect(
+      position.stones.filter((stone) => stone.player === "black"),
+    ).toHaveLength(4);
+    expect(
+      position.stones.filter((stone) => stone.player === "white"),
+    ).toHaveLength(4);
+    expect(position.stones).toContainEqual({ col: 2, row: 2, player: "black" });
+    expect(position.stones).toContainEqual({ col: 5, row: 2, player: "white" });
+    expect(position.recentMoves).toHaveLength(0);
+  });
+
+  it("creates KataGo-derived 9x9 local contact preset", () => {
+    const position = createAiPocPosition(
+      "katago-local-contact-9x9",
+      9,
+      "black",
+      6.5,
+    );
+
+    expect(position.nextPlayer).toBe("white");
+    expect(
+      position.stones.filter((stone) => stone.player === "black"),
+    ).toHaveLength(3);
+    expect(
+      position.stones.filter((stone) => stone.player === "white"),
+    ).toHaveLength(2);
+    expect(position.stones).toContainEqual({ col: 4, row: 3, player: "black" });
+    expect(position.stones).toContainEqual({ col: 4, row: 4, player: "white" });
+    expect(position.recentMoves).toHaveLength(0);
+  });
+
+  it("rejects KataGo 9x9 presets on other board sizes", () => {
+    expect(() =>
+      createAiPocPosition("katago-search-sparse-9x9", 19, "black", 6.5),
+    ).toThrow("requires a 9x9 board");
+  });
+
   it("marks one-liberty chains", () => {
     const position = createAiPocPosition("empty", 19, "white", 6.5);
     position.stones = [

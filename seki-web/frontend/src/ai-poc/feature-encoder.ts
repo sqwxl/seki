@@ -66,6 +66,45 @@ const LI_JIANG_MAINLINE_COORDS = [
 ]
   .join(" ")
   .split(" ");
+const KATAGO_BOARD_PRESETS: Record<
+  string,
+  {
+    boardSize: number;
+    nextPlayer: AiPocPlayer;
+    rows: string[];
+  }
+> = {
+  "katago-search-sparse-9x9": {
+    boardSize: 9,
+    nextPlayer: "black",
+    rows: [
+      ".........",
+      ".........",
+      "..x..o...",
+      ".........",
+      "..x...o..",
+      "...o.....",
+      "..o.x.x..",
+      ".........",
+      ".........",
+    ],
+  },
+  "katago-local-contact-9x9": {
+    boardSize: 9,
+    nextPlayer: "white",
+    rows: [
+      ".........",
+      ".........",
+      ".........",
+      "....x....",
+      "....ox...",
+      "....xo...",
+      ".........",
+      ".........",
+      ".........",
+    ],
+  },
+};
 
 export function defaultAiPocRules(): AiPocRules {
   return {
@@ -87,6 +126,10 @@ export function createAiPocPosition(
 
   if (proGameMoveCount !== undefined) {
     return createLiJiangProGamePosition(proGameMoveCount, boardSize, komi);
+  }
+
+  if (KATAGO_BOARD_PRESETS[preset]) {
+    return createKataGoBoardPreset(preset, boardSize, komi);
   }
 
   if (preset === "corner-exchange") {
@@ -121,6 +164,31 @@ export function createAiPocPosition(
   };
 }
 
+function createKataGoBoardPreset(
+  preset: string,
+  boardSize: number,
+  komi: number,
+): AiPocPosition {
+  const boardPreset = KATAGO_BOARD_PRESETS[preset];
+  if (!boardPreset) {
+    throw new Error(`Unknown KataGo board preset: ${preset}`);
+  }
+  if (boardSize !== boardPreset.boardSize) {
+    throw new Error(
+      `KataGo preset ${preset} requires a ${boardPreset.boardSize}x${boardPreset.boardSize} board`,
+    );
+  }
+
+  return {
+    boardSize,
+    nextPlayer: boardPreset.nextPlayer,
+    komi,
+    rules: defaultAiPocRules(),
+    stones: stonesFromAsciiBoard(boardPreset.rows),
+    recentMoves: [],
+  };
+}
+
 function createLiJiangProGamePosition(
   moveCount: number,
   boardSize: number,
@@ -151,6 +219,26 @@ function createLiJiangProGamePosition(
     stones: stonesFromBoard(board, boardSize),
     recentMoves: [...moves].reverse(),
   };
+}
+
+function stonesFromAsciiBoard(rows: string[]): AiPocStone[] {
+  const stones: AiPocStone[] = [];
+
+  rows.forEach((row, rowIndex) => {
+    for (let col = 0; col < row.length; col++) {
+      const char = row[col];
+
+      if (char === "x") {
+        stones.push({ col, row: rowIndex, player: "black" });
+      } else if (char === "o") {
+        stones.push({ col, row: rowIndex, player: "white" });
+      } else if (char !== ".") {
+        throw new Error(`Unsupported KataGo board preset char: ${char}`);
+      }
+    }
+  });
+
+  return stones;
 }
 
 export function encodeKataGoV7PocFeatures(

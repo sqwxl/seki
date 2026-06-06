@@ -52,8 +52,8 @@ In scope:
 
 Out of scope:
 
-- Neural-network policy/value evaluation.
-- Pondering.
+- Product neural-network policy/value integration outside the PoC worker.
+- Pondering in the first move-selection API.
 - Product bot UI.
 - Server-side bot games.
 - Ranked play.
@@ -392,6 +392,29 @@ Current Rust/WASM status:
 - Position presets now include three 19x19 mainline snapshots from
   `3hlu-gokifu-20260603-Li_Xiangyu-Jiang_Weijie.sgf` at moves 32, 72, and 120.
   These give the PoC non-empty pro-game positions for quality and latency tests.
+- Position presets also include two fixed 9x9 boards derived from local KataGo
+  tests:
+  - `katago-search-sparse-9x9` from `vendor/KataGo/cpp/tests/testsearchnonn.cpp`
+    sparse-board search coverage.
+  - `katago-local-contact-9x9` from `vendor/KataGo/cpp/tests/testsearchv9.cpp`
+    local contact / avoid-move-style coverage.
+  These are not expected-answer tests yet. They are stable tactical benchmark
+  inputs for direct policy, catch-up behavior, and 9x9 search tuning.
+- Fix from 2026-06-06: direct-policy ranking and leaf-policy MCTS now both use
+  Rust-side explicit-position helpers. This matters for presets that have
+  stones but no move history; the earlier MCTS path only replayed
+  `recentMoves`, so those 9x9 presets were accidentally searched as empty
+  boards.
+- Latest Chrome Android 9x9 rerun after that fix:
+  - `katago-search-sparse-9x9`, direct policy and MCTS root policy match
+    exactly; both pick `E5`.
+  - `katago-local-contact-9x9`, direct policy and MCTS root policy agree on
+    `D5`; later top-policy ordering differs only among near-equal priors.
+  - Leaf-policy MCTS with 64 visits / 16 max actions / 16 eval batch still
+    takes about 23s on Android. Rust search is only tens of milliseconds;
+    model evaluation dominates.
+  - Direct policy remains about 2s cold-ish and is the better tap-to-move
+    baseline until pondering exists.
 - Current Rust graph search is being moved toward KataGo's canonical recursive
   value formulation: each node stores its direct evaluator value, parent-action
   edge visits remain distinct from child visits, and node values are recomputed
@@ -441,13 +464,45 @@ Current Rust/WASM status:
 - Remaining KataGo gaps after that step: virtual loss / real parallelism,
   dynamic cpuct, root noise/temperature, LCB selection, full feature encoding,
   leaky catch-up tuning, and Go-specific repetition hash safety.
+- The PoC worker now has a first stable engine-facing request shape:
+  `type: "analyze-position"`. It accepts an explicit serialized position,
+  model manifest URL, backend preference, and preset id. Internally it reuses
+  the Rust leaf-policy MCTS path and returns a product-shaped analysis object
+  with best move, winrate, principal variation, root move stats, diagnostics,
+  and timing breakdown.
+- Current `analyze-position` presets:
+  - `mobile-fast`: 64 visits, 16 max policy actions, eval batch 16, FPU 0.2.
+  - `tuning`: 64 visits, 16 max policy actions, eval batch 4, FPU 0.5.
+  These are non-pondering immediate-move settings. Product strength settings
+  should leave room for slower/better search when pondering has already warmed
+  the tree between opponent moves.
+- The worker now supports KataGo policy optimism for official ONNX exports with
+  two policy channels. It blends normal and optimistic logits using KataGo's
+  backend formula: `normal + (optimistic - normal) * policyOptimism`.
+  Default remains `0.0` for normal policy. Benchmark `0.5` and `1.0` as lab
+  settings only.
+- The PoC worker now has an explicit `direct-policy` path. It runs one ONNX
+  evaluation, replays the position into `go-engine-wasm`, legal-masks policy
+  logits, and reports the best legal move plus top legal priors. This replaces
+  using a confusing `1 visit` MCTS run as the immediate-move baseline.
+- Current mobile direction:
+  - Immediate move: direct policy/value with a loaded model.
+  - Stronger move: MCTS only when pondering can spend background time.
+  - Tap-to-move MCTS without pondering is too slow for the 9x9 B18C384 model
+    on Android because model eval dominates search time.
+- Chrome Android direct-policy result on empty 9x9:
+  - `policyOptimism: 0.0`: total ~2.14s, model eval ~1.20s, best `D6`.
+  - `policyOptimism: 0.5`: total ~1.51s, model eval ~0.80s, best `D6`.
+  Timing variance appears warm-tab/cache-related; optimism changes move ordering
+  slightly but not the best move on empty board.
 - Next pending steps:
-  1. Keep both presets: Android fast for default mobile use, tuning for
-     search-quality experiments and diagnostics.
-  2. Add at least one more transposition-heavy or tactical benchmark preset to
-     test whether catch-up ever reduces model eval count in practice.
-  3. Lock the first engine-facing API shape and ship the current default mobile
-     presets only after those measurements confirm where search time is going.
+  1. Benchmark the KataGo-derived 9x9 presets with direct policy and
+     leaf-policy MCTS to see whether they expose useful tactical differences or
+     transposition/catch-up behavior.
+  2. Start adapting the product-facing bot path to call `analyze-position`
+     instead of PoC-only button handlers.
+  3. Keep mobile presets conservative until pondering exists; slower/better
+     settings should mostly spend ponder budget, not block every tap.
 
 ## Tests
 

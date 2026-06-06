@@ -23,6 +23,17 @@ Prefer data that can be exported from the visible `BoardController`/WASM engine
 without exposing mutable engine internals. If a new WASM method is needed for a
 clean snapshot, add it in `go-engine-wasm` as a thin wrapper over `go-engine`.
 
+Current status:
+
+- `seki-web/frontend/src/ai/position.ts` exports `aiPositionFromEngine`.
+- It serializes a `WasmEngine`-shaped object into the current worker position
+  shape: square board size, stones, side to move, komi, ko point, rules, and
+  recent moves latest-first.
+- Tests cover board stones, side to move, ko export, recent move order, and
+  rejecting non-square boards.
+- Next integration step: call this helper from the product board/analysis flow
+  and send the result to the worker `analyze-position` request.
+
 ## Feature Extraction
 
 Convert `AiPosition` to the NN input tensors expected by the selected model:
@@ -69,7 +80,23 @@ the worker.
 
 ## Worker Additions
 
-Add `genmove` after MCTS exists:
+Current bridge API before product `genmove`:
+
+```ts
+type AnalyzePositionRequest = {
+  id: string;
+  type: "analyze-position";
+  manifestUrl: string;
+  backendPreference: "auto" | "webgpu" | "wasm";
+  position: AiPosition;
+  preset: "mobile-fast" | "tuning";
+};
+```
+
+This keeps product integration independent from the PoC buttons while MCTS
+settings, model load behavior, and Android timings are still being tuned.
+
+Add `genmove` after product call sites and cancellation semantics are clear:
 
 ```ts
 type GenmoveRequest = {

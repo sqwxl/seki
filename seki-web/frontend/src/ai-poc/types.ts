@@ -1,3 +1,5 @@
+import type { AiPocPosition } from "./feature-encoder";
+
 export type AiPocBackend = "webgpu" | "wasm" | "cpu";
 
 export type AiPocBackendPreference = "auto" | "webgpu" | "wasm";
@@ -31,6 +33,7 @@ export type AiPocRunRequest = {
   nextPlayer: "black" | "white";
   komi: number;
   backendPreference: AiPocBackendPreference;
+  policyOptimism: number;
   runs: number;
 };
 
@@ -38,6 +41,14 @@ export type AiPocSearchRequest = Omit<AiPocRunRequest, "type" | "runs"> & {
   type: "search";
   visits: number;
   maxChildren: number;
+};
+
+export type AiPocDirectPolicyRequest = Omit<
+  AiPocRunRequest,
+  "type" | "runs"
+> & {
+  type: "direct-policy";
+  maxPolicyActions: number;
 };
 
 export type AiPocRandomMctsRequest = Omit<AiPocRunRequest, "type" | "runs"> & {
@@ -70,14 +81,29 @@ export type AiPocRustLeafPolicyMctsRequest = Omit<
   maxPolicyActions: number;
   batchSize: number;
   fpuReduction: number;
+  position?: AiPocPosition;
+};
+
+export type AiAnalysisPresetId = "mobile-fast" | "tuning";
+
+export type AiAnalyzePositionRequest = {
+  id: string;
+  type: "analyze-position";
+  manifestUrl: string;
+  backendPreference: AiPocBackendPreference;
+  policyOptimism: number;
+  position: AiPocPosition;
+  preset: AiAnalysisPresetId;
 };
 
 export type AiPocRequest =
   | AiPocRunRequest
   | AiPocSearchRequest
+  | AiPocDirectPolicyRequest
   | AiPocRandomMctsRequest
   | AiPocRustPolicyMctsRequest
-  | AiPocRustLeafPolicyMctsRequest;
+  | AiPocRustLeafPolicyMctsRequest
+  | AiAnalyzePositionRequest;
 
 export type AiPocMetricSummary = {
   p50Ms: number;
@@ -191,6 +217,38 @@ export type AiPocSearchResult = {
   environment: AiPocResult["environment"];
 };
 
+export type AiPocDirectPolicyResult = {
+  runtime: "go-engine-wasm";
+  policyRuntime: AiPocRuntime;
+  manifest: AiPocManifest;
+  backend: AiPocBackend;
+  backendPreference: AiPocBackendPreference;
+  fallbackReason?: string;
+  model?: AiPocResult["model"];
+  webgpu?: AiPocWebGpuStatus;
+  input: {
+    boardSize: number;
+    positionPreset: string;
+    nextPlayer: string;
+    komi: number;
+    policyOptimism: number;
+  };
+  directPolicy: {
+    maxPolicyActions: number;
+    policyOptimism: number;
+    modelLoadMs: number;
+    modelEvalMs: number;
+    totalElapsedMs: number;
+    bestMove?: string;
+    winrate: number;
+    rootValue: number;
+    policySource: string;
+    valueSource: string;
+    legalMoves: AiPocRandomMctsEdge[];
+  };
+  environment: AiPocResult["environment"];
+};
+
 export type AiPocRandomMctsMove =
   | {
       kind: "play";
@@ -221,12 +279,14 @@ export type AiPocRandomMctsResult = {
     positionPreset: string;
     nextPlayer: string;
     komi: number;
+    policyOptimism?: number;
   };
   randomSearch: {
     visits: number;
     rolloutLimit: number;
     maxPolicyActions: number;
     fpuReduction?: number;
+    policyOptimism?: number;
     seed: number;
     elapsedMs: number;
     modelLoadMs?: number;
@@ -242,6 +302,7 @@ export type AiPocRandomMctsResult = {
     rootValue: number;
     policySource: string;
     valueSource: string;
+    rootPolicyMoves?: AiPocRandomMctsEdge[];
     rootEdges: AiPocRandomMctsEdge[];
     principalVariation: AiPocRandomMctsMove[];
     principalVariationMoves?: string[];
@@ -250,10 +311,56 @@ export type AiPocRandomMctsResult = {
   environment: AiPocResult["environment"];
 };
 
+export type AiAnalyzePositionResult = {
+  runtime: "go-engine-wasm";
+  policyRuntime: AiPocRuntime;
+  manifest: AiPocManifest;
+  backend: AiPocBackend;
+  backendPreference: AiPocBackendPreference;
+  fallbackReason?: string;
+  model?: AiPocResult["model"];
+  webgpu?: AiPocWebGpuStatus;
+  input: {
+    boardSize: number;
+    nextPlayer: string;
+    komi: number;
+    policyOptimism?: number;
+  };
+  analysis: {
+    preset: AiAnalysisPresetId;
+    visits: number;
+    maxPolicyActions: number;
+    batchSize: number;
+    fpuReduction: number;
+    policyOptimism: number;
+    bestMove?: string;
+    winrate: number;
+    rootValue: number;
+    principalVariation: AiPocRandomMctsMove[];
+    principalVariationMoves?: string[];
+    rootMoves: AiPocRandomMctsEdge[];
+    diagnostics?: AiPocRandomMctsDiagnostics;
+    timings: {
+      modelLoadMs?: number;
+      modelEvalMs?: number;
+      modelEvaluations?: number;
+      modelBatches?: number;
+      wasmSearchMs: number;
+      totalElapsedMs: number;
+    };
+  };
+  environment: AiPocResult["environment"];
+};
+
 export type AiPocResponse =
   | {
       id: string;
       type: "result";
-      result: AiPocResult | AiPocSearchResult | AiPocRandomMctsResult;
+      result:
+        | AiPocResult
+        | AiPocSearchResult
+        | AiPocDirectPolicyResult
+        | AiPocRandomMctsResult
+        | AiAnalyzePositionResult;
     }
   | { id: string; type: "error"; message: string; stack?: string };

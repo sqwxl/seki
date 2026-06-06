@@ -1,4 +1,6 @@
 import type {
+  AiAnalyzePositionResult,
+  AiPocDirectPolicyResult,
   AiPocRandomMctsResult,
   AiPocRequest,
   AiPocResponse,
@@ -58,6 +60,10 @@ const proGamePositionPresets = new Set([
   "li-jiang-move-72",
   "li-jiang-move-120",
 ]);
+const kataGo9x9PositionPresets = new Map([
+  ["katago-search-sparse-9x9", "black"],
+  ["katago-local-contact-9x9", "white"],
+]);
 
 const app = document.querySelector<HTMLDivElement>("#ai-poc");
 
@@ -69,12 +75,12 @@ app.innerHTML = `
   <section class="ai-poc-panel">
     <div>
       <label for="manifest-url">Manifest</label>
-      <input id="manifest-url" type="text" list="manifest-options" value="${defaultManifest}" />
-      <datalist id="manifest-options">
-        <option value="/static/models/lionffen-b6c64-19x19/manifest.json">Lionffen b6c64 official ONNX</option>
+      <select id="manifest-url">
+        <option value="/static/models/lionffen-b6c64-19x19/manifest.json" selected>Lionffen b6c64 official ONNX</option>
+        <option value="/static/models/kata9x9-b18c384nbt-20231025/manifest.json">KataGo 9x9 b18c384nbt official ONNX</option>
         <option value="/static/models/kaya-b28c512-uint8/manifest.json">Kaya b28c512 uint8 ONNX</option>
         <option value="/static/models/ai-poc-synthetic/manifest.json">Synthetic runtime check</option>
-      </datalist>
+      </select>
     </div>
     <div>
       <label for="board-size">Board size</label>
@@ -89,6 +95,8 @@ app.innerHTML = `
       <select id="position-preset">
         <option value="empty" selected>Empty board</option>
         <option value="corner-exchange">Corner exchange</option>
+        <option value="katago-search-sparse-9x9">KataGo sparse 9x9</option>
+        <option value="katago-local-contact-9x9">KataGo local contact 9x9</option>
         <option value="li-jiang-move-32">Li Xiangyu vs Jiang Weijie, move 32</option>
         <option value="li-jiang-move-72">Li Xiangyu vs Jiang Weijie, move 72</option>
         <option value="li-jiang-move-120">Li Xiangyu vs Jiang Weijie, move 120</option>
@@ -146,6 +154,10 @@ app.innerHTML = `
       <input id="mcts-fpu-reduction" type="number" min="0" max="2" step="0.1" value="0.2" />
     </div>
     <div>
+      <label for="policy-optimism">Policy optimism</label>
+      <input id="policy-optimism" type="number" min="0" max="1" step="0.1" value="0" />
+    </div>
+    <div>
       <label for="rollout-limit">Rollout limit</label>
       <input id="rollout-limit" type="number" min="1" max="500" value="120" />
     </div>
@@ -154,6 +166,7 @@ app.innerHTML = `
       <input id="mcts-seed" type="number" min="0" value="99" />
     </div>
     <button id="run-poc" type="button">Run inference</button>
+    <button id="run-direct-policy" type="button">Run direct policy</button>
     <button id="run-search" type="button">Run policy MCTS</button>
     <button id="run-rust-policy-mcts" type="button">Run Rust root-policy MCTS</button>
     <button id="run-rust-leaf-policy-mcts" type="button">Run Rust leaf-policy MCTS</button>
@@ -167,7 +180,7 @@ app.innerHTML = `
 `;
 
 const manifestInput =
-  document.querySelector<HTMLInputElement>("#manifest-url")!;
+  document.querySelector<HTMLSelectElement>("#manifest-url")!;
 const sizeInput = document.querySelector<HTMLSelectElement>("#board-size")!;
 const positionPresetInput =
   document.querySelector<HTMLSelectElement>("#position-preset")!;
@@ -188,10 +201,14 @@ const batchSizeInput =
 const fpuReductionInput = document.querySelector<HTMLInputElement>(
   "#mcts-fpu-reduction",
 )!;
+const policyOptimismInput =
+  document.querySelector<HTMLInputElement>("#policy-optimism")!;
 const rolloutLimitInput =
   document.querySelector<HTMLInputElement>("#rollout-limit")!;
 const seedInput = document.querySelector<HTMLInputElement>("#mcts-seed")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run-poc")!;
+const directPolicyButton =
+  document.querySelector<HTMLButtonElement>("#run-direct-policy")!;
 const searchButton = document.querySelector<HTMLButtonElement>("#run-search")!;
 const rustPolicyMctsButton = document.querySelector<HTMLButtonElement>(
   "#run-rust-policy-mcts",
@@ -218,8 +235,99 @@ function ensureWorker(): Worker {
 }
 
 function formatResult(
-  result: AiPocResult | AiPocSearchResult | AiPocRandomMctsResult,
+  result:
+    | AiPocResult
+    | AiPocSearchResult
+    | AiPocDirectPolicyResult
+    | AiPocRandomMctsResult
+    | AiAnalyzePositionResult,
 ): string {
+  if ("analysis" in result) {
+    return JSON.stringify(
+      {
+        analysis: {
+          model: result.manifest.id,
+          runtime: result.runtime,
+          policyRuntime: result.policyRuntime,
+          backend: result.backend,
+          backendPreference: result.backendPreference,
+          boardSize: result.input.boardSize,
+          nextPlayer: result.input.nextPlayer,
+          preset: result.analysis.preset,
+          policyOptimism: result.analysis.policyOptimism,
+          visits: result.analysis.visits,
+          maxPolicyActions: result.analysis.maxPolicyActions,
+          batchSize: result.analysis.batchSize,
+          fpuReduction: result.analysis.fpuReduction,
+          bestMove: result.analysis.bestMove,
+          winrate: result.analysis.winrate,
+          rootValue: result.analysis.rootValue,
+          timings: result.analysis.timings,
+          rootMoves: result.analysis.rootMoves.slice(0, 12),
+          principalVariation: result.analysis.principalVariation,
+          principalVariationMoves: result.analysis.principalVariationMoves,
+          diagnostics: result.analysis.diagnostics,
+        },
+        manifest: {
+          id: result.manifest.id,
+          kind: result.manifest.kind,
+          version: result.manifest.version,
+        },
+        runtime: result.runtime,
+        policyRuntime: result.policyRuntime,
+        backend: result.backend,
+        backendPreference: result.backendPreference,
+        fallbackReason: result.fallbackReason,
+        model: result.model,
+        webgpu: result.webgpu,
+        input: result.input,
+        environment: result.environment,
+      },
+      null,
+      2,
+    );
+  }
+
+  if ("directPolicy" in result) {
+    return JSON.stringify(
+      {
+        directPolicy: {
+          model: result.manifest.id,
+          runtime: result.runtime,
+          policyRuntime: result.policyRuntime,
+          backend: result.backend,
+          backendPreference: result.backendPreference,
+          boardSize: result.input.boardSize,
+          positionPreset: result.input.positionPreset,
+          nextPlayer: result.input.nextPlayer,
+          maxPolicyActions: result.directPolicy.maxPolicyActions,
+          policyOptimism: result.directPolicy.policyOptimism,
+          modelLoadMs: result.directPolicy.modelLoadMs,
+          modelEvalMs: result.directPolicy.modelEvalMs,
+          totalElapsedMs: result.directPolicy.totalElapsedMs,
+          bestMove: result.directPolicy.bestMove,
+          winrate: result.directPolicy.winrate,
+          rootValue: result.directPolicy.rootValue,
+          policySource: result.directPolicy.policySource,
+          valueSource: result.directPolicy.valueSource,
+          legalMoves: result.directPolicy.legalMoves,
+        },
+        manifest: {
+          id: result.manifest.id,
+          kind: result.manifest.kind,
+          version: result.manifest.version,
+        },
+        fallbackReason: result.fallbackReason,
+        model: result.model,
+        webgpu: result.webgpu,
+        input: result.input,
+        environment: result.environment,
+      },
+      null,
+      2,
+    );
+  }
+
   if ("randomSearch" in result) {
     return JSON.stringify(
       {
@@ -232,6 +340,7 @@ function formatResult(
           rolloutLimit: result.randomSearch.rolloutLimit,
           maxPolicyActions: result.randomSearch.maxPolicyActions,
           fpuReduction: result.randomSearch.fpuReduction,
+          policyOptimism: result.randomSearch.policyOptimism,
           seed: result.randomSearch.seed,
           elapsedMs: result.randomSearch.elapsedMs,
           modelLoadMs: result.randomSearch.modelLoadMs,
@@ -247,6 +356,7 @@ function formatResult(
           rootValue: result.randomSearch.rootValue,
           policySource: result.randomSearch.policySource,
           valueSource: result.randomSearch.valueSource,
+          rootPolicyMoves: result.randomSearch.rootPolicyMoves?.slice(0, 12),
           rootEdges: result.randomSearch.rootEdges.slice(0, 12),
           principalVariation: result.randomSearch.principalVariation,
           principalVariationMoves: result.randomSearch.principalVariationMoves,
@@ -285,6 +395,7 @@ function formatResult(
           positionPreset: positionPresetInput.value,
           visits: result.search.visits,
           maxChildren: result.search.maxChildren,
+          policyOptimism: Number(policyOptimismInput.value),
           elapsedMs: result.search.elapsedMs,
           bestMove: result.search.bestMove,
           rootValue: result.search.rootValue,
@@ -318,6 +429,7 @@ function formatResult(
         backendPreference: result.backendPreference,
         boardSize: result.input?.boardSize,
         positionPreset: positionPresetInput.value,
+        policyOptimism: Number(policyOptimismInput.value),
         runs: Number(runsInput.value),
         p50Ms: result.timings.eval.p50Ms,
         p95Ms: result.timings.eval.p95Ms,
@@ -356,6 +468,7 @@ function baseRequest() {
     komi: Number(komiInput.value),
     backendPreference:
       backendPreferenceInput.value as AiPocRequest["backendPreference"],
+    policyOptimism: Number(policyOptimismInput.value),
   };
 }
 
@@ -386,6 +499,16 @@ function syncMctsPresetSelection() {
 
 function syncPositionPresetMetadata() {
   if (!proGamePositionPresets.has(positionPresetInput.value)) {
+    const kataGoNextPlayer = kataGo9x9PositionPresets.get(
+      positionPresetInput.value,
+    );
+
+    if (kataGoNextPlayer) {
+      sizeInput.value = "9";
+      nextPlayerInput.value = kataGoNextPlayer;
+      komiInput.value = "6.5";
+    }
+
     return;
   }
 
@@ -413,6 +536,16 @@ function runSearch() {
   };
 
   postRequest(request, "Searching...");
+}
+
+function runDirectPolicy() {
+  const request: AiPocRequest = {
+    ...baseRequest(),
+    type: "direct-policy",
+    maxPolicyActions: Number(maxChildrenInput.value),
+  };
+
+  postRequest(request, "Running direct policy...");
 }
 
 function runRandomMcts() {
@@ -460,6 +593,7 @@ function postRequest(request: AiPocRequest, runningText: string) {
   const activeWorker = ensureWorker();
 
   runButton.disabled = true;
+  directPolicyButton.disabled = true;
   searchButton.disabled = true;
   rustPolicyMctsButton.disabled = true;
   rustLeafPolicyMctsButton.disabled = true;
@@ -478,6 +612,7 @@ function postRequest(request: AiPocRequest, runningText: string) {
 
     activeWorker.removeEventListener("message", onMessage);
     runButton.disabled = false;
+    directPolicyButton.disabled = false;
     searchButton.disabled = false;
     rustPolicyMctsButton.disabled = false;
     rustLeafPolicyMctsButton.disabled = false;
@@ -500,6 +635,7 @@ function postRequest(request: AiPocRequest, runningText: string) {
 }
 
 runButton.addEventListener("click", runPoc);
+directPolicyButton.addEventListener("click", runDirectPolicy);
 searchButton.addEventListener("click", runSearch);
 rustPolicyMctsButton.addEventListener("click", runRustPolicyMcts);
 rustLeafPolicyMctsButton.addEventListener("click", runRustLeafPolicyMcts);

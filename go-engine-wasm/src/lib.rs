@@ -355,6 +355,21 @@ impl WasmEngine {
     pub fn policy_mcts_json(&self, request_json: &str) -> policy_mcts::WasmPolicyMcts {
         policy_mcts::create(self.inner.engine(), request_json)
     }
+
+    /// Start policy/value graph MCTS from an explicit AI PoC position.
+    /// This supports benchmark presets that provide stones without move history.
+    pub fn policy_mcts_position_json(
+        &self,
+        position_json: &str,
+        request_json: &str,
+    ) -> policy_mcts::WasmPolicyMcts {
+        policy_mcts::create_from_position_json(position_json, request_json)
+    }
+
+    /// Rank legal policy moves from an explicit AI PoC position.
+    pub fn rank_policy_json(&self, request_json: &str) -> String {
+        policy_mcts::rank_policy_json(request_json)
+    }
 }
 
 /// Returns the maximum allowed handicap stones for the given board dimensions.

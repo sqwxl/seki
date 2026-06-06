@@ -11,9 +11,16 @@ import {
   type AiPocPosition,
 } from "./feature-encoder";
 import { runPolicyMcts } from "./mcts";
-import { runLeafPolicyMcts, runRandomMcts } from "./random-mcts-worker";
+import {
+  rankLegalPolicyMoves,
+  runLeafPolicyMcts,
+  runRandomMcts,
+} from "./random-mcts-worker";
 import type {
+  AiAnalysisPresetId,
+  AiAnalyzePositionResult,
   AiPocBackend,
+  AiPocDirectPolicyResult,
   AiPocInterpretation,
   AiPocManifest,
   AiPocRandomMctsResult,
@@ -25,6 +32,28 @@ import type {
 } from "./types";
 
 const workerStartedAt = performance.now();
+
+type AnalyzePositionPreset = {
+  visits: number;
+  maxPolicyActions: number;
+  batchSize: number;
+  fpuReduction: number;
+};
+
+const analyzePositionPresets = {
+  "mobile-fast": {
+    visits: 64,
+    maxPolicyActions: 16,
+    batchSize: 16,
+    fpuReduction: 0.2,
+  },
+  tuning: {
+    visits: 64,
+    maxPolicyActions: 16,
+    batchSize: 4,
+    fpuReduction: 0.5,
+  },
+} satisfies Record<AiAnalysisPresetId, AnalyzePositionPreset>;
 
 type BrowserGpu = {
   requestAdapter(options?: {
@@ -711,10 +740,11 @@ async function describeMappedOnnxOutputs(
 async function interpretOnnxOutputs(
   outputs: ort.InferenceSession.ReturnType,
   boardSize: number,
+  policyOptimism: number,
 ): Promise<AiPocInterpretation> {
   const policy =
     (await getOrtFloatData(outputs.policy)) ??
-    (await getOfficialKatagoPolicyData(outputs, boardSize));
+    (await getOfficialKatagoPolicyData(outputs, boardSize, policyOptimism));
   const value =
     (await getOrtFloatData(outputs.value)) ??
     (await getOrtFloatData(outputs.OutputValue));
@@ -742,6 +772,7 @@ async function getOrtFloatData(
 async function getOfficialKatagoPolicyData(
   outputs: ort.InferenceSession.ReturnType,
   boardSize: number,
+  policyOptimism: number,
 ): Promise<Float32Array | undefined> {
   const spatial = await getOrtFloatData(outputs.OutputPolicy);
   const pass = await getOrtFloatData(outputs.OutputPolicyPass);
@@ -752,8 +783,21 @@ async function getOfficialKatagoPolicyData(
 
   const policySize = boardSize * boardSize;
   const policy = new Float32Array(policySize + 1);
-  policy.set(spatial.slice(0, policySize), 0);
-  policy[policySize] = pass[0] ?? 0;
+  const policyChannels = Math.max(1, Math.floor(spatial.length / policySize));
+  const passChannels = Math.max(1, pass.length);
+
+  for (let index = 0; index < policySize; index++) {
+    const normal = spatial[index] ?? 0;
+    const optimistic =
+      policyChannels >= 2 ? (spatial[index + policySize] ?? normal) : normal;
+
+    policy[index] = blendPolicyLogit(normal, optimistic, policyOptimism);
+  }
+  policy[policySize] = blendPolicyLogit(
+    pass[0] ?? 0,
+    passChannels >= 2 ? (pass[1] ?? pass[0] ?? 0) : (pass[0] ?? 0),
+    policyOptimism,
+  );
 
   return policy;
 }
@@ -762,10 +806,16 @@ async function getPolicyBatchData(
   outputs: ort.InferenceSession.ReturnType,
   boardSize: number,
   batchSize: number,
+  policyOptimism: number,
 ): Promise<Float32Array[] | undefined> {
   return (
     (await getNamedPolicyBatchData(outputs.policy, boardSize, batchSize)) ??
-    (await getOfficialKatagoPolicyBatchData(outputs, boardSize, batchSize))
+    (await getOfficialKatagoPolicyBatchData(
+      outputs,
+      boardSize,
+      batchSize,
+      policyOptimism,
+    ))
   );
 }
 
@@ -794,6 +844,7 @@ async function getOfficialKatagoPolicyBatchData(
   outputs: ort.InferenceSession.ReturnType,
   boardSize: number,
   batchSize: number,
+  policyOptimism: number,
 ): Promise<Float32Array[] | undefined> {
   const spatial = await getOrtFloatData(outputs.OutputPolicy);
   const pass = await getOrtFloatData(outputs.OutputPolicyPass);
@@ -805,6 +856,10 @@ async function getOfficialKatagoPolicyBatchData(
   const boardPolicySize = boardSize * boardSize;
   const spatialStride = Math.floor(spatial.length / batchSize);
   const passStride = Math.max(1, Math.floor(pass.length / batchSize));
+  const policyChannels = Math.max(
+    1,
+    Math.floor(spatialStride / boardPolicySize),
+  );
 
   if (spatialStride < boardPolicySize) {
     return undefined;
@@ -813,17 +868,38 @@ async function getOfficialKatagoPolicyBatchData(
   return Array.from({ length: batchSize }, (_, index) => {
     const policy = new Float32Array(boardPolicySize + 1);
 
-    policy.set(
-      spatial.slice(
-        index * spatialStride,
-        index * spatialStride + boardPolicySize,
-      ),
-      0,
+    const spatialOffset = index * spatialStride;
+    const passOffset = index * passStride;
+
+    for (let moveIndex = 0; moveIndex < boardPolicySize; moveIndex++) {
+      const normal = spatial[spatialOffset + moveIndex] ?? 0;
+      const optimistic =
+        policyChannels >= 2
+          ? (spatial[spatialOffset + boardPolicySize + moveIndex] ?? normal)
+          : normal;
+
+      policy[moveIndex] = blendPolicyLogit(normal, optimistic, policyOptimism);
+    }
+    policy[boardPolicySize] = blendPolicyLogit(
+      pass[passOffset] ?? 0,
+      passStride >= 2
+        ? (pass[passOffset + 1] ?? pass[passOffset] ?? 0)
+        : (pass[passOffset] ?? 0),
+      policyOptimism,
     );
-    policy[boardPolicySize] = pass[index * passStride] ?? 0;
 
     return policy;
   });
+}
+
+function blendPolicyLogit(
+  normal: number,
+  optimistic: number,
+  policyOptimism: number,
+): number {
+  const optimism = Math.min(1, Math.max(0, policyOptimism));
+
+  return normal + (optimistic - normal) * optimism;
 }
 
 function interpretValue(data: Float32Array) {
@@ -1067,7 +1143,11 @@ async function runOnnxPoc(
     ? await describeMappedOnnxOutputs(lastOutputs, manifest.outputMap)
     : [];
   const interpretation = lastOutputs
-    ? await interpretOnnxOutputs(lastOutputs, request.boardSize)
+    ? await interpretOnnxOutputs(
+        lastOutputs,
+        request.boardSize,
+        request.policyOptimism,
+      )
     : undefined;
   const modelMetadata = {
     artifactBytes,
@@ -1135,7 +1215,11 @@ async function runOnnxSearch(
       try {
         const policy =
           (await getOrtFloatData(outputs.policy)) ??
-          (await getOfficialKatagoPolicyData(outputs, position.boardSize));
+          (await getOfficialKatagoPolicyData(
+            outputs,
+            position.boardSize,
+            request.policyOptimism,
+          ));
         const valueData =
           (await getOrtFloatData(outputs.value)) ??
           (await getOrtFloatData(outputs.OutputValue));
@@ -1179,6 +1263,93 @@ async function runOnnxSearch(
   };
 }
 
+async function runOnnxDirectPolicy(
+  manifest: AiPocManifest,
+  request: Extract<AiPocRequest, { type: "direct-policy" }>,
+): Promise<AiPocDirectPolicyResult> {
+  const totalStartedAt = performance.now();
+  const modelLoadStartedAt = performance.now();
+  const loaded = await loadOnnxSession(manifest, request.backendPreference);
+  const modelLoadMs = performance.now() - modelLoadStartedAt;
+  const position = createAiPocPosition(
+    request.positionPreset,
+    request.boardSize,
+    request.nextPlayer,
+    request.komi,
+  );
+  const modelEvalStartedAt = performance.now();
+  const input = makeOnnxFeedsForPosition(loaded.session, position);
+  const outputs = await predictOnnx(loaded.session, input.feeds);
+
+  try {
+    const policy =
+      (await getOrtFloatData(outputs.policy)) ??
+      (await getOfficialKatagoPolicyData(
+        outputs,
+        position.boardSize,
+        request.policyOptimism,
+      ));
+    const valueData =
+      (await getOrtFloatData(outputs.value)) ??
+      (await getOrtFloatData(outputs.OutputValue));
+
+    if (!policy) {
+      throw new Error("ONNX output is missing a policy tensor");
+    }
+
+    const rootValue = valueData ? sideToMoveValue(valueData) : 0;
+    const modelEvalMs = performance.now() - modelEvalStartedAt;
+    const legalMoves = await rankLegalPolicyMoves(
+      position,
+      new Float32Array(policy),
+      request.maxPolicyActions,
+    );
+
+    return {
+      runtime: "go-engine-wasm",
+      policyRuntime: "onnxruntime-web",
+      manifest,
+      backend: loaded.backend,
+      backendPreference: request.backendPreference,
+      fallbackReason: loaded.fallbackReason,
+      model: {
+        inputNames: Array.from(loaded.session.inputNames),
+        outputNames: Array.from(loaded.session.outputNames),
+      },
+      webgpu: loaded.webgpu,
+      input: {
+        boardSize: position.boardSize,
+        positionPreset: request.positionPreset,
+        nextPlayer: position.nextPlayer,
+        komi: position.komi,
+        policyOptimism: request.policyOptimism,
+      },
+      directPolicy: {
+        maxPolicyActions: request.maxPolicyActions,
+        policyOptimism: request.policyOptimism,
+        modelLoadMs,
+        modelEvalMs,
+        totalElapsedMs: performance.now() - totalStartedAt,
+        bestMove: legalMoves[0]?.move,
+        winrate: Math.min(1, Math.max(0, (rootValue + 1) / 2)),
+        rootValue,
+        policySource: "external-root",
+        valueSource: valueData ? "external-root" : "none",
+        legalMoves,
+      },
+      environment: {
+        userAgent: navigator.userAgent,
+        crossOriginIsolated: self.crossOriginIsolated,
+        hardwareConcurrency: navigator.hardwareConcurrency,
+      },
+    };
+  } finally {
+    disposeOnnxValues(outputs);
+    disposeOnnxFeeds(input.feeds);
+    await loaded.session.release();
+  }
+}
+
 async function runOnnxRustPolicyMcts(
   manifest: AiPocManifest,
   request: Extract<AiPocRequest, { type: "rust-policy-mcts" }>,
@@ -1200,7 +1371,11 @@ async function runOnnxRustPolicyMcts(
   try {
     const policy =
       (await getOrtFloatData(outputs.policy)) ??
-      (await getOfficialKatagoPolicyData(outputs, rootPosition.boardSize));
+      (await getOfficialKatagoPolicyData(
+        outputs,
+        rootPosition.boardSize,
+        request.policyOptimism,
+      ));
     const valueData =
       (await getOrtFloatData(outputs.value)) ??
       (await getOrtFloatData(outputs.OutputValue));
@@ -1267,6 +1442,7 @@ async function runOnnxRustLeafPolicyMcts(
             outputs,
             positions[0]!.boardSize,
             positions.length,
+            request.policyOptimism,
           );
           const valueBatch = await getValueBatchData(outputs, positions.length);
 
@@ -1333,6 +1509,24 @@ async function runSearch(
   return runOnnxSearch(manifest, request);
 }
 
+async function runDirectPolicy(
+  request: Extract<AiPocRequest, { type: "direct-policy" }>,
+): Promise<AiPocDirectPolicyResult> {
+  const manifest = await fetchManifest(request.manifestUrl);
+
+  if (!manifest.boardSizes.includes(request.boardSize)) {
+    throw new Error(
+      `Model ${manifest.id} does not support ${request.boardSize}x${request.boardSize}`,
+    );
+  }
+
+  if (manifest.kind !== "onnx") {
+    throw new Error("Direct policy PoC requires an ONNX model");
+  }
+
+  return runOnnxDirectPolicy(manifest, request);
+}
+
 async function runRustPolicyMcts(
   request: Extract<AiPocRequest, { type: "rust-policy-mcts" }>,
 ): Promise<AiPocRandomMctsResult> {
@@ -1369,6 +1563,91 @@ async function runRustLeafPolicyMcts(
   return runOnnxRustLeafPolicyMcts(manifest, request);
 }
 
+async function runAnalyzePosition(
+  request: Extract<AiPocRequest, { type: "analyze-position" }>,
+): Promise<AiAnalyzePositionResult> {
+  const manifest = await fetchManifest(request.manifestUrl);
+  const config = analyzePositionPresets[request.preset];
+
+  if (!manifest.boardSizes.includes(request.position.boardSize)) {
+    throw new Error(
+      `Model ${manifest.id} does not support ${request.position.boardSize}x${request.position.boardSize}`,
+    );
+  }
+
+  if (manifest.kind !== "onnx") {
+    throw new Error("Analyze position requires an ONNX model");
+  }
+
+  const result = await runOnnxRustLeafPolicyMcts(manifest, {
+    id: request.id,
+    type: "rust-leaf-policy-mcts",
+    manifestUrl: request.manifestUrl,
+    boardSize: request.position.boardSize,
+    positionPreset: "direct",
+    nextPlayer: request.position.nextPlayer,
+    komi: request.position.komi,
+    backendPreference: request.backendPreference,
+    policyOptimism: request.policyOptimism,
+    visits: config.visits,
+    maxPolicyActions: config.maxPolicyActions,
+    batchSize: config.batchSize,
+    fpuReduction: config.fpuReduction,
+    position: request.position,
+  });
+
+  if (
+    !result.policyRuntime ||
+    !result.manifest ||
+    !result.backend ||
+    !result.backendPreference
+  ) {
+    throw new Error("Analyze position result is missing model metadata");
+  }
+
+  return {
+    runtime: result.runtime,
+    policyRuntime: result.policyRuntime,
+    manifest: result.manifest,
+    backend: result.backend,
+    backendPreference: result.backendPreference,
+    fallbackReason: result.fallbackReason,
+    model: result.model,
+    webgpu: result.webgpu,
+    input: {
+      boardSize: request.position.boardSize,
+      nextPlayer: request.position.nextPlayer,
+      komi: request.position.komi,
+      policyOptimism: request.policyOptimism,
+    },
+    analysis: {
+      preset: request.preset,
+      visits: result.randomSearch.visits,
+      maxPolicyActions: result.randomSearch.maxPolicyActions,
+      batchSize: result.randomSearch.batchSize ?? config.batchSize,
+      fpuReduction: result.randomSearch.fpuReduction ?? config.fpuReduction,
+      policyOptimism:
+        result.randomSearch.policyOptimism ?? request.policyOptimism,
+      bestMove: result.randomSearch.bestMove,
+      winrate: result.randomSearch.winrate,
+      rootValue: result.randomSearch.rootValue,
+      principalVariation: result.randomSearch.principalVariation,
+      principalVariationMoves: result.randomSearch.principalVariationMoves,
+      rootMoves: result.randomSearch.rootEdges,
+      diagnostics: result.randomSearch.diagnostics,
+      timings: {
+        modelLoadMs: result.randomSearch.modelLoadMs,
+        modelEvalMs: result.randomSearch.modelEvalMs,
+        modelEvaluations: result.randomSearch.modelEvaluations,
+        modelBatches: result.randomSearch.modelBatches,
+        wasmSearchMs: result.randomSearch.wasmSearchMs,
+        totalElapsedMs: result.randomSearch.totalElapsedMs,
+      },
+    },
+    environment: result.environment,
+  };
+}
+
 self.addEventListener("message", (event: MessageEvent<AiPocRequest>) => {
   const request = event.data;
 
@@ -1377,11 +1656,15 @@ self.addEventListener("message", (event: MessageEvent<AiPocRequest>) => {
       ? runPoc(request)
       : request.type === "search"
         ? runSearch(request)
-        : request.type === "rust-policy-mcts"
-          ? runRustPolicyMcts(request)
-          : request.type === "rust-leaf-policy-mcts"
-            ? runRustLeafPolicyMcts(request)
-            : runRandomMcts(request);
+        : request.type === "direct-policy"
+          ? runDirectPolicy(request)
+          : request.type === "rust-policy-mcts"
+            ? runRustPolicyMcts(request)
+            : request.type === "rust-leaf-policy-mcts"
+              ? runRustLeafPolicyMcts(request)
+              : request.type === "analyze-position"
+                ? runAnalyzePosition(request)
+                : runRandomMcts(request);
 
   result
     .then((result) => post({ id: request.id, type: "result", result }))

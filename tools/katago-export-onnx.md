@@ -21,3 +21,9 @@ Export the current small PoC model into its ignored static artifact path:
 ```bash
 tools/export-lionffen-b6c64-19x19.sh
 ```
+
+Export the dedicated 9x9 lab model:
+
+```bash
+tools/export-kata9x9-b18c384nbt-20231025.sh
+```

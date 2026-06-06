@@ -1,7 +1,8 @@
+use go_engine::goban::Captures;
 use go_engine::mcts::{
-    BotMove, ExternalEvaluation, ExternalMctsConfig, ExternalMctsSearch, MctsConfig,
+    self, BotMove, ExternalEvaluation, ExternalMctsConfig, ExternalMctsSearch, MctsConfig,
 };
-use go_engine::{Engine, Stone};
+use go_engine::{Engine, GameState, Ko, Stone, Turn};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -68,11 +69,11 @@ struct PolicyMctsEvalRequest {
     position: AiPocPosition,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AiPocPosition {
     board_size: u8,
-    next_player: &'static str,
+    next_player: String,
     komi: f64,
     stones: Vec<AiPocStone>,
     recent_moves: Vec<AiPocMove>,
@@ -80,40 +81,34 @@ struct AiPocPosition {
     rules: AiPocRules,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AiPocStone {
     col: u8,
     row: u8,
-    player: &'static str,
+    player: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 enum AiPocMove {
-    Play {
-        col: u8,
-        row: u8,
-        player: &'static str,
-    },
-    Pass {
-        player: &'static str,
-    },
+    Play { col: u8, row: u8, player: String },
+    Pass { player: String },
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AiPocKo {
     col: u8,
     row: u8,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AiPocRules {
-    ko_rule: &'static str,
-    scoring: &'static str,
-    tax: &'static str,
+    ko_rule: String,
+    scoring: String,
+    tax: String,
     multi_stone_suicide_legal: bool,
 }
 
@@ -138,6 +133,21 @@ struct WasmMctsDiagnostics {
     root_visit_entropy: f32,
     visited_root_moves: usize,
     visited_root_policy_mass: f32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PolicyRankRequest {
+    position: AiPocPosition,
+    policy_logits: Vec<f32>,
+    max_policy_actions: Option<usize>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PolicyRankResponse {
+    error: Option<String>,
+    moves: Vec<WasmMctsEdge>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -311,6 +321,65 @@ pub fn create(engine: &Engine, request_json: &str) -> WasmPolicyMcts {
     }
 }
 
+pub fn create_from_position_json(position_json: &str, request_json: &str) -> WasmPolicyMcts {
+    let position = match serde_json::from_str::<AiPocPosition>(position_json) {
+        Ok(position) => position,
+        Err(err) => {
+            return WasmPolicyMcts {
+                search: None,
+                error: Some(format!("invalid policy MCTS position: {err}")),
+                komi: 6.5,
+                board_rows: 0,
+            };
+        }
+    };
+    let engine = match engine_from_position(&position) {
+        Ok(engine) => engine,
+        Err(err) => {
+            return WasmPolicyMcts {
+                search: None,
+                error: Some(err),
+                komi: position.komi,
+                board_rows: position.board_size,
+            };
+        }
+    };
+
+    create(&engine, request_json)
+}
+
+pub fn rank_policy_json(request_json: &str) -> String {
+    let request = match serde_json::from_str::<PolicyRankRequest>(request_json) {
+        Ok(request) => request,
+        Err(err) => return error_json(&format!("invalid policy rank request: {err}")),
+    };
+    let engine = match engine_from_position(&request.position) {
+        Ok(engine) => engine,
+        Err(err) => return error_json(&err),
+    };
+    let priors = mcts::policy_priors_from_logits(
+        &engine,
+        engine.current_turn_stone(),
+        &request.policy_logits,
+        request
+            .max_policy_actions
+            .map(|limit| limit.clamp(1, 10_000)),
+    );
+    let moves = priors
+        .into_iter()
+        .map(|prior| WasmMctsEdge {
+            action: WasmBotMove::from(prior.action),
+            move_label: format_bot_move(prior.action, engine.rows()),
+            visits: 0,
+            prior: prior.prior,
+            value: 0.0,
+        })
+        .collect();
+
+    serde_json::to_string(&PolicyRankResponse { error: None, moves })
+        .unwrap_or_else(|err| error_json(&err.to_string()))
+}
+
 impl From<BotMove> for WasmBotMove {
     fn from(value: BotMove) -> Self {
         match value {
@@ -334,7 +403,7 @@ fn gtp_column(col: u8) -> char {
 fn position_from_engine(engine: &Engine, komi: f64) -> AiPocPosition {
     AiPocPosition {
         board_size: engine.cols(),
-        next_player: stone_name(engine.current_turn_stone()),
+        next_player: stone_name(engine.current_turn_stone()).to_string(),
         komi,
         stones: stones_from_engine(engine),
         recent_moves: recent_moves_from_engine(engine),
@@ -343,9 +412,9 @@ fn position_from_engine(engine: &Engine, komi: f64) -> AiPocPosition {
             row: ko.pos.1 as u8,
         }),
         rules: AiPocRules {
-            ko_rule: "positional",
-            scoring: "area",
-            tax: "none",
+            ko_rule: "positional".to_string(),
+            scoring: "area".to_string(),
+            tax: "none".to_string(),
             multi_stone_suicide_legal: false,
         },
     }
@@ -365,7 +434,7 @@ fn stones_from_engine(engine: &Engine) -> Vec<AiPocStone> {
             stones.push(AiPocStone {
                 col,
                 row,
-                player: stone_name(stone),
+                player: stone_name(stone).to_string(),
             });
         }
     }
@@ -385,11 +454,11 @@ fn recent_moves_from_engine(engine: &Engine) -> Vec<AiPocMove> {
                 Some(AiPocMove::Play {
                     col,
                     row,
-                    player: stone_name(turn.stone),
+                    player: stone_name(turn.stone).to_string(),
                 })
             } else if turn.is_pass() {
                 Some(AiPocMove::Pass {
-                    player: stone_name(turn.stone),
+                    player: stone_name(turn.stone).to_string(),
                 })
             } else {
                 None
@@ -403,6 +472,57 @@ fn stone_name(stone: Stone) -> &'static str {
     match stone {
         Stone::Black => "black",
         Stone::White => "white",
+    }
+}
+
+fn engine_from_position(position: &AiPocPosition) -> Result<Engine, String> {
+    let board_size = position.board_size;
+    let board_area = board_size as usize * board_size as usize;
+    let mut board = vec![0; board_area];
+
+    for stone in &position.stones {
+        if stone.col >= board_size || stone.row >= board_size {
+            return Err("PoC position contains an off-board stone".to_string());
+        }
+
+        let index = stone.row as usize * board_size as usize + stone.col as usize;
+        if board[index] != 0 {
+            return Err("PoC position contains duplicate stones".to_string());
+        }
+
+        board[index] = stone_from_name(&stone.player)?.to_int();
+    }
+
+    let ko = position.ko.as_ref().map(|ko| Ko {
+        pos: (ko.col as i8, ko.row as i8),
+        illegal: stone_from_name(&position.next_player).unwrap_or(Stone::Black),
+    });
+    let moves = match stone_from_name(&position.next_player)? {
+        Stone::Black => Vec::new(),
+        Stone::White => vec![Turn::pass(Stone::Black)],
+    };
+
+    Ok(Engine::from_game_state(
+        board_size,
+        board_size,
+        0,
+        moves,
+        GameState {
+            board,
+            cols: board_size,
+            rows: board_size,
+            captures: Captures::new(),
+            ko,
+            last_move: None,
+        },
+    ))
+}
+
+fn stone_from_name(name: &str) -> Result<Stone, String> {
+    match name {
+        "black" => Ok(Stone::Black),
+        "white" => Ok(Stone::White),
+        _ => Err(format!("unknown stone: {name}")),
     }
 }
 
@@ -459,6 +579,64 @@ mod tests {
         assert_eq!(response["requests"][0]["position"]["boardSize"], 3);
         assert_eq!(response["requests"][0]["position"]["nextPlayer"], "black");
         assert_eq!(response["requests"][0]["position"]["komi"], 0.5);
+    }
+
+    #[test]
+    fn position_json_root_preserves_stones_without_move_history() {
+        let position = r#"{
+            "boardSize":3,
+            "nextPlayer":"black",
+            "komi":6.5,
+            "stones":[{"col":1,"row":1,"player":"white"}],
+            "recentMoves":[],
+            "rules":{
+                "koRule":"positional",
+                "scoring":"area",
+                "tax":"none",
+                "multiStoneSuicideLegal":false
+            }
+        }"#;
+        let mut search =
+            create_from_position_json(position, r#"{"visits":2,"maxPolicyActions":2,"komi":6.5}"#);
+
+        let json = search.next_batch_json(4);
+        let response: Value = serde_json::from_str(&json).expect("valid batch json");
+
+        assert_eq!(
+            response["requests"][0]["position"]["stones"][0]["player"],
+            "white"
+        );
+        assert_eq!(response["requests"][0]["position"]["stones"][0]["col"], 1);
+        assert_eq!(response["requests"][0]["position"]["stones"][0]["row"], 1);
+    }
+
+    #[test]
+    fn policy_rank_from_position_masks_occupied_points() {
+        let json = rank_policy_json(
+            r#"{
+                "position":{
+                    "boardSize":3,
+                    "nextPlayer":"black",
+                    "komi":6.5,
+                    "stones":[{"col":1,"row":1,"player":"white"}],
+                    "recentMoves":[],
+                    "rules":{
+                        "koRule":"positional",
+                        "scoring":"area",
+                        "tax":"none",
+                        "multiStoneSuicideLegal":false
+                    }
+                },
+                "policyLogits":[0,0,0,0,20,0,0,0,8,0],
+                "maxPolicyActions":2
+            }"#,
+        );
+        let response: Value = serde_json::from_str(&json).expect("valid rank json");
+
+        assert!(response["error"].is_null());
+        assert_eq!(response["moves"].as_array().expect("moves").len(), 2);
+        assert_eq!(response["moves"][0]["move"], "C1");
+        assert_ne!(response["moves"][0]["move"], "B2");
     }
 
     #[test]

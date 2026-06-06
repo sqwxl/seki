@@ -22,6 +22,13 @@ import type {
 
 type EngineWasmModule = typeof import("/static/wasm/go_engine_wasm.js");
 type EngineWasm = InstanceType<EngineWasmModule["WasmEngine"]>;
+type EngineWasmAiPoc = EngineWasm & {
+  policy_mcts_position_json(
+    positionJson: string,
+    requestJson: string,
+  ): PolicyMctsSearch;
+  rank_policy_json(requestJson: string): string;
+};
 type PolicyMctsSearch = {
   next_batch_json(batchSize: number): string;
   apply_batch_json(evaluationsJson: string): string;
@@ -90,6 +97,10 @@ type PolicyMctsSummaryResponse = {
   principalVariation: AiPocRandomMctsMove[];
   diagnostics: AiPocRandomMctsDiagnostics;
 };
+type PolicyRankResponse = {
+  error?: string | null;
+  moves: AiPocRandomMctsEdge[];
+};
 
 let engineWasmModule: EngineWasmModule | undefined;
 
@@ -130,6 +141,13 @@ export async function runRandomMcts(
   }
 
   const wasmSearchMs = performance.now() - startedAt;
+  const rootPolicyMoves = options.rootPolicyLogits
+    ? await rankLegalPolicyMoves(
+        position,
+        options.rootPolicyLogits,
+        request.maxPolicyActions ?? position.boardSize * position.boardSize + 1,
+      )
+    : undefined;
 
   return {
     runtime: "go-engine-wasm",
@@ -145,12 +163,14 @@ export async function runRandomMcts(
       positionPreset: request.positionPreset,
       nextPlayer: position.nextPlayer,
       komi: position.komi,
+      policyOptimism: request.policyOptimism,
     },
     randomSearch: {
       visits: response.visits,
       rolloutLimit: request.rolloutLimit,
       maxPolicyActions: response.maxPolicyActions ?? request.maxPolicyActions,
       fpuReduction: request.fpuReduction,
+      policyOptimism: request.policyOptimism,
       seed: request.seed,
       elapsedMs: wasmSearchMs,
       modelLoadMs: options.modelLoadMs,
@@ -162,6 +182,7 @@ export async function runRandomMcts(
       rootValue: response.rootValue,
       policySource: response.policySource ?? "baseline-rollout",
       valueSource: response.valueSource ?? "rollout",
+      rootPolicyMoves,
       rootEdges: response.rootEdges,
       principalVariation: response.principalVariation,
       principalVariationMoves: formatRandomMctsMoves(
@@ -183,21 +204,18 @@ export async function runLeafPolicyMcts(
   options: LeafPolicyMctsOptions,
 ): Promise<AiPocRandomMctsResult> {
   const wasm = await ensureEngineWasm();
-  const position = createAiPocPosition(
-    request.positionPreset,
-    request.boardSize,
-    request.nextPlayer,
-    request.komi,
-  );
+  const position =
+    request.position ??
+    createAiPocPosition(
+      request.positionPreset,
+      request.boardSize,
+      request.nextPlayer,
+      request.komi,
+    );
   const engine = new wasm.WasmEngine(position.boardSize, position.boardSize);
 
-  applyAiPocPosition(engine, position);
-
-  const search = (
-    engine as EngineWasm & {
-      policy_mcts_json(requestJson: string): PolicyMctsSearch;
-    }
-  ).policy_mcts_json(
+  const search = (engine as EngineWasmAiPoc).policy_mcts_position_json(
+    JSON.stringify(position),
     JSON.stringify({
       visits: request.visits,
       maxPolicyActions: request.maxPolicyActions,
@@ -210,6 +228,7 @@ export async function runLeafPolicyMcts(
   let modelEvalMs = 0;
   let modelEvaluations = 0;
   let modelBatches = 0;
+  let rootPolicyMoves: AiPocRandomMctsEdge[] | undefined;
 
   while (true) {
     const nextBatchStartedAt = performance.now();
@@ -240,6 +259,20 @@ export async function runLeafPolicyMcts(
     modelEvalMs += batchEvaluation.elapsedMs;
     modelEvaluations += batchEvaluation.evaluations.length;
     modelBatches += 1;
+
+    if (!rootPolicyMoves) {
+      const rootIndex = batch.requests.findIndex((request) =>
+        samePositionState(request.position, position),
+      );
+
+      if (rootIndex >= 0) {
+        rootPolicyMoves = await rankLegalPolicyMoves(
+          position,
+          batchEvaluation.evaluations[rootIndex]!.policy,
+          request.maxPolicyActions,
+        );
+      }
+    }
 
     const evaluations = batch.requests.map((evalRequest, index) => {
       const evaluation = batchEvaluation.evaluations[index]!;
@@ -284,12 +317,14 @@ export async function runLeafPolicyMcts(
       positionPreset: request.positionPreset,
       nextPlayer: position.nextPlayer,
       komi: position.komi,
+      policyOptimism: request.policyOptimism,
     },
     randomSearch: {
       visits: summary.visits,
       rolloutLimit: 0,
       maxPolicyActions: request.maxPolicyActions,
       fpuReduction: request.fpuReduction,
+      policyOptimism: request.policyOptimism,
       seed: 0,
       elapsedMs: wasmSearchMs,
       modelLoadMs: options.modelLoadMs,
@@ -305,6 +340,7 @@ export async function runLeafPolicyMcts(
       rootValue: summary.rootValue,
       policySource: "external-leaf",
       valueSource: "external-leaf",
+      rootPolicyMoves,
       rootEdges: summary.rootEdges,
       principalVariation: summary.principalVariation,
       principalVariationMoves: formatRandomMctsMoves(
@@ -319,6 +355,48 @@ export async function runLeafPolicyMcts(
       hardwareConcurrency: navigator.hardwareConcurrency,
     },
   };
+}
+
+function samePositionState(a: AiPocPosition, b: AiPocPosition): boolean {
+  if (
+    a.boardSize !== b.boardSize ||
+    a.nextPlayer !== b.nextPlayer ||
+    a.stones.length !== b.stones.length
+  ) {
+    return false;
+  }
+
+  const stoneKeys = new Set(
+    a.stones.map((stone) => `${stone.col},${stone.row},${stone.player}`),
+  );
+
+  return b.stones.every((stone) =>
+    stoneKeys.has(`${stone.col},${stone.row},${stone.player}`),
+  );
+}
+
+export async function rankLegalPolicyMoves(
+  position: AiPocPosition,
+  policyLogits: Float32Array,
+  maxPolicyActions: number,
+): Promise<AiPocRandomMctsEdge[]> {
+  const wasm = await ensureEngineWasm();
+  const engine = new wasm.WasmEngine(position.boardSize, position.boardSize);
+  const response = JSON.parse(
+    (engine as EngineWasmAiPoc).rank_policy_json(
+      JSON.stringify({
+        position,
+        policyLogits: Array.from(policyLogits),
+        maxPolicyActions,
+      }),
+    ),
+  ) as PolicyRankResponse;
+
+  if (response.error) {
+    throw new Error(response.error);
+  }
+
+  return response.moves;
 }
 
 async function ensureEngineWasm(): Promise<EngineWasmModule> {

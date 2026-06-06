@@ -1,0 +1,22 @@
+{
+  "id": "kata9x9-b18c384nbt-20231025",
+  "version": 1,
+  "kind": "onnx",
+  "source": {
+    "name": "KataGo kata9x9 b18c384nbt exported with official KataGo ONNX builder",
+    "url": "https://media.katagotraining.org/uploaded/networks/models_extra/kata9x9-b18c384nbt-20231025.bin.gz"
+  },
+  "artifacts": {
+    "model": "/static/models/kata9x9-b18c384nbt-20231025/kata9x9-b18c384nbt-20231025.onnx"
+  },
+  "boardSizes": [9],
+  "outputs": ["policy", "policyPass", "value", "scoreValue", "ownership"],
+  "outputMap": {
+    "policy": "OutputPolicy",
+    "policyPass": "OutputPolicyPass",
+    "value": "OutputValue",
+    "scoreValue": "OutputScoreValue",
+    "ownership": "OutputOwnership"
+  },
+  "inputEncoding": "katago-v7-poc-subset"
+}
