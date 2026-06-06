@@ -12,6 +12,7 @@ struct RandomMctsRequest {
     seed: Option<u64>,
     komi: Option<f64>,
     cpuct: Option<f32>,
+    fpu_reduction: Option<f32>,
     max_policy_actions: Option<usize>,
     root_policy_logits: Option<Vec<f32>>,
     root_value: Option<f32>,
@@ -76,6 +77,7 @@ pub fn run(engine: &Engine, request_json: &str) -> String {
     let seed = request.seed.unwrap_or(default_rollout.seed);
     let komi = request.komi.unwrap_or(6.5);
     let cpuct = request.cpuct.unwrap_or(1.5).clamp(0.01, 100.0);
+    let fpu_reduction = request.fpu_reduction.unwrap_or(0.2).clamp(0.0, 2.0);
     let max_policy_actions = request
         .max_policy_actions
         .map(|limit| limit.clamp(1, 10_000))
@@ -85,7 +87,11 @@ pub fn run(engine: &Engine, request_json: &str) -> String {
         seed,
         max_policy_actions,
     };
-    let search_config = MctsConfig { visits, cpuct };
+    let search_config = MctsConfig {
+        visits,
+        cpuct,
+        fpu_reduction,
+    };
 
     let (summary, policy_source, value_source) =
         if let Some(root_policy_logits) = request.root_policy_logits.as_deref() {

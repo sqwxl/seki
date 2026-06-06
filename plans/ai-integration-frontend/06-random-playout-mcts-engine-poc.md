@@ -412,13 +412,38 @@ Current Rust/WASM status:
   yet. Recent exports still showed `modelEvaluations == visits`, so these
   positions are not creating the kind of transposition reuse needed to validate
   that optimization.
-- Remaining KataGo gaps after that step: virtual loss / real parallelism, FPU,
+- Search diagnostics are now included in PoC exports: readable root move labels,
+  principal variation labels, catch-up/cycle/terminal counters, root visit
+  entropy, visited root move count, and visited root policy mass.
+- Latest Chrome Android `corner-exchange` run with `64 / 16 / 16` stayed around
+  3.3s warm-tab total with best move `D4`, principal variation `D4 -> Q16`,
+  `visitedRootMoves: 16`, and `catchUpVisits: 0`.
+- Current implementation step: first-play urgency (FPU) reduction avoids
+  treating every unvisited edge as neutral value. The PoC exposes
+  `fpuReduction` as a numeric control; benchmark `0.2`, `0.5`, and `1.0`
+  before further tuning.
+- FPU tuning result on Chrome Android `corner-exchange`, `64 visits`,
+  `16 max children`, and `4 eval batch`:
+  - `fpuReduction: 0.2`: visits all 16 root moves; too flat for tuning.
+  - `fpuReduction: 0.5`: visits 9 root moves; useful middle ground.
+  - `fpuReduction: 1.0`: visits 4 root moves; likely too narrow at 64 visits.
+- `/static/ai-poc.html` includes a `Tuning (64 / 16 / 4 / FPU 0.5)` preset for
+  search-quality experiments. Keep `Android fast (64 / 16 / 16 / FPU 0.2)` as
+  the speed/default mobile preset for now.
+- Tuning preset result on Chrome Android Li/Jiang snapshots:
+  - Move 32: ~5.3s total, best `N13`, visited 9 root moves, first observed
+    catch-up with `catchUpVisits: 2` and `modelEvaluations: 62` for 64 visits.
+  - Move 72: ~4.9s total, best `S12`, visited 9 root moves.
+  - Move 120: ~5.0s total, best `L16`, visited 10 root moves.
+  - Compared with Android fast, tuning is roughly 1.5-1.8s slower because eval
+    batch count rises from 5 to 17, but the root distribution is more
+    search-shaped and less force-visited by batching.
+- Remaining KataGo gaps after that step: virtual loss / real parallelism,
   dynamic cpuct, root noise/temperature, LCB selection, full feature encoding,
   leaky catch-up tuning, and Go-specific repetition hash safety.
 - Next pending steps:
-  1. Add diagnostics for root edge labels/stats, PV beyond one move, visit
-     spread, and explicit catch-up counters such as caught-up edges or skipped
-     leaf evals.
+  1. Keep both presets: Android fast for default mobile use, tuning for
+     search-quality experiments and diagnostics.
   2. Add at least one more transposition-heavy or tactical benchmark preset to
      test whether catch-up ever reduces model eval count in practice.
   3. Lock the first engine-facing API shape and ship the current default mobile

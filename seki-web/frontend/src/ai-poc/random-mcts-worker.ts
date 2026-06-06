@@ -116,6 +116,7 @@ export async function runRandomMcts(
       maxPolicyActions: request.maxPolicyActions,
       seed: request.seed,
       komi: position.komi,
+      fpuReduction: request.fpuReduction,
       rootPolicyLogits: options.rootPolicyLogits
         ? Array.from(options.rootPolicyLogits)
         : undefined,
@@ -149,6 +150,7 @@ export async function runRandomMcts(
       visits: response.visits,
       rolloutLimit: request.rolloutLimit,
       maxPolicyActions: response.maxPolicyActions ?? request.maxPolicyActions,
+      fpuReduction: request.fpuReduction,
       seed: request.seed,
       elapsedMs: wasmSearchMs,
       modelLoadMs: options.modelLoadMs,
@@ -200,6 +202,7 @@ export async function runLeafPolicyMcts(
       visits: request.visits,
       maxPolicyActions: request.maxPolicyActions,
       komi: position.komi,
+      fpuReduction: request.fpuReduction,
     }),
   );
   const wasmStartedAt = performance.now();
@@ -286,6 +289,7 @@ export async function runLeafPolicyMcts(
       visits: summary.visits,
       rolloutLimit: 0,
       maxPolicyActions: request.maxPolicyActions,
+      fpuReduction: request.fpuReduction,
       seed: 0,
       elapsedMs: wasmSearchMs,
       modelLoadMs: options.modelLoadMs,

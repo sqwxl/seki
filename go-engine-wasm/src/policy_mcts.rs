@@ -10,6 +10,7 @@ use wasm_bindgen::prelude::*;
 struct PolicyMctsRequest {
     visits: Option<u32>,
     cpuct: Option<f32>,
+    fpu_reduction: Option<f32>,
     max_policy_actions: Option<usize>,
     komi: Option<f64>,
 }
@@ -286,6 +287,7 @@ pub fn create(engine: &Engine, request_json: &str) -> WasmPolicyMcts {
     };
     let visits = request.visits.unwrap_or(64).clamp(1, 10_000);
     let cpuct = request.cpuct.unwrap_or(1.5).clamp(0.01, 100.0);
+    let fpu_reduction = request.fpu_reduction.unwrap_or(0.2).clamp(0.0, 2.0);
     let max_policy_actions = request
         .max_policy_actions
         .map(|limit| limit.clamp(1, 10_000));
@@ -295,7 +297,11 @@ pub fn create(engine: &Engine, request_json: &str) -> WasmPolicyMcts {
         search: Some(ExternalMctsSearch::new(
             engine.clone(),
             ExternalMctsConfig {
-                search: MctsConfig { visits, cpuct },
+                search: MctsConfig {
+                    visits,
+                    cpuct,
+                    fpu_reduction,
+                },
                 max_policy_actions,
             },
         )),

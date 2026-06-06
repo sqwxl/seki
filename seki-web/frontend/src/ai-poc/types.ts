@@ -45,6 +45,7 @@ export type AiPocRandomMctsRequest = Omit<AiPocRunRequest, "type" | "runs"> & {
   visits: number;
   rolloutLimit: number;
   maxPolicyActions: number;
+  fpuReduction: number;
   seed: number;
 };
 
@@ -56,6 +57,7 @@ export type AiPocRustPolicyMctsRequest = Omit<
   visits: number;
   rolloutLimit: number;
   maxPolicyActions: number;
+  fpuReduction: number;
   seed: number;
 };
 
@@ -67,6 +69,7 @@ export type AiPocRustLeafPolicyMctsRequest = Omit<
   visits: number;
   maxPolicyActions: number;
   batchSize: number;
+  fpuReduction: number;
 };
 
 export type AiPocRequest =
@@ -223,6 +226,7 @@ export type AiPocRandomMctsResult = {
     visits: number;
     rolloutLimit: number;
     maxPolicyActions: number;
+    fpuReduction?: number;
     seed: number;
     elapsedMs: number;
     modelLoadMs?: number;

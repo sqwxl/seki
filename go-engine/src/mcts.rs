@@ -162,6 +162,7 @@ pub trait MctsEvaluator {
 pub struct MctsConfig {
     pub visits: u32,
     pub cpuct: f32,
+    pub fpu_reduction: f32,
 }
 
 impl Default for MctsConfig {
@@ -169,6 +170,7 @@ impl Default for MctsConfig {
         Self {
             visits: 64,
             cpuct: 1.5,
+            fpu_reduction: 0.2,
         }
     }
 }
@@ -455,7 +457,7 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
                 continue;
             }
 
-            let q = edge.mean_value();
+            let q = self.edge_selection_value(node, edge);
             let u =
                 self.config.cpuct * edge.prior * parent_visits.sqrt() / (1 + edge.visits) as f32;
             let score = q + u;
@@ -467,6 +469,14 @@ impl<'a, E: MctsEvaluator> GraphSearch<'a, E> {
         }
 
         best_index
+    }
+
+    fn edge_selection_value(&self, node: &GraphNode, edge: &EdgeStats) -> f32 {
+        if edge.visits() > 0 {
+            return edge.mean_value();
+        }
+
+        (node.mean_value() - self.config.fpu_reduction).clamp(-1.0, 1.0)
     }
 
     fn backup_path(&mut self, path: &[(NodeId, usize)]) {
@@ -751,7 +761,7 @@ impl ExternalMctsSearch {
                 continue;
             }
 
-            let q = edge.mean_value();
+            let q = self.edge_selection_value(node, edge);
             let u = self.config.search.cpuct * edge.prior * parent_visits.sqrt()
                 / (1 + edge.visits) as f32;
             let score = q + u;
@@ -763,6 +773,14 @@ impl ExternalMctsSearch {
         }
 
         best_index
+    }
+
+    fn edge_selection_value(&self, node: &GraphNode, edge: &EdgeStats) -> f32 {
+        if edge.visits() > 0 {
+            return edge.mean_value();
+        }
+
+        (node.mean_value() - self.config.search.fpu_reduction).clamp(-1.0, 1.0)
     }
 
     fn backup_path(&mut self, path: &[(NodeId, usize)]) {
@@ -1434,6 +1452,7 @@ mod tests {
                 search: MctsConfig {
                     visits: 2,
                     cpuct: 1.5,
+                    fpu_reduction: 0.2,
                 },
                 max_policy_actions: Some(2),
             },
@@ -1473,6 +1492,7 @@ mod tests {
                 search: MctsConfig {
                     visits: 4,
                     cpuct: 1.5,
+                    fpu_reduction: 0.2,
                 },
                 max_policy_actions: Some(4),
             },
@@ -1774,6 +1794,7 @@ mod tests {
             MctsConfig {
                 visits: 1,
                 cpuct: 0.01,
+                fpu_reduction: 0.2,
             },
             &mut evaluator,
         );
@@ -1795,6 +1816,37 @@ mod tests {
     }
 
     #[test]
+    fn graph_search_fpu_reduces_unvisited_edge_value() {
+        let engine = Engine::new(3, 3);
+        let key = PositionKey::from_engine(&engine);
+        let mut evaluator = StaticEvaluator {
+            value: 0.0,
+            priors: HashMap::new(),
+        };
+        let mut search = GraphSearch::new(
+            MctsConfig {
+                visits: 1,
+                cpuct: 0.0,
+                fpu_reduction: 0.2,
+            },
+            &mut evaluator,
+        );
+        search.nodes = vec![
+            GraphNode::new(key.clone()),
+            GraphNode::new(key.clone()),
+            GraphNode::new(key),
+        ];
+        search.nodes[0].backup_node(0.0);
+        let mut visited_edge = EdgeStats::new(BotMove::Play((0, 0)), NodeId(1), 1.0);
+        visited_edge.backup(-0.1);
+        let unvisited_edge = EdgeStats::new(BotMove::Play((1, 0)), NodeId(2), 1.0);
+        search.nodes[0].push_edge(unvisited_edge);
+        search.nodes[0].push_edge(visited_edge);
+
+        assert_eq!(search.select_edge(NodeId(0), &HashSet::new()), Some(1));
+    }
+
+    #[test]
     fn graph_search_prefers_high_prior_root_edge() {
         let engine = Engine::new(3, 3);
         let mut evaluator = StaticEvaluator {
@@ -1807,6 +1859,7 @@ mod tests {
             MctsConfig {
                 visits: 12,
                 cpuct: 1.5,
+                fpu_reduction: 0.2,
             },
             &mut evaluator,
         );

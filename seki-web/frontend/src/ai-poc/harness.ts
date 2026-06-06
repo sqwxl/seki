@@ -14,6 +14,7 @@ type MctsPreset = {
   visits: number;
   maxChildren: number;
   batchSize: number;
+  fpuReduction: number;
 };
 
 const mctsPresets = [
@@ -23,6 +24,15 @@ const mctsPresets = [
     visits: 64,
     maxChildren: 16,
     batchSize: 16,
+    fpuReduction: 0.2,
+  },
+  {
+    id: "tuning-fpu",
+    label: "Tuning (64 / 16 / 4 / FPU 0.5)",
+    visits: 64,
+    maxChildren: 16,
+    batchSize: 4,
+    fpuReduction: 0.5,
   },
   {
     id: "android-strong",
@@ -30,6 +40,7 @@ const mctsPresets = [
     visits: 96,
     maxChildren: 16,
     batchSize: 16,
+    fpuReduction: 0.2,
   },
   {
     id: "lab-128",
@@ -37,6 +48,7 @@ const mctsPresets = [
     visits: 128,
     maxChildren: 16,
     batchSize: 16,
+    fpuReduction: 0.2,
   },
 ] satisfies MctsPreset[];
 
@@ -130,6 +142,10 @@ app.innerHTML = `
       <input id="mcts-batch-size" type="number" min="1" max="64" value="${defaultMctsPreset.batchSize}" />
     </div>
     <div>
+      <label for="mcts-fpu-reduction">FPU reduction</label>
+      <input id="mcts-fpu-reduction" type="number" min="0" max="2" step="0.1" value="0.2" />
+    </div>
+    <div>
       <label for="rollout-limit">Rollout limit</label>
       <input id="rollout-limit" type="number" min="1" max="500" value="120" />
     </div>
@@ -169,6 +185,9 @@ const maxChildrenInput =
   document.querySelector<HTMLInputElement>("#mcts-max-children")!;
 const batchSizeInput =
   document.querySelector<HTMLInputElement>("#mcts-batch-size")!;
+const fpuReductionInput = document.querySelector<HTMLInputElement>(
+  "#mcts-fpu-reduction",
+)!;
 const rolloutLimitInput =
   document.querySelector<HTMLInputElement>("#rollout-limit")!;
 const seedInput = document.querySelector<HTMLInputElement>("#mcts-seed")!;
@@ -212,6 +231,7 @@ function formatResult(
           visits: result.randomSearch.visits,
           rolloutLimit: result.randomSearch.rolloutLimit,
           maxPolicyActions: result.randomSearch.maxPolicyActions,
+          fpuReduction: result.randomSearch.fpuReduction,
           seed: result.randomSearch.seed,
           elapsedMs: result.randomSearch.elapsedMs,
           modelLoadMs: result.randomSearch.modelLoadMs,
@@ -349,6 +369,7 @@ function applyMctsPreset(presetId: string) {
   visitsInput.value = String(preset.visits);
   maxChildrenInput.value = String(preset.maxChildren);
   batchSizeInput.value = String(preset.batchSize);
+  fpuReductionInput.value = String(preset.fpuReduction);
 }
 
 function syncMctsPresetSelection() {
@@ -356,7 +377,8 @@ function syncMctsPresetSelection() {
     (preset) =>
       Number(visitsInput.value) === preset.visits &&
       Number(maxChildrenInput.value) === preset.maxChildren &&
-      Number(batchSizeInput.value) === preset.batchSize,
+      Number(batchSizeInput.value) === preset.batchSize &&
+      Number(fpuReductionInput.value) === preset.fpuReduction,
   );
 
   mctsPresetInput.value = matchingPreset?.id ?? "custom";
@@ -400,6 +422,7 @@ function runRandomMcts() {
     visits: Number(visitsInput.value),
     rolloutLimit: Number(rolloutLimitInput.value),
     maxPolicyActions: Number(maxChildrenInput.value),
+    fpuReduction: Number(fpuReductionInput.value),
     seed: Number(seedInput.value),
   };
 
@@ -413,6 +436,7 @@ function runRustPolicyMcts() {
     visits: Number(visitsInput.value),
     rolloutLimit: Number(rolloutLimitInput.value),
     maxPolicyActions: Number(maxChildrenInput.value),
+    fpuReduction: Number(fpuReductionInput.value),
     seed: Number(seedInput.value),
   };
 
@@ -426,6 +450,7 @@ function runRustLeafPolicyMcts() {
     visits: Number(visitsInput.value),
     maxPolicyActions: Number(maxChildrenInput.value),
     batchSize: Number(batchSizeInput.value),
+    fpuReduction: Number(fpuReductionInput.value),
   };
 
   postRequest(request, "Running Rust leaf-policy MCTS...");
@@ -483,7 +508,12 @@ mctsPresetInput.addEventListener("change", () => {
   applyMctsPreset(mctsPresetInput.value);
 });
 positionPresetInput.addEventListener("change", syncPositionPresetMetadata);
-for (const input of [visitsInput, maxChildrenInput, batchSizeInput]) {
+for (const input of [
+  visitsInput,
+  maxChildrenInput,
+  batchSizeInput,
+  fpuReductionInput,
+]) {
   input.addEventListener("input", syncMctsPresetSelection);
 }
 copyButton.addEventListener("click", () => {
