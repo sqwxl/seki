@@ -46,6 +46,7 @@ export type BoardConfig = {
   territoryOverlay?: () => TerritoryOverlay | undefined;
   heatOverlay?: () => (HeatData | null)[] | undefined;
   onRender?: (engine: WasmEngine, territory: TerritoryInfo) => void;
+  onNavigate?: () => void;
   canPlay?: () => boolean;
   onVertexClick?: (col: number, row: number) => boolean;
   onStonePlay?: () => void;
@@ -496,7 +497,10 @@ class BoardController implements Board {
       renderMoveTree(
         this.engine,
         this.config.moveTreeEl,
-        () => this.render(),
+        () => {
+          this.config.onNavigate?.();
+          this.render();
+        },
         this.resolveTreeDirection(),
         this.config.branchAtBaseTip && this._baseTipNodeId >= 0
           ? this._baseTipNodeId
@@ -524,6 +528,8 @@ class BoardController implements Board {
     if (navigateEngine(this.engine, action)) {
       const stage = this.engine.stage();
       const nodeId = this.engine.current_node_id();
+
+      this.config.onNavigate?.();
 
       if (
         stage === GameStage.TerritoryReview &&

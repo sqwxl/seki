@@ -496,12 +496,19 @@ Current Rust/WASM status:
   - `policyOptimism: 0.5`: total ~1.51s, model eval ~0.80s, best `D6`.
   Timing variance appears warm-tab/cache-related; optimism changes move ordering
   slightly but not the best move on empty board.
+- Latest product-path status:
+  - Standalone analysis uses the worker `analyze-position` request with the
+    `direct` preset for 9x9 positions.
+  - The result displays a best move/winrate/timing summary and maps legal root
+    priors into the existing goban heatmap markup.
+  - Suggestions are invalidated when the board position changes, including
+    moves, passes, imports, size changes, and move-tree navigation.
 - Next pending steps:
   1. Benchmark the KataGo-derived 9x9 presets with direct policy and
      leaf-policy MCTS to see whether they expose useful tactical differences or
      transposition/catch-up behavior.
-  2. Start adapting the product-facing bot path to call `analyze-position`
-     instead of PoC-only button handlers.
+  2. Add a product `genmove`/apply-move path after deciding whether the first
+     UX should be suggestion-only or one-tap bot move.
   3. Keep mobile presets conservative until pondering exists; slower/better
      settings should mostly spend ponder budget, not block every tap.
 

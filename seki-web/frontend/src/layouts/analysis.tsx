@@ -1,15 +1,15 @@
 import { effect } from "@preact/signals";
 import { createRef, render } from "preact";
-import type { AiPocRandomMctsEdge } from "../ai-poc/types";
 import { analyzePositionDirect } from "../ai/analyze";
+import { heatMapFromRootMoves } from "../ai/heatmap";
 import { aiPositionFromEngine } from "../ai/position";
-import { analysisCapabilities, buildPlayerPanels } from "../game/capabilities";
+import { analysisCapabilities } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { mobileTab, showCoordinates } from "../game/state";
 import { createBoard, ensureWasm } from "../goban/create-board";
-import type { HeatData, Sign } from "../goban/types";
+import type { Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
-import { formatSgfTime, formatTime, todayYYYYMMDD } from "../utils/format";
+import { todayYYYYMMDD } from "../utils/format";
 import {
   createMoveConfirm,
   dismissMoveConfirmOnClickOutside,
@@ -26,6 +26,7 @@ import {
   storage,
 } from "../utils/storage";
 import { AnalysisPage } from "./analysis-page";
+import { buildAnalysisPanels } from "./analysis-panels";
 import {
   analysisAiState,
   analysisBoard,
@@ -37,7 +38,6 @@ import {
   analysisSize,
   analysisTerritoryInfo,
   resetAnalysisRuntimeState,
-  type AnalysisPanelData,
 } from "./analysis-state";
 
 const VALID_SIZES = [9, 13, 19];
@@ -99,13 +99,16 @@ export function initAnalysis(root: HTMLElement) {
     return state.heatMap;
   }
 
-  function clearAiSuggestion() {
+  function clearAiSuggestion(renderBoard = true) {
     const state = analysisAiState.value;
 
     if (state.pending || state.result || state.error || state.heatMap) {
       aiRequestId += 1;
       analysisAiState.value = { pending: false };
-      analysisBoard.value?.render();
+
+      if (renderBoard) {
+        analysisBoard.value?.render();
+      }
     }
   }
 
@@ -114,6 +117,7 @@ export function initAnalysis(root: HTMLElement) {
     analysisKomi.value = komi;
     storage.set(ANALYSIS_KOMI, String(komi));
     analysisBoard.value?.setKomi(komi);
+    clearAiSuggestion();
   }
 
   async function handleAiSuggest() {
@@ -167,79 +171,6 @@ export function initAnalysis(root: HTMLElement) {
     }
   }
 
-  function buildAnalysisPanels(
-    board: NonNullable<typeof analysisBoard.value>,
-  ): {
-    top: AnalysisPanelData;
-    bottom: AnalysisPanelData;
-  } {
-    const engine = board.engine;
-    const meta = analysisMeta.value;
-    const { score } = analysisTerritoryInfo.value;
-    const whiteName = meta?.white_name ?? "White";
-    const blackName = meta?.black_name ?? "Black";
-
-    const mtJson = engine.current_move_time();
-    let bClock = "";
-    let wClock = "";
-
-    if (mtJson) {
-      const mt = JSON.parse(mtJson) as {
-        black_time?: number;
-        black_periods?: number;
-        white_time?: number;
-        white_periods?: number;
-      };
-
-      if (mt.black_time != null) {
-        bClock = formatTime(mt.black_time);
-
-        if (mt.black_periods != null) {
-          bClock += ` (${mt.black_periods})`;
-        }
-      }
-
-      if (mt.white_time != null) {
-        wClock = formatTime(mt.white_time);
-
-        if (mt.white_periods != null) {
-          wClock += ` (${mt.white_periods})`;
-        }
-      }
-    }
-
-    if (!bClock && !wClock) {
-      const fallback =
-        formatSgfTime(meta?.time_limit_secs, meta?.overtime) ?? "";
-      bClock = fallback;
-      wClock = fallback;
-    }
-
-    const panels = buildPlayerPanels({
-      komi: analysisKomi.value,
-      captures: {
-        black: engine.captures_black(),
-        white: engine.captures_white(),
-      },
-      score,
-    });
-
-    return {
-      top: {
-        ...panels.white,
-        label: whiteName,
-        stone: "white",
-        clock: wClock,
-      },
-      bottom: {
-        ...panels.black,
-        label: blackName,
-        stone: "black",
-        clock: bClock,
-      },
-    };
-  }
-
   function syncAnalysisUi(board: NonNullable<typeof analysisBoard.value>) {
     const engine = board.engine;
     analysisNavState.value = {
@@ -250,12 +181,17 @@ export function initAnalysis(root: HTMLElement) {
       boardTurnStone: engine.current_turn_stone(),
       boardLastMoveWasPass: engine.last_move_was_pass(),
     };
-    analysisPanelState.value = buildAnalysisPanels(board);
+    analysisPanelState.value = buildAnalysisPanels({
+      board,
+      meta: analysisMeta.value,
+      komi: analysisKomi.value,
+      territoryInfo: analysisTerritoryInfo.value,
+    });
   }
 
   // --- Size change ---
   function handleSizeChange(size: number) {
-    clearAiSuggestion();
+    clearAiSuggestion(false);
     analysisSize.value = size;
     analysisMeta.value = undefined;
     sgfText = undefined;
@@ -287,6 +223,7 @@ export function initAnalysis(root: HTMLElement) {
       storageKey: analysisTreeKey(size),
       ghostStone,
       heatOverlay: aiHeatOverlay,
+      onNavigate: () => clearAiSuggestion(false),
       onVertexClick: (col, row) => {
         if (!mc.enabled) {
           return false;
@@ -311,12 +248,12 @@ export function initAnalysis(root: HTMLElement) {
       },
 
       onStonePlay: () => {
-        clearAiSuggestion();
+        clearAiSuggestion(false);
         clearPendingMove();
         playStoneSound();
       },
       onPass: () => {
-        clearAiSuggestion();
+        clearAiSuggestion(false);
         clearPendingMove();
         playPassSound();
       },
@@ -380,7 +317,7 @@ export function initAnalysis(root: HTMLElement) {
     }
 
     // Update signals + storage
-    clearAiSuggestion();
+    clearAiSuggestion(false);
     analysisSize.value = size;
     storage.set(ANALYSIS_SIZE, String(size));
 
@@ -466,7 +403,7 @@ export function initAnalysis(root: HTMLElement) {
     switch (e.key) {
       case "p":
         if (caps.canPass) {
-          clearAiSuggestion();
+          clearAiSuggestion(false);
           board.pass();
         }
         break;
@@ -527,39 +464,4 @@ export function initAnalysis(root: HTMLElement) {
     resetAnalysisRuntimeState();
     render(null, root);
   };
-}
-
-function heatMapFromRootMoves(
-  moves: AiPocRandomMctsEdge[],
-  boardSize: number,
-): (HeatData | null)[] {
-  const heatMap: (HeatData | null)[] = new Array(boardSize * boardSize).fill(
-    null,
-  );
-  const playableMoves = moves.filter((move) => move.action.kind === "play");
-  const maxPrior = Math.max(...playableMoves.map((move) => move.prior), 0);
-
-  if (maxPrior <= 0) {
-    return heatMap;
-  }
-
-  playableMoves.forEach((move, index) => {
-    if (move.action.kind !== "play") {
-      return;
-    }
-
-    const heatIndex = move.action.row * boardSize + move.action.col;
-    const strength = Math.max(
-      1,
-      Math.min(9, Math.ceil((move.prior / maxPrior) * 9)),
-    );
-    const percent = Math.round(move.prior * 1000) / 10;
-
-    heatMap[heatIndex] = {
-      strength,
-      text: index < 8 ? `${percent}%` : undefined,
-    };
-  });
-
-  return heatMap;
 }
