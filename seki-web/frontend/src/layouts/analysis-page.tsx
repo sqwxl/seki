@@ -11,6 +11,7 @@ import { formatN } from "../utils/format";
 import { useMediaQuery } from "../utils/media-query";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import {
+  analysisAiState,
   analysisBoard,
   analysisKomi,
   analysisMeta,
@@ -82,6 +83,14 @@ function buildAnalysisControls(
       disabled: !caps.canEstimate,
     };
   }
+
+  controlsProps.aiSuggest = {
+    onClick: props.onAiSuggest,
+    disabled: !board || analysisSize.value !== 9,
+    pending: analysisAiState.value.pending,
+    title:
+      analysisSize.value === 9 ? "AI suggestion" : "AI suggestion requires 9x9",
+  };
 
   if (caps.showSgfImport) {
     controlsProps.sgfImport = { onFileChange: handleSgfImport };
@@ -202,9 +211,37 @@ export type AnalysisPageProps = {
   moveTreeEl: HTMLElement;
   onSizeChange: (size: number) => void;
   onKomiChange: (komi: number) => void;
+  onAiSuggest: () => void;
   handleSgfImport: (input: HTMLInputElement) => void;
   handleSgfExport: () => void;
 };
+
+function AnalysisAiStatus() {
+  const state = analysisAiState.value;
+  const result = state.result?.analysis;
+
+  if (state.pending) {
+    return <span>AI thinking...</span>;
+  }
+  if (state.error) {
+    return <span>AI: {state.error}</span>;
+  }
+  if (!result) {
+    return null;
+  }
+
+  const winrate = `${Math.round(result.winrate * 1000) / 10}%`;
+  const elapsed = result.timings.totalElapsedMs
+    ? `${Math.round(result.timings.totalElapsedMs)}ms`
+    : undefined;
+
+  return (
+    <span>
+      AI: {result.bestMove ?? "pass"} · {winrate}
+      {elapsed ? ` · ${elapsed}` : ""}
+    </span>
+  );
+}
 
 export function AnalysisPage(props: AnalysisPageProps) {
   const { gobanRef, moveTreeEl } = props;
@@ -292,6 +329,7 @@ export function AnalysisPage(props: AnalysisPageProps) {
                 copyInviteLink={() => {}}
               />
             )}
+            <AnalysisAiStatus />
           </GameStatus>
         ) : undefined
       }

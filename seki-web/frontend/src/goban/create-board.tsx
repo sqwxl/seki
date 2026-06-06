@@ -13,7 +13,7 @@ import {
   renderMoveTree,
   type NavAction,
 } from "./render-board";
-import type { Point } from "./types";
+import type { HeatData, Point } from "./types";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 
 // ---------------------------------------------------------------------------
@@ -44,6 +44,7 @@ export type BoardConfig = {
   komi?: number;
   ghostStone?: GhostStoneGetter;
   territoryOverlay?: () => TerritoryOverlay | undefined;
+  heatOverlay?: () => (HeatData | null)[] | undefined;
   onRender?: (engine: WasmEngine, territory: TerritoryInfo) => void;
   canPlay?: () => boolean;
   onVertexClick?: (col: number, row: number) => boolean;
@@ -482,6 +483,7 @@ class BoardController implements Board {
       this.showCoords,
       this.config.ghostStone,
       crosshairStone,
+      this.config.heatOverlay?.(),
     );
 
     return territoryInfo;

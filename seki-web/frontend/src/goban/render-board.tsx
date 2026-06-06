@@ -3,7 +3,13 @@ import { MoveTree } from "../components/move-tree";
 import type { GameTreeData } from "../game/types";
 import { Goban } from "./";
 import { computeVertexSize, desktopMQ, koMarker } from "./init-wasm";
-import type { GhostStoneData, MarkerData, Point, Sign } from "./types";
+import type {
+  GhostStoneData,
+  HeatData,
+  MarkerData,
+  Point,
+  Sign,
+} from "./types";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 
 // ---------------------------------------------------------------------------
@@ -22,6 +28,7 @@ function renderFromEngine(
   showCoordinates?: boolean,
   ghostStone?: GhostStoneGetter,
   crosshairStone?: number,
+  heatMap?: (HeatData | null)[],
 ): void {
   const board = [...engine.board()] as number[];
   const cols = engine.cols();
@@ -73,6 +80,7 @@ function renderFromEngine(
       markerMap={markerMap}
       ghostStoneMap={ghostStoneMap}
       paintMap={overlay?.paintMap}
+      heatMap={heatMap}
       dimmedVertices={overlay?.dimmedVertices}
       showCoordinates={showCoordinates}
       fuzzyStonePlacement

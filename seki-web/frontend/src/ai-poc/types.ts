@@ -49,6 +49,7 @@ export type AiPocDirectPolicyRequest = Omit<
 > & {
   type: "direct-policy";
   maxPolicyActions: number;
+  position?: AiPocPosition;
 };
 
 export type AiPocRandomMctsRequest = Omit<AiPocRunRequest, "type" | "runs"> & {
@@ -84,7 +85,7 @@ export type AiPocRustLeafPolicyMctsRequest = Omit<
   position?: AiPocPosition;
 };
 
-export type AiAnalysisPresetId = "mobile-fast" | "tuning";
+export type AiAnalysisPresetId = "direct" | "mobile-fast" | "tuning";
 
 export type AiAnalyzePositionRequest = {
   id: string;

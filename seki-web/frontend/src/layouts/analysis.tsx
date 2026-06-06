@@ -1,10 +1,13 @@
 import { effect } from "@preact/signals";
 import { createRef, render } from "preact";
+import type { AiPocRandomMctsEdge } from "../ai-poc/types";
+import { analyzePositionDirect } from "../ai/analyze";
+import { aiPositionFromEngine } from "../ai/position";
 import { analysisCapabilities, buildPlayerPanels } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { mobileTab, showCoordinates } from "../game/state";
 import { createBoard, ensureWasm } from "../goban/create-board";
-import type { Sign } from "../goban/types";
+import type { HeatData, Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { formatSgfTime, formatTime, todayYYYYMMDD } from "../utils/format";
 import {
@@ -24,6 +27,7 @@ import {
 } from "../utils/storage";
 import { AnalysisPage } from "./analysis-page";
 import {
+  analysisAiState,
   analysisBoard,
   analysisKomi,
   analysisMeta,
@@ -62,6 +66,7 @@ export function initAnalysis(root: HTMLElement) {
   let sgfText: string | undefined = storage.get(ANALYSIS_SGF_TEXT) ?? undefined;
   let disposed = false;
   let boardInitVersion = 0;
+  let aiRequestId = 0;
 
   showCoordinates.value = readShowCoordinates();
 
@@ -83,11 +88,83 @@ export function initAnalysis(root: HTMLElement) {
     return mc.getGhostStone();
   }
 
+  function aiHeatOverlay() {
+    const board = analysisBoard.value;
+    const state = analysisAiState.value;
+
+    if (!board || state.nodeId !== board.engine.current_node_id()) {
+      return undefined;
+    }
+
+    return state.heatMap;
+  }
+
+  function clearAiSuggestion() {
+    const state = analysisAiState.value;
+
+    if (state.pending || state.result || state.error || state.heatMap) {
+      aiRequestId += 1;
+      analysisAiState.value = { pending: false };
+      analysisBoard.value?.render();
+    }
+  }
+
   // --- Komi change ---
   function handleKomiChange(komi: number) {
     analysisKomi.value = komi;
     storage.set(ANALYSIS_KOMI, String(komi));
     analysisBoard.value?.setKomi(komi);
+  }
+
+  async function handleAiSuggest() {
+    const board = analysisBoard.value;
+
+    if (!board || analysisAiState.value.pending) {
+      return;
+    }
+
+    const requestId = ++aiRequestId;
+    const nodeId = board.engine.current_node_id();
+
+    analysisAiState.value = { pending: true };
+
+    try {
+      const position = aiPositionFromEngine(board.engine, analysisKomi.value);
+      const result = await analyzePositionDirect(position);
+
+      if (
+        requestId !== aiRequestId ||
+        analysisBoard.value !== board ||
+        board.engine.current_node_id() !== nodeId
+      ) {
+        return;
+      }
+
+      analysisAiState.value = {
+        pending: false,
+        result,
+        nodeId,
+        heatMap: heatMapFromRootMoves(
+          result.analysis.rootMoves,
+          position.boardSize,
+        ),
+      };
+      board.render();
+    } catch (err) {
+      if (
+        requestId !== aiRequestId ||
+        analysisBoard.value !== board ||
+        board.engine.current_node_id() !== nodeId
+      ) {
+        return;
+      }
+
+      analysisAiState.value = {
+        pending: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+      board.render();
+    }
   }
 
   function buildAnalysisPanels(
@@ -178,6 +255,7 @@ export function initAnalysis(root: HTMLElement) {
 
   // --- Size change ---
   function handleSizeChange(size: number) {
+    clearAiSuggestion();
     analysisSize.value = size;
     analysisMeta.value = undefined;
     sgfText = undefined;
@@ -208,6 +286,7 @@ export function initAnalysis(root: HTMLElement) {
       moveTreeDirection: "responsive",
       storageKey: analysisTreeKey(size),
       ghostStone,
+      heatOverlay: aiHeatOverlay,
       onVertexClick: (col, row) => {
         if (!mc.enabled) {
           return false;
@@ -232,10 +311,12 @@ export function initAnalysis(root: HTMLElement) {
       },
 
       onStonePlay: () => {
+        clearAiSuggestion();
         clearPendingMove();
         playStoneSound();
       },
       onPass: () => {
+        clearAiSuggestion();
         clearPendingMove();
         playPassSound();
       },
@@ -299,6 +380,7 @@ export function initAnalysis(root: HTMLElement) {
     }
 
     // Update signals + storage
+    clearAiSuggestion();
     analysisSize.value = size;
     storage.set(ANALYSIS_SIZE, String(size));
 
@@ -384,6 +466,7 @@ export function initAnalysis(root: HTMLElement) {
     switch (e.key) {
       case "p":
         if (caps.canPass) {
+          clearAiSuggestion();
           board.pass();
         }
         break;
@@ -420,6 +503,7 @@ export function initAnalysis(root: HTMLElement) {
       moveTreeEl={moveTreeEl}
       onSizeChange={handleSizeChange}
       onKomiChange={handleKomiChange}
+      onAiSuggest={handleAiSuggest}
       handleSgfImport={handleSgfImport}
       handleSgfExport={handleSgfExport}
     />,
@@ -443,4 +527,39 @@ export function initAnalysis(root: HTMLElement) {
     resetAnalysisRuntimeState();
     render(null, root);
   };
+}
+
+function heatMapFromRootMoves(
+  moves: AiPocRandomMctsEdge[],
+  boardSize: number,
+): (HeatData | null)[] {
+  const heatMap: (HeatData | null)[] = new Array(boardSize * boardSize).fill(
+    null,
+  );
+  const playableMoves = moves.filter((move) => move.action.kind === "play");
+  const maxPrior = Math.max(...playableMoves.map((move) => move.prior), 0);
+
+  if (maxPrior <= 0) {
+    return heatMap;
+  }
+
+  playableMoves.forEach((move, index) => {
+    if (move.action.kind !== "play") {
+      return;
+    }
+
+    const heatIndex = move.action.row * boardSize + move.action.col;
+    const strength = Math.max(
+      1,
+      Math.min(9, Math.ceil((move.prior / maxPrior) * 9)),
+    );
+    const percent = Math.round(move.prior * 1000) / 10;
+
+    heatMap[heatIndex] = {
+      strength,
+      text: index < 8 ? `${percent}%` : undefined,
+    };
+  });
+
+  return heatMap;
 }

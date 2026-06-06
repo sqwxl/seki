@@ -53,7 +53,10 @@ const analyzePositionPresets = {
     batchSize: 4,
     fpuReduction: 0.5,
   },
-} satisfies Record<AiAnalysisPresetId, AnalyzePositionPreset>;
+} satisfies Record<
+  Exclude<AiAnalysisPresetId, "direct">,
+  AnalyzePositionPreset
+>;
 
 type BrowserGpu = {
   requestAdapter(options?: {
@@ -1271,12 +1274,14 @@ async function runOnnxDirectPolicy(
   const modelLoadStartedAt = performance.now();
   const loaded = await loadOnnxSession(manifest, request.backendPreference);
   const modelLoadMs = performance.now() - modelLoadStartedAt;
-  const position = createAiPocPosition(
-    request.positionPreset,
-    request.boardSize,
-    request.nextPlayer,
-    request.komi,
-  );
+  const position =
+    request.position ??
+    createAiPocPosition(
+      request.positionPreset,
+      request.boardSize,
+      request.nextPlayer,
+      request.komi,
+    );
   const modelEvalStartedAt = performance.now();
   const input = makeOnnxFeedsForPosition(loaded.session, position);
   const outputs = await predictOnnx(loaded.session, input.feeds);
@@ -1567,7 +1572,6 @@ async function runAnalyzePosition(
   request: Extract<AiPocRequest, { type: "analyze-position" }>,
 ): Promise<AiAnalyzePositionResult> {
   const manifest = await fetchManifest(request.manifestUrl);
-  const config = analyzePositionPresets[request.preset];
 
   if (!manifest.boardSizes.includes(request.position.boardSize)) {
     throw new Error(
@@ -1579,6 +1583,65 @@ async function runAnalyzePosition(
     throw new Error("Analyze position requires an ONNX model");
   }
 
+  if (request.preset === "direct") {
+    const direct = await runOnnxDirectPolicy(manifest, {
+      id: request.id,
+      type: "direct-policy",
+      manifestUrl: request.manifestUrl,
+      boardSize: request.position.boardSize,
+      positionPreset: "direct",
+      nextPlayer: request.position.nextPlayer,
+      komi: request.position.komi,
+      backendPreference: request.backendPreference,
+      policyOptimism: request.policyOptimism,
+      maxPolicyActions: 16,
+      position: request.position,
+    });
+
+    return {
+      runtime: direct.runtime,
+      policyRuntime: direct.policyRuntime,
+      manifest: direct.manifest,
+      backend: direct.backend,
+      backendPreference: direct.backendPreference,
+      fallbackReason: direct.fallbackReason,
+      model: direct.model,
+      webgpu: direct.webgpu,
+      input: {
+        boardSize: request.position.boardSize,
+        nextPlayer: request.position.nextPlayer,
+        komi: request.position.komi,
+        policyOptimism: request.policyOptimism,
+      },
+      analysis: {
+        preset: request.preset,
+        visits: 0,
+        maxPolicyActions: direct.directPolicy.maxPolicyActions,
+        batchSize: 1,
+        fpuReduction: 0,
+        policyOptimism: direct.directPolicy.policyOptimism,
+        bestMove: direct.directPolicy.bestMove,
+        winrate: direct.directPolicy.winrate,
+        rootValue: direct.directPolicy.rootValue,
+        principalVariation: [],
+        principalVariationMoves: direct.directPolicy.bestMove
+          ? [direct.directPolicy.bestMove]
+          : [],
+        rootMoves: direct.directPolicy.legalMoves,
+        timings: {
+          modelLoadMs: direct.directPolicy.modelLoadMs,
+          modelEvalMs: direct.directPolicy.modelEvalMs,
+          modelEvaluations: 1,
+          modelBatches: 1,
+          wasmSearchMs: 0,
+          totalElapsedMs: direct.directPolicy.totalElapsedMs,
+        },
+      },
+      environment: direct.environment,
+    };
+  }
+
+  const config = analyzePositionPresets[request.preset];
   const result = await runOnnxRustLeafPolicyMcts(manifest, {
     id: request.id,
     type: "rust-leaf-policy-mcts",

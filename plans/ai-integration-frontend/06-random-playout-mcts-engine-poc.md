@@ -471,11 +471,12 @@ Current Rust/WASM status:
   with best move, winrate, principal variation, root move stats, diagnostics,
   and timing breakdown.
 - Current `analyze-position` presets:
+  - `direct`: one model eval, legal-masked policy/value, no search.
   - `mobile-fast`: 64 visits, 16 max policy actions, eval batch 16, FPU 0.2.
   - `tuning`: 64 visits, 16 max policy actions, eval batch 4, FPU 0.5.
-  These are non-pondering immediate-move settings. Product strength settings
-  should leave room for slower/better search when pondering has already warmed
-  the tree between opponent moves.
+  Use `direct` for non-pondering tap-to-move suggestions. Product strength
+  settings should leave room for slower/better search when pondering has already
+  warmed the tree between opponent moves.
 - The worker now supports KataGo policy optimism for official ONNX exports with
   two policy channels. It blends normal and optimistic logits using KataGo's
   backend formula: `normal + (optimistic - normal) * policyOptimism`.

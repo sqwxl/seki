@@ -49,6 +49,7 @@ export type ControlsProps = {
     pending?: "confirm" | "cancel";
     isRanked?: boolean;
   };
+  aiSuggest?: ButtonDef;
   analyze?: ButtonDef & { active?: boolean };
   estimate?: ButtonDef;
   exitEstimate?: ButtonDef;

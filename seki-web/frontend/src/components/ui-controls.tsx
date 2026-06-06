@@ -7,6 +7,7 @@ import {
 import {
   IconAnalysis,
   IconBalance,
+  IconBot,
   IconFileExport,
   IconGrid4x4,
   IconKomi,
@@ -109,6 +110,15 @@ export function UIControls(
             </button>
           )}
         </>
+      )}
+      {props.aiSuggest && (
+        <button
+          title={props.aiSuggest.title ?? "AI suggestion"}
+          disabled={props.aiSuggest.disabled || props.aiSuggest.pending}
+          onClick={props.aiSuggest.onClick}
+        >
+          <ButtonContent pending={props.aiSuggest.pending} icon={IconBot} />
+        </button>
       )}
       {props.estimate && (
         <button

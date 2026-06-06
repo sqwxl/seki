@@ -31,8 +31,12 @@ Current status:
   recent moves latest-first.
 - Tests cover board stones, side to move, ko export, recent move order, and
   rejecting non-square boards.
-- Next integration step: call this helper from the product board/analysis flow
-  and send the result to the worker `analyze-position` request.
+- Standalone analysis now has a first product-path AI suggestion button. On 9x9
+  positions it snapshots the current board, sends an `analyze-position` request
+  to the worker, and displays the best move/winrate/timing in the status area.
+- The product path currently uses the `direct` analysis preset: one legal-masked
+  policy/value evaluation with the 9x9 KataGo model. Leaf MCTS remains a
+  pondering/search path because 64-visit tap-to-move MCTS is too slow on Android.
 
 ## Feature Extraction
 
