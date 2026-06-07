@@ -21,6 +21,7 @@ import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 // ---------------------------------------------------------------------------
 
 export type TerritoryInfo = {
+  estimating: boolean;
   reviewing: boolean;
   confirming: boolean;
   finalized: boolean;
@@ -71,6 +72,7 @@ export type Board = {
   setKomi: (komi: number) => void;
   setShowCoordinates: (show: boolean) => void;
   setMoveTreeEl: (el: HTMLElement | null) => void;
+  setPassiveOverlay: (overlay: TerritoryOverlay | undefined) => void;
   enterEstimate: () => void;
   enterTerritoryReview: () => void;
   exitTerritoryReview: () => void;
@@ -114,6 +116,7 @@ class BoardController implements Board {
   private baseMoveCount: number;
   private _baseTipNodeId: number;
   private territoryState: TerritoryState | undefined;
+  private passiveOverlay: TerritoryOverlay | undefined;
   private finalizedNodes: Map<number, [number, number][]>;
   private finalizedTerritoryCache: Map<number, TerritoryState>;
   private abortController: AbortController;
@@ -322,24 +325,19 @@ class BoardController implements Board {
 
     const board = [...this.engine.board()] as number[];
     const deadStones: [number, number][] = [];
-    const paintOwnership = ownership.slice();
 
     for (let index = 0; index < size; index++) {
       const stone = board[index] ?? 0;
       const owner = ownership[index] ?? 0;
 
-      if (stone !== 0 && owner !== 0) {
-        if (Math.sign(stone) === Math.sign(owner)) {
-          paintOwnership[index] = 0;
-        } else {
-          deadStones.push([index % cols, Math.floor(index / cols)]);
-        }
+      if (stone !== 0 && owner !== 0 && Math.sign(stone) !== Math.sign(owner)) {
+        deadStones.push([index % cols, Math.floor(index / cols)]);
       }
     }
 
     return {
       deadStones,
-      ownership: paintOwnership,
+      ownership,
       score: undefined,
       mode,
       readonly: mode === "estimate",
@@ -350,7 +348,10 @@ class BoardController implements Board {
     const externalState = this.computeExternalTerritoryState("estimate");
 
     if (externalState) {
-      this.territoryState = externalState;
+      this.passiveOverlay = this.buildOverlay(
+        externalState.deadStones,
+        externalState.ownership,
+      );
       this.render();
 
       return;
@@ -365,8 +366,19 @@ class BoardController implements Board {
 
       return;
     }
-    this.territoryState = this.computeTerritoryState(deadStones, "estimate");
+    const state = this.computeTerritoryState(deadStones, "estimate");
+
+    if (!state) {
+      return;
+    }
+
+    this.passiveOverlay = this.buildOverlay(state.deadStones, state.ownership);
     this.render();
+  }
+
+  setPassiveOverlay(overlay: TerritoryOverlay | undefined): void {
+    this.passiveOverlay = overlay;
+    this.renderBoardOnly();
   }
 
   enterTerritoryReview(): void {
@@ -394,6 +406,7 @@ class BoardController implements Board {
 
   exitTerritoryReview(): void {
     this.territoryState = undefined;
+    this.passiveOverlay = undefined;
     this.render();
   }
 
@@ -474,6 +487,7 @@ class BoardController implements Board {
       if (ts) {
         overlay = this.buildOverlay(ts.deadStones, ts.ownership);
         territoryInfo = {
+          estimating: false,
           reviewing: false,
           confirming: false,
           finalized: true,
@@ -482,6 +496,7 @@ class BoardController implements Board {
       } else {
         territoryInfo = {
           reviewing: false,
+          estimating: false,
           confirming: false,
           finalized: false,
           score: undefined,
@@ -493,6 +508,7 @@ class BoardController implements Board {
         this.territoryState.ownership,
       );
       territoryInfo = {
+        estimating: false,
         reviewing: true,
         confirming: this.territoryState.mode === "review",
         finalized: false,
@@ -505,6 +521,7 @@ class BoardController implements Board {
         overlay = serverOverlay;
         territoryInfo = {
           reviewing: true,
+          estimating: false,
           confirming: true,
           finalized: false,
           score: undefined,
@@ -512,13 +529,24 @@ class BoardController implements Board {
       } else {
         territoryInfo = {
           reviewing: false,
+          estimating: false,
           confirming: false,
           finalized: false,
           score: undefined,
         };
       }
+    } else if (this.passiveOverlay) {
+      overlay = this.passiveOverlay;
+      territoryInfo = {
+        estimating: true,
+        reviewing: false,
+        confirming: false,
+        finalized: false,
+        score: undefined,
+      };
     } else {
       territoryInfo = {
+        estimating: false,
         reviewing: false,
         confirming: false,
         finalized: false,
@@ -529,30 +557,30 @@ class BoardController implements Board {
     const onVertexClick = (_: Event, [col, row]: Point) => {
       if (this.territoryState && !finalized) {
         if (this.territoryState.readonly) {
-          return;
-        }
+          this.territoryState = undefined;
+        } else {
+          let newDead: [number, number][];
 
-        let newDead: [number, number][];
+          try {
+            const deadJson = this.engine.toggle_dead_chain(
+              col,
+              row,
+              JSON.stringify(this.territoryState.deadStones),
+            );
+            newDead = JSON.parse(deadJson);
+          } catch {
+            console.warn("Failed to toggle dead chain");
 
-        try {
-          const deadJson = this.engine.toggle_dead_chain(
-            col,
-            row,
-            JSON.stringify(this.territoryState.deadStones),
+            return;
+          }
+
+          this.territoryState = this.computeTerritoryState(
+            newDead,
+            this.territoryState.mode,
           );
-          newDead = JSON.parse(deadJson);
-        } catch {
-          console.warn("Failed to toggle dead chain");
-
+          this.render();
           return;
         }
-
-        this.territoryState = this.computeTerritoryState(
-          newDead,
-          this.territoryState.mode,
-        );
-        this.render();
-        return;
       }
 
       if (this.config.onVertexClick && this.config.onVertexClick(col, row)) {
@@ -562,6 +590,7 @@ class BoardController implements Board {
       const oldTreeNodeCount = this.engine.tree_node_count();
 
       if (this.engine.try_play(col, row)) {
+        this.passiveOverlay = undefined;
         if (this.engine.tree_node_count() > oldTreeNodeCount) {
           this.config.onStonePlay?.();
         }
@@ -570,8 +599,9 @@ class BoardController implements Board {
       }
     };
 
+    const overlayBlocksPlay = !!overlay && overlay !== this.passiveOverlay;
     const canPlay =
-      (!overlay || finalized) && (this.config.canPlay?.() ?? true);
+      (!overlayBlocksPlay || finalized) && (this.config.canPlay?.() ?? true);
     const crosshairStone = canPlay ? this.engine.current_turn_stone() : 0;
 
     renderFromEngine(
@@ -617,12 +647,19 @@ class BoardController implements Board {
     this.config.onRender?.(this.engine, territoryInfo);
   }
 
+  private renderBoardOnly(): void {
+    const territoryInfo = this.renderBoard();
+
+    this.config.onRender?.(this.engine, territoryInfo);
+  }
+
   // ---- Navigation ----
 
   navigate(action: NavAction): void {
     if (this.territoryState) {
       this.territoryState = undefined;
     }
+    this.passiveOverlay = undefined;
 
     if (navigateEngine(this.engine, action)) {
       const stage = this.engine.stage();
@@ -662,6 +699,7 @@ class BoardController implements Board {
     if (this.territoryState) {
       this.territoryState = undefined;
     }
+    this.passiveOverlay = undefined;
 
     const oldTreeNodeCount = this.engine.tree_node_count();
 
@@ -693,6 +731,7 @@ class BoardController implements Board {
   // ---- State updates ----
 
   updateBaseMoves(movesJson: string): void {
+    this.passiveOverlay = undefined;
     const newCount = (JSON.parse(movesJson) as unknown[]).length;
     const oldTipId = this._baseTipNodeId;
     const wasAtBaseTip =
@@ -740,6 +779,7 @@ class BoardController implements Board {
 
   restoreBaseMoves(): void {
     this.territoryState = undefined;
+    this.passiveOverlay = undefined;
     invalidateTreeCache();
     this.engine.replace_moves(this.baseMoves);
     this._baseTipNodeId = this.baseMoveCount > 0 ? this.baseMoveCount - 1 : -1;
@@ -753,6 +793,7 @@ class BoardController implements Board {
 
     this.handicap = handicap;
     this.territoryState = undefined;
+    this.passiveOverlay = undefined;
     invalidateTreeCache();
     this.engine.set_handicap(handicap);
   }
@@ -781,6 +822,7 @@ class BoardController implements Board {
       storage.remove(`${this.config.storageKey}:node`);
     }
     this.territoryState = undefined;
+    this.passiveOverlay = undefined;
     this.finalizedNodes = new Map();
     this.finalizedTerritoryCache = new Map();
     invalidateTreeCache();
@@ -857,6 +899,7 @@ class BoardController implements Board {
     } else {
       this.territoryState = undefined;
     }
+    this.passiveOverlay = undefined;
 
     this.render();
   }

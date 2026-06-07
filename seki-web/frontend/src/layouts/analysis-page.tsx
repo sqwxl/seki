@@ -81,7 +81,7 @@ function buildAnalysisControls(
 
   if (caps.showEstimate) {
     const estimateActive =
-      analysisTerritoryInfo.value.reviewing &&
+      analysisTerritoryInfo.value.estimating &&
       !analysisTerritoryInfo.value.confirming;
 
     controlsProps.estimate = {
@@ -231,14 +231,18 @@ export type AnalysisPageProps = {
 };
 
 function AnalysisAiStatus() {
-  const state = analysisAiState.value;
-  const result = state.result?.analysis;
+  const territory = analysisAiTerritoryState.value;
+  const showEstimateScore =
+    analysisTerritoryInfo.value.estimating &&
+    !analysisTerritoryInfo.value.confirming;
+  const result = showEstimateScore ? territory.result?.analysis : undefined;
 
-  if (state.pending) {
-    return <span>AI thinking...</span>;
+  if (!showEstimateScore && analysisAiState.value.enabled) {
+    return null;
   }
-  if (state.error) {
-    return <span>AI: {state.error}</span>;
+
+  if (showEstimateScore && territory.pending) {
+    return null;
   }
   if (!result) {
     return null;
@@ -246,15 +250,11 @@ function AnalysisAiStatus() {
 
   const winrate = `${Math.round(result.winrate * 1000) / 10}%`;
   const score = formatAiScore(result.scoreMean);
-  const elapsed = result.timings.totalElapsedMs
-    ? `${Math.round(result.timings.totalElapsedMs)}ms`
-    : undefined;
 
   return (
     <span>
-      AI: {result.bestMove ?? "pass"} · {winrate}
-      {score ? ` · ${score}` : ""}
-      {elapsed ? ` · ${elapsed}` : ""}
+      {score ? `${score} · ` : ""}
+      {winrate}
     </span>
   );
 }

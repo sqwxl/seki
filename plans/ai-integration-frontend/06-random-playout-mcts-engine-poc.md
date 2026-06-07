@@ -507,12 +507,14 @@ Current Rust/WASM status:
     moves, passes, imports, size changes, and move-tree navigation.
   - Suggestions are disabled during territory review; entering review clears
     overlays and stale worker responses are ignored.
+- Bot move play should not be added to the analysis board. Move generation and
+  bot-play controls belong in the dedicated local bot screen from plan 04.
 - Next pending steps:
   1. Benchmark the KataGo-derived 9x9 presets with direct policy and
      leaf-policy MCTS to see whether they expose useful tactical differences or
      transposition/catch-up behavior.
-  2. Decide whether the next product UX should stay suggestion-only, make top
-     suggestion tap-to-play more explicit, or add a separate one-tap bot move.
+  2. Keep analysis UX suggestion/estimate-only. Start bot move integration in
+     the dedicated local bot screen once `genmove` semantics are ready.
   3. Keep mobile presets conservative until pondering exists; slower/better
      settings should mostly spend ponder budget, not block every tap.
 

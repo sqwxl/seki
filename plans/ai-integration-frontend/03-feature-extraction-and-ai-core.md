@@ -44,6 +44,8 @@ Current status:
   it shows its own pending state, paints ownership when ready, masks alive
   stones, and dims occupied stones that the model predicts as owned by the
   opposite color.
+- Manual estimate uses a passive goban overlay, not territory-review state.
+  Territory review is reserved for actual post-pass confirmation.
 - Territory review after two passes can reuse the AI ownership path when the
   active model supports the board size, while unsupported boards fall back to
   the existing engine-only estimate.

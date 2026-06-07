@@ -1,6 +1,10 @@
 import { signal } from "@preact/signals";
 import type { AiAnalyzePositionResult } from "../ai-poc/types";
-import type { Board, TerritoryInfo } from "../goban/create-board";
+import type {
+  Board,
+  TerritoryInfo,
+  TerritoryOverlay,
+} from "../goban/create-board";
 import type { GhostStoneData, HeatData, Point } from "../goban/types";
 import type { SgfMeta } from "../utils/sgf";
 
@@ -23,12 +27,16 @@ export const analysisAiState = signal<{
 });
 export const analysisAiTerritoryState = signal<{
   pending: boolean;
+  mode?: "estimate" | "review";
   nodeId?: number;
+  result?: AiAnalyzePositionResult;
   ownership?: number[];
+  overlay?: TerritoryOverlay;
 }>({
   pending: false,
 });
 export const analysisTerritoryInfo = signal<TerritoryInfo>({
+  estimating: false,
   reviewing: false,
   confirming: false,
   finalized: false,
@@ -62,6 +70,7 @@ export function resetAnalysisRuntimeState(): void {
   analysisAiState.value = { enabled: false, pending: false };
   analysisAiTerritoryState.value = { pending: false };
   analysisTerritoryInfo.value = {
+    estimating: false,
     reviewing: false,
     confirming: false,
     finalized: false,

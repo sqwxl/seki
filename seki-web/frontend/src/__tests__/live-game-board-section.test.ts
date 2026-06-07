@@ -38,7 +38,13 @@ function renderLivePosition({
 
   onRenderCallback(
     engine as never,
-    { reviewing: false, confirming: false, finalized: false, score: undefined },
+    {
+      estimating: false,
+      reviewing: false,
+      confirming: false,
+      finalized: false,
+      score: undefined,
+    },
     {
       board: signal({ baseTipNodeId } as never),
       analysisMode: signal(false),

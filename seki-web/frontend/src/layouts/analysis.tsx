@@ -10,7 +10,11 @@ import { analysisCapabilities } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { mobileTab, showCoordinates } from "../game/state";
 import { GameStage } from "../game/types";
-import { createBoard, ensureWasm } from "../goban/create-board";
+import {
+  createBoard,
+  ensureWasm,
+  type TerritoryOverlay,
+} from "../goban/create-board";
 import type { Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { todayYYYYMMDD } from "../utils/format";
@@ -73,6 +77,14 @@ export function initAnalysis(root: HTMLElement) {
   let boardInitVersion = 0;
   let aiRequestId = 0;
   let aiTerritoryRequestId = 0;
+  const aiEvalCache = new Map<
+    number,
+    {
+      result: Awaited<ReturnType<typeof analyzePositionDirect>>;
+      ownership?: number[];
+      overlay?: TerritoryOverlay;
+    }
+  >();
 
   showCoordinates.value = readShowCoordinates();
 
@@ -140,11 +152,49 @@ export function initAnalysis(root: HTMLElement) {
     );
   }
 
+  function buildAiOwnershipOverlay(
+    ownership: number[] | undefined,
+  ): TerritoryOverlay | undefined {
+    const board = analysisBoard.value;
+
+    if (!board || !ownership) {
+      return undefined;
+    }
+
+    const cols = board.engine.cols();
+    const rows = board.engine.rows();
+    const size = cols * rows;
+
+    if (ownership.length !== size) {
+      return undefined;
+    }
+
+    const stones = [...board.engine.board()] as number[];
+    const paintMap: (number | null)[] = new Array(size);
+    const dimmedVertices: [number, number][] = [];
+
+    for (let index = 0; index < size; index++) {
+      const owner = Number.isFinite(ownership[index])
+        ? Math.max(-1, Math.min(1, ownership[index]!))
+        : 0;
+      const stone = stones[index] ?? 0;
+
+      if (stone !== 0 && owner !== 0) {
+        if (Math.sign(stone) !== Math.sign(owner)) {
+          dimmedVertices.push([index % cols, Math.floor(index / cols)]);
+        }
+      }
+      paintMap[index] = owner || null;
+    }
+
+    return { paintMap, dimmedVertices };
+  }
+
   function canRunAiSuggestion(board = analysisBoard.value) {
     return (
       !!board &&
       analysisSize.value === 9 &&
-      !analysisTerritoryInfo.value.reviewing &&
+      !analysisTerritoryInfo.value.confirming &&
       board.engine.stage() !== GameStage.TerritoryReview
     );
   }
@@ -199,13 +249,18 @@ export function initAnalysis(root: HTMLElement) {
     analysisAiTerritoryState.value = { pending: false };
   }
 
+  function clearAiEvalCache() {
+    aiEvalCache.clear();
+    clearAiTerritoryOwnership();
+  }
+
   // --- Komi change ---
   function handleKomiChange(komi: number) {
     analysisKomi.value = komi;
     storage.set(ANALYSIS_KOMI, String(komi));
     analysisBoard.value?.setKomi(komi);
     clearAiSuggestion();
-    clearAiTerritoryOwnership();
+    clearAiEvalCache();
   }
 
   function handleAiSuggestChange() {
@@ -236,12 +291,22 @@ export function initAnalysis(root: HTMLElement) {
 
     const requestId = ++aiRequestId;
     const nodeId = board.engine.current_node_id();
+    const position = aiPositionFromEngine(board.engine, analysisKomi.value);
+    const sign = board.engine.current_turn_stone() as Sign;
+    const cached = analysisAiTerritoryState.value;
+
+    const cachedEval = aiEvalCache.get(nodeId);
+
+    if (cachedEval) {
+      applyAiSuggestion(cachedEval.result, nodeId, position.boardSize, sign);
+      board.render();
+
+      return;
+    }
 
     analysisAiState.value = { enabled: true, pending: true };
 
     try {
-      const position = aiPositionFromEngine(board.engine, analysisKomi.value);
-      const sign = board.engine.current_turn_stone() as Sign;
       const result = await analyzePositionDirect(position);
 
       if (
@@ -269,6 +334,19 @@ export function initAnalysis(root: HTMLElement) {
           sign,
         ),
       };
+      analysisAiTerritoryState.value = {
+        ...analysisAiTerritoryState.value,
+        pending: false,
+        result,
+        nodeId,
+        ownership: result.analysis.ownership,
+        overlay: buildAiOwnershipOverlay(result.analysis.ownership),
+      };
+      aiEvalCache.set(nodeId, {
+        result,
+        ownership: result.analysis.ownership,
+        overlay: analysisAiTerritoryState.value.overlay,
+      });
       board.render();
     } catch (err) {
       if (
@@ -291,6 +369,26 @@ export function initAnalysis(root: HTMLElement) {
     }
   }
 
+  function applyAiSuggestion(
+    result: Awaited<ReturnType<typeof analyzePositionDirect>>,
+    nodeId: number,
+    boardSize: number,
+    sign: Sign,
+  ) {
+    analysisAiState.value = {
+      enabled: true,
+      pending: false,
+      result,
+      nodeId,
+      heatMap: heatMapFromRootMoves(result.analysis.rootMoves, boardSize),
+      ghostStoneMap: ghostStoneMapFromRootMoves(
+        result.analysis.rootMoves,
+        boardSize,
+        sign,
+      ),
+    };
+  }
+
   async function startTerritoryOverlay(mode: "estimate" | "review") {
     const board = analysisBoard.value;
 
@@ -303,7 +401,7 @@ export function initAnalysis(root: HTMLElement) {
     const requestId = ++aiTerritoryRequestId;
     const enterOverlay = () => {
       if (mode === "estimate") {
-        board.enterEstimate();
+        board.setPassiveOverlay(analysisAiTerritoryState.value.overlay);
       } else {
         board.enterTerritoryReview();
       }
@@ -312,7 +410,28 @@ export function initAnalysis(root: HTMLElement) {
     if (!canUseAi) {
       analysisAiTerritoryState.value = {
         pending: false,
+        mode,
         nodeId,
+      };
+      if (mode === "estimate") {
+        board.enterEstimate();
+      } else {
+        enterOverlay();
+      }
+
+      return true;
+    }
+
+    const cachedEval = aiEvalCache.get(nodeId);
+
+    if (cachedEval?.overlay) {
+      analysisAiTerritoryState.value = {
+        pending: false,
+        mode,
+        nodeId,
+        result: cachedEval.result,
+        ownership: cachedEval.ownership,
+        overlay: cachedEval.overlay,
       };
       enterOverlay();
 
@@ -320,12 +439,25 @@ export function initAnalysis(root: HTMLElement) {
     }
 
     if (
-      analysisAiTerritoryState.value.nodeId === nodeId &&
-      analysisAiTerritoryState.value.ownership
+      analysisAiState.value.nodeId === nodeId &&
+      analysisAiState.value.result?.analysis.ownership
     ) {
+      const overlay = buildAiOwnershipOverlay(
+        analysisAiState.value.result.analysis.ownership,
+      );
+      const cached = {
+        result: analysisAiState.value.result,
+        ownership: analysisAiState.value.result.analysis.ownership,
+        overlay,
+      };
+      aiEvalCache.set(nodeId, cached);
       analysisAiTerritoryState.value = {
-        ...analysisAiTerritoryState.value,
         pending: false,
+        mode,
+        nodeId,
+        result: cached.result,
+        ownership: cached.ownership,
+        overlay,
       };
       enterOverlay();
 
@@ -335,6 +467,7 @@ export function initAnalysis(root: HTMLElement) {
     const position = aiPositionFromEngine(board.engine, analysisKomi.value);
     analysisAiTerritoryState.value = {
       pending: true,
+      mode,
       nodeId,
     };
 
@@ -353,18 +486,36 @@ export function initAnalysis(root: HTMLElement) {
       if (!ownership) {
         analysisAiTerritoryState.value = {
           pending: false,
+          mode,
           nodeId,
         };
-        enterOverlay();
+        if (mode === "estimate") {
+          board.enterEstimate();
+        } else {
+          enterOverlay();
+        }
 
         return;
       }
 
+      const overlay = buildAiOwnershipOverlay(ownership);
       analysisAiTerritoryState.value = {
         pending: false,
+        mode,
         nodeId,
+        result,
         ownership,
+        overlay,
       };
+      aiEvalCache.set(nodeId, { result, ownership, overlay });
+      if (analysisAiState.value.enabled) {
+        applyAiSuggestion(
+          result,
+          nodeId,
+          position.boardSize,
+          board.engine.current_turn_stone() as Sign,
+        );
+      }
       enterOverlay();
     } catch {
       if (
@@ -377,9 +528,14 @@ export function initAnalysis(root: HTMLElement) {
 
       analysisAiTerritoryState.value = {
         pending: false,
+        mode,
         nodeId,
       };
-      enterOverlay();
+      if (mode === "estimate") {
+        board.enterEstimate();
+      } else {
+        enterOverlay();
+      }
     }
 
     return true;
@@ -416,7 +572,7 @@ export function initAnalysis(root: HTMLElement) {
   // --- Size change ---
   function handleSizeChange(size: number) {
     clearAiSuggestion(false);
-    clearAiTerritoryOwnership();
+    clearAiEvalCache();
     analysisSize.value = size;
     analysisMeta.value = undefined;
     sgfText = undefined;
@@ -451,9 +607,18 @@ export function initAnalysis(root: HTMLElement) {
       territoryReviewOwnership: aiTerritoryOwnership,
       heatOverlay: aiHeatOverlay,
       onNavigate: () => {
+        const keepEstimate =
+          (analysisTerritoryInfo.value.estimating &&
+            !analysisTerritoryInfo.value.confirming) ||
+          (analysisAiTerritoryState.value.pending &&
+            analysisAiTerritoryState.value.mode === "estimate");
         clearAiSuggestion(false);
         clearAiTerritoryOwnership();
-        refreshAiSuggestion();
+        if (keepEstimate) {
+          void startTerritoryOverlay("estimate");
+        } else {
+          refreshAiSuggestion();
+        }
       },
       onVertexClick: (col, row) => {
         if (!mc.enabled) {
@@ -480,14 +645,14 @@ export function initAnalysis(root: HTMLElement) {
 
       onStonePlay: () => {
         clearAiSuggestion(false);
-        clearAiTerritoryOwnership();
+        clearAiEvalCache();
         clearPendingMove();
         playStoneSound();
         refreshAiSuggestion();
       },
       onPass: () => {
         clearAiSuggestion(false);
-        clearAiTerritoryOwnership();
+        clearAiEvalCache();
         clearPendingMove();
         playPassSound();
         refreshAiSuggestion();
@@ -495,7 +660,7 @@ export function initAnalysis(root: HTMLElement) {
       onTerritoryReviewStart: handleTerritoryReviewStart,
       onRender: (engine, territoryInfo) => {
         analysisTerritoryInfo.value = territoryInfo;
-        if (territoryInfo.reviewing) {
+        if (territoryInfo.confirming) {
           clearAiSuggestion(false);
         } else {
           refreshAiSuggestion();
@@ -559,7 +724,7 @@ export function initAnalysis(root: HTMLElement) {
 
     // Update signals + storage
     clearAiSuggestion(false);
-    clearAiTerritoryOwnership();
+    clearAiEvalCache();
     analysisSize.value = size;
     storage.set(ANALYSIS_SIZE, String(size));
 
@@ -655,7 +820,10 @@ export function initAnalysis(root: HTMLElement) {
         }
         break;
       case "Escape":
-        if (analysisTerritoryInfo.value.reviewing) {
+        if (
+          analysisTerritoryInfo.value.reviewing ||
+          analysisTerritoryInfo.value.estimating
+        ) {
           board.exitTerritoryReview();
         }
         break;

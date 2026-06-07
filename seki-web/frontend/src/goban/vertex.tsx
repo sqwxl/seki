@@ -139,34 +139,13 @@ export default function Vertex(props: VertexProps): JSX.Element {
       onClick={handleClick}
     >
       <div className="goban-heat" style={absoluteStyle(0)} />
-      {!sign && markerMarkup(1)}
-      {!sign && !!ghostStone && (
-        <div className="goban-ghost" style={absoluteStyle(1)} />
-      )}
-
-      <div className="goban-stone" style={absoluteStyle(2)}>
-        {!!sign && (
-          <div
-            className={classnames(
-              "goban-inner",
-              "goban-stone-image",
-              `goban-random_${random}`,
-              `goban-sign_${sign}`,
-            )}
-            style={absoluteStyle()}
-          >
-            {sign}
-          </div>
-        )}
-        {!!sign && markerMarkup()}
-      </div>
 
       {hasPaintNeighbor && (
         <div
           className="goban-paint"
           style={
             {
-              ...absoluteStyle(3),
+              ...absoluteStyle(1),
               "--goban-paint-opacity": String(paintOpacity),
               "--goban-paint-box-shadow": [
                 signEquals(paintLeft, paintTop, paintTopLeft)
@@ -196,6 +175,28 @@ export default function Vertex(props: VertexProps): JSX.Element {
           }
         />
       )}
+
+      {!sign && markerMarkup(2)}
+      {!sign && !!ghostStone && (
+        <div className="goban-ghost" style={absoluteStyle(2)} />
+      )}
+
+      <div className="goban-stone" style={absoluteStyle(3)}>
+        {!!sign && (
+          <div
+            className={classnames(
+              "goban-inner",
+              "goban-stone-image",
+              `goban-random_${random}`,
+              `goban-sign_${sign}`,
+            )}
+            style={absoluteStyle()}
+          >
+            {sign}
+          </div>
+        )}
+        {!!sign && markerMarkup()}
+      </div>
 
       {!!selected && (
         <div className="goban-selection" style={absoluteStyle(4)} />

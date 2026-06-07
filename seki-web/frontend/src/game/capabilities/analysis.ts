@@ -12,7 +12,7 @@ export const analysisCapabilities = computed((): AnalysisCapabilities => {
   const { reviewing, confirming, finalized, score } =
     analysisTerritoryInfo.value;
   const nav = analysisNavState.value;
-  const canPlay = !reviewing;
+  const canPlay = !confirming;
 
   const isBlackTurn = nav.boardTurnStone === 1;
   const statusText =
