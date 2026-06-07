@@ -952,26 +952,41 @@ async function getScoreValueData(
   );
 }
 
-function getWhiteScoreMean(data: Float32Array | undefined): number | undefined {
-  const value = data?.[0];
+function getWhiteScoreMean(
+  data: Float32Array | undefined,
+  nextPlayer: AiPocPosition["nextPlayer"],
+): number | undefined {
+  if (!data) {
+    return undefined;
+  }
 
-  return value != null && Number.isFinite(value) ? value : undefined;
+  const rawLead = data.length >= 3 ? data[2] : data[0];
+
+  if (rawLead == null || !Number.isFinite(rawLead)) {
+    return undefined;
+  }
+
+  const currentPlayerLead = rawLead * 20;
+
+  return nextPlayer === "white" ? currentPlayerLead : -currentPlayerLead;
 }
 
 async function getOwnershipData(
   outputs: ort.InferenceSession.ReturnType,
   boardSize: number,
+  nextPlayer: AiPocPosition["nextPlayer"],
 ): Promise<number[] | undefined> {
   const data =
     (await getOrtFloatData(outputs.ownership)) ??
     (await getOrtFloatData(outputs.OutputOwnership));
 
-  return extractOwnership(data, boardSize);
+  return extractOwnership(data, boardSize, nextPlayer);
 }
 
 function extractOwnership(
   data: Float32Array | undefined,
   boardSize: number,
+  nextPlayer: AiPocPosition["nextPlayer"],
 ): number[] | undefined {
   const size = boardSize * boardSize;
 
@@ -979,9 +994,59 @@ function extractOwnership(
     return undefined;
   }
 
-  return Array.from(data.slice(0, size), (value) =>
-    Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0,
-  );
+  const sign = nextPlayer === "black" ? 1 : -1;
+
+  return Array.from(data.slice(0, size), (value) => {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+
+    return Math.tanh(value) * sign;
+  });
+}
+
+function getWhiteScoreFromOwnership(
+  position: AiPocPosition,
+  ownership: number[] | undefined,
+): number | undefined {
+  const size = position.boardSize * position.boardSize;
+
+  if (!ownership || ownership.length !== size) {
+    return undefined;
+  }
+
+  const board = new Array<AiPocPosition["nextPlayer"] | undefined>(size);
+
+  for (const stone of position.stones) {
+    board[stone.row * position.boardSize + stone.col] = stone.player;
+  }
+
+  let blackTerritory = 0;
+  let whiteTerritory = 0;
+  let deadBlack = 0;
+  let deadWhite = 0;
+
+  for (let index = 0; index < size; index++) {
+    const owner = ownership[index] ?? 0;
+    const stone = board[index];
+
+    if (stone === "black") {
+      deadBlack += Math.max(0, -owner);
+    } else if (stone === "white") {
+      deadWhite += Math.max(0, owner);
+    } else if (owner > 0) {
+      blackTerritory += owner;
+    } else if (owner < 0) {
+      whiteTerritory += -owner;
+    }
+  }
+
+  const captures = position.captures ?? { black: 0, white: 0 };
+  const blackScore = blackTerritory + captures.black + deadWhite;
+  const whiteScore =
+    whiteTerritory + captures.white + deadBlack + position.komi;
+
+  return whiteScore - blackScore;
 }
 
 function interpretPolicy(
@@ -1339,7 +1404,11 @@ async function runOnnxDirectPolicy(
       (await getOrtFloatData(outputs.value)) ??
       (await getOrtFloatData(outputs.OutputValue));
     const scoreValueData = await getScoreValueData(outputs);
-    const ownership = await getOwnershipData(outputs, position.boardSize);
+    const ownership = await getOwnershipData(
+      outputs,
+      position.boardSize,
+      position.nextPlayer,
+    );
 
     if (!policy) {
       throw new Error("ONNX output is missing a policy tensor");
@@ -1386,7 +1455,9 @@ async function runOnnxDirectPolicy(
         bestMove: legalMoves[0]?.move,
         winrate: Math.min(1, Math.max(0, (rootValue + 1) / 2)),
         rootValue,
-        scoreMean: getWhiteScoreMean(scoreValueData),
+        scoreMean:
+          getWhiteScoreFromOwnership(position, ownership) ??
+          getWhiteScoreMean(scoreValueData, position.nextPlayer),
         ownership,
         policySource: "external-root",
         valueSource: valueData ? "external-root" : "none",

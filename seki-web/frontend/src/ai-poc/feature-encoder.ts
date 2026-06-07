@@ -25,12 +25,18 @@ export type AiPocStone = {
   player: AiPocPlayer;
 };
 
+export type AiPocCaptures = {
+  black: number;
+  white: number;
+};
+
 export type AiPocPosition = {
   boardSize: number;
   nextPlayer: AiPocPlayer;
   komi: number;
   stones: AiPocStone[];
   recentMoves: AiPocMove[];
+  captures?: AiPocCaptures;
   ko?: { col: number; row: number };
   rules: AiPocRules;
 };

@@ -607,16 +607,36 @@ export function initAnalysis(root: HTMLElement) {
       territoryReviewOwnership: aiTerritoryOwnership,
       heatOverlay: aiHeatOverlay,
       onNavigate: () => {
+        const board = analysisBoard.value;
+        const nodeId = board?.engine.current_node_id();
         const keepEstimate =
           (analysisTerritoryInfo.value.estimating &&
             !analysisTerritoryInfo.value.confirming) ||
           (analysisAiTerritoryState.value.pending &&
             analysisAiTerritoryState.value.mode === "estimate");
+        const cachedEval = nodeId == null ? undefined : aiEvalCache.get(nodeId);
+
         clearAiSuggestion(false);
         clearAiTerritoryOwnership();
+
+        if (
+          analysisAiState.value.enabled &&
+          board &&
+          cachedEval &&
+          canRunAiSuggestion(board)
+        ) {
+          applyAiSuggestion(
+            cachedEval.result,
+            nodeId!,
+            board.engine.cols(),
+            board.engine.current_turn_stone() as Sign,
+          );
+        }
+
         if (keepEstimate) {
           void startTerritoryOverlay("estimate");
         } else {
+          board?.render();
           refreshAiSuggestion();
         }
       },

@@ -41,9 +41,16 @@ Current status:
   from repainting the board.
 - Standalone analysis and live-game 9x9 estimate can use AI ownership output
   for goban paint maps. Manual estimate is a separate flow from AI suggestion:
-  it shows its own pending state, paints ownership when ready, masks alive
-  stones, and dims occupied stones that the model predicts as owned by the
-  opposite color.
+  it shows its own pending state, paints ownership when ready, and dims
+  occupied stones that the model predicts as owned by the opposite color.
+- KataGo `OutputScoreValue` is raw model output. For current 6-channel exports,
+  channel 2 is current-player lead and needs the KataGo lead multiplier
+  (`20.0`) plus a sign flip for black-to-move to display White-minus-Black
+  score (`W+N` / `B+N`).
+- Estimate display now derives its shown score from AI ownership plus actual
+  engine captures when ownership is available. This keeps score text aligned
+  with the painted map and inferred dead stones; raw `OutputScoreValue` remains
+  a fallback.
 - Manual estimate uses a passive goban overlay, not territory-review state.
   Territory review is reserved for actual post-pass confirmation.
 - Territory review after two passes can reuse the AI ownership path when the

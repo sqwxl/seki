@@ -21,6 +21,8 @@ export type AiPositionEngine = {
   ko_col(): number;
   ko_row(): number;
   moves_json(): string;
+  captures_black?(): number;
+  captures_white?(): number;
 };
 
 export function aiPositionFromEngine(
@@ -40,6 +42,10 @@ export function aiPositionFromEngine(
     komi,
     stones: stonesFromBoard(engine.board(), cols),
     recentMoves: recentMovesFromJson(engine.moves_json()),
+    captures: {
+      black: engine.captures_black?.() ?? 0,
+      white: engine.captures_white?.() ?? 0,
+    },
     ko: engine.has_ko()
       ? {
           col: engine.ko_col(),
