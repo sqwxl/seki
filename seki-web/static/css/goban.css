@@ -226,7 +226,7 @@
 
 /* Fuzzy stone placement */
 
-.goban-vertex:not(.goban-sign_0).goban-animate .goban-stone {
+.goban-vertex:not(.goban-sign_0) .goban-stone {
   transition: transform 0.2s;
 }
 .goban-vertex:not(.goban-sign_0).goban-shift_1 .goban-stone {

@@ -61,58 +61,84 @@ export function readjustShifts(
   index: number | null = null,
 ): number[] {
   if (index == null) {
-    for (let i = 0; i < shiftMap.length; i++) {
-      readjustShifts(shiftMap, cols, i);
+    // Full pass: iterate until stable (no more conflicts resolved).
+    // Each pass is O(n); cheap even for 19×19.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let i = 0; i < shiftMap.length; i++) {
+        if (readjustOne(shiftMap, cols, i)) {
+          changed = true;
+        }
+      }
     }
   } else {
-    const rows = shiftMap.length / cols;
-    const x = index % cols;
-    const y = Math.floor(index / cols);
-    const direction = shiftMap[index];
-
-    const neighbors: [number[], [number, number], number[]][] = [
-      [
-        [1, 5, 8],
-        [x - 1, y],
-        [3, 7, 6],
-      ],
-      [
-        [2, 5, 6],
-        [x, y - 1],
-        [4, 7, 8],
-      ],
-      [
-        [3, 7, 6],
-        [x + 1, y],
-        [1, 5, 8],
-      ],
-      [
-        [4, 7, 8],
-        [x, y + 1],
-        [2, 5, 6],
-      ],
-    ];
-
-    for (const [directions, [qx, qy], removeShifts] of neighbors) {
-      if (
-        !directions.includes(direction) ||
-        qx < 0 ||
-        qx >= cols ||
-        qy < 0 ||
-        qy >= rows
-      ) {
-        continue;
-      }
-
-      const qi = qy * cols + qx;
-
-      if (removeShifts.includes(shiftMap[qi])) {
-        shiftMap[qi] = 0;
-      }
-    }
+    readjustOne(shiftMap, cols, index);
   }
 
   return shiftMap;
+}
+
+/** Resolve conflicts for a single cell. Returns true if any change was made. */
+function readjustOne(shiftMap: number[], cols: number, index: number): boolean {
+  const rows = shiftMap.length / cols;
+  const x = index % cols;
+  const y = Math.floor(index / cols);
+  const direction = shiftMap[index];
+
+  const neighbors: [number[], [number, number], number[]][] = [
+    [
+      [1, 5, 8],
+      [x - 1, y],
+      [3, 7, 6],
+    ],
+    [
+      [2, 5, 6],
+      [x, y - 1],
+      [4, 7, 8],
+    ],
+    [
+      [3, 7, 6],
+      [x + 1, y],
+      [1, 5, 8],
+    ],
+    [
+      [4, 7, 8],
+      [x, y + 1],
+      [2, 5, 6],
+    ],
+  ];
+
+  let changed = false;
+
+  for (const [directions, [qx, qy], removeShifts] of neighbors) {
+    if (
+      !directions.includes(direction) ||
+      qx < 0 ||
+      qx >= cols ||
+      qy < 0 ||
+      qy >= rows
+    ) {
+      continue;
+    }
+
+    const qi = qy * cols + qx;
+
+    if (removeShifts.includes(shiftMap[qi])) {
+      // Pick a random non-conflicting shift instead of resetting to 0.
+      // Keeps more stones fuzzy while avoiding overlap.
+      const candidates = [1, 2, 3, 4, 5, 6, 7, 8].filter(
+        (s) => !removeShifts.includes(s),
+      );
+      shiftMap[qi] =
+        candidates.length > 0
+          ? candidates[Math.floor(Math.random() * candidates.length)]
+          : 0;
+      changed = true;
+    }
+  }
+
+  return changed;
 }
 
 export function diffSignMap(before: number[], after: number[]): number[] {
