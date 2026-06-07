@@ -118,6 +118,7 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
       (stone === -1 && terr?.white_approved)
     );
   const canFinalizeTerritory = inEstimate && boardReviewing.value;
+  const estimateActive = inEstimate && !boardReviewing.value;
 
   const canClaimVictory =
     isPlayer && !isDone && !res && !!oppDisconnected?.gone;
@@ -133,13 +134,14 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
   const canExitAnalysis = inAnalysis || estimateFromAnalysis;
 
   const showEnterEstimate =
-    !inEstimate && !isReview && (isPlay || (isDone && !!settled));
+    estimateActive ||
+    (!inEstimate && !isReview && (isPlay || (isDone && !!settled)));
 
   const canEnterEstimate = showEnterEstimate && !onFinalized;
 
   const estimateTitle = isDone && !!settled ? "Show territory" : undefined;
 
-  const canExitEstimate = inEstimate;
+  const canExitEstimate = inEstimate && boardReviewing.value;
 
   const exitEstimateTitle = inAnalysis ? "Back to analysis" : undefined;
 
@@ -208,6 +210,7 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
     showAnalysis,
     canEnterEstimate,
     showEnterEstimate,
+    estimateActive,
     canExitEstimate,
     canEnterPresentation,
     canExitPresentation,

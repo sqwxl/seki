@@ -31,13 +31,35 @@ Current status:
   recent moves latest-first.
 - Tests cover board stones, side to move, ko export, recent move order, and
   rejecting non-square boards.
-- Standalone analysis now has a first product-path AI suggestion button. On 9x9
+- Standalone analysis now has a product-path AI suggestion toggle. On 9x9
   positions it snapshots the current board, sends an `analyze-position` request
   to the worker, displays the best move/winrate/timing in the status area, and
-  overlays the legal policy priors through the native goban heatmap markup.
+  overlays legal policy priors through native goban heatmap and faint ghost
+  stone markup.
+- AI suggestions are intentionally disabled in territory review. Entering
+  review clears any visible suggestions and prevents stale worker responses
+  from repainting the board.
+- Standalone analysis and live-game 9x9 estimate can use AI ownership output
+  for goban paint maps. Manual estimate is a separate flow from AI suggestion:
+  it shows its own pending state, paints ownership when ready, masks alive
+  stones, and dims occupied stones that the model predicts as owned by the
+  opposite color.
+- Territory review after two passes can reuse the AI ownership path when the
+  active model supports the board size, while unsupported boards fall back to
+  the existing engine-only estimate.
 - The product path currently uses the `direct` analysis preset: one legal-masked
   policy/value evaluation with the 9x9 KataGo model. Leaf MCTS remains a
   pondering/search path because 64-visit tap-to-move MCTS is too slow on Android.
+
+Follow-up notes:
+
+- Cache estimate results per position/node and skip model evaluation when a
+  fresh ownership result already exists.
+- Finished-game estimate should be viewable on any node by any user. It is
+  currently disabled too globally by finalized/phase capability checks.
+- Live-game analysis estimate should not be dismissed by an incoming move while
+  the user is in local analysis. In live view, incoming moves should still
+  dismiss estimate and return to the live board.
 
 ## Feature Extraction
 
@@ -94,7 +116,7 @@ type AnalyzePositionRequest = {
   manifestUrl: string;
   backendPreference: "auto" | "webgpu" | "wasm";
   position: AiPosition;
-  preset: "mobile-fast" | "tuning";
+  preset: "direct" | "mobile-fast" | "tuning";
 };
 ```
 

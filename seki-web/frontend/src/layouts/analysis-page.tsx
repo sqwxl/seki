@@ -12,6 +12,7 @@ import { useMediaQuery } from "../utils/media-query";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import {
   analysisAiState,
+  analysisAiTerritoryState,
   analysisBoard,
   analysisKomi,
   analysisMeta,
@@ -19,6 +20,7 @@ import {
   analysisPanelState,
   analysisPendingMove,
   analysisSize,
+  analysisTerritoryInfo,
 } from "./analysis-state";
 import { Controls } from "./controls";
 import { GamePageLayout } from "./game-page-layout";
@@ -78,15 +80,24 @@ function buildAnalysisControls(
   }
 
   if (caps.showEstimate) {
+    const estimateActive =
+      analysisTerritoryInfo.value.reviewing &&
+      !analysisTerritoryInfo.value.confirming;
+
     controlsProps.estimate = {
-      onClick: () => board?.enterTerritoryReview(),
-      disabled: !caps.canEstimate,
+      onClick: estimateActive
+        ? () => board?.exitTerritoryReview()
+        : props.onEstimate,
+      disabled: !caps.canEstimate && !estimateActive,
+      active: estimateActive,
+      pending: analysisAiTerritoryState.value.pending,
     };
   }
 
   controlsProps.aiSuggest = {
-    onClick: props.onAiSuggest,
-    disabled: !board || analysisSize.value !== 9,
+    onClick: props.onAiSuggestChange,
+    disabled: !board || analysisSize.value !== 9 || !caps.canPlayMove,
+    active: analysisAiState.value.enabled,
     pending: analysisAiState.value.pending,
     title:
       analysisSize.value === 9 ? "AI suggestion" : "AI suggestion requires 9x9",
@@ -116,6 +127,7 @@ function buildAnalysisControls(
             if (board.engine.tree_node_count() > oldTreeNodeCount) {
               playStoneSound();
             }
+            props.aiSuggest();
             board.save();
             board.render();
           }
@@ -211,7 +223,9 @@ export type AnalysisPageProps = {
   moveTreeEl: HTMLElement;
   onSizeChange: (size: number) => void;
   onKomiChange: (komi: number) => void;
-  onAiSuggest: () => void;
+  onAiSuggestChange: () => void;
+  onEstimate: () => void;
+  aiSuggest: () => void;
   handleSgfImport: (input: HTMLInputElement) => void;
   handleSgfExport: () => void;
 };
@@ -231,6 +245,7 @@ function AnalysisAiStatus() {
   }
 
   const winrate = `${Math.round(result.winrate * 1000) / 10}%`;
+  const score = formatAiScore(result.scoreMean);
   const elapsed = result.timings.totalElapsedMs
     ? `${Math.round(result.timings.totalElapsedMs)}ms`
     : undefined;
@@ -238,9 +253,18 @@ function AnalysisAiStatus() {
   return (
     <span>
       AI: {result.bestMove ?? "pass"} · {winrate}
+      {score ? ` · ${score}` : ""}
       {elapsed ? ` · ${elapsed}` : ""}
     </span>
   );
+}
+
+function formatAiScore(scoreMean: number | undefined): string | undefined {
+  if (scoreMean == null || !Number.isFinite(scoreMean)) {
+    return undefined;
+  }
+
+  return `${scoreMean >= 0 ? "W" : "B"}+${Math.abs(scoreMean).toFixed(1)}`;
 }
 
 export function AnalysisPage(props: AnalysisPageProps) {

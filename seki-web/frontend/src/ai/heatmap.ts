@@ -1,5 +1,5 @@
 import type { AiPocRandomMctsEdge } from "../ai-poc/types";
-import type { HeatData } from "../goban/types";
+import type { GhostStoneData, HeatData, Sign } from "../goban/types";
 
 export function heatMapFromRootMoves(
   moves: AiPocRandomMctsEdge[],
@@ -35,4 +35,27 @@ export function heatMapFromRootMoves(
   });
 
   return heatMap;
+}
+
+export function ghostStoneMapFromRootMoves(
+  moves: AiPocRandomMctsEdge[],
+  boardSize: number,
+  sign: Sign,
+): (GhostStoneData | null)[] {
+  const ghostStoneMap: (GhostStoneData | null)[] = new Array(
+    boardSize * boardSize,
+  ).fill(null);
+
+  moves.forEach((move) => {
+    if (move.action.kind !== "play") {
+      return;
+    }
+
+    ghostStoneMap[move.action.row * boardSize + move.action.col] = {
+      sign,
+      faint: true,
+    };
+  });
+
+  return ghostStoneMap;
 }

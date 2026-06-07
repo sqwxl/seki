@@ -117,6 +117,7 @@ export const opponentDisconnected = signal<
 export const chatMessages = signal<ChatEntry[]>([]);
 export const hasUnreadChat = signal(false);
 export const pendingMove = signal<Point | undefined>(undefined);
+export const estimatePending = signal(false);
 export const uiNowMs = signal(Date.now());
 
 // ---------------------------------------------------------------------------
@@ -288,6 +289,7 @@ export function resetGameRuntimeState(): void {
       boardLastMoveWasPass: false,
     };
     estimateScore.value = undefined;
+    estimatePending.value = false;
     boardFinalized.value = false;
     boardFinalizedScore.value = undefined;
     boardReviewing.value = false;

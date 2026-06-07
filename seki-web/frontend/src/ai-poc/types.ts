@@ -146,6 +146,14 @@ export type AiPocInterpretation = {
   };
 };
 
+export type AiPocOutputDescription = {
+  name: string;
+  rawName?: string;
+  shape: number[];
+  dtype: string;
+  sample: Array<number | string>;
+};
+
 export type AiPocResult = {
   manifest: AiPocManifest;
   runtime: AiPocRuntime;
@@ -176,13 +184,7 @@ export type AiPocResult = {
     warmupMs: number;
     eval: AiPocMetricSummary;
   };
-  outputs: Array<{
-    name: string;
-    rawName?: string;
-    shape: number[];
-    dtype: string;
-    sample: Array<number | string>;
-  }>;
+  outputs: AiPocOutputDescription[];
   interpretation?: AiPocInterpretation;
   environment: {
     userAgent: string;
@@ -226,6 +228,7 @@ export type AiPocDirectPolicyResult = {
   backendPreference: AiPocBackendPreference;
   fallbackReason?: string;
   model?: AiPocResult["model"];
+  outputs?: AiPocOutputDescription[];
   webgpu?: AiPocWebGpuStatus;
   input: {
     boardSize: number;
@@ -243,6 +246,8 @@ export type AiPocDirectPolicyResult = {
     bestMove?: string;
     winrate: number;
     rootValue: number;
+    scoreMean?: number;
+    ownership?: number[];
     policySource: string;
     valueSource: string;
     legalMoves: AiPocRandomMctsEdge[];
@@ -320,6 +325,7 @@ export type AiAnalyzePositionResult = {
   backendPreference: AiPocBackendPreference;
   fallbackReason?: string;
   model?: AiPocResult["model"];
+  outputs?: AiPocOutputDescription[];
   webgpu?: AiPocWebGpuStatus;
   input: {
     boardSize: number;
@@ -337,6 +343,8 @@ export type AiAnalyzePositionResult = {
     bestMove?: string;
     winrate: number;
     rootValue: number;
+    scoreMean?: number;
+    ownership?: number[];
     principalVariation: AiPocRandomMctsMove[];
     principalVariationMoves?: string[];
     rootMoves: AiPocRandomMctsEdge[];

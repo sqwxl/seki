@@ -943,6 +943,47 @@ async function getValueBatchData(
   );
 }
 
+async function getScoreValueData(
+  outputs: ort.InferenceSession.ReturnType,
+): Promise<Float32Array | undefined> {
+  return (
+    (await getOrtFloatData(outputs.scoreValue)) ??
+    (await getOrtFloatData(outputs.OutputScoreValue))
+  );
+}
+
+function getWhiteScoreMean(data: Float32Array | undefined): number | undefined {
+  const value = data?.[0];
+
+  return value != null && Number.isFinite(value) ? value : undefined;
+}
+
+async function getOwnershipData(
+  outputs: ort.InferenceSession.ReturnType,
+  boardSize: number,
+): Promise<number[] | undefined> {
+  const data =
+    (await getOrtFloatData(outputs.ownership)) ??
+    (await getOrtFloatData(outputs.OutputOwnership));
+
+  return extractOwnership(data, boardSize);
+}
+
+function extractOwnership(
+  data: Float32Array | undefined,
+  boardSize: number,
+): number[] | undefined {
+  const size = boardSize * boardSize;
+
+  if (!data || data.length < size) {
+    return undefined;
+  }
+
+  return Array.from(data.slice(0, size), (value) =>
+    Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0,
+  );
+}
+
 function interpretPolicy(
   data: Float32Array,
   boardSize: number,
@@ -1297,6 +1338,8 @@ async function runOnnxDirectPolicy(
     const valueData =
       (await getOrtFloatData(outputs.value)) ??
       (await getOrtFloatData(outputs.OutputValue));
+    const scoreValueData = await getScoreValueData(outputs);
+    const ownership = await getOwnershipData(outputs, position.boardSize);
 
     if (!policy) {
       throw new Error("ONNX output is missing a policy tensor");
@@ -1308,6 +1351,10 @@ async function runOnnxDirectPolicy(
       position,
       new Float32Array(policy),
       request.maxPolicyActions,
+    );
+    const outputDescriptions = await describeMappedOnnxOutputs(
+      outputs,
+      manifest.outputMap,
     );
 
     return {
@@ -1321,6 +1368,7 @@ async function runOnnxDirectPolicy(
         inputNames: Array.from(loaded.session.inputNames),
         outputNames: Array.from(loaded.session.outputNames),
       },
+      outputs: outputDescriptions,
       webgpu: loaded.webgpu,
       input: {
         boardSize: position.boardSize,
@@ -1338,6 +1386,8 @@ async function runOnnxDirectPolicy(
         bestMove: legalMoves[0]?.move,
         winrate: Math.min(1, Math.max(0, (rootValue + 1) / 2)),
         rootValue,
+        scoreMean: getWhiteScoreMean(scoreValueData),
+        ownership,
         policySource: "external-root",
         valueSource: valueData ? "external-root" : "none",
         legalMoves,
@@ -1606,6 +1656,7 @@ async function runAnalyzePosition(
       backendPreference: direct.backendPreference,
       fallbackReason: direct.fallbackReason,
       model: direct.model,
+      outputs: direct.outputs,
       webgpu: direct.webgpu,
       input: {
         boardSize: request.position.boardSize,
@@ -1623,6 +1674,8 @@ async function runAnalyzePosition(
         bestMove: direct.directPolicy.bestMove,
         winrate: direct.directPolicy.winrate,
         rootValue: direct.directPolicy.rootValue,
+        scoreMean: direct.directPolicy.scoreMean,
+        ownership: direct.directPolicy.ownership,
         principalVariation: [],
         principalVariationMoves: direct.directPolicy.bestMove
           ? [direct.directPolicy.bestMove]

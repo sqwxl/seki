@@ -39,6 +39,7 @@ export type UiCapabilities = {
   canExitAnalysis: boolean;
   canEnterEstimate: boolean;
   showEnterEstimate: boolean;
+  estimateActive: boolean;
   canExitEstimate: boolean;
   canEnterPresentation: boolean;
   canExitPresentation: boolean;
@@ -112,6 +113,7 @@ export type LiveGameControlsState = Pick<
   | "showAnalysis"
   | "canEnterEstimate"
   | "showEnterEstimate"
+  | "estimateActive"
   | "canExitEstimate"
   | "canEnterPresentation"
   | "canExitPresentation"

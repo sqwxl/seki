@@ -113,6 +113,7 @@ export function UIControls(
       )}
       {props.aiSuggest && (
         <button
+          class={props.aiSuggest.active ? "btn-on" : ""}
           title={props.aiSuggest.title ?? "AI suggestion"}
           disabled={props.aiSuggest.disabled || props.aiSuggest.pending}
           onClick={props.aiSuggest.onClick}
@@ -122,6 +123,7 @@ export function UIControls(
       )}
       {props.estimate && (
         <button
+          class={props.estimate.active ? "btn-on" : ""}
           title={props.estimate.title ?? "Estimate score"}
           disabled={props.estimate.disabled || props.estimate.pending}
           onClick={props.estimate.onClick}

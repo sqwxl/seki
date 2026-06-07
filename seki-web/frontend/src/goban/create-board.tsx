@@ -13,7 +13,7 @@ import {
   renderMoveTree,
   type NavAction,
 } from "./render-board";
-import type { HeatData, Point } from "./types";
+import type { GhostStoneData, HeatData, Point } from "./types";
 import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 
 // ---------------------------------------------------------------------------
@@ -22,6 +22,7 @@ import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 
 export type TerritoryInfo = {
   reviewing: boolean;
+  confirming: boolean;
   finalized: boolean;
   score: ScoreData | undefined;
 };
@@ -43,6 +44,8 @@ export type BoardConfig = {
   branchAtBaseTip?: boolean;
   komi?: number;
   ghostStone?: GhostStoneGetter;
+  ghostStoneOverlay?: () => (GhostStoneData | null)[] | undefined;
+  territoryReviewOwnership?: () => number[] | undefined;
   territoryOverlay?: () => TerritoryOverlay | undefined;
   heatOverlay?: () => (HeatData | null)[] | undefined;
   onRender?: (engine: WasmEngine, territory: TerritoryInfo) => void;
@@ -51,6 +54,7 @@ export type BoardConfig = {
   onVertexClick?: (col: number, row: number) => boolean;
   onStonePlay?: () => void;
   onPass?: () => void;
+  onTerritoryReviewStart?: () => boolean;
 };
 
 export type Board = {
@@ -67,6 +71,7 @@ export type Board = {
   setKomi: (komi: number) => void;
   setShowCoordinates: (show: boolean) => void;
   setMoveTreeEl: (el: HTMLElement | null) => void;
+  enterEstimate: () => void;
   enterTerritoryReview: () => void;
   exitTerritoryReview: () => void;
   finalizeTerritoryReview: () => ScoreData | undefined;
@@ -93,6 +98,8 @@ type TerritoryState = {
   deadStones: [number, number][];
   ownership: number[];
   score: ScoreData | undefined;
+  mode: "estimate" | "review";
+  readonly?: boolean;
 };
 
 class BoardController implements Board {
@@ -279,6 +286,7 @@ class BoardController implements Board {
 
   private computeTerritoryState(
     deadStones: [number, number][],
+    mode: TerritoryState["mode"],
   ): TerritoryState | undefined {
     try {
       const deadJson = JSON.stringify(deadStones);
@@ -292,7 +300,7 @@ class BoardController implements Board {
         white: parsed.white,
       };
 
-      return { deadStones, ownership, score };
+      return { deadStones, ownership, score, mode };
     } catch {
       console.warn("Failed to compute territory state");
 
@@ -300,7 +308,54 @@ class BoardController implements Board {
     }
   }
 
-  enterTerritoryReview(): void {
+  private computeExternalTerritoryState(
+    mode: TerritoryState["mode"],
+  ): TerritoryState | undefined {
+    const ownership = this.config.territoryReviewOwnership?.();
+    const cols = this.engine.cols();
+    const rows = this.engine.rows();
+    const size = cols * rows;
+
+    if (!ownership || ownership.length !== size) {
+      return undefined;
+    }
+
+    const board = [...this.engine.board()] as number[];
+    const deadStones: [number, number][] = [];
+    const paintOwnership = ownership.slice();
+
+    for (let index = 0; index < size; index++) {
+      const stone = board[index] ?? 0;
+      const owner = ownership[index] ?? 0;
+
+      if (stone !== 0 && owner !== 0) {
+        if (Math.sign(stone) === Math.sign(owner)) {
+          paintOwnership[index] = 0;
+        } else {
+          deadStones.push([index % cols, Math.floor(index / cols)]);
+        }
+      }
+    }
+
+    return {
+      deadStones,
+      ownership: paintOwnership,
+      score: undefined,
+      mode,
+      readonly: mode === "estimate",
+    };
+  }
+
+  enterEstimate(): void {
+    const externalState = this.computeExternalTerritoryState("estimate");
+
+    if (externalState) {
+      this.territoryState = externalState;
+      this.render();
+
+      return;
+    }
+
     let deadStones: [number, number][];
 
     try {
@@ -310,7 +365,30 @@ class BoardController implements Board {
 
       return;
     }
-    this.territoryState = this.computeTerritoryState(deadStones);
+    this.territoryState = this.computeTerritoryState(deadStones, "estimate");
+    this.render();
+  }
+
+  enterTerritoryReview(): void {
+    const externalState = this.computeExternalTerritoryState("review");
+
+    if (externalState) {
+      this.territoryState = externalState;
+      this.render();
+
+      return;
+    }
+
+    let deadStones: [number, number][];
+
+    try {
+      deadStones = JSON.parse(this.engine.detect_dead_stones());
+    } catch {
+      console.warn("Failed to parse dead stones");
+
+      return;
+    }
+    this.territoryState = this.computeTerritoryState(deadStones, "review");
     this.render();
   }
 
@@ -321,6 +399,13 @@ class BoardController implements Board {
 
   finalizeTerritoryReview(): ScoreData | undefined {
     if (!this.territoryState) {
+      return undefined;
+    }
+
+    if (this.territoryState.readonly) {
+      this.territoryState = undefined;
+      this.render();
+
       return undefined;
     }
 
@@ -379,7 +464,7 @@ class BoardController implements Board {
 
       if (!ts) {
         const deadStones = this.finalizedNodes.get(nodeId)!;
-        ts = this.computeTerritoryState(deadStones);
+        ts = this.computeTerritoryState(deadStones, "review");
 
         if (ts) {
           this.finalizedTerritoryCache.set(nodeId, ts);
@@ -390,12 +475,14 @@ class BoardController implements Board {
         overlay = this.buildOverlay(ts.deadStones, ts.ownership);
         territoryInfo = {
           reviewing: false,
+          confirming: false,
           finalized: true,
           score: ts.score,
         };
       } else {
         territoryInfo = {
           reviewing: false,
+          confirming: false,
           finalized: false,
           score: undefined,
         };
@@ -407,6 +494,7 @@ class BoardController implements Board {
       );
       territoryInfo = {
         reviewing: true,
+        confirming: this.territoryState.mode === "review",
         finalized: false,
         score: this.territoryState.score,
       };
@@ -417,12 +505,14 @@ class BoardController implements Board {
         overlay = serverOverlay;
         territoryInfo = {
           reviewing: true,
+          confirming: true,
           finalized: false,
           score: undefined,
         };
       } else {
         territoryInfo = {
           reviewing: false,
+          confirming: false,
           finalized: false,
           score: undefined,
         };
@@ -430,6 +520,7 @@ class BoardController implements Board {
     } else {
       territoryInfo = {
         reviewing: false,
+        confirming: false,
         finalized: false,
         score: undefined,
       };
@@ -437,6 +528,10 @@ class BoardController implements Board {
 
     const onVertexClick = (_: Event, [col, row]: Point) => {
       if (this.territoryState && !finalized) {
+        if (this.territoryState.readonly) {
+          return;
+        }
+
         let newDead: [number, number][];
 
         try {
@@ -452,7 +547,10 @@ class BoardController implements Board {
           return;
         }
 
-        this.territoryState = this.computeTerritoryState(newDead);
+        this.territoryState = this.computeTerritoryState(
+          newDead,
+          this.territoryState.mode,
+        );
         this.render();
         return;
       }
@@ -483,6 +581,7 @@ class BoardController implements Board {
       overlay,
       this.showCoords,
       this.config.ghostStone,
+      this.config.ghostStoneOverlay?.(),
       crosshairStone,
       this.config.heatOverlay?.(),
     );
@@ -536,6 +635,10 @@ class BoardController implements Board {
         !this.isFinalized() &&
         nodeId !== this._baseTipNodeId
       ) {
+        if (this.config.onTerritoryReviewStart?.()) {
+          return;
+        }
+
         this.enterTerritoryReview();
 
         return;
@@ -570,6 +673,10 @@ class BoardController implements Board {
       flashPassEffect(this.config.gobanEl);
 
       if (this.engine.stage() === GameStage.TerritoryReview) {
+        if (this.config.onTerritoryReviewStart?.()) {
+          return true;
+        }
+
         this.enterTerritoryReview();
 
         return true;
@@ -745,6 +852,7 @@ class BoardController implements Board {
         deadStones,
         ownership: snapshot.territory.ownership,
         score: undefined,
+        mode: "review",
       };
     } else {
       this.territoryState = undefined;

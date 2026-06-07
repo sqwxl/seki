@@ -15,6 +15,7 @@ import {
   allowUndo,
   black,
   boardFinalized,
+  boardReviewing,
   canStartPresentation,
   controlRequest,
   creator,
@@ -807,10 +808,20 @@ describe("mode transitions", () => {
     expect(caps().canEnterEstimate).toBe(false);
   });
 
-  it("canExitEstimate when in estimate", () => {
+  it("shows active estimate button during manual estimate", () => {
     setupPlayingGame();
     toEstimate();
+    expect(caps().canExitEstimate).toBe(false);
+    expect(caps().showEnterEstimate).toBe(true);
+    expect(caps().estimateActive).toBe(true);
+  });
+
+  it("canExitEstimate when confirming territory", () => {
+    setupPlayingGame();
+    toEstimate();
+    boardReviewing.value = true;
     expect(caps().canExitEstimate).toBe(true);
+    expect(caps().estimateActive).toBe(false);
   });
 
   it("showAnalysis stays true during estimate from live game", () => {

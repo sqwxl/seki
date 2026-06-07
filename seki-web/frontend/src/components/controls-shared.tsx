@@ -4,6 +4,7 @@ import { IconCheck, IconFileUpload, IconSpinner, IconX } from "./icons";
 
 export type ButtonDef = {
   onClick: () => void;
+  active?: boolean;
   disabled?: boolean;
   pending?: boolean;
   title?: string;
@@ -99,6 +100,7 @@ export function ButtonContent(props: {
   if (props.pending) {
     return <IconSpinner />;
   }
+
   return (
     <>
       {Icon ? <Icon /> : null}

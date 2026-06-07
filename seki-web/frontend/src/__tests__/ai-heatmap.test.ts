@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { AiPocRandomMctsEdge } from "../ai-poc/types";
-import { heatMapFromRootMoves } from "../ai/heatmap";
+import {
+  ghostStoneMapFromRootMoves,
+  heatMapFromRootMoves,
+} from "../ai/heatmap";
 
 describe("heatMapFromRootMoves", () => {
   it("maps legal play priors to goban heat entries", () => {
@@ -36,6 +39,23 @@ describe("heatMapFromRootMoves", () => {
 
     expect(heatMap).toHaveLength(9);
     expect(heatMap.every((entry) => entry === null)).toBe(true);
+  });
+});
+
+describe("ghostStoneMapFromRootMoves", () => {
+  it("maps suggested play moves to faint native ghost stones", () => {
+    const ghostStoneMap = ghostStoneMapFromRootMoves(
+      [
+        edge(2, 1, 0.5),
+        { action: { kind: "pass" }, visits: 0, prior: 0.9, value: 0 },
+      ],
+      3,
+      -1,
+    );
+
+    expect(ghostStoneMap[7]).toEqual({ sign: -1, faint: true });
+    expect(ghostStoneMap[7]).not.toHaveProperty("type");
+    expect(ghostStoneMap.filter(Boolean)).toHaveLength(1);
   });
 });
 

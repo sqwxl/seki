@@ -27,6 +27,7 @@ function renderFromEngine(
   overlay?: import("./init-wasm").TerritoryOverlay,
   showCoordinates?: boolean,
   ghostStone?: GhostStoneGetter,
+  ghostStoneOverlay?: (GhostStoneData | null)[],
   crosshairStone?: number,
   heatMap?: (HeatData | null)[],
 ): void {
@@ -49,13 +50,15 @@ function renderFromEngine(
     }
   }
 
-  let ghostStoneMap: (GhostStoneData | null)[] | undefined;
+  let ghostStoneMap = ghostStoneOverlay;
 
   if (ghostStone) {
     const gs = ghostStone();
 
     if (gs) {
-      ghostStoneMap = Array(board.length).fill(null);
+      ghostStoneMap = ghostStoneMap
+        ? [...ghostStoneMap]
+        : Array(board.length).fill(null);
       ghostStoneMap![gs.row * cols + gs.col] = { sign: gs.sign };
     }
   }

@@ -1,5 +1,7 @@
 import { effect, untracked } from "@preact/signals";
 import { createRef, render } from "preact";
+import { analyzePositionDirect } from "../ai/analyze";
+import { aiPositionFromEngine } from "../ai/position";
 import type { ChatEntry } from "../components/chat";
 import { liveGameControlsState } from "../game/capabilities";
 import { createGameChannel } from "../game/channel";
@@ -26,6 +28,7 @@ import {
   boardReviewing,
   currentTurn,
   estimateMode,
+  estimatePending,
   estimateScore,
   gameStage,
   gameState,
@@ -90,6 +93,9 @@ export function liveGame(
   initialChatLog: ChatEntry[] = [],
 ) {
   let disposed = false;
+  let aiTerritoryRequestId = 0;
+  let aiTerritoryNodeId: number | undefined;
+  let aiTerritoryOwnership: number[] | undefined;
   const userData = readUserData();
   const pStone = derivePlayerStone(
     userData,
@@ -228,16 +234,114 @@ export function liveGame(
     board.value?.render();
   }
 
-  function enterEstimate() {
+  function clearAiTerritoryOwnership() {
+    aiTerritoryRequestId += 1;
+    aiTerritoryNodeId = undefined;
+    aiTerritoryOwnership = undefined;
+    estimatePending.value = false;
+  }
+
+  function aiTerritoryOwnershipForBoard() {
+    const currentBoard = board.value;
+    const ownership = aiTerritoryOwnership;
+
+    if (
+      !currentBoard ||
+      aiTerritoryNodeId !== currentBoard.engine.current_node_id() ||
+      !ownership
+    ) {
+      return undefined;
+    }
+
+    const size = currentBoard.engine.cols() * currentBoard.engine.rows();
+
+    if (ownership.length !== size) {
+      return undefined;
+    }
+
+    return ownership.map((value) =>
+      Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0,
+    );
+  }
+
+  async function enterEstimate() {
     const wasAnalysis = analysisMode.value;
+    const currentBoard = board.value;
 
     clearPendingMove();
-    toEstimate();
+
+    if (!currentBoard) {
+      return;
+    }
 
     if (settledTerritory.value && !wasAnalysis) {
-      board.value?.render();
-    } else {
-      board.value?.enterTerritoryReview();
+      clearAiTerritoryOwnership();
+      toEstimate();
+      currentBoard.render();
+
+      return;
+    }
+
+    const nodeId = currentBoard.engine.current_node_id();
+    const canUseAi =
+      currentBoard.engine.cols() === 9 && currentBoard.engine.rows() === 9;
+    const requestId = ++aiTerritoryRequestId;
+
+    aiTerritoryNodeId = nodeId;
+    aiTerritoryOwnership = undefined;
+
+    if (!canUseAi) {
+      estimatePending.value = false;
+      toEstimate();
+      currentBoard.enterEstimate();
+
+      return;
+    }
+
+    estimatePending.value = true;
+
+    try {
+      const position = aiPositionFromEngine(
+        currentBoard.engine,
+        initialProps.komi,
+      );
+      const aiResult = await analyzePositionDirect(position);
+      const ownership = aiResult.analysis.ownership;
+
+      if (requestId !== aiTerritoryRequestId) {
+        return;
+      }
+
+      if (
+        board.value !== currentBoard ||
+        currentBoard.engine.current_node_id() !== nodeId
+      ) {
+        estimatePending.value = false;
+
+        return;
+      }
+
+      estimatePending.value = false;
+      aiTerritoryOwnership = ownership;
+      toEstimate();
+      currentBoard.enterEstimate();
+    } catch {
+      if (requestId !== aiTerritoryRequestId) {
+        return;
+      }
+
+      if (
+        board.value !== currentBoard ||
+        currentBoard.engine.current_node_id() !== nodeId
+      ) {
+        estimatePending.value = false;
+
+        return;
+      }
+
+      estimatePending.value = false;
+      toEstimate();
+      currentBoard.enterEstimate();
     }
   }
 
@@ -251,6 +355,7 @@ export function liveGame(
     const wasFromAnalysis = cur.fromAnalysis;
     phaseExitEstimate();
     estimateScore.value = undefined;
+    clearAiTerritoryOwnership();
 
     if (settledTerritory.value && !wasFromAnalysis) {
       board.value?.render();
@@ -450,6 +555,7 @@ export function liveGame(
     showCoordinates: showCoordinates.value,
     gobanEl: gobanRef.current!,
     ghostStone,
+    territoryReviewOwnership: aiTerritoryOwnershipForBoard,
     territoryOverlay: getServerTerritory,
     canPlay: () => {
       if (analysisMode.value) {

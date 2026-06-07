@@ -9,7 +9,8 @@ import { GameStage } from "../types";
 import type { AnalysisCapabilities } from "./types";
 
 export const analysisCapabilities = computed((): AnalysisCapabilities => {
-  const { reviewing, finalized, score } = analysisTerritoryInfo.value;
+  const { reviewing, confirming, finalized, score } =
+    analysisTerritoryInfo.value;
   const nav = analysisNavState.value;
   const canPlay = !reviewing;
 
@@ -17,13 +18,17 @@ export const analysisCapabilities = computed((): AnalysisCapabilities => {
   const statusText =
     getStatusText({
       stage: reviewing
-        ? GameStage.TerritoryReview
+        ? confirming
+          ? GameStage.TerritoryReview
+          : isBlackTurn
+            ? GameStage.BlackToPlay
+            : GameStage.WhiteToPlay
         : isBlackTurn
           ? GameStage.BlackToPlay
           : GameStage.WhiteToPlay,
       komi: analysisKomi.value,
       estimateScore: finalized ? score : undefined,
-      territoryScore: reviewing ? score : undefined,
+      territoryScore: confirming ? score : undefined,
       lastMoveWasPass: nav.boardLastMoveWasPass,
       isBlackTurn,
     }) ?? "";
@@ -31,10 +36,10 @@ export const analysisCapabilities = computed((): AnalysisCapabilities => {
   return {
     canPass: canPlay,
     canEstimate: canPlay && !finalized,
-    showEstimate: canPlay,
+    showEstimate: !confirming,
     canPlayMove: canPlay,
-    showTerritoryReady: reviewing,
-    showTerritoryExit: reviewing,
+    showTerritoryReady: confirming,
+    showTerritoryExit: confirming,
     showSgfImport: canPlay,
     showSgfExport: canPlay,
     statusText,

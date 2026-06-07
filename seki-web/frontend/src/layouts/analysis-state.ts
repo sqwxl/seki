@@ -1,7 +1,7 @@
 import { signal } from "@preact/signals";
 import type { AiAnalyzePositionResult } from "../ai-poc/types";
 import type { Board, TerritoryInfo } from "../goban/create-board";
-import type { HeatData, Point } from "../goban/types";
+import type { GhostStoneData, HeatData, Point } from "../goban/types";
 import type { SgfMeta } from "../utils/sgf";
 
 export const analysisBoard = signal<Board | undefined>(undefined);
@@ -10,16 +10,27 @@ export const analysisSize = signal(19);
 export const analysisKomi = signal(6.5);
 export const analysisPendingMove = signal<Point | undefined>(undefined);
 export const analysisAiState = signal<{
+  enabled: boolean;
   pending: boolean;
   error?: string;
   result?: AiAnalyzePositionResult;
   nodeId?: number;
   heatMap?: (HeatData | null)[];
+  ghostStoneMap?: (GhostStoneData | null)[];
+}>({
+  enabled: false,
+  pending: false,
+});
+export const analysisAiTerritoryState = signal<{
+  pending: boolean;
+  nodeId?: number;
+  ownership?: number[];
 }>({
   pending: false,
 });
 export const analysisTerritoryInfo = signal<TerritoryInfo>({
   reviewing: false,
+  confirming: false,
   finalized: false,
   score: undefined,
 });
@@ -48,9 +59,11 @@ export const analysisPanelState = signal<{
 
 export function resetAnalysisRuntimeState(): void {
   analysisPendingMove.value = undefined;
-  analysisAiState.value = { pending: false };
+  analysisAiState.value = { enabled: false, pending: false };
+  analysisAiTerritoryState.value = { pending: false };
   analysisTerritoryInfo.value = {
     reviewing: false,
+    confirming: false,
     finalized: false,
     score: undefined,
   };

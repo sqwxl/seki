@@ -9,6 +9,7 @@ import {
   clearGameFlashMessage,
   clearPendingAction,
   estimateMode,
+  estimatePending,
   gameId,
   gameStage,
   initialProps,
@@ -324,9 +325,11 @@ export function buildControls(
     };
   } else if (caps.showEnterEstimate) {
     controlsProps.estimate = {
-      onClick: enterEstimate,
+      onClick: caps.estimateActive ? exitEstimate : enterEstimate,
       title: caps.estimateTitle,
       disabled: !caps.canEnterEstimate,
+      active: caps.estimateActive,
+      pending: estimatePending.value,
     };
   }
 

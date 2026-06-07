@@ -138,7 +138,8 @@ export default function Vertex(props: VertexProps): JSX.Element {
       )}
       onClick={handleClick}
     >
-      {!sign && markerMarkup(0)}
+      <div className="goban-heat" style={absoluteStyle(0)} />
+      {!sign && markerMarkup(1)}
       {!sign && !!ghostStone && (
         <div className="goban-ghost" style={absoluteStyle(1)} />
       )}
@@ -200,7 +201,6 @@ export default function Vertex(props: VertexProps): JSX.Element {
         <div className="goban-selection" style={absoluteStyle(4)} />
       )}
 
-      <div className="goban-heat" style={absoluteStyle(5)} />
       {heat?.text != null && (
         <div className="goban-heatlabel" style={absoluteStyle(6)}>
           {heat.text.toString()}
