@@ -242,19 +242,28 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
 
   if (!ref.current || ref.current.cols !== cols || ref.current.rows !== rows) {
     ref.current = initAnimState(cols, rows, signMap);
-  } else if (
-    animateStonePlacement &&
-    fuzzyStonePlacement &&
-    !ref.current.clearHandler
-  ) {
-    ref.current.animatedVertices = diffSignMap(
-      ref.current.prevSignMap,
-      signMap,
-    );
-    ref.current.prevSignMap = signMap;
+    readjustShifts(ref.current.shiftMap, cols);
   } else {
-    ref.current.animatedVertices = [];
-    ref.current.prevSignMap = signMap;
+    // Clear shifts for removed stones (regardless of animation branch)
+    for (let i = 0; i < ref.current.shiftMap.length; i++) {
+      if (ref.current.prevSignMap[i] !== 0 && signMap[i] === 0) {
+        ref.current.shiftMap[i] = 0;
+      }
+    }
+    if (
+      animateStonePlacement &&
+      fuzzyStonePlacement &&
+      !ref.current.clearHandler
+    ) {
+      ref.current.animatedVertices = diffSignMap(
+        ref.current.prevSignMap,
+        signMap,
+      );
+      ref.current.prevSignMap = signMap;
+    } else {
+      ref.current.animatedVertices = [];
+      ref.current.prevSignMap = signMap;
+    }
   }
 
   const s = ref.current;
@@ -274,6 +283,7 @@ export default function SVGGoban(props: GobanProps): JSX.Element {
         shiftMap[i] = random(7) + 1;
         readjustShifts(shiftMap, cols, i);
       }
+      readjustShifts(shiftMap, cols);
 
       s.clearHandler = setTimeout(() => {
         s.animatedVertices = [];
