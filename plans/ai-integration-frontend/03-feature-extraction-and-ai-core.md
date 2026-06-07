@@ -53,13 +53,15 @@ Current status:
 
 Follow-up notes:
 
-- Cache estimate results per position/node and skip model evaluation when a
-  fresh ownership result already exists.
-- Finished-game estimate should be viewable on any node by any user. It is
-  currently disabled too globally by finalized/phase capability checks.
-- Live-game analysis estimate should not be dismissed by an incoming move while
-  the user is in local analysis. In live view, incoming moves should still
-  dismiss estimate and return to the live board.
+- Estimate results are cached per current node in the analysis/live session, so
+  toggling estimate off/on does not immediately re-run inference. Future work:
+  generalize this into a stronger per-position cache that survives navigation
+  and invalidates cleanly on imported tree/komi changes.
+- Finished-game estimate is viewable on any node by any user, including
+  finalized nodes and games without settled territory.
+- Live-game analysis estimate is not dismissed by an incoming move while the
+  user is in local analysis. In live view, incoming moves still dismiss estimate
+  and return to the live board.
 
 ## Feature Extraction
 

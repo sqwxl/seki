@@ -241,6 +241,11 @@ export function liveGame(
     estimatePending.value = false;
   }
 
+  function cancelAiTerritoryRequest() {
+    aiTerritoryRequestId += 1;
+    estimatePending.value = false;
+  }
+
   function aiTerritoryOwnershipForBoard() {
     const currentBoard = board.value;
     const ownership = aiTerritoryOwnership;
@@ -286,11 +291,12 @@ export function liveGame(
     const canUseAi =
       currentBoard.engine.cols() === 9 && currentBoard.engine.rows() === 9;
     const requestId = ++aiTerritoryRequestId;
-
-    aiTerritoryNodeId = nodeId;
-    aiTerritoryOwnership = undefined;
+    const cachedOwnership =
+      aiTerritoryNodeId === nodeId ? aiTerritoryOwnership : undefined;
 
     if (!canUseAi) {
+      aiTerritoryNodeId = nodeId;
+      aiTerritoryOwnership = undefined;
       estimatePending.value = false;
       toEstimate();
       currentBoard.enterEstimate();
@@ -298,7 +304,19 @@ export function liveGame(
       return;
     }
 
+    if (cachedOwnership) {
+      aiTerritoryNodeId = nodeId;
+      aiTerritoryOwnership = cachedOwnership;
+      estimatePending.value = false;
+      toEstimate();
+      currentBoard.enterEstimate();
+
+      return;
+    }
+
+    aiTerritoryNodeId = nodeId;
     estimatePending.value = true;
+    aiTerritoryOwnership = undefined;
 
     try {
       const position = aiPositionFromEngine(
@@ -355,7 +373,7 @@ export function liveGame(
     const wasFromAnalysis = cur.fromAnalysis;
     phaseExitEstimate();
     estimateScore.value = undefined;
-    clearAiTerritoryOwnership();
+    cancelAiTerritoryRequest();
 
     if (settledTerritory.value && !wasFromAnalysis) {
       board.value?.render();

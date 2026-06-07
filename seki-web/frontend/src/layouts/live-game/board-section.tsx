@@ -58,7 +58,7 @@ export function onRenderCallback(
     : undefined;
   boardReviewing.value = territoryInfo.confirming;
 
-  if (estimateMode.value && !territoryInfo.reviewing) {
+  if (estimateMode.value && !analysisMode.value && !territoryInfo.reviewing) {
     exitEstimateFn();
     estimateScore.value = undefined;
   }

@@ -319,6 +319,19 @@ export function initAnalysis(root: HTMLElement) {
       return true;
     }
 
+    if (
+      analysisAiTerritoryState.value.nodeId === nodeId &&
+      analysisAiTerritoryState.value.ownership
+    ) {
+      analysisAiTerritoryState.value = {
+        ...analysisAiTerritoryState.value,
+        pending: false,
+      };
+      enterOverlay();
+
+      return true;
+    }
+
     const position = aiPositionFromEngine(board.engine, analysisKomi.value);
     analysisAiTerritoryState.value = {
       pending: true,

@@ -774,7 +774,7 @@ describe("mode transitions", () => {
     expect(caps().canEnterEstimate).toBe(false);
   });
 
-  it("estimate disabled but visible on finalized node on done game", () => {
+  it("estimate enabled on finalized node on done game", () => {
     setupPlayingGame();
     batch(() => {
       gameStage.value = GameStage.Completed;
@@ -790,16 +790,17 @@ describe("mode transitions", () => {
       boardFinalized.value = true;
     });
     expect(caps().showEnterEstimate).toBe(true);
-    expect(caps().canEnterEstimate).toBe(false);
+    expect(caps().canEnterEstimate).toBe(true);
   });
 
-  it("cannot enter estimate on done game without settled territory", () => {
+  it("can enter estimate on done game without settled territory", () => {
     setupPlayingGame();
     batch(() => {
       gameStage.value = GameStage.Completed;
       result.value = "B+R";
     });
-    expect(caps().canEnterEstimate).toBe(false);
+    expect(caps().showEnterEstimate).toBe(true);
+    expect(caps().canEnterEstimate).toBe(true);
   });
 
   it("cannot enter estimate during territory review", () => {

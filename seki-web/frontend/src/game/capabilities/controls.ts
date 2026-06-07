@@ -134,12 +134,11 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
   const canExitAnalysis = inAnalysis || estimateFromAnalysis;
 
   const showEnterEstimate =
-    estimateActive ||
-    (!inEstimate && !isReview && (isPlay || (isDone && !!settled)));
+    estimateActive || (!inEstimate && !isReview && (isPlay || isDone));
 
-  const canEnterEstimate = showEnterEstimate && !onFinalized;
+  const canEnterEstimate = showEnterEstimate && (!onFinalized || isDone);
 
-  const estimateTitle = isDone && !!settled ? "Show territory" : undefined;
+  const estimateTitle = isDone ? "Show territory" : undefined;
 
   const canExitEstimate = inEstimate && boardReviewing.value;
 
