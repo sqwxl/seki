@@ -73,6 +73,8 @@ export type ControlsProps = {
 
   confirmMove?: ButtonDef;
 
+  clearVariations?: ButtonDef;
+
   // Presentation
   controlRequestResponse?: {
     displayName: string;

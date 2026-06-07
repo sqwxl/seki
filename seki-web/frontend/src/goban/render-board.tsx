@@ -36,18 +36,16 @@ function renderFromEngine(
   const rows = engine.rows();
   const markerMap: (MarkerData | null)[] = Array(board.length).fill(null);
 
-  if (!overlay) {
-    if (engine.has_last_move()) {
-      const lc = engine.last_move_col();
-      const lr = engine.last_move_row();
-      markerMap[lr * cols + lc] = { type: "circle" };
-    }
+  if (engine.has_last_move()) {
+    const lc = engine.last_move_col();
+    const lr = engine.last_move_row();
+    markerMap[lr * cols + lc] = { type: "circle" };
+  }
 
-    if (engine.has_ko()) {
-      const kc = engine.ko_col();
-      const kr = engine.ko_row();
-      markerMap[kr * cols + kc] = koMarker;
-    }
+  if (engine.has_ko()) {
+    const kc = engine.ko_col();
+    const kr = engine.ko_row();
+    markerMap[kr * cols + kc] = koMarker;
   }
 
   let ghostStoneMap = ghostStoneOverlay;

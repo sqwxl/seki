@@ -111,6 +111,13 @@ function buildAnalysisControls(
     controlsProps.sgfExport = { onClick: handleSgfExport };
   }
 
+  if (caps.showClearVariations) {
+    controlsProps.clearVariations = {
+      onClick: props.handleClearVariations,
+      disabled: !caps.canClearVariations,
+    };
+  }
+
   // Confirm move (ephemeral)
   if (analysisPendingMove.value) {
     controlsProps.confirmMove = {
@@ -228,6 +235,7 @@ export type AnalysisPageProps = {
   aiSuggest: () => void;
   handleSgfImport: (input: HTMLInputElement) => void;
   handleSgfExport: () => void;
+  handleClearVariations: () => void;
 };
 
 function AnalysisAiStatus() {

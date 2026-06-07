@@ -11,6 +11,7 @@ import {
   IconFileExport,
   IconGrid4x4,
   IconKomi,
+  IconTrash,
   IconX,
 } from "./icons";
 
@@ -153,6 +154,20 @@ export function UIControls(
           <ButtonContent
             pending={props.sgfExport.pending}
             icon={IconFileExport}
+          />
+        </button>
+      )}
+      {props.clearVariations && (
+        <button
+          title={props.clearVariations.title ?? "Clear variations"}
+          disabled={
+            props.clearVariations.disabled || props.clearVariations.pending
+          }
+          onClick={props.clearVariations.onClick}
+        >
+          <ButtonContent
+            pending={props.clearVariations.pending}
+            icon={IconTrash}
           />
         </button>
       )}

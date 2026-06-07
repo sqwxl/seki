@@ -761,6 +761,19 @@ export function initAnalysis(root: HTMLElement) {
     input.value = "";
   }
 
+  // --- Clear variations ---
+  function handleClearVariations() {
+    const treeKey = analysisTreeKey(analysisSize.value);
+
+    storage.remove(treeKey);
+    storage.remove(`${treeKey}:base`);
+    storage.remove(`${treeKey}:finalized`);
+    storage.remove(`${treeKey}:node`);
+    clearAiSuggestion(false);
+    clearAiEvalCache();
+    initBoard(analysisSize.value);
+  }
+
   // --- SGF export ---
   function handleSgfExport() {
     const board = analysisBoard.value;
@@ -863,6 +876,7 @@ export function initAnalysis(root: HTMLElement) {
       aiSuggest={aiSuggest}
       handleSgfImport={handleSgfImport}
       handleSgfExport={handleSgfExport}
+      handleClearVariations={handleClearVariations}
     />,
     root,
   );

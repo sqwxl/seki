@@ -117,7 +117,7 @@
     border-bottom-right-radius: 0;
   }
 
-  & button + button:not(:last-of-type) {
+  & button ~ button:not(:last-of-type) {
     border-radius: 0;
   }
 
