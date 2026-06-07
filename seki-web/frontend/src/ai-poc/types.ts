@@ -247,6 +247,9 @@ export type AiPocDirectPolicyResult = {
     winrate: number;
     rootValue: number;
     scoreMean?: number;
+    scoreSource?: "ownership" | "raw-lead";
+    ownershipScoreMean?: number;
+    rawScoreMean?: number;
     ownership?: number[];
     policySource: string;
     valueSource: string;
@@ -344,6 +347,9 @@ export type AiAnalyzePositionResult = {
     winrate: number;
     rootValue: number;
     scoreMean?: number;
+    scoreSource?: "ownership" | "raw-lead";
+    ownershipScoreMean?: number;
+    rawScoreMean?: number;
     ownership?: number[];
     principalVariation: AiPocRandomMctsMove[];
     principalVariationMoves?: string[];

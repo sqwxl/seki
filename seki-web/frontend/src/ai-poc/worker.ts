@@ -921,6 +921,19 @@ function sideToMoveValue(data: Float32Array): number {
   return value.win - value.loss;
 }
 
+function whiteWinrate(
+  data: Float32Array | undefined,
+  nextPlayer: AiPocPosition["nextPlayer"],
+): number {
+  if (!data) {
+    return 0.5;
+  }
+
+  const value = interpretValue(data);
+
+  return nextPlayer === "white" ? value.win : value.loss;
+}
+
 async function getValueBatchData(
   outputs: ort.InferenceSession.ReturnType,
   batchSize: number,
@@ -1414,7 +1427,10 @@ async function runOnnxDirectPolicy(
       throw new Error("ONNX output is missing a policy tensor");
     }
 
-    const rootValue = valueData ? sideToMoveValue(valueData) : 0;
+    const winrate = whiteWinrate(valueData, position.nextPlayer);
+    const rootValue = winrate * 2 - 1;
+    const ownershipScoreMean = getWhiteScoreFromOwnership(position, ownership);
+    const rawScoreMean = getWhiteScoreMean(scoreValueData, position.nextPlayer);
     const modelEvalMs = performance.now() - modelEvalStartedAt;
     const legalMoves = await rankLegalPolicyMoves(
       position,
@@ -1453,11 +1469,12 @@ async function runOnnxDirectPolicy(
         modelEvalMs,
         totalElapsedMs: performance.now() - totalStartedAt,
         bestMove: legalMoves[0]?.move,
-        winrate: Math.min(1, Math.max(0, (rootValue + 1) / 2)),
+        winrate,
         rootValue,
-        scoreMean:
-          getWhiteScoreFromOwnership(position, ownership) ??
-          getWhiteScoreMean(scoreValueData, position.nextPlayer),
+        scoreMean: ownershipScoreMean ?? rawScoreMean,
+        scoreSource: ownershipScoreMean == null ? "raw-lead" : "ownership",
+        ownershipScoreMean,
+        rawScoreMean,
         ownership,
         policySource: "external-root",
         valueSource: valueData ? "external-root" : "none",
@@ -1746,6 +1763,9 @@ async function runAnalyzePosition(
         winrate: direct.directPolicy.winrate,
         rootValue: direct.directPolicy.rootValue,
         scoreMean: direct.directPolicy.scoreMean,
+        scoreSource: direct.directPolicy.scoreSource,
+        ownershipScoreMean: direct.directPolicy.ownershipScoreMean,
+        rawScoreMean: direct.directPolicy.rawScoreMean,
         ownership: direct.directPolicy.ownership,
         principalVariation: [],
         principalVariationMoves: direct.directPolicy.bestMove

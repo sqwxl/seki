@@ -64,6 +64,7 @@ export type Board = {
   restoredWithAnalysis: boolean;
   save: () => void;
   render: () => void;
+  renderBoardOnly: () => void;
   pass: () => boolean;
   navigate: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string) => void;
@@ -647,7 +648,7 @@ class BoardController implements Board {
     this.config.onRender?.(this.engine, territoryInfo);
   }
 
-  private renderBoardOnly(): void {
+  renderBoardOnly(): void {
     const territoryInfo = this.renderBoard();
 
     this.config.onRender?.(this.engine, territoryInfo);

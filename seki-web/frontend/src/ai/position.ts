@@ -56,6 +56,18 @@ export function aiPositionFromEngine(
   };
 }
 
+export function aiEstimatePositionFromEngine(
+  engine: AiPositionEngine,
+  komi: number,
+): AiPocPosition {
+  return {
+    ...aiPositionFromEngine(engine, komi),
+    nextPlayer: "black",
+    recentMoves: [],
+    ko: undefined,
+  };
+}
+
 function stonesFromBoard(board: Int8Array | number[], boardSize: number) {
   const stones: AiPocStone[] = [];
 

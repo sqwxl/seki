@@ -45,6 +45,7 @@ function layoutTree(
 
   // Node cells — exclusive (nothing else can occupy)
   const nodeCells = new Set<string>();
+  const nodeRowsByCol = new Map<number, Set<number>>();
   // Connector-turn cells (└ / ├) — exclusive with nodes and other connectors,
   // but drops (│) can pass through them.
   const connectorCells = new Set<string>();
@@ -62,11 +63,6 @@ function layoutTree(
     return !nodeCells.has(k) && !dropCells.has(k);
   }
 
-  /** True if a drop (│) can pass through — blocked only by nodes. */
-  function isFreeDrop(row: number, col: number): boolean {
-    return !nodeCells.has(key(row, col));
-  }
-
   /** True if a connector (└) can go here — blocked by nodes and other connectors. */
   function isFreeConnector(row: number, col: number): boolean {
     const k = key(row, col);
@@ -75,6 +71,14 @@ function layoutTree(
 
   function markNode(row: number, col: number): void {
     nodeCells.add(key(row, col));
+    let rows = nodeRowsByCol.get(col);
+
+    if (!rows) {
+      rows = new Set();
+      nodeRowsByCol.set(col, rows);
+    }
+
+    rows.add(row);
   }
 
   function markConnector(row: number, col: number): void {
@@ -83,6 +87,26 @@ function layoutTree(
 
   function markDrop(row: number, col: number): void {
     dropCells.add(key(row, col));
+  }
+
+  function isDropPathFree(
+    fromRow: number,
+    toRow: number,
+    col: number,
+  ): boolean {
+    const rows = nodeRowsByCol.get(col);
+
+    if (!rows) {
+      return true;
+    }
+
+    for (const row of rows) {
+      if (row >= fromRow && row <= toRow) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   function mainlinePathFromTip(): number[] | undefined {
@@ -164,10 +188,14 @@ function layoutTree(
   function chainLen(nodeId: number): number {
     let len = 1;
     let cur = nodeId;
+    const seen = new Set<number>([nodeId]);
+
     while (true) {
       const kids = tree.nodes[cur].children;
       if (kids.length === 0) break;
+      if (seen.has(kids[0])) break;
       cur = kids[0];
+      seen.add(cur);
       len++;
     }
     return len;
@@ -184,7 +212,9 @@ function layoutTree(
 
     // Find the first row that fits
     let bestRow = -1;
-    for (let R = parentRow + 1; ; R++) {
+    const maxSearchRow = parentRow + tree.nodes.length + 1;
+
+    for (let R = parentRow + 1; R <= maxSearchRow; R++) {
       // Node cells: cols parentCol+1 .. parentCol+len on row R
       let ok = true;
       for (let c = parentCol + 1; c <= parentCol + len; c++) {
@@ -198,20 +228,14 @@ function layoutTree(
       // Connector cell: col parentCol on row R
       if (!isFreeConnector(R, parentCol)) continue;
 
-      // Drop cells: col parentCol on rows parentRow+1 .. R-1
-      for (let r = parentRow + 1; r < R; r++) {
-        if (!isFreeDrop(r, parentCol)) {
-          ok = false;
-          break;
-        }
-      }
+      ok = isDropPathFree(parentRow + 1, R - 1, parentCol);
       if (!ok) continue;
 
       bestRow = R;
       break;
     }
 
-    const R = bestRow;
+    const R = bestRow === -1 ? maxSearchRow : bestRow;
 
     // Place connector
     markConnector(R, parentCol);
@@ -225,7 +249,11 @@ function layoutTree(
     {
       let col = parentCol + 1;
       let cur = nodeId;
+      const seen = new Set<number>();
+
       while (true) {
+        if (seen.has(cur)) break;
+        seen.add(cur);
         layout[cur] = { id: cur, col, row: R };
         markNode(R, col);
         col++;
@@ -239,7 +267,11 @@ function layoutTree(
     {
       let cur = nodeId;
       let col = parentCol + 1;
+      const seen = new Set<number>();
+
       while (true) {
+        if (seen.has(cur)) break;
+        seen.add(cur);
         const kids = tree.nodes[cur].children;
         for (let j = 1; j < kids.length; j++) {
           placeChain(kids[j], R, col);

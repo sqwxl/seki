@@ -5,7 +5,10 @@ import {
   ghostStoneMapFromRootMoves,
   heatMapFromRootMoves,
 } from "../ai/heatmap";
-import { aiPositionFromEngine } from "../ai/position";
+import {
+  aiEstimatePositionFromEngine,
+  aiPositionFromEngine,
+} from "../ai/position";
 import { analysisCapabilities } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { mobileTab, showCoordinates } from "../game/state";
@@ -13,6 +16,7 @@ import { GameStage } from "../game/types";
 import {
   createBoard,
   ensureWasm,
+  type Board,
   type TerritoryOverlay,
 } from "../goban/create-board";
 import type { Sign } from "../goban/types";
@@ -77,14 +81,13 @@ export function initAnalysis(root: HTMLElement) {
   let boardInitVersion = 0;
   let aiRequestId = 0;
   let aiTerritoryRequestId = 0;
-  const aiEvalCache = new Map<
-    number,
-    {
-      result: Awaited<ReturnType<typeof analyzePositionDirect>>;
-      ownership?: number[];
-      overlay?: TerritoryOverlay;
-    }
-  >();
+  type CachedAiEval = {
+    result: Awaited<ReturnType<typeof analyzePositionDirect>>;
+    ownership?: number[];
+    overlay?: TerritoryOverlay;
+  };
+  const aiEvalCache = new Map<number, CachedAiEval>();
+  const aiEstimateCache = new Map<string, CachedAiEval>();
 
   showCoordinates.value = readShowCoordinates();
 
@@ -150,6 +153,16 @@ export function initAnalysis(root: HTMLElement) {
     return ownership.map((value) =>
       Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0,
     );
+  }
+
+  function estimateCacheKey(board: Board): string {
+    return JSON.stringify({
+      size: board.engine.cols(),
+      komi: analysisKomi.value,
+      capturesBlack: board.engine.captures_black?.() ?? 0,
+      capturesWhite: board.engine.captures_white?.() ?? 0,
+      board: Array.from(board.engine.board()),
+    });
   }
 
   function buildAiOwnershipOverlay(
@@ -222,6 +235,14 @@ export function initAnalysis(root: HTMLElement) {
     }
   }
 
+  function renderAiOverlay(board: Board) {
+    if (typeof board.renderBoardOnly === "function") {
+      board.renderBoardOnly();
+    } else {
+      board.render();
+    }
+  }
+
   function clearAiSuggestion(renderBoard = true) {
     const state = analysisAiState.value;
 
@@ -239,7 +260,11 @@ export function initAnalysis(root: HTMLElement) {
       };
 
       if (renderBoard) {
-        analysisBoard.value?.render();
+        const board = analysisBoard.value;
+
+        if (board) {
+          renderAiOverlay(board);
+        }
       }
     }
   }
@@ -251,6 +276,7 @@ export function initAnalysis(root: HTMLElement) {
 
   function clearAiEvalCache() {
     aiEvalCache.clear();
+    aiEstimateCache.clear();
     clearAiTerritoryOwnership();
   }
 
@@ -293,13 +319,11 @@ export function initAnalysis(root: HTMLElement) {
     const nodeId = board.engine.current_node_id();
     const position = aiPositionFromEngine(board.engine, analysisKomi.value);
     const sign = board.engine.current_turn_stone() as Sign;
-    const cached = analysisAiTerritoryState.value;
-
     const cachedEval = aiEvalCache.get(nodeId);
 
     if (cachedEval) {
       applyAiSuggestion(cachedEval.result, nodeId, position.boardSize, sign);
-      board.render();
+      renderAiOverlay(board);
 
       return;
     }
@@ -334,20 +358,12 @@ export function initAnalysis(root: HTMLElement) {
           sign,
         ),
       };
-      analysisAiTerritoryState.value = {
-        ...analysisAiTerritoryState.value,
-        pending: false,
-        result,
-        nodeId,
-        ownership: result.analysis.ownership,
-        overlay: buildAiOwnershipOverlay(result.analysis.ownership),
-      };
       aiEvalCache.set(nodeId, {
         result,
         ownership: result.analysis.ownership,
-        overlay: analysisAiTerritoryState.value.overlay,
+        overlay: buildAiOwnershipOverlay(result.analysis.ownership),
       });
-      board.render();
+      renderAiOverlay(board);
     } catch (err) {
       if (
         requestId !== aiRequestId ||
@@ -365,7 +381,7 @@ export function initAnalysis(root: HTMLElement) {
         error: err instanceof Error ? err.message : String(err),
         nodeId,
       };
-      board.render();
+      renderAiOverlay(board);
     }
   }
 
@@ -422,7 +438,8 @@ export function initAnalysis(root: HTMLElement) {
       return true;
     }
 
-    const cachedEval = aiEvalCache.get(nodeId);
+    const cacheKey = estimateCacheKey(board);
+    const cachedEval = aiEstimateCache.get(cacheKey);
 
     if (cachedEval?.overlay) {
       analysisAiTerritoryState.value = {
@@ -438,33 +455,10 @@ export function initAnalysis(root: HTMLElement) {
       return true;
     }
 
-    if (
-      analysisAiState.value.nodeId === nodeId &&
-      analysisAiState.value.result?.analysis.ownership
-    ) {
-      const overlay = buildAiOwnershipOverlay(
-        analysisAiState.value.result.analysis.ownership,
-      );
-      const cached = {
-        result: analysisAiState.value.result,
-        ownership: analysisAiState.value.result.analysis.ownership,
-        overlay,
-      };
-      aiEvalCache.set(nodeId, cached);
-      analysisAiTerritoryState.value = {
-        pending: false,
-        mode,
-        nodeId,
-        result: cached.result,
-        ownership: cached.ownership,
-        overlay,
-      };
-      enterOverlay();
-
-      return true;
-    }
-
-    const position = aiPositionFromEngine(board.engine, analysisKomi.value);
+    const position = aiEstimatePositionFromEngine(
+      board.engine,
+      analysisKomi.value,
+    );
     analysisAiTerritoryState.value = {
       pending: true,
       mode,
@@ -507,15 +501,7 @@ export function initAnalysis(root: HTMLElement) {
         ownership,
         overlay,
       };
-      aiEvalCache.set(nodeId, { result, ownership, overlay });
-      if (analysisAiState.value.enabled) {
-        applyAiSuggestion(
-          result,
-          nodeId,
-          position.boardSize,
-          board.engine.current_turn_stone() as Sign,
-        );
-      }
+      aiEstimateCache.set(cacheKey, { result, ownership, overlay });
       enterOverlay();
     } catch {
       if (
@@ -636,7 +622,9 @@ export function initAnalysis(root: HTMLElement) {
         if (keepEstimate) {
           void startTerritoryOverlay("estimate");
         } else {
-          board?.render();
+          if (board) {
+            renderAiOverlay(board);
+          }
           refreshAiSuggestion();
         }
       },
