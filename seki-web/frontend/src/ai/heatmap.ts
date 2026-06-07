@@ -11,7 +11,7 @@ export function heatMapFromRootMoves(
   );
   const playableMoves = moves.filter((move) => move.action.kind === "play");
   const maxPrior = Math.max(...playableMoves.map((move) => move.prior), 0);
-  const labelLimit = options.labelLimit ?? 8;
+  const labelLimit = options.labelLimit ?? 4;
 
   if (maxPrior <= 0) {
     return heatMap;

@@ -138,14 +138,14 @@ export default function Vertex(props: VertexProps): JSX.Element {
       )}
       onClick={handleClick}
     >
-      <div className="goban-heat" style={absoluteStyle(0)} />
+      <div className="goban-heat" style={absoluteStyle(1)} />
 
       {hasPaintNeighbor && (
         <div
           className="goban-paint"
           style={
             {
-              ...absoluteStyle(1),
+              ...absoluteStyle(0),
               "--goban-paint-opacity": String(paintOpacity),
               "--goban-paint-box-shadow": [
                 signEquals(paintLeft, paintTop, paintTopLeft)
