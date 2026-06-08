@@ -17,6 +17,7 @@ function historyEntry(
     volatility_after: 0.06,
     rating_delta: 20,
     created_at: "2026-05-31T00:00:00Z",
+    ended_at: null,
     cols: 19,
     rows: 19,
     handicap: 0,

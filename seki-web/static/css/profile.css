@@ -101,6 +101,7 @@
 .rating-graph-grid-label {
   fill: var(--fg-muted);
   font-size: 11px;
+  user-select: none;
 }
 
 .rating-graph-line {
@@ -128,6 +129,7 @@
   font-size: 16px;
   font-weight: 600;
   text-anchor: middle;
+  user-select: none;
 }
 
 .rating-graph-meta {

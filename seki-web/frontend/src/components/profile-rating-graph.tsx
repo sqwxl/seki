@@ -287,17 +287,21 @@ export function RatingProfileSummary({
 function buildRatingGraphNodes(
   graph: RatingGraphData,
   history: RatingHistoryEntryData[],
+  anchorEntry: RatingHistoryEntryData | null = null,
 ): RatingGraphNode[] {
   return graph.points.map((point, index) => {
-    const entry = history[index - 1] ?? null;
+    const isFirst = index === 0;
+    const entry = isFirst ? anchorEntry : (history[index - 1] ?? null);
     const isLatest = index === graph.points.length - 1;
 
     return {
-      key: entry ? `game-${entry.game_id}` : "baseline",
+      key: entry ? `game-${entry.game_id}-${index}` : "baseline",
       point,
       entry,
       href: entry ? `/games/${entry.game_id}` : null,
-      label: formatNumericRating(entry ? entry.rating_after : point.rating),
+      label: formatNumericRating(
+        entry && !isFirst ? entry.rating_after : point.rating,
+      ),
       radius: isLatest ? 4 : 3,
     };
   });
@@ -353,7 +357,15 @@ function RatingGraph({
     return <p class="rating-graph-empty">No visible rated games yet.</p>;
   }
 
-  const nodes = buildRatingGraphNodes(graph, filtered);
+  const anchorEntry =
+    filtered.length > 0 && filtered.length < history.length
+      ? (() => {
+          const target = filtered[0].rating_before;
+          const match = history.findLast((e) => e.rating_after === target);
+          return match ?? null;
+        })()
+      : null;
+  const nodes = buildRatingGraphNodes(graph, filtered, anchorEntry);
   const showTooltip = (node: RatingGraphNode, e: MouseEvent) => {
     if (!window.matchMedia("(min-width: 768px)").matches) {
       return;
@@ -488,6 +500,16 @@ function RatingGraphTooltip({ tooltip }: { tooltip: RatingTooltipState }) {
       </div>
       <div>
         <strong>Result</strong> {entry.result}
+      </div>
+      <div>
+        <strong>Finished</strong>{" "}
+        {entry.ended_at
+          ? new Date(entry.ended_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "-"}
       </div>
     </div>
   );

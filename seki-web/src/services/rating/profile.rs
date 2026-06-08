@@ -25,6 +25,7 @@ pub struct RatingHistoryEntryDto {
     pub volatility_after: f64,
     pub rating_delta: f64,
     pub created_at: DateTime<Utc>,
+    pub ended_at: Option<DateTime<Utc>>,
     pub black_player: Option<String>,
     pub white_player: Option<String>,
     pub black_rank_before: Option<RankDto>,
@@ -119,6 +120,7 @@ async fn visible_rating_history(
             volatility_after: adjustment.volatility_after,
             rating_delta: adjustment.rating_delta,
             created_at: adjustment.created_at,
+            ended_at: gwp.game.ended_at,
             black_player: gwp
                 .black
                 .as_ref()

@@ -70,6 +70,7 @@ export type RatingHistoryEntryData = {
   volatility_after: number;
   rating_delta: number;
   created_at: string;
+  ended_at: string | null;
   black_player?: string | null;
   white_player?: string | null;
   black_rank_before?: RankData | null;
