@@ -125,8 +125,10 @@ export function ProfileScreen({
       {data.rating && (
         <RatingProfileSummary rating={data.rating} navigate={navigate} />
       )}
-      <h2>Games</h2>
-      <UserGames initial={data.initial_games} />
+      <section>
+        <h2>Games</h2>
+        <UserGames initial={data.initial_games} />
+      </section>
       {data.is_own_profile && (
         <section>
           <h2>Settings</h2>

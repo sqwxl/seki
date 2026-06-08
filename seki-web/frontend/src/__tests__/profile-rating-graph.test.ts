@@ -43,8 +43,29 @@ describe("buildRatingGraphData", () => {
       1500, 1520, 1510,
     ]);
     expect(graph?.currentRating).toBe(1510);
-    expect(graph?.minRating).toBe(1500);
-    expect(graph?.maxRating).toBe(1520);
+    // Gridline Y axis expands beyond data range for at least 5 lines
+    expect(graph!.minRating).toBeLessThanOrEqual(1500);
+    expect(graph!.maxRating).toBeGreaterThanOrEqual(1520);
+  });
+
+  it("gridlines use round values and cover at least 5 lines", () => {
+    const graph = buildRatingGraphData([
+      historyEntry({ rating_before: 1500, rating_after: 1520 }),
+      historyEntry({ game_id: 2, rating_before: 1520, rating_after: 1510 }),
+    ]);
+
+    expect(graph!.gridLines.length).toBeGreaterThanOrEqual(5);
+    // Gridlines should be round (divisible by step)
+    for (const gl of graph!.gridLines) {
+      expect(gl.rating % 10).toBe(0);
+    }
+    // Y positions should descend as rating increases
+    for (let i = 1; i < graph!.gridLines.length; i++) {
+      expect(graph!.gridLines[i].rating).toBeGreaterThan(
+        graph!.gridLines[i - 1].rating,
+      );
+      expect(graph!.gridLines[i].y).toBeLessThan(graph!.gridLines[i - 1].y);
+    }
   });
 
   it("keeps flat rating history drawable", () => {
@@ -54,5 +75,6 @@ describe("buildRatingGraphData", () => {
 
     expect(graph?.path).not.toContain("NaN");
     expect(graph?.path).not.toContain("Infinity");
+    expect(graph!.gridLines.length).toBeGreaterThanOrEqual(5);
   });
 });

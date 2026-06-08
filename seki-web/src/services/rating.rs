@@ -13,7 +13,9 @@ pub use eligibility::{
     RankedCreateEligibility, can_accept_ranked, can_create_ranked, can_join_ranked,
     can_participate_in_ranking,
 };
-pub use profile::{ProfileRatingDto, RatingHistoryEntryDto, profile_rating_summary};
+pub use profile::{
+    ProfileRatingDto, ProfileStatsDto, RatingHistoryEntryDto, profile_rating_summary,
+};
 
 use crate::db::DbPool;
 use crate::error::AppError;

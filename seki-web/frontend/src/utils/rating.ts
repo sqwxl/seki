@@ -19,8 +19,12 @@ export function parseRatingDisplayMode(value: unknown): RatingDisplayMode {
   return value === "rating" ? "rating" : "kyu_dan";
 }
 
-export function formatNumericRating(rating: number): string {
-  return Math.round(rating).toString();
+export function formatNumericRating(rating: number, decimals?: number): string {
+  if (!decimals) {
+    return Math.round(rating).toString();
+  }
+
+  return rating.toFixed(decimals).toString();
 }
 
 export function fullRankText(rank: RankData | undefined | null): string {

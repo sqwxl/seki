@@ -85,6 +85,21 @@ export type RatingHistoryEntryData = {
   byoyomi_periods?: number | null;
 };
 
+export type ProfileStatsData = {
+  total_games: number;
+  rated_games: number;
+  wins: number;
+  losses: number;
+  avg_opponent_rating: number | null;
+  highest_rating: number | null;
+  lowest_rating: number | null;
+  time_spent_secs: number;
+  win_streak_longest: number;
+  win_streak_current: number;
+  lose_streak_longest: number;
+  lose_streak_current: number;
+};
+
 export type ProfileRatingData = {
   participating: boolean;
   rating: number;
@@ -93,6 +108,7 @@ export type ProfileRatingData = {
   rank: RankData;
   rated_games: number;
   history: RatingHistoryEntryData[];
+  stats: ProfileStatsData;
 };
 
 export type ProfileData = {
