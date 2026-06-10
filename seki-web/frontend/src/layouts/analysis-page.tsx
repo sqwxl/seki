@@ -1,7 +1,13 @@
 import type { ControlsProps } from "../components/controls-shared";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
-import { CapturesBlack, CapturesWhite, IconGrid3x3 } from "../components/icons";
+import {
+  CapturesBlack,
+  CapturesWhite,
+  IconGrid3x3,
+  StoneBlack,
+  StoneWhite,
+} from "../components/icons";
 import { TabBar } from "../components/tab-bar";
 import type { AnalysisCapabilities } from "../game/capabilities";
 import { analysisCapabilities } from "../game/capabilities";
@@ -148,8 +154,10 @@ function buildAnalysisControls(
 
 function AnalysisPanel({
   panel,
+  stone,
 }: {
   panel: (typeof analysisPanelState.value)["top"];
+  stone: "black" | "white";
 }) {
   if (!panel) {
     return null;
@@ -158,6 +166,9 @@ function AnalysisPanel({
   return (
     <>
       <span class="player-name-group">
+        <span class="stone-icon">
+          {stone === "black" ? <StoneBlack /> : <StoneWhite />}
+        </span>
         <span class="user-label">{panel.label}</span>
       </span>
       <span class={`player-clock${panel.clockLowTime ? " low-time" : ""}`}>
@@ -189,11 +200,13 @@ function AnalysisPanel({
 }
 
 function AnalysisTopPanel() {
-  return <AnalysisPanel panel={analysisPanelState.value.top} />;
+  return <AnalysisPanel panel={analysisPanelState.value.top} stone="white" />;
 }
 
 function AnalysisBottomPanel() {
-  return <AnalysisPanel panel={analysisPanelState.value.bottom} />;
+  return (
+    <AnalysisPanel panel={analysisPanelState.value.bottom} stone="black" />
+  );
 }
 
 function AnalysisControlsSlot(props: AnalysisPageProps) {
