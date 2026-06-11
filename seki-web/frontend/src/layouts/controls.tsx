@@ -1,8 +1,8 @@
+import { ControlsMenu } from "../components/controls-menu";
 import { type ControlsProps } from "../components/controls-shared";
 import { GameControls } from "../components/game-controls";
 import { IconCheck, IconX } from "../components/icons";
 import { NavControls } from "../components/nav-controls";
-import { ControlsMenu } from "../components/tab-bar";
 import { hasCollapsedUiControls, UIControls } from "../components/ui-controls";
 
 export function Controls(props: ControlsProps) {

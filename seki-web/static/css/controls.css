@@ -113,16 +113,19 @@
   flex-wrap: nowrap;
   align-items: center;
 
-  & button:first-of-type:not(:only-of-type) {
+  > button:first-child:not(:only-child),
+  > .controls-menu:first-child:not(:only-child) > button {
     border-top-right-radius: 0;
     border-bottom-right-radius: 0;
   }
 
-  & button ~ button:not(:last-of-type) {
+  > button:not(:first-child):not(:last-child),
+  > .controls-menu:not(:first-child):not(:last-child) > button {
     border-radius: 0;
   }
 
-  & button:last-of-type:not(:only-of-type) {
+  > button:last-child:not(:only-child),
+  > .controls-menu:last-child:not(:only-child) > button {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
   }
@@ -199,7 +202,6 @@
   .btn-group {
     min-width: 0;
     flex-shrink: 1;
-    gap: 0.25em;
   }
 
   button {
