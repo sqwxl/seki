@@ -322,6 +322,7 @@ export function buildControls(
     controlsProps.exitEstimate = {
       onClick: exitEstimate,
       title: caps.exitEstimateTitle,
+      collapses: true,
     };
   } else if (caps.showEnterEstimate) {
     controlsProps.estimate = {
@@ -337,6 +338,7 @@ export function buildControls(
   controlsProps.sgfExport = {
     onClick: handleSgfExport,
     disabled: caps.canExitEstimate,
+    collapses: true,
   };
 
   // --- Control request response ---

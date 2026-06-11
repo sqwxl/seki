@@ -348,26 +348,8 @@ function LiveGameMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
   );
 }
 
-function LiveGameTabBar(props: LiveGamePageProps) {
-  return (
-    <TabBar
-      controls={buildControls(
-        liveGameControlsState.value,
-        props.channel,
-        props.mc,
-        {
-          enterAnalysis: props.enterAnalysis,
-          exitAnalysis: props.exitAnalysis,
-          enterEstimate: props.enterEstimate,
-          exitEstimate: props.exitEstimate,
-          handleSgfExport: props.handleSgfExport,
-          enterPresentation: props.enterPresentation,
-          exitPresentation: props.exitPresentation,
-          returnControl: props.returnControl,
-        },
-      )}
-    />
-  );
+function LiveGameTabBar() {
+  return <TabBar />;
 }
 
 function LiveGameChat({ channel }: Pick<LiveGamePageProps, "channel">) {
@@ -435,7 +417,7 @@ export function LiveGamePage(props: LiveGamePageProps) {
       }
       chat={<LiveGameChat channel={channel} />}
       moveTree={<LiveGameMoveTree moveTreeEl={moveTreeEl} />}
-      tabBar={<LiveGameTabBar {...props} />}
+      tabBar={<LiveGameTabBar />}
     />
   );
 }

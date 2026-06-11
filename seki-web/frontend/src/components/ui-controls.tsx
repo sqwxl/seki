@@ -1,22 +1,39 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
+  AiBtn,
   ButtonContent,
+  ClearVariationsBtn,
+  EstimateBtn,
+  KomiSelect,
+  SgfExportButton,
   SgfImportButton,
+  SizeSelect,
   type ControlsProps,
 } from "./controls-shared";
-import {
-  IconAnalysis,
-  IconBalance,
-  IconBot,
-  IconFileExport,
-  IconGrid4x4,
-  IconKomi,
-  IconTrash,
-  IconX,
-} from "./icons";
+import { IconAnalysis, IconX } from "./icons";
+
+export function hasCollapsedUiControls(
+  props: ControlsProps,
+  options: { excludeAnalysis?: boolean } = {},
+) {
+  return Boolean(
+    props.aiSuggest?.collapses ||
+    (!options.excludeAnalysis && props.analyze?.collapses) ||
+    props.estimate?.collapses ||
+    props.exitEstimate?.collapses ||
+    props.sgfImport?.collapses ||
+    props.sgfExport?.collapses ||
+    props.clearVariations?.collapses ||
+    props.sizeSelect?.collapses ||
+    props.komiSelect?.collapses,
+  );
+}
 
 export function UIControls(
-  props: ControlsProps & { excludeAnalysis?: boolean },
+  props: ControlsProps & {
+    excludeAnalysis?: boolean;
+    renderMode?: "inline" | "menu";
+  },
 ) {
   const [analyzeChoiceOpen, setAnalyzeChoiceOpen] = useState(false);
   const analyzeChoiceRef = useRef<HTMLDivElement>(null);
@@ -52,87 +69,79 @@ export function UIControls(
     }
   }, [analyzeChoicePending]);
 
-  return (
+  const renderMode = props.renderMode ?? "inline";
+  const shouldRender = (collapses?: boolean) =>
+    renderMode === "menu" ? collapses === true : !(props.compact && collapses);
+
+  const analyzeBtn = !props.excludeAnalysis && props.analyze && (
     <>
-      {!props.excludeAnalysis && props.analyze && (
+      {props.analyzeChoice && !props.analyze.active ? (
         <>
-          {props.analyzeChoice && !props.analyze.active ? (
-            <>
-              <button
-                ref={analyzeChoiceButtonRef}
-                title={props.analyze.title ?? "Analyze"}
-                disabled={props.analyze.disabled || analyzeChoicePending}
-                onClick={() => setAnalyzeChoiceOpen((value) => !value)}
-              >
-                <ButtonContent
-                  pending={props.analyze.pending}
-                  icon={IconAnalysis}
-                />
-              </button>
-              {analyzeChoiceOpen && (
-                <div id="analyze-choice" class="controls-menu-dropdown">
-                  {props.analyzeChoice.options.map((opt) => (
-                    <button
-                      key={opt.label}
-                      disabled={
-                        opt.disabled || opt.pending || analyzeChoicePending
-                      }
-                      onClick={() => {
-                        opt.onClick();
-                      }}
-                    >
-                      <ButtonContent pending={opt.pending} label={opt.label} />
-                    </button>
-                  ))}
-                  <button
-                    disabled={analyzeChoicePending}
-                    onClick={() => setAnalyzeChoiceOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <button
-              class={props.analyze.active ? "btn-exit" : undefined}
-              title={
-                props.analyze.active
-                  ? "Back to game"
-                  : (props.analyze.title ?? "Analyze")
-              }
-              disabled={props.analyze.disabled || props.analyze.pending}
-              onClick={props.analyze.onClick}
+          <button
+            ref={analyzeChoiceButtonRef}
+            title={props.analyze.title ?? "Analyze"}
+            disabled={props.analyze.disabled || analyzeChoicePending}
+            onClick={() => setAnalyzeChoiceOpen((value) => !value)}
+          >
+            <ButtonContent
+              pending={props.analyze.pending}
+              icon={IconAnalysis}
+            />
+          </button>
+          {analyzeChoiceOpen && (
+            <div
+              id="analyze-choice"
+              class="controls-menu-dropdown"
+              ref={analyzeChoiceRef}
             >
-              <ButtonContent
-                pending={props.analyze.pending}
-                icon={props.analyze.active ? IconX : IconAnalysis}
-              />
-            </button>
+              {props.analyzeChoice.options.map((opt) => (
+                <button
+                  key={opt.label}
+                  disabled={opt.disabled || opt.pending || analyzeChoicePending}
+                  onClick={() => {
+                    opt.onClick();
+                  }}
+                >
+                  <ButtonContent pending={opt.pending} label={opt.label} />
+                </button>
+              ))}
+              <button
+                disabled={analyzeChoicePending}
+                onClick={() => setAnalyzeChoiceOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
           )}
         </>
-      )}
-      {props.aiSuggest && (
+      ) : (
         <button
-          class={props.aiSuggest.active ? "btn-on" : ""}
-          title={props.aiSuggest.title ?? "AI suggestion"}
-          disabled={props.aiSuggest.disabled || props.aiSuggest.pending}
-          onClick={props.aiSuggest.onClick}
+          class={props.analyze.active ? "btn-on" : undefined}
+          title={props.analyze.title ?? "Analyze"}
+          disabled={props.analyze.disabled || props.analyze.pending}
+          onClick={props.analyze.onClick}
         >
-          <ButtonContent pending={props.aiSuggest.pending} icon={IconBot} />
+          <ButtonContent pending={props.analyze.pending} icon={IconAnalysis} />
         </button>
       )}
-      {props.estimate && (
-        <button
-          class={props.estimate.active ? "btn-on" : ""}
-          title={props.estimate.title ?? "Estimate score"}
-          disabled={props.estimate.disabled || props.estimate.pending}
-          onClick={props.estimate.onClick}
-        >
-          <ButtonContent pending={props.estimate.pending} icon={IconBalance} />
-        </button>
-      )}
-      {props.exitEstimate && (
+    </>
+  );
+
+  const controls = [
+    {
+      node: analyzeBtn,
+      collapses: props.analyze?.collapses,
+    },
+    {
+      node: props.aiSuggest && <AiBtn {...props.aiSuggest} />,
+      collapses: props.aiSuggest?.collapses,
+    },
+    {
+      node: props.estimate && <EstimateBtn {...props.estimate} />,
+      collapses: props.estimate?.collapses,
+    },
+    {
+      node: props.exitEstimate && (
         <button
           class="btn-exit"
           title={props.exitEstimate.title ?? "Back to game"}
@@ -141,71 +150,39 @@ export function UIControls(
         >
           <ButtonContent pending={props.exitEstimate.pending} icon={IconX} />
         </button>
-      )}
-      {props.sgfImport && (
+      ),
+      collapses: props.exitEstimate?.collapses,
+    },
+    {
+      node: props.sgfImport && (
         <SgfImportButton onFileChange={props.sgfImport.onFileChange} />
-      )}
-      {props.sgfExport && (
-        <button
-          title={props.sgfExport.title ?? "Export SGF"}
-          disabled={props.sgfExport.disabled || props.sgfExport.pending}
-          onClick={props.sgfExport.onClick}
-        >
-          <ButtonContent
-            pending={props.sgfExport.pending}
-            icon={IconFileExport}
-          />
-        </button>
-      )}
-      {props.clearVariations && (
-        <button
-          title={props.clearVariations.title ?? "Clear variations"}
-          disabled={
-            props.clearVariations.disabled || props.clearVariations.pending
-          }
-          onClick={props.clearVariations.onClick}
-        >
-          <ButtonContent
-            pending={props.clearVariations.pending}
-            icon={IconTrash}
-          />
-        </button>
-      )}
-      {props.sizeSelect && (
-        <span class="inline-control-group">
-          <IconGrid4x4 title="Board size" />
-          <select
-            title="Board size"
-            value={String(props.sizeSelect.value)}
-            onChange={(e) =>
-              props.sizeSelect!.onChange(
-                parseInt((e.target as HTMLSelectElement).value, 10),
-              )
-            }
-          >
-            {props.sizeSelect.options.map((s) => (
-              <option key={s} value={String(s)}>
-                {s}×{s}
-              </option>
-            ))}
-          </select>
-        </span>
-      )}
-      {props.komiSelect && (
-        <span class="inline-control-group">
-          <IconKomi title="Komi" />
-          <input
-            type="number"
-            title="Komi"
-            value={props.komiSelect.value}
-            step={0.5}
-            min={-100.5}
-            max={100.5}
-            onChange={(e) =>
-              props.komiSelect!.onChange(parseFloat(e.currentTarget.value) || 0)
-            }
-          />
-        </span>
+      ),
+      collapses: props.sgfImport?.collapses,
+    },
+    {
+      node: props.sgfExport && <SgfExportButton {...props.sgfExport} />,
+      collapses: props.sgfExport?.collapses,
+    },
+    {
+      node: props.clearVariations && (
+        <ClearVariationsBtn {...props.clearVariations} />
+      ),
+      collapses: props.clearVariations?.collapses,
+    },
+    {
+      node: props.sizeSelect && <SizeSelect {...props.sizeSelect} />,
+      collapses: props.sizeSelect?.collapses,
+    },
+    {
+      node: props.komiSelect && <KomiSelect {...props.komiSelect} />,
+      collapses: props.komiSelect?.collapses,
+    },
+  ];
+
+  return (
+    <>
+      {controls.map(
+        (control) => shouldRender(control.collapses) && control.node,
       )}
     </>
   );

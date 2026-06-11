@@ -60,10 +60,12 @@ function buildAnalysisControls(
       value: analysisSize.value,
       options: [9, 13, 19],
       onChange: onSizeChange,
+      collapses: true,
     },
     komiSelect: {
       value: analysisKomi.value,
       onChange: onKomiChange,
+      collapses: true,
     },
   };
 
@@ -110,17 +112,21 @@ function buildAnalysisControls(
   };
 
   if (caps.showSgfImport) {
-    controlsProps.sgfImport = { onFileChange: handleSgfImport };
+    controlsProps.sgfImport = {
+      onFileChange: handleSgfImport,
+      collapses: true,
+    };
   }
 
   if (caps.showSgfExport) {
-    controlsProps.sgfExport = { onClick: handleSgfExport };
+    controlsProps.sgfExport = { onClick: handleSgfExport, collapses: true };
   }
 
   if (caps.showClearVariations) {
     controlsProps.clearVariations = {
       onClick: props.handleClearVariations,
       disabled: !caps.canClearVariations,
+      collapses: true,
     };
   }
 
@@ -228,9 +234,8 @@ function AnalysisMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
   );
 }
 
-function AnalysisTabBar(props: AnalysisPageProps) {
-  const caps = analysisCapabilities.value;
-  return <TabBar controls={buildAnalysisControls(caps, props)} />;
+function AnalysisTabBar() {
+  return <TabBar />;
 }
 
 // ---------------------------------------------------------------------------
@@ -379,7 +384,7 @@ export function AnalysisPage(props: AnalysisPageProps) {
         ) : undefined
       }
       moveTree={<AnalysisMoveTree moveTreeEl={moveTreeEl} />}
-      tabBar={<AnalysisTabBar {...props} />}
+      tabBar={<AnalysisTabBar />}
     />
   );
 }

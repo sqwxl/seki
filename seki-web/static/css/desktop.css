@@ -158,7 +158,8 @@
   }
 
   .controls-menu-dropdown button,
-  .controls-menu-dropdown select {
+  .controls-menu-dropdown select,
+  .controls-menu-dropdown input[type="number"] {
     height: 2em;
     min-width: 2em;
   }
@@ -171,15 +172,11 @@
     display: none;
   }
 
-  .game-page-body:has(.mobile-tab-bar) .controls-row > .controls-end {
-    display: inline-flex;
-  }
-
   .controls-row {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    gap: 1em;
-    justify-content: center;
+    column-gap: 1em;
   }
 
   .controls-row > .controls-start,
@@ -190,11 +187,17 @@
   }
 
   .controls-row > .controls-start {
-    justify-content: flex-end;
+    justify-self: center;
+    justify-content: center;
+  }
+
+  .controls-row > .controls-middle {
+    justify-self: end;
   }
 
   .controls-row > .controls-end {
     display: inline-flex;
+    justify-self: start;
     justify-content: flex-start;
   }
 

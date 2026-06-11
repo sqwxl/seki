@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { NavAction } from "../goban/create-board";
-import { IconCheck, IconFileUpload, IconSpinner, IconX } from "./icons";
+import {
+  IconBalance,
+  IconBot,
+  IconCheck,
+  IconFileExport,
+  IconFileUpload,
+  IconGrid4x4,
+  IconKomi,
+  IconSpinner,
+  IconTrash,
+  IconX,
+} from "./icons";
 
 export type ButtonDef = {
   onClick: () => void;
@@ -8,6 +19,7 @@ export type ButtonDef = {
   disabled?: boolean;
   pending?: boolean;
   title?: string;
+  collapses?: boolean;
 };
 
 export type ConfirmDef = {
@@ -54,18 +66,23 @@ export type ControlsProps = {
   analyze?: ButtonDef & { active?: boolean };
   estimate?: ButtonDef;
   exitEstimate?: ButtonDef;
-  sgfImport?: { onFileChange: (input: HTMLInputElement) => void };
+  sgfImport?: {
+    onFileChange: (input: HTMLInputElement) => void;
+    collapses?: boolean;
+  };
   sgfExport?: ButtonDef;
 
   sizeSelect?: {
     value: number;
     options: number[];
     onChange: (size: number) => void;
+    collapses?: boolean;
   };
 
   komiSelect?: {
     value: number;
     onChange: (komi: number) => void;
+    collapses?: boolean;
   };
 
   territoryReady?: ButtonDef;
@@ -328,6 +345,91 @@ export function closeOnCancelHandler(setOpen: (open: boolean) => void) {
   return () => setOpen(false);
 }
 
+export function AiBtn(props?: ButtonDef) {
+  if (!props) return null;
+  return (
+    <button
+      class={props.active ? "btn-on" : ""}
+      title={props.title ?? "AI suggestion"}
+      disabled={props.disabled || props.pending}
+      onClick={props.onClick}
+    >
+      <ButtonContent pending={props.pending} icon={IconBot} />
+    </button>
+  );
+}
+
+export function EstimateBtn(props: ButtonDef) {
+  return (
+    <button
+      class={props.active ? "btn-on" : ""}
+      title={props.title ?? "Estimate score"}
+      disabled={props.disabled || props.pending}
+      onClick={props.onClick}
+    >
+      <ButtonContent pending={props.pending} icon={IconBalance} />
+    </button>
+  );
+}
+
+export function ClearVariationsBtn(props: ButtonDef) {
+  return (
+    <button
+      title={props.title ?? "Clear variations"}
+      disabled={props.disabled || props.pending}
+      onClick={props.onClick}
+    >
+      <ButtonContent pending={props.pending} icon={IconTrash} />
+    </button>
+  );
+}
+
+export function KomiSelect(
+  props: Pick<ControlsProps, "komiSelect">["komiSelect"],
+) {
+  return (
+    <span class="inline-control-group">
+      <IconKomi title="Komi" />
+      <input
+        type="number"
+        title="Komi"
+        value={props?.value}
+        step={0.5}
+        min={-100.5}
+        max={100.5}
+        onChange={(e) =>
+          props?.onChange(parseFloat(e.currentTarget.value) || 0)
+        }
+      />
+    </span>
+  );
+}
+
+export function SizeSelect(
+  props?: Pick<ControlsProps, "sizeSelect">["sizeSelect"],
+) {
+  if (!props) return;
+
+  return (
+    <span class="inline-control-group">
+      <IconGrid4x4 title="Board size" />
+      <select
+        title="Board size"
+        value={String(props?.value)}
+        onChange={(e) =>
+          props?.onChange(parseInt((e.target as HTMLSelectElement).value, 10))
+        }
+      >
+        {props?.options.map((s) => (
+          <option key={s} value={String(s)}>
+            {s}×{s}
+          </option>
+        ))}
+      </select>
+    </span>
+  );
+}
+
 export function SgfImportButton({
   onFileChange,
 }: {
@@ -352,6 +454,18 @@ export function SgfImportButton({
         onChange={(e) => onFileChange(e.currentTarget as HTMLInputElement)}
       />
     </>
+  );
+}
+
+export function SgfExportButton(props: ButtonDef) {
+  return (
+    <button
+      title={props.title ?? "Export SGF"}
+      disabled={props.disabled || props.pending}
+      onClick={props.onClick}
+    >
+      <ButtonContent pending={props.pending} icon={IconFileExport} />
+    </button>
   );
 }
 

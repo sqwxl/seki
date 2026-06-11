@@ -3,7 +3,7 @@ import { GameControls } from "../components/game-controls";
 import { IconCheck, IconX } from "../components/icons";
 import { NavControls } from "../components/nav-controls";
 import { ControlsMenu } from "../components/tab-bar";
-import { UIControls } from "../components/ui-controls";
+import { hasCollapsedUiControls, UIControls } from "../components/ui-controls";
 
 export function Controls(props: ControlsProps) {
   const reviewing = props.layout === "analysis-review";
@@ -55,11 +55,13 @@ export function Controls(props: ControlsProps) {
         <NavControls nav={props.nav} counterOverride={counterOverride} />
       </span>
       <span class="btn-group controls-end">
-        {props.compact ? (
-          <ControlsMenu controls={props} />
-        ) : (
-          <UIControls {...props} />
-        )}
+        <UIControls {...props} excludeAnalysis={props.compact} />
+        {props.compact &&
+          hasCollapsedUiControls(props, { excludeAnalysis: true }) && (
+            <ControlsMenu>
+              <UIControls {...props} excludeAnalysis renderMode="menu" />
+            </ControlsMenu>
+          )}
       </span>
     </div>
   );

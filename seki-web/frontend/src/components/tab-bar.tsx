@@ -1,6 +1,6 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { hasUnreadChat, mobileTab } from "../game/state";
-import type { ControlsProps } from "./controls-shared";
 import {
   IconAnalysis,
   IconChat,
@@ -8,7 +8,6 @@ import {
   IconMenu,
   IconStonesBw,
 } from "./icons";
-import { UIControls } from "./ui-controls";
 
 type Tab = "board" | "chat" | "analysis";
 
@@ -34,7 +33,7 @@ function TabIcon({ id }: { id: Tab }) {
   return null;
 }
 
-export function ControlsMenu({ controls }: { controls: ControlsProps }) {
+export function ControlsMenu({ children }: { children: ComponentChildren }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -63,16 +62,12 @@ export function ControlsMenu({ controls }: { controls: ControlsProps }) {
       >
         <IconMenu />
       </button>
-      {open && (
-        <div class="controls-menu-dropdown">
-          <UIControls {...controls} excludeAnalysis />
-        </div>
-      )}
+      {open && <div class="controls-menu-dropdown">{children}</div>}
     </div>
   );
 }
 
-export function TabBar({ controls }: { controls?: ControlsProps }) {
+export function TabBar() {
   const current = mobileTab.value;
 
   return (
@@ -92,7 +87,6 @@ export function TabBar({ controls }: { controls?: ControlsProps }) {
           <TabIcon id={t.id} />
         </button>
       ))}
-      {controls && <ControlsMenu controls={controls} />}
     </div>
   );
 }
