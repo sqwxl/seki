@@ -62,7 +62,8 @@ export function onRenderCallback(
     estimateMode.value &&
     !analysisMode.value &&
     !territoryInfo.reviewing &&
-    !territoryInfo.estimating
+    !territoryInfo.estimating &&
+    !territoryInfo.finalized
   ) {
     exitEstimateFn();
     estimateScore.value = undefined;

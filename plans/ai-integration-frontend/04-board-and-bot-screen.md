@@ -9,19 +9,30 @@ positions and generate legal moves.
 
 Extend `BoardController` with small public APIs:
 
+- Done: `setPassiveOverlay(overlay?: TerritoryOverlay): void`
+  - Renders AI ownership estimates without marking the board as territory review.
+  - Does not block play.
+  - Preserves board-owned props such as last-move and ko markers; the overlay
+    only supplies paint/dim data.
+  - Clears on navigation, reset, or when the position changes unless refreshed.
 - `playMove(col, row): boolean`
   - Calls the same internal play path used by user clicks.
   - Triggers save, render, sounds/callbacks, and territory-review transition
     behavior consistently.
-- `setPassiveOverlay(overlay?: TerritoryOverlay): void`
-  - Renders AI ownership estimates without marking the board as territory review.
-  - Does not block play.
-  - Clears on navigation, reset, or when the position changes unless refreshed.
 - Optional `exportAiPosition(): AiPosition`
   - If cleanest, export the worker snapshot from board/WASM instead of
     reconstructing it in the screen.
 
 Do not have bot screen code call `board.engine.try_play()` directly.
+
+Current prerequisite status:
+
+- Analysis already proves passive overlays, AI suggestion heatmaps, AI ghost
+  stones, AI ownership estimate, and direct-policy worker calls in product UI.
+- Analysis has a clear-variations button using `IconTrash`; bot screen reset can
+  follow the same "clear local state, rebuild board, clear AI cache" shape.
+- Bot screen still needs the public `playMove` API before the game loop should
+  be wired.
 
 ## Route and Navigation
 

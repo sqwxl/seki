@@ -295,7 +295,7 @@ export function liveGame(
       aiTerritoryNodeId === nodeId ? aiTerritoryOwnership : undefined;
 
     if (!canUseAi) {
-      aiTerritoryNodeId = nodeId;
+      aiTerritoryNodeId = undefined;
       aiTerritoryOwnership = undefined;
       estimatePending.value = false;
       toEstimate();
@@ -358,6 +358,8 @@ export function liveGame(
       }
 
       estimatePending.value = false;
+      aiTerritoryNodeId = undefined;
+      aiTerritoryOwnership = undefined;
       toEstimate();
       currentBoard.enterEstimate();
     }

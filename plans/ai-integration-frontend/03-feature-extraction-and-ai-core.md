@@ -41,8 +41,7 @@ Current status:
   from repainting the board.
 - Standalone analysis and live-game 9x9 estimate can use AI ownership output
   for goban paint maps. Manual estimate is a separate flow from AI suggestion:
-  it shows its own pending state, paints ownership when ready, and dims
-  occupied stones that the model predicts as owned by the opposite color.
+  it shows its own pending state and paints ownership when ready.
 - KataGo `OutputScoreValue` is raw model output. For current 6-channel exports,
   channel 2 is current-player lead and needs the KataGo lead multiplier
   (`20.0`) plus a sign flip for black-to-move to display White-minus-Black
@@ -51,21 +50,31 @@ Current status:
   engine captures when ownership is available. This keeps score text aligned
   with the painted map and inferred dead stones; raw `OutputScoreValue` remains
   a fallback.
+- Analysis estimate uses a canonical estimate snapshot: same stones, captures,
+  and komi, with black-to-play and no recent pass/ko history. This keeps the
+  same board position stable before and after a pass while preserving normal
+  side-to-move snapshots for AI suggestions.
 - Manual estimate uses a passive goban overlay, not territory-review state.
   Territory review is reserved for actual post-pass confirmation.
+- Passive estimate overlays only provide paint/dim data. Last-move and ko
+  markers continue to come from the board engine and are not cleared by
+  estimate paint maps.
 - Territory review after two passes can reuse the AI ownership path when the
   active model supports the board size, while unsupported boards fall back to
   the existing engine-only estimate.
 - The product path currently uses the `direct` analysis preset: one legal-masked
   policy/value evaluation with the 9x9 KataGo model. Leaf MCTS remains a
   pondering/search path because 64-visit tap-to-move MCTS is too slow on Android.
+- Analysis controls include a clear-variations button using `IconTrash`. It
+  removes stored tree/base/finalized/node data for the current board size,
+  rebuilds the analysis board, and clears AI suggestion/estimate cache state.
 
 Follow-up notes:
 
-- Estimate results are cached per current node in the analysis/live session, so
-  toggling estimate off/on does not immediately re-run inference. Future work:
-  generalize this into a stronger per-position cache that survives navigation
-  and invalidates cleanly on imported tree/komi changes.
+- Analysis estimate results are cached per position key in the current session.
+  Live-game estimate still uses a simpler node-shaped cache. Future work:
+  generalize both into one shared per-position cache that invalidates cleanly on
+  imported tree/komi/model changes.
 - Finished-game estimate is viewable on any node by any user, including
   finalized nodes and games without settled territory.
 - Live-game analysis estimate is not dismissed by an incoming move while the

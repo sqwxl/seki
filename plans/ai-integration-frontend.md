@@ -29,26 +29,34 @@ Current overall status:
 
 - Browser ONNX inference PoC is working with official small-model artifacts and
   warm-tab WebGPU on Chrome Android.
-- Rust/WASM now owns the real legal-move search path for the PoC: graph MCTS,
-  batched external leaf eval, recursive node-value recomputation, and
-  parent-edge catch-up.
-- Current interactive Android presets are:
-  - `Android fast`: 64 visits / 16 max children / 16 eval batch, about
-    3.2-3.4s on tested 19x19 pro-game snapshots.
-  - `Android stronger`: 96 visits / 16 max children / 16 eval batch, about
-    4.6-4.9s on the same snapshots.
-- Best moves are stable across those two budgets on the current Li/Jiang move
-  32/72/120 presets.
-- Catch-up logic is implemented, but the latest Android runs still showed
-  `modelEvaluations == visits`, so the tested positions did not trigger it yet.
+- Product analysis now has a 9x9 AI suggestion toggle using one direct
+  legal-masked policy/value eval. It renders move-rank heatmaps, faint ghost
+  stones, and AI status without entering bot-play mode.
+- Product analysis and live-game estimate can use 9x9 AI ownership output.
+  Manual estimate is a passive paint overlay, separate from territory-review
+  confirmation, and falls back to the engine estimate when AI is unavailable.
+- Estimate score display is derived from ownership plus captures/komi when
+  ownership exists. Raw KataGo `OutputScoreValue` remains a diagnostic/fallback,
+  not the primary UI score.
+- Estimate cache is now position-shaped for analysis: board stones, captures,
+  and komi. It intentionally ignores pass turn/history so the same board before
+  and after a pass shows the same estimate.
+- Analysis controls include a clear-variations button using `IconTrash`. It
+  clears stored tree/base/finalized/node state for the current analysis board
+  size and resets AI overlay/cache state.
+- Rust/WASM owns the experimental legal-move search path: graph MCTS, batched
+  external leaf eval, recursive node-value recomputation, and parent-edge
+  catch-up. This remains PoC/search-lab work until pondering exists.
 
 Next overall steps:
 
-1. Add search diagnostics to make graph behavior visible in the PoC output:
-   root edge summaries, PV beyond one move, visit spread/entropy, and explicit
-   catch-up counters.
-2. Benchmark more transposition-heavy or tactical presets to validate that
-   catch-up reduces leaf eval requests in practice.
-3. Use those measurements to lock the first engine-facing `analyzePosition()`
-   API and default mobile search presets before wiring the search into real bot
-   gameplay UI.
+1. Finish the remaining board API needed by the bot screen, especially a public
+   `playMove(col, row)` path that uses the same legality/render/save callbacks
+   as normal user clicks.
+2. Scaffold `/bot` as a local-only practice screen with model/backend status,
+   strength preset, reset, estimate overlay, and stale-response cancellation.
+3. Use direct policy for immediate bot moves at first. Keep MCTS for slower
+   stronger settings and future pondering, because tap-time MCTS is still too
+   slow on current Android benchmarks.
+4. Keep PoC search diagnostics and transposition-heavy benchmarks as parallel
+   lab work before promoting MCTS defaults into product UI.

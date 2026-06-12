@@ -7,6 +7,14 @@ function renderLivePosition({
   currentNodeId,
   viewIndex,
   moveCount,
+  estimateMode = false,
+  territoryInfo = {
+    estimating: false,
+    reviewing: false,
+    confirming: false,
+    finalized: false,
+    score: undefined,
+  },
   presentationActive = false,
   isPresenter = false,
 }: {
@@ -14,10 +22,19 @@ function renderLivePosition({
   currentNodeId: number;
   viewIndex: number;
   moveCount: number;
+  estimateMode?: boolean;
+  territoryInfo?: {
+    estimating: boolean;
+    reviewing: boolean;
+    confirming: boolean;
+    finalized: boolean;
+    score: undefined;
+  };
   presentationActive?: boolean;
   isPresenter?: boolean;
 }) {
   const enterAnalysis = vi.fn();
+  const exitEstimate = vi.fn();
   const navState = signal({
     atStart: false,
     atLatest: false,
@@ -36,36 +53,26 @@ function renderLivePosition({
     last_move_was_pass: () => false,
   };
 
-  onRenderCallback(
-    engine as never,
-    {
-      estimating: false,
-      reviewing: false,
-      confirming: false,
-      finalized: false,
-      score: undefined,
-    },
-    {
-      board: signal({ baseTipNodeId } as never),
-      analysisMode: signal(false),
-      estimateMode: signal(false),
-      moves: signal(Array.from({ length: moveCount })),
-      boardFinalized: signal(false),
-      boardFinalizedScore: signal(undefined),
-      boardReviewing: signal(false),
-      estimateScore: signal(undefined),
-      presentationActive: signal(presentationActive),
-      isPresenter: signal(isPresenter),
-      navState,
-      broadcastSnapshot: vi.fn(),
-      saveAnalysis: vi.fn(),
-      enterAnalysis,
-      exitEstimateFn: vi.fn(),
-      enterEstimateFn: vi.fn(),
-    },
-  );
+  onRenderCallback(engine as never, territoryInfo, {
+    board: signal({ baseTipNodeId } as never),
+    analysisMode: signal(false),
+    estimateMode: signal(estimateMode),
+    moves: signal(Array.from({ length: moveCount })),
+    boardFinalized: signal(false),
+    boardFinalizedScore: signal(undefined),
+    boardReviewing: signal(false),
+    estimateScore: signal(undefined),
+    presentationActive: signal(presentationActive),
+    isPresenter: signal(isPresenter),
+    navState,
+    broadcastSnapshot: vi.fn(),
+    saveAnalysis: vi.fn(),
+    enterAnalysis,
+    exitEstimateFn: exitEstimate,
+    enterEstimateFn: vi.fn(),
+  });
 
-  return { enterAnalysis, navState };
+  return { enterAnalysis, exitEstimate, navState };
 }
 
 describe("live game board render", () => {
@@ -106,5 +113,55 @@ describe("live game board render", () => {
     });
 
     expect(enterAnalysis).not.toHaveBeenCalled();
+  });
+
+  it("keeps live estimate open while a passive estimate overlay is rendered", () => {
+    const { exitEstimate } = renderLivePosition({
+      baseTipNodeId: 89,
+      currentNodeId: 89,
+      viewIndex: 90,
+      moveCount: 90,
+      estimateMode: true,
+      territoryInfo: {
+        estimating: true,
+        reviewing: false,
+        confirming: false,
+        finalized: false,
+        score: undefined,
+      },
+    });
+
+    expect(exitEstimate).not.toHaveBeenCalled();
+  });
+
+  it("keeps live estimate open while a finalized overlay is rendered", () => {
+    const { exitEstimate } = renderLivePosition({
+      baseTipNodeId: 89,
+      currentNodeId: 89,
+      viewIndex: 90,
+      moveCount: 90,
+      estimateMode: true,
+      territoryInfo: {
+        estimating: false,
+        reviewing: false,
+        confirming: false,
+        finalized: true,
+        score: undefined,
+      },
+    });
+
+    expect(exitEstimate).not.toHaveBeenCalled();
+  });
+
+  it("exits live estimate when no estimate overlay is rendered", () => {
+    const { exitEstimate } = renderLivePosition({
+      baseTipNodeId: 89,
+      currentNodeId: 89,
+      viewIndex: 90,
+      moveCount: 90,
+      estimateMode: true,
+    });
+
+    expect(exitEstimate).toHaveBeenCalledOnce();
   });
 });

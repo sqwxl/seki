@@ -424,15 +424,14 @@ export function initAnalysis(root: HTMLElement) {
     };
 
     if (!canUseAi) {
-      analysisAiTerritoryState.value = {
-        pending: false,
-        mode,
-        nodeId,
-      };
+      analysisAiTerritoryState.value = { pending: false };
       if (mode === "estimate") {
         board.enterEstimate();
       } else {
-        enterOverlay();
+        board.enterTerritoryReview();
+      }
+      if (analysisBoard.value === board) {
+        syncAnalysisUi(board);
       }
 
       return true;

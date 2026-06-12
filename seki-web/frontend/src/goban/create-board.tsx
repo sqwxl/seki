@@ -349,11 +349,9 @@ class BoardController implements Board {
     const externalState = this.computeExternalTerritoryState("estimate");
 
     if (externalState) {
-      this.passiveOverlay = this.buildOverlay(
-        externalState.deadStones,
-        externalState.ownership,
+      this.setPassiveOverlay(
+        this.buildOverlay(externalState.deadStones, externalState.ownership),
       );
-      this.render();
 
       return;
     }
@@ -373,8 +371,9 @@ class BoardController implements Board {
       return;
     }
 
-    this.passiveOverlay = this.buildOverlay(state.deadStones, state.ownership);
-    this.render();
+    this.setPassiveOverlay(
+      this.buildOverlay(state.deadStones, state.ownership),
+    );
   }
 
   setPassiveOverlay(overlay: TerritoryOverlay | undefined): void {
@@ -524,6 +523,15 @@ class BoardController implements Board {
           reviewing: true,
           estimating: false,
           confirming: true,
+          finalized: false,
+          score: undefined,
+        };
+      } else if (this.passiveOverlay) {
+        overlay = this.passiveOverlay;
+        territoryInfo = {
+          estimating: true,
+          reviewing: false,
+          confirming: false,
           finalized: false,
           score: undefined,
         };
