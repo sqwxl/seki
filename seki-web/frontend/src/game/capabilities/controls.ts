@@ -133,8 +133,10 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
 
   const canExitAnalysis = inAnalysis || estimateFromAnalysis;
 
+  const canUseEstimate = isDone || !isPlayer;
   const showEnterEstimate =
-    estimateActive || (!inEstimate && !isReview && (isPlay || isDone));
+    estimateActive ||
+    (!inEstimate && !isReview && (isPlay || isDone) && canUseEstimate);
 
   const canEnterEstimate = showEnterEstimate && (!onFinalized || isDone);
 

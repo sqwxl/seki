@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { Chat } from "../components/chat";
+import type { ControlsProps } from "../components/controls-shared";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
 import { LobbyControls } from "../components/lobby-controls";
@@ -73,6 +74,17 @@ export function shouldFallbackJoinToSpectating(err: WebRequestError): boolean {
   return err.status === 422 && err.message === "Game is full";
 }
 
+export function removeMobileEnterAnalysisControl(
+  controls: ControlsProps,
+  input: { isMobile: boolean; canEnterAnalysis: boolean },
+): ControlsProps {
+  if (input.isMobile && input.canEnterAnalysis) {
+    return { ...controls, analyze: undefined };
+  }
+
+  return controls;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -105,21 +117,22 @@ function LiveGameBottomPanel() {
 function LiveGameControls(props: LiveGamePageProps) {
   const isMobile = useMediaQuery("(max-width: 767px)");
   const compact = isMobile && mobileTab.value === "analysis";
-  return (
-    <Controls
-      {...buildControls(liveGameControlsState.value, props.channel, props.mc, {
-        enterAnalysis: props.enterAnalysis,
-        exitAnalysis: props.exitAnalysis,
-        enterEstimate: props.enterEstimate,
-        exitEstimate: props.exitEstimate,
-        handleSgfExport: props.handleSgfExport,
-        enterPresentation: props.enterPresentation,
-        exitPresentation: props.exitPresentation,
-        returnControl: props.returnControl,
-      })}
-      compact={compact}
-    />
+  const caps = liveGameControlsState.value;
+  const controls = removeMobileEnterAnalysisControl(
+    buildControls(caps, props.channel, props.mc, {
+      enterAnalysis: props.enterAnalysis,
+      exitAnalysis: props.exitAnalysis,
+      enterEstimate: props.enterEstimate,
+      exitEstimate: props.exitEstimate,
+      handleSgfExport: props.handleSgfExport,
+      enterPresentation: props.enterPresentation,
+      exitPresentation: props.exitPresentation,
+      returnControl: props.returnControl,
+    }),
+    { isMobile, canEnterAnalysis: caps.canEnterAnalysis },
   );
+
+  return <Controls {...controls} compact={compact} />;
 }
 
 function LiveGameStatusSlot(

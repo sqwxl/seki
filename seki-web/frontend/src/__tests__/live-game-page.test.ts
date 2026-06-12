@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { shouldFallbackJoinToSpectating } from "../layouts/live-game-page";
+import {
+  removeMobileEnterAnalysisControl,
+  shouldFallbackJoinToSpectating,
+} from "../layouts/live-game-page";
 
 describe("live game page join fallback", () => {
   it("falls back to spectating when join fails because the game is full", () => {
@@ -18,5 +21,38 @@ describe("live game page join fallback", () => {
         message: "This game requires a valid access token to join",
       }),
     ).toBe(false);
+  });
+});
+
+describe("live game mobile controls", () => {
+  const controls = {
+    nav: {
+      atStart: true,
+      atLatest: true,
+      atMainEnd: true,
+      counter: "0",
+      onNavigate: () => {},
+    },
+    analyze: {
+      onClick: () => {},
+    },
+  };
+
+  it("removes only the mobile enter-analysis control", () => {
+    expect(
+      removeMobileEnterAnalysisControl(controls, {
+        isMobile: true,
+        canEnterAnalysis: true,
+      }).analyze,
+    ).toBeUndefined();
+  });
+
+  it("keeps non-enter-analysis controls on mobile", () => {
+    expect(
+      removeMobileEnterAnalysisControl(controls, {
+        isMobile: true,
+        canEnterAnalysis: false,
+      }).analyze,
+    ).toBeDefined();
   });
 });

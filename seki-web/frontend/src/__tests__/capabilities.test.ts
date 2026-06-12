@@ -745,8 +745,31 @@ describe("mode transitions", () => {
     expect(caps().canExitAnalysis).toBe(false);
   });
 
-  it("canEnterEstimate during play", () => {
+  it("cannot enter estimate as a player during an unfinished game", () => {
     setupPlayingGame();
+    expect(caps().showEnterEstimate).toBe(false);
+    expect(caps().canEnterEstimate).toBe(false);
+  });
+
+  it("can enter estimate as a spectator during an unfinished game", () => {
+    setupPlayingGame();
+    playerStone.value = 0;
+    expect(caps().showEnterEstimate).toBe(true);
+    expect(caps().canEnterEstimate).toBe(true);
+  });
+
+  it("cannot enter estimate as a player from analysis during an unfinished game", () => {
+    setupPlayingGame();
+    toAnalysis();
+    expect(caps().showEnterEstimate).toBe(false);
+    expect(caps().canEnterEstimate).toBe(false);
+  });
+
+  it("can enter estimate as a spectator from analysis during an unfinished game", () => {
+    setupPlayingGame();
+    playerStone.value = 0;
+    toAnalysis();
+    expect(caps().showEnterEstimate).toBe(true);
     expect(caps().canEnterEstimate).toBe(true);
   });
 
@@ -767,10 +790,10 @@ describe("mode transitions", () => {
     expect(caps().canEnterEstimate).toBe(true);
   });
 
-  it("estimate disabled but visible on finalized node during play", () => {
+  it("estimate hidden for players on finalized node during unfinished play", () => {
     setupPlayingGame();
     boardFinalized.value = true;
-    expect(caps().showEnterEstimate).toBe(true);
+    expect(caps().showEnterEstimate).toBe(false);
     expect(caps().canEnterEstimate).toBe(false);
   });
 
