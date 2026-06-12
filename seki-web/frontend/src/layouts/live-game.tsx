@@ -1,4 +1,4 @@
-import { effect, untracked } from "@preact/signals";
+import { effect, signal, untracked } from "@preact/signals";
 import { createRef, render } from "preact";
 import { analyzePositionDirect } from "../ai/analyze";
 import { aiPositionFromEngine } from "../ai/position";
@@ -63,7 +63,11 @@ import { stopFlashing, updateTitle } from "../game/ui";
 import { markRead } from "../game/unread";
 import { derivePlayerStone, readUserData } from "../game/util";
 import { Goban } from "../goban";
-import { computeVertexSize, createBoard } from "../goban/create-board";
+import {
+  computeVertexSize,
+  createBoard,
+  type TerritoryInfo,
+} from "../goban/create-board";
 import type { Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { settingsToSgfTime, todayYYYYMMDD } from "../utils/format";
@@ -76,6 +80,11 @@ import type { SgfMeta } from "../utils/sgf";
 import { downloadSgf } from "../utils/sgf";
 import { gameAnalysisKey } from "../utils/storage";
 import { joinGame, subscribe } from "../ws";
+import {
+  createAnalysisSessionController,
+  type AnalysisAiState,
+  type AnalysisEstimateState,
+} from "./analysis-session/controller";
 import { LiveGamePage, getServerTerritory } from "./live-game-page";
 import { onRenderCallback } from "./live-game/board-section";
 import { buildWebSocketDeps } from "./live-game/game-info";
@@ -150,6 +159,58 @@ export function liveGame(
 
   moveConfirmEnabled.value = mc.enabled;
 
+  const liveAnalysisAiState = signal<AnalysisAiState>({
+    enabled: false,
+    pending: false,
+  });
+  const liveAnalysisEstimateState = signal<AnalysisEstimateState>({
+    pending: false,
+  });
+  const liveAnalysisTerritoryInfo = signal<TerritoryInfo>({
+    estimating: false,
+    reviewing: false,
+    confirming: false,
+    finalized: false,
+    score: undefined,
+  });
+  const analysisSession = createAnalysisSessionController({
+    state: {
+      board,
+      pendingMove,
+      ai: liveAnalysisAiState,
+      estimate: liveAnalysisEstimateState,
+      territoryInfo: liveAnalysisTerritoryInfo,
+      nav: navState,
+    },
+    moveConfirm: mc,
+    getKomi: () => initialProps.komi,
+    canUseAi: () => !!result.value || playerStone.value === 0,
+    onPlaySound: playStoneSound,
+    onPassSound: playPassSound,
+    onClearVariations: clearLiveAnalysisVariations,
+    onRender: (currentBoard, territoryInfo) => {
+      onRenderCallback(currentBoard.engine, territoryInfo, {
+        board,
+        analysisMode,
+        estimateMode,
+        moves,
+        boardFinalized,
+        boardFinalizedScore,
+        boardReviewing,
+        estimateScore,
+        presentationActive,
+        isPresenter,
+        navState,
+        broadcastSnapshot,
+        saveAnalysis: () =>
+          saveAnalysis(board.value, analysisMode.value, analysisKey),
+        enterAnalysis,
+        exitEstimateFn: doExitEstimate,
+        enterEstimateFn: enterEstimate,
+      });
+    },
+  });
+
   const disposers: Array<() => void> = [];
 
   // --- Move tree element ---
@@ -170,6 +231,18 @@ export function liveGame(
 
   // Imported from sidebar.tsx: readSavedAnalysis, saveAnalysis, loadSavedAnalysisTree, restoreAnalysisPosition
 
+  function clearLiveAnalysisVariations() {
+    const currentBoard = board.value;
+
+    if (!currentBoard) {
+      return;
+    }
+
+    currentBoard.restoreBaseMoves();
+    saveAnalysis(currentBoard, analysisMode.value, analysisKey);
+    currentBoard.render();
+  }
+
   // --- Mode transition helpers ---
 
   function enterAnalysis({
@@ -177,7 +250,12 @@ export function liveGame(
     nodeId,
   }: { restorePosition?: boolean; nodeId?: number } = {}) {
     const cur = gamePhase.value;
+    const carryEstimate = cur.phase === "estimate" && !cur.fromAnalysis;
     clearPendingMove();
+
+    if (carryEstimate) {
+      doExitEstimate();
+    }
 
     if (cur.phase === "presentation" && cur.role === "synced-viewer") {
       toPresentationLocalAnalysis();
@@ -204,6 +282,10 @@ export function liveGame(
 
     board.value?.setMoveTreeEl(moveTreeEl);
     board.value?.render();
+
+    if (carryEstimate) {
+      analysisSession.toggleEstimate();
+    }
   }
 
   function returnToLiveMainline() {
@@ -216,9 +298,17 @@ export function liveGame(
       doExitEstimate();
     }
 
+    const cur = gamePhase.value;
+    const carryEstimate =
+      analysisEstimateActive() && cur.phase !== "presentation";
+
+    if (analysisEstimateActive()) {
+      analysisSession.clearEstimate();
+      board.value?.exitTerritoryReview();
+    }
+    analysisSession.clearAiSuggestion(false);
     clearPendingMove();
     saveAnalysis(board.value, analysisMode.value, analysisKey);
-    const cur = gamePhase.value;
 
     if (cur.phase === "presentation" && cur.role === "local-analysis") {
       toPresentationSyncedViewer();
@@ -232,6 +322,10 @@ export function liveGame(
 
     mobileTab.value = "board";
     board.value?.render();
+
+    if (carryEstimate) {
+      void enterEstimate();
+    }
   }
 
   function clearAiTerritoryOwnership() {
@@ -269,6 +363,14 @@ export function liveGame(
     );
   }
 
+  function analysisEstimateActive() {
+    return (
+      (liveAnalysisTerritoryInfo.value.estimating &&
+        !liveAnalysisTerritoryInfo.value.confirming) ||
+      liveAnalysisEstimateState.value.mode === "estimate"
+    );
+  }
+
   async function enterEstimate() {
     const wasAnalysis = analysisMode.value;
     const currentBoard = board.value;
@@ -276,6 +378,19 @@ export function liveGame(
     clearPendingMove();
 
     if (!currentBoard) {
+      return;
+    }
+
+    if (wasAnalysis) {
+      if (liveAnalysisEstimateState.value.mode === "review") {
+        toEstimate();
+        currentBoard.render();
+
+        return;
+      }
+
+      analysisSession.toggleEstimate();
+
       return;
     }
 
@@ -376,6 +491,7 @@ export function liveGame(
     phaseExitEstimate();
     estimateScore.value = undefined;
     cancelAiTerritoryRequest();
+    analysisSession.clearEstimate();
 
     if (settledTerritory.value && !wasFromAnalysis) {
       board.value?.render();
@@ -438,26 +554,7 @@ export function liveGame(
   // --- Vertex click handler ---
   function handleVertexClick(col: number, row: number): boolean {
     if (analysisMode.value) {
-      if (!mc.enabled) {
-        return false;
-      }
-
-      const action = handleMoveConfirmClick(
-        mc,
-        col,
-        row,
-        !!board.value?.engine.is_legal(col, row),
-      );
-
-      syncPendingMove();
-
-      if (action === "confirm") {
-        return false;
-      }
-
-      board.value?.render();
-
-      return true;
+      return analysisSession.onVertexClick(col, row);
     }
 
     if (!board.value || !board.value.engine.is_at_latest()) {
@@ -534,6 +631,7 @@ export function liveGame(
       enterPresentation={enterPresentation}
       exitPresentation={exitPresentation}
       returnControl={returnControl}
+      analysisSession={analysisSession}
     />,
     root,
   );
@@ -560,11 +658,13 @@ export function liveGame(
 
   // --- Ghost stone getter ---
   function ghostStone() {
-    if (estimateMode.value) {
+    if (estimateMode.value || analysisEstimateActive()) {
       return undefined;
     }
 
-    return mc.getGhostStone();
+    return analysisMode.value
+      ? analysisSession.getGhostStone()
+      : mc.getGhostStone();
   }
 
   // --- WASM board (async) ---
@@ -575,7 +675,10 @@ export function liveGame(
     showCoordinates: showCoordinates.value,
     gobanEl: gobanRef.current!,
     ghostStone,
-    territoryReviewOwnership: aiTerritoryOwnershipForBoard,
+    ghostStoneOverlay: analysisSession.aiGhostStoneOverlay,
+    heatOverlay: analysisSession.aiHeatOverlay,
+    territoryReviewOwnership: () =>
+      analysisSession.aiTerritoryOwnership() ?? aiTerritoryOwnershipForBoard(),
     territoryOverlay: getServerTerritory,
     canPlay: () => {
       if (analysisMode.value) {
@@ -592,31 +695,25 @@ export function liveGame(
 
       return currentTurn.value === playerStone.value;
     },
+    onNavigate: analysisSession.onNavigate,
     onVertexClick: handleVertexClick,
-    onStonePlay: playStoneSound,
-    onPass: playPassSound,
-    branchAtBaseTip: true,
-    onRender: (engine, territoryInfo) => {
-      onRenderCallback(engine, territoryInfo, {
-        board,
-        analysisMode,
-        estimateMode,
-        moves,
-        boardFinalized,
-        boardFinalizedScore,
-        boardReviewing,
-        estimateScore,
-        presentationActive,
-        isPresenter,
-        navState,
-        broadcastSnapshot,
-        saveAnalysis: () =>
-          saveAnalysis(board.value, analysisMode.value, analysisKey),
-        enterAnalysis,
-        exitEstimateFn: doExitEstimate,
-        enterEstimateFn: enterEstimate,
-      });
+    onStonePlay: () => {
+      if (analysisMode.value) {
+        analysisSession.onStonePlay();
+      } else {
+        playStoneSound();
+      }
     },
+    onPass: () => {
+      if (analysisMode.value) {
+        analysisSession.onPass();
+      } else {
+        playPassSound();
+      }
+    },
+    branchAtBaseTip: true,
+    onTerritoryReviewStart: analysisSession.onTerritoryReviewStart,
+    onRender: analysisSession.onRender,
   }).then((b) => {
     if (disposed) {
       b.destroy();
@@ -893,7 +990,7 @@ export function liveGame(
     switch (e.key) {
       case "p":
         if (caps.passIsAnalysisPass) {
-          board.value?.pass();
+          analysisSession.pass();
         } else if (caps.showPass && caps.confirmPassRequired) {
           document.getElementById("pass-btn")?.click();
         }
@@ -919,12 +1016,16 @@ export function liveGame(
         }
         break;
       case "e":
-        if (caps.showEnterEstimate && caps.canEnterEstimate) {
+        if (analysisMode.value && caps.showEnterEstimate) {
+          analysisSession.toggleEstimate();
+        } else if (caps.showEnterEstimate && caps.canEnterEstimate) {
           enterEstimate();
         }
         break;
       case "Escape":
-        if (estimateMode.value) {
+        if (analysisEstimateActive()) {
+          analysisSession.toggleEstimate();
+        } else if (estimateMode.value) {
           doExitEstimate();
         } else if (analysisMode.value) {
           exitAnalysis();

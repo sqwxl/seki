@@ -56,6 +56,7 @@ import { formatResult } from "../utils/format";
 import { useMediaQuery } from "../utils/media-query";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { postForm, type WebRequestError } from "../utils/web-client";
+import type { AnalysisSessionController } from "./analysis-session/controller";
 import { Controls } from "./controls";
 import { GamePageLayout } from "./game-page-layout";
 import {
@@ -102,6 +103,7 @@ export type LiveGamePageProps = {
   enterPresentation: () => void;
   exitPresentation: () => void;
   returnControl: () => void;
+  analysisSession: AnalysisSessionController;
 };
 
 export { buildShareGameUrl, getServerTerritory };
@@ -128,6 +130,7 @@ function LiveGameControls(props: LiveGamePageProps) {
       enterPresentation: props.enterPresentation,
       exitPresentation: props.exitPresentation,
       returnControl: props.returnControl,
+      analysisSession: props.analysisSession,
     }),
     { isMobile, canEnterAnalysis: caps.canEnterAnalysis },
   );
@@ -214,6 +217,7 @@ function LiveGameStatusSlot(
             enterPresentation: props.enterPresentation,
             exitPresentation: props.exitPresentation,
             returnControl: props.returnControl,
+            analysisSession: props.analysisSession,
           },
         )}
       />

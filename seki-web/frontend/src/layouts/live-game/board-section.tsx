@@ -58,17 +58,6 @@ export function onRenderCallback(
     : undefined;
   boardReviewing.value = territoryInfo.confirming;
 
-  if (
-    estimateMode.value &&
-    !analysisMode.value &&
-    !territoryInfo.reviewing &&
-    !territoryInfo.estimating &&
-    !territoryInfo.finalized
-  ) {
-    exitEstimateFn();
-    estimateScore.value = undefined;
-  }
-
   if (analysisMode.value && territoryInfo.reviewing && !estimateMode.value) {
     enterEstimateFn();
   }
@@ -88,7 +77,6 @@ export function onRenderCallback(
   if (
     board.value &&
     !analysisMode.value &&
-    !estimateMode.value &&
     !atLiveTip &&
     !(presentationActive.value && !isPresenter.value)
   ) {
@@ -96,6 +84,19 @@ export function onRenderCallback(
       restorePosition: false,
       nodeId: currentNodeId,
     });
+
+    return;
+  }
+
+  if (
+    estimateMode.value &&
+    !analysisMode.value &&
+    !territoryInfo.reviewing &&
+    !territoryInfo.estimating &&
+    !territoryInfo.finalized
+  ) {
+    exitEstimateFn();
+    estimateScore.value = undefined;
   }
 
   if (presentationActive.value && isPresenter.value) {

@@ -32,18 +32,20 @@ Current overall status:
 - Product analysis now has a 9x9 AI suggestion toggle using one direct
   legal-masked policy/value eval. It renders move-rank heatmaps, faint ghost
   stones, and AI status without entering bot-play mode.
-- Product analysis and live-game estimate can use 9x9 AI ownership output.
-  Manual estimate is a passive paint overlay, separate from territory-review
-  confirmation, and falls back to the engine estimate when AI is unavailable.
+- Product analysis and live-game analysis share an analysis-session controller
+  for local move-tree navigation, variations, AI suggestion, estimate overlays,
+  and clearing variations. 9x9 estimate can use AI ownership output and falls
+  back to the engine estimate when AI is unavailable.
 - Estimate score display is derived from ownership plus captures/komi when
   ownership exists. Raw KataGo `OutputScoreValue` remains a diagnostic/fallback,
   not the primary UI score.
 - Estimate cache is now position-shaped for analysis: board stones, captures,
   and komi. It intentionally ignores pass turn/history so the same board before
   and after a pass shows the same estimate.
-- Analysis controls include a clear-variations button using `IconTrash`. It
-  clears stored tree/base/finalized/node state for the current analysis board
-  size and resets AI overlay/cache state.
+- Analysis controls include a clear-variations button using `IconTrash`.
+  Dedicated analysis clears stored tree/base/finalized/node state for the
+  current board size; live analysis preserves the live main line and removes
+  local branches. Both reset AI overlay/cache state.
 - Rust/WASM owns the experimental legal-move search path: graph MCTS, batched
   external leaf eval, recursive node-value recomputation, and parent-edge
   catch-up. This remains PoC/search-lab work until pondering exists.

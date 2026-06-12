@@ -11,7 +11,6 @@ import {
 import { TabBar } from "../components/tab-bar";
 import type { AnalysisCapabilities } from "../game/capabilities";
 import { analysisCapabilities } from "../game/capabilities";
-import { playStoneSound } from "../game/sound";
 import { GameStage } from "../game/types";
 import { formatN } from "../utils/format";
 import { useMediaQuery } from "../utils/media-query";
@@ -39,7 +38,7 @@ function buildAnalysisControls(
   caps: AnalysisCapabilities,
   props: AnalysisPageProps,
 ): ControlsProps {
-  const { mc, onSizeChange, onKomiChange, handleSgfImport, handleSgfExport } =
+  const { onSizeChange, onKomiChange, handleSgfImport, handleSgfExport } =
     props;
   const board = analysisBoard.value;
   const nav = analysisNavState.value;
@@ -84,18 +83,17 @@ function buildAnalysisControls(
 
   // Play controls (hidden during territory review, disabled on finalized nodes)
   if (caps.canPass) {
-    controlsProps.pass = { onClick: () => board?.pass() };
+    controlsProps.pass = { onClick: props.onPass };
   }
 
   if (caps.showEstimate) {
     const estimateActive =
-      analysisTerritoryInfo.value.estimating &&
-      !analysisTerritoryInfo.value.confirming;
+      (analysisTerritoryInfo.value.estimating &&
+        !analysisTerritoryInfo.value.confirming) ||
+      analysisAiTerritoryState.value.mode === "estimate";
 
     controlsProps.estimate = {
-      onClick: estimateActive
-        ? () => board?.exitTerritoryReview()
-        : props.onEstimate,
+      onClick: props.onEstimate,
       disabled: !caps.canEstimate && !estimateActive,
       active: estimateActive,
       pending: analysisAiTerritoryState.value.pending,
@@ -133,25 +131,7 @@ function buildAnalysisControls(
   // Confirm move (ephemeral)
   if (analysisPendingMove.value) {
     controlsProps.confirmMove = {
-      onClick: () => {
-        if (analysisPendingMove.value && board) {
-          const [col, row] = analysisPendingMove.value;
-
-          mc.clear();
-          analysisPendingMove.value = undefined;
-
-          const oldTreeNodeCount = board.engine.tree_node_count();
-
-          if (board.engine.try_play(col, row)) {
-            if (board.engine.tree_node_count() > oldTreeNodeCount) {
-              playStoneSound();
-            }
-            props.aiSuggest();
-            board.save();
-            board.render();
-          }
-        }
-      },
+      onClick: props.onConfirmMove,
     };
   }
 
@@ -250,7 +230,8 @@ export type AnalysisPageProps = {
   onKomiChange: (komi: number) => void;
   onAiSuggestChange: () => void;
   onEstimate: () => void;
-  aiSuggest: () => void;
+  onConfirmMove: () => void;
+  onPass: () => void;
   handleSgfImport: (input: HTMLInputElement) => void;
   handleSgfExport: () => void;
   handleClearVariations: () => void;

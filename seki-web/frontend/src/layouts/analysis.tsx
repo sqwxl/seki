@@ -1,31 +1,15 @@
 import { effect } from "@preact/signals";
 import { createRef, render } from "preact";
-import { analyzePositionDirect } from "../ai/analyze";
-import {
-  ghostStoneMapFromRootMoves,
-  heatMapFromRootMoves,
-} from "../ai/heatmap";
-import {
-  aiEstimatePositionFromEngine,
-  aiPositionFromEngine,
-} from "../ai/position";
 import { analysisCapabilities } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { mobileTab, showCoordinates } from "../game/state";
-import { GameStage } from "../game/types";
-import {
-  createBoard,
-  ensureWasm,
-  type Board,
-  type TerritoryOverlay,
-} from "../goban/create-board";
+import { createBoard, ensureWasm } from "../goban/create-board";
 import type { Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { todayYYYYMMDD } from "../utils/format";
 import {
   createMoveConfirm,
   dismissMoveConfirmOnClickOutside,
-  handleMoveConfirmClick,
 } from "../utils/move-confirm";
 import type { SgfMeta } from "../utils/sgf";
 import { downloadSgf, readFileAsText } from "../utils/sgf";
@@ -39,6 +23,7 @@ import {
 } from "../utils/storage";
 import { AnalysisPage } from "./analysis-page";
 import { buildAnalysisPanels } from "./analysis-panels";
+import { createAnalysisSessionController } from "./analysis-session/controller";
 import {
   analysisAiState,
   analysisAiTerritoryState,
@@ -79,16 +64,6 @@ export function initAnalysis(root: HTMLElement) {
   let sgfText: string | undefined = storage.get(ANALYSIS_SGF_TEXT) ?? undefined;
   let disposed = false;
   let boardInitVersion = 0;
-  let aiRequestId = 0;
-  let aiTerritoryRequestId = 0;
-  type CachedAiEval = {
-    result: Awaited<ReturnType<typeof analyzePositionDirect>>;
-    ownership?: number[];
-    overlay?: TerritoryOverlay;
-  };
-  const aiEvalCache = new Map<number, CachedAiEval>();
-  const aiEstimateCache = new Map<string, CachedAiEval>();
-
   showCoordinates.value = readShowCoordinates();
 
   const mc = createMoveConfirm({
@@ -96,444 +71,37 @@ export function initAnalysis(root: HTMLElement) {
       (analysisBoard.value?.engine.current_turn_stone() ?? 1) as Sign,
   });
 
-  function syncPendingMove() {
-    analysisPendingMove.value = mc.value;
-  }
-
-  function clearPendingMove() {
-    mc.clear();
-    analysisPendingMove.value = undefined;
-  }
-
-  function ghostStone() {
-    return mc.getGhostStone();
-  }
-
-  function aiHeatOverlay() {
-    const board = analysisBoard.value;
-    const state = analysisAiState.value;
-
-    if (!board || state.nodeId !== board.engine.current_node_id()) {
-      return undefined;
-    }
-
-    return state.heatMap;
-  }
-
-  function aiGhostStoneOverlay() {
-    const board = analysisBoard.value;
-    const state = analysisAiState.value;
-
-    if (!board || state.nodeId !== board.engine.current_node_id()) {
-      return undefined;
-    }
-
-    return state.ghostStoneMap;
-  }
-
-  function aiTerritoryOwnership() {
-    const board = analysisBoard.value;
-    const state = analysisAiTerritoryState.value;
-    const ownership = state.ownership;
-
-    if (
-      !board ||
-      state.nodeId !== board.engine.current_node_id() ||
-      !ownership
-    ) {
-      return undefined;
-    }
-
-    const size = board.engine.cols() * board.engine.rows();
-
-    if (ownership.length !== size) {
-      return undefined;
-    }
-
-    return ownership.map((value) =>
-      Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0,
-    );
-  }
-
-  function estimateCacheKey(board: Board): string {
-    return JSON.stringify({
-      size: board.engine.cols(),
-      komi: analysisKomi.value,
-      capturesBlack: board.engine.captures_black?.() ?? 0,
-      capturesWhite: board.engine.captures_white?.() ?? 0,
-      board: Array.from(board.engine.board()),
-    });
-  }
-
-  function buildAiOwnershipOverlay(
-    ownership: number[] | undefined,
-  ): TerritoryOverlay | undefined {
-    const board = analysisBoard.value;
-
-    if (!board || !ownership) {
-      return undefined;
-    }
-
-    const cols = board.engine.cols();
-    const rows = board.engine.rows();
-    const size = cols * rows;
-
-    if (ownership.length !== size) {
-      return undefined;
-    }
-
-    const stones = [...board.engine.board()] as number[];
-    const paintMap: (number | null)[] = new Array(size);
-    const dimmedVertices: [number, number][] = [];
-
-    for (let index = 0; index < size; index++) {
-      const owner = Number.isFinite(ownership[index])
-        ? Math.max(-1, Math.min(1, ownership[index]!))
-        : 0;
-      const stone = stones[index] ?? 0;
-
-      if (stone !== 0 && owner !== 0) {
-        if (Math.sign(stone) !== Math.sign(owner)) {
-          dimmedVertices.push([index % cols, Math.floor(index / cols)]);
-        }
-      }
-      paintMap[index] = owner || null;
-    }
-
-    return { paintMap, dimmedVertices };
-  }
-
-  function canRunAiSuggestion(board = analysisBoard.value) {
-    return (
-      !!board &&
-      analysisSize.value === 9 &&
-      !analysisTerritoryInfo.value.confirming &&
-      board.engine.stage() !== GameStage.TerritoryReview
-    );
-  }
-
-  function hasFreshAiSuggestion(board = analysisBoard.value) {
-    const state = analysisAiState.value;
-
-    return (
-      !!board &&
-      !state.pending &&
-      (state.result || state.error) &&
-      state.nodeId === board.engine.current_node_id()
-    );
-  }
-
-  function refreshAiSuggestion() {
-    const board = analysisBoard.value;
-
-    if (
-      analysisAiState.value.enabled &&
-      canRunAiSuggestion(board) &&
-      !hasFreshAiSuggestion(board)
-    ) {
-      aiSuggest();
-    }
-  }
-
-  function renderAiOverlay(board: Board) {
-    if (typeof board.renderBoardOnly === "function") {
-      board.renderBoardOnly();
-    } else {
-      board.render();
-    }
-  }
-
-  function clearAiSuggestion(renderBoard = true) {
-    const state = analysisAiState.value;
-
-    if (
-      state.pending ||
-      state.result ||
-      state.error ||
-      state.heatMap ||
-      state.ghostStoneMap
-    ) {
-      aiRequestId += 1;
-      analysisAiState.value = {
-        enabled: analysisAiState.value.enabled,
-        pending: false,
-      };
-
-      if (renderBoard) {
-        const board = analysisBoard.value;
-
-        if (board) {
-          renderAiOverlay(board);
-        }
-      }
-    }
-  }
-
-  function clearAiTerritoryOwnership() {
-    aiTerritoryRequestId += 1;
-    analysisAiTerritoryState.value = { pending: false };
-  }
-
-  function clearAiEvalCache() {
-    aiEvalCache.clear();
-    aiEstimateCache.clear();
-    clearAiTerritoryOwnership();
-  }
+  const session = createAnalysisSessionController({
+    state: {
+      board: analysisBoard,
+      pendingMove: analysisPendingMove,
+      ai: analysisAiState,
+      estimate: analysisAiTerritoryState,
+      territoryInfo: analysisTerritoryInfo,
+      nav: analysisNavState,
+    },
+    moveConfirm: mc,
+    getKomi: () => analysisKomi.value,
+    onRender: syncAnalysisUi,
+    onPlaySound: playStoneSound,
+    onPassSound: playPassSound,
+    onClearVariations: clearDedicatedVariations,
+  });
 
   // --- Komi change ---
   function handleKomiChange(komi: number) {
     analysisKomi.value = komi;
     storage.set(ANALYSIS_KOMI, String(komi));
     analysisBoard.value?.setKomi(komi);
-    clearAiSuggestion();
-    clearAiEvalCache();
+    session.clearAiCaches();
   }
 
   function handleAiSuggestChange() {
-    const enable = !analysisAiState.value.enabled;
-    analysisAiState.value = {
-      ...analysisAiState.value,
-      enabled: enable,
-    };
-
-    if (enable) {
-      refreshAiSuggestion();
-    } else {
-      clearAiSuggestion();
-    }
-  }
-
-  async function aiSuggest() {
-    const board = analysisBoard.value;
-
-    if (
-      !board ||
-      !analysisAiState.value.enabled ||
-      analysisAiState.value.pending ||
-      !canRunAiSuggestion(board)
-    ) {
-      return;
-    }
-
-    const requestId = ++aiRequestId;
-    const nodeId = board.engine.current_node_id();
-    const position = aiPositionFromEngine(board.engine, analysisKomi.value);
-    const sign = board.engine.current_turn_stone() as Sign;
-    const cachedEval = aiEvalCache.get(nodeId);
-
-    if (cachedEval) {
-      applyAiSuggestion(cachedEval.result, nodeId, position.boardSize, sign);
-      renderAiOverlay(board);
-
-      return;
-    }
-
-    analysisAiState.value = { enabled: true, pending: true };
-
-    try {
-      const result = await analyzePositionDirect(position);
-
-      if (
-        requestId !== aiRequestId ||
-        analysisBoard.value !== board ||
-        !analysisAiState.value.enabled ||
-        board.engine.current_node_id() !== nodeId ||
-        !canRunAiSuggestion(board)
-      ) {
-        return;
-      }
-
-      analysisAiState.value = {
-        enabled: true,
-        pending: false,
-        result,
-        nodeId,
-        heatMap: heatMapFromRootMoves(
-          result.analysis.rootMoves,
-          position.boardSize,
-        ),
-        ghostStoneMap: ghostStoneMapFromRootMoves(
-          result.analysis.rootMoves,
-          position.boardSize,
-          sign,
-        ),
-      };
-      aiEvalCache.set(nodeId, {
-        result,
-        ownership: result.analysis.ownership,
-        overlay: buildAiOwnershipOverlay(result.analysis.ownership),
-      });
-      renderAiOverlay(board);
-    } catch (err) {
-      if (
-        requestId !== aiRequestId ||
-        analysisBoard.value !== board ||
-        !analysisAiState.value.enabled ||
-        board.engine.current_node_id() !== nodeId ||
-        !canRunAiSuggestion(board)
-      ) {
-        return;
-      }
-
-      analysisAiState.value = {
-        enabled: true,
-        pending: false,
-        error: err instanceof Error ? err.message : String(err),
-        nodeId,
-      };
-      renderAiOverlay(board);
-    }
-  }
-
-  function applyAiSuggestion(
-    result: Awaited<ReturnType<typeof analyzePositionDirect>>,
-    nodeId: number,
-    boardSize: number,
-    sign: Sign,
-  ) {
-    analysisAiState.value = {
-      enabled: true,
-      pending: false,
-      result,
-      nodeId,
-      heatMap: heatMapFromRootMoves(result.analysis.rootMoves, boardSize),
-      ghostStoneMap: ghostStoneMapFromRootMoves(
-        result.analysis.rootMoves,
-        boardSize,
-        sign,
-      ),
-    };
-  }
-
-  async function startTerritoryOverlay(mode: "estimate" | "review") {
-    const board = analysisBoard.value;
-
-    if (!board) {
-      return false;
-    }
-
-    const nodeId = board.engine.current_node_id();
-    const canUseAi = analysisSize.value === 9;
-    const requestId = ++aiTerritoryRequestId;
-    const enterOverlay = () => {
-      if (mode === "estimate") {
-        board.setPassiveOverlay(analysisAiTerritoryState.value.overlay);
-      } else {
-        board.enterTerritoryReview();
-      }
-    };
-
-    if (!canUseAi) {
-      analysisAiTerritoryState.value = { pending: false };
-      if (mode === "estimate") {
-        board.enterEstimate();
-      } else {
-        board.enterTerritoryReview();
-      }
-      if (analysisBoard.value === board) {
-        syncAnalysisUi(board);
-      }
-
-      return true;
-    }
-
-    const cacheKey = estimateCacheKey(board);
-    const cachedEval = aiEstimateCache.get(cacheKey);
-
-    if (cachedEval?.overlay) {
-      analysisAiTerritoryState.value = {
-        pending: false,
-        mode,
-        nodeId,
-        result: cachedEval.result,
-        ownership: cachedEval.ownership,
-        overlay: cachedEval.overlay,
-      };
-      enterOverlay();
-
-      return true;
-    }
-
-    const position = aiEstimatePositionFromEngine(
-      board.engine,
-      analysisKomi.value,
-    );
-    analysisAiTerritoryState.value = {
-      pending: true,
-      mode,
-      nodeId,
-    };
-
-    try {
-      const result = await analyzePositionDirect(position);
-      const ownership = result.analysis.ownership;
-
-      if (
-        requestId !== aiTerritoryRequestId ||
-        analysisBoard.value !== board ||
-        board.engine.current_node_id() !== nodeId
-      ) {
-        return;
-      }
-
-      if (!ownership) {
-        analysisAiTerritoryState.value = {
-          pending: false,
-          mode,
-          nodeId,
-        };
-        if (mode === "estimate") {
-          board.enterEstimate();
-        } else {
-          enterOverlay();
-        }
-
-        return;
-      }
-
-      const overlay = buildAiOwnershipOverlay(ownership);
-      analysisAiTerritoryState.value = {
-        pending: false,
-        mode,
-        nodeId,
-        result,
-        ownership,
-        overlay,
-      };
-      aiEstimateCache.set(cacheKey, { result, ownership, overlay });
-      enterOverlay();
-    } catch {
-      if (
-        requestId !== aiTerritoryRequestId ||
-        analysisBoard.value !== board ||
-        board.engine.current_node_id() !== nodeId
-      ) {
-        return;
-      }
-
-      analysisAiTerritoryState.value = {
-        pending: false,
-        mode,
-        nodeId,
-      };
-      if (mode === "estimate") {
-        board.enterEstimate();
-      } else {
-        enterOverlay();
-      }
-    }
-
-    return true;
+    session.toggleAiSuggest();
   }
 
   function handleEstimate() {
-    void startTerritoryOverlay("estimate");
-  }
-
-  function handleTerritoryReviewStart() {
-    void startTerritoryOverlay("review");
-
-    return true;
+    session.toggleEstimate();
   }
 
   function syncAnalysisUi(board: NonNullable<typeof analysisBoard.value>) {
@@ -556,8 +124,7 @@ export function initAnalysis(root: HTMLElement) {
 
   // --- Size change ---
   function handleSizeChange(size: number) {
-    clearAiSuggestion(false);
-    clearAiEvalCache();
+    session.clearAiCaches();
     analysisSize.value = size;
     analysisMeta.value = undefined;
     sgfText = undefined;
@@ -575,8 +142,9 @@ export function initAnalysis(root: HTMLElement) {
       analysisBoard.value.destroy();
     }
 
-    clearPendingMove();
+    session.clearPendingMove();
     analysisBoard.value = undefined;
+    session.resetPositionTracking();
 
     const board = await createBoard({
       cols: size,
@@ -587,95 +155,16 @@ export function initAnalysis(root: HTMLElement) {
       moveTreeEl,
       moveTreeDirection: "responsive",
       storageKey: analysisTreeKey(size),
-      ghostStone,
-      ghostStoneOverlay: aiGhostStoneOverlay,
-      territoryReviewOwnership: aiTerritoryOwnership,
-      heatOverlay: aiHeatOverlay,
-      onNavigate: () => {
-        const board = analysisBoard.value;
-        const nodeId = board?.engine.current_node_id();
-        const keepEstimate =
-          (analysisTerritoryInfo.value.estimating &&
-            !analysisTerritoryInfo.value.confirming) ||
-          (analysisAiTerritoryState.value.pending &&
-            analysisAiTerritoryState.value.mode === "estimate");
-        const cachedEval = nodeId == null ? undefined : aiEvalCache.get(nodeId);
-
-        clearAiSuggestion(false);
-        clearAiTerritoryOwnership();
-
-        if (
-          analysisAiState.value.enabled &&
-          board &&
-          cachedEval &&
-          canRunAiSuggestion(board)
-        ) {
-          applyAiSuggestion(
-            cachedEval.result,
-            nodeId!,
-            board.engine.cols(),
-            board.engine.current_turn_stone() as Sign,
-          );
-        }
-
-        if (keepEstimate) {
-          void startTerritoryOverlay("estimate");
-        } else {
-          if (board) {
-            renderAiOverlay(board);
-          }
-          refreshAiSuggestion();
-        }
-      },
-      onVertexClick: (col, row) => {
-        if (!mc.enabled) {
-          return false;
-        }
-
-        const action = handleMoveConfirmClick(
-          mc,
-          col,
-          row,
-          !!analysisBoard.value?.engine.is_legal(col, row),
-        );
-
-        syncPendingMove();
-
-        if (action === "confirm") {
-          return false;
-        }
-
-        analysisBoard.value?.render();
-
-        return true;
-      },
-
-      onStonePlay: () => {
-        clearAiSuggestion(false);
-        clearAiEvalCache();
-        clearPendingMove();
-        playStoneSound();
-        refreshAiSuggestion();
-      },
-      onPass: () => {
-        clearAiSuggestion(false);
-        clearAiEvalCache();
-        clearPendingMove();
-        playPassSound();
-        refreshAiSuggestion();
-      },
-      onTerritoryReviewStart: handleTerritoryReviewStart,
-      onRender: (engine, territoryInfo) => {
-        analysisTerritoryInfo.value = territoryInfo;
-        if (territoryInfo.confirming) {
-          clearAiSuggestion(false);
-        } else {
-          refreshAiSuggestion();
-        }
-        if (analysisBoard.value) {
-          syncAnalysisUi(analysisBoard.value);
-        }
-      },
+      ghostStone: session.getGhostStone,
+      ghostStoneOverlay: session.aiGhostStoneOverlay,
+      territoryReviewOwnership: session.aiTerritoryOwnership,
+      heatOverlay: session.aiHeatOverlay,
+      onNavigate: session.onNavigate,
+      onVertexClick: session.onVertexClick,
+      onStonePlay: session.onStonePlay,
+      onPass: session.onPass,
+      onTerritoryReviewStart: session.onTerritoryReviewStart,
+      onRender: session.onRender,
     });
 
     if (disposed || initVersion !== boardInitVersion) {
@@ -730,8 +219,7 @@ export function initAnalysis(root: HTMLElement) {
     }
 
     // Update signals + storage
-    clearAiSuggestion(false);
-    clearAiEvalCache();
+    session.clearAiCaches();
     analysisSize.value = size;
     storage.set(ANALYSIS_SIZE, String(size));
 
@@ -761,16 +249,18 @@ export function initAnalysis(root: HTMLElement) {
   }
 
   // --- Clear variations ---
-  function handleClearVariations() {
+  function clearDedicatedVariations() {
     const treeKey = analysisTreeKey(analysisSize.value);
 
     storage.remove(treeKey);
     storage.remove(`${treeKey}:base`);
     storage.remove(`${treeKey}:finalized`);
     storage.remove(`${treeKey}:node`);
-    clearAiSuggestion(false);
-    clearAiEvalCache();
     initBoard(analysisSize.value);
+  }
+
+  function handleClearVariations() {
+    session.clearVariations();
   }
 
   // --- SGF export ---
@@ -811,7 +301,7 @@ export function initAnalysis(root: HTMLElement) {
     mc,
     () => gobanRef.current,
     () => {
-      analysisPendingMove.value = undefined;
+      session.clearPendingMove();
       analysisBoard.value?.render();
     },
   );
@@ -830,8 +320,7 @@ export function initAnalysis(root: HTMLElement) {
     switch (e.key) {
       case "p":
         if (caps.canPass) {
-          clearAiSuggestion(false);
-          board.pass();
+          session.pass();
         }
         break;
       case "e":
@@ -872,7 +361,8 @@ export function initAnalysis(root: HTMLElement) {
       onKomiChange={handleKomiChange}
       onAiSuggestChange={handleAiSuggestChange}
       onEstimate={handleEstimate}
-      aiSuggest={aiSuggest}
+      onConfirmMove={session.confirmPendingMove}
+      onPass={session.pass}
       handleSgfImport={handleSgfImport}
       handleSgfExport={handleSgfExport}
       handleClearVariations={handleClearVariations}

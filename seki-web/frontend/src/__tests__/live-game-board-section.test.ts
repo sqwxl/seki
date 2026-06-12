@@ -164,4 +164,20 @@ describe("live game board render", () => {
 
     expect(exitEstimate).toHaveBeenCalledOnce();
   });
+
+  it("carries live estimate into analysis when navigating history", () => {
+    const { enterAnalysis, exitEstimate } = renderLivePosition({
+      baseTipNodeId: 89,
+      currentNodeId: 80,
+      viewIndex: 81,
+      moveCount: 90,
+      estimateMode: true,
+    });
+
+    expect(enterAnalysis).toHaveBeenCalledWith({
+      restorePosition: false,
+      nodeId: 80,
+    });
+    expect(exitEstimate).not.toHaveBeenCalled();
+  });
 });

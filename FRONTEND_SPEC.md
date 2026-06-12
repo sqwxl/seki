@@ -805,9 +805,11 @@ Expected behavior:
 
 Local-analysis synchronization rules:
 
-- if a new real game move arrives while the user is in local analysis, the client should automatically switch back to live view
+- if a new real game move arrives while the user is in local analysis, the client remains in local analysis and updates the live main-line reference
 - local branches attached to still-valid historical nodes should remain valid when the base game advances
 - if a move is undone, any analysis variations branching from that undone move should also be dropped
+- estimate and AI suggestion modes remain active across move-tree navigation and refresh against the newly active analysis node
+- clearing variations from live analysis preserves the live main line and removes only local branches
 - entering local analysis from a finished game behaves the same as entering it from an in-progress game
 - SGF export always includes the current analysis tree rather than exporting only the base game
 - returning to live always moves the cursor to the latest node on the main branch
@@ -981,6 +983,7 @@ Territory-review and estimate interaction semantics:
 - spectators should see synchronized live territory-review state but should not participate in modifying or approving it
 - estimate mode entered from a completed game should use the same core visuals as live territory review
 - estimate mode itself does not have a separate confirm action; users exit back to live game or analysis depending on where estimate mode was entered from
+- dedicated analysis and live-game analysis share the same local analysis-session behavior for move-tree navigation, variation play/pass, estimate overlays, AI suggestions, and clearing variations
 - once a local finalized territory-review node is finalized, it is not directly editable
 - analysis-only estimate mode may still be used to inspect alternate scoring outcomes without affecting the actual game result
 - finalizing territory review in analysis on an already-finalized node should create a new finalized node on a variation branch from that node’s parent, using the same move position with a different result

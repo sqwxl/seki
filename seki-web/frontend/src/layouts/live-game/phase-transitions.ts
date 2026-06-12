@@ -2,7 +2,6 @@ import type { ControlsProps } from "../../components/controls-shared";
 import type { LiveGameControlsState } from "../../game/capabilities";
 import { buildTerritoryOverlay } from "../../game/capabilities";
 import type { GameChannel } from "../../game/channel";
-import { playStoneSound } from "../../game/sound";
 import {
   analysisMode,
   board,
@@ -24,6 +23,7 @@ import { GameStage } from "../../game/types";
 import type { NavAction, TerritoryOverlay } from "../../goban/create-board";
 import { requestSpaNavigation } from "../../utils/spa-navigation";
 import { postForm } from "../../utils/web-client";
+import type { AnalysisSessionController } from "../analysis-session/controller";
 
 export function buildShareGameUrl(): string {
   const accessToken = initialProps.value.access_token;
@@ -62,6 +62,7 @@ export function buildControls(
     enterPresentation: () => void;
     exitPresentation: () => void;
     returnControl: () => void;
+    analysisSession: AnalysisSessionController;
   },
 ): ControlsProps {
   const {
@@ -73,7 +74,20 @@ export function buildControls(
     enterPresentation,
     exitPresentation,
     returnControl,
+    analysisSession,
   } = callbacks;
+  const sessionAi = analysisSession.state.ai.value;
+  const sessionEstimate = analysisSession.state.estimate.value;
+  const sessionTerritory = analysisSession.state.territoryInfo.value;
+  const sessionEstimateActive =
+    analysisMode.value &&
+    ((sessionTerritory.estimating && !sessionTerritory.confirming) ||
+      sessionEstimate.mode === "estimate");
+  const canUseAnalysisAi =
+    analysisMode.value &&
+    board.value?.engine.cols() === 9 &&
+    board.value?.engine.rows() === 9 &&
+    caps.canEnterEstimate;
 
   const pendingUndoRequest = isPendingAction("request-undo");
   const pendingUndoAccept = isPendingAction("respond-undo-accept");
@@ -118,7 +132,7 @@ export function buildControls(
   // --- Pass ---
   if (caps.showPass) {
     if (caps.passIsAnalysisPass) {
-      controlsProps.pass = { onClick: () => board.value?.pass() };
+      controlsProps.pass = { onClick: analysisSession.pass };
     } else {
       controlsProps.pass = { onClick: () => {}, disabled: !caps.canPass };
 
@@ -324,6 +338,17 @@ export function buildControls(
       title: caps.exitEstimateTitle,
       collapses: true,
     };
+  } else if (
+    analysisMode.value &&
+    (canUseAnalysisAi || sessionEstimateActive)
+  ) {
+    controlsProps.estimate = {
+      onClick: analysisSession.toggleEstimate,
+      title: caps.estimateTitle,
+      disabled: !canUseAnalysisAi && !sessionEstimateActive,
+      active: sessionEstimateActive,
+      pending: sessionEstimate.pending,
+    };
   } else if (caps.showEnterEstimate) {
     controlsProps.estimate = {
       onClick: caps.estimateActive ? exitEstimate : enterEstimate,
@@ -331,6 +356,22 @@ export function buildControls(
       disabled: !caps.canEnterEstimate,
       active: caps.estimateActive,
       pending: estimatePending.value,
+    };
+  }
+
+  if (analysisMode.value) {
+    controlsProps.aiSuggest = {
+      onClick: analysisSession.toggleAiSuggest,
+      disabled: !canUseAnalysisAi,
+      active: sessionAi.enabled,
+      pending: sessionAi.pending,
+      title: canUseAnalysisAi
+        ? "AI suggestion"
+        : "AI suggestion requires 9x9 spectator or finished-game analysis",
+    };
+    controlsProps.clearVariations = {
+      onClick: analysisSession.clearVariations,
+      collapses: true,
     };
   }
 
@@ -365,23 +406,7 @@ export function buildControls(
   if (pendingMove.value) {
     if (analysisMode.value) {
       controlsProps.confirmMove = {
-        onClick: () => {
-          if (pendingMove.value && board.value) {
-            const [col, row] = pendingMove.value;
-            mc.clear();
-            pendingMove.value = undefined;
-
-            const oldTreeNodeCount = board.value.engine.tree_node_count();
-
-            if (board.value.engine.try_play(col, row)) {
-              if (board.value.engine.tree_node_count() > oldTreeNodeCount) {
-                playStoneSound();
-              }
-              board.value.save();
-              board.value.render();
-            }
-          }
-        },
+        onClick: analysisSession.confirmPendingMove,
       };
     } else {
       controlsProps.confirmMove = {

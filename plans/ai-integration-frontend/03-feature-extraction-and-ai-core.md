@@ -39,9 +39,12 @@ Current status:
 - AI suggestions are intentionally disabled in territory review. Entering
   review clears any visible suggestions and prevents stale worker responses
   from repainting the board.
-- Standalone analysis and live-game 9x9 estimate can use AI ownership output
-  for goban paint maps. Manual estimate is a separate flow from AI suggestion:
-  it shows its own pending state and paints ownership when ready.
+- Standalone analysis and live-game analysis now share an analysis-session
+  controller for local move-tree navigation, variation play/pass, pending move
+  confirmation, AI suggestion, estimate overlays, and clearing variations.
+- Shared 9x9 analysis estimate can use AI ownership output for goban paint
+  maps. Manual estimate is a separate flow from AI suggestion: it shows its own
+  pending state and paints ownership when ready.
 - KataGo `OutputScoreValue` is raw model output. For current 6-channel exports,
   channel 2 is current-player lead and needs the KataGo lead multiplier
   (`20.0`) plus a sign flip for black-to-move to display White-minus-Black
@@ -65,21 +68,23 @@ Current status:
 - The product path currently uses the `direct` analysis preset: one legal-masked
   policy/value evaluation with the 9x9 KataGo model. Leaf MCTS remains a
   pondering/search path because 64-visit tap-to-move MCTS is too slow on Android.
-- Analysis controls include a clear-variations button using `IconTrash`. It
-  removes stored tree/base/finalized/node data for the current board size,
-  rebuilds the analysis board, and clears AI suggestion/estimate cache state.
+- Analysis controls include a clear-variations button using `IconTrash`.
+  Dedicated analysis removes stored tree/base/finalized/node data for the
+  current board size and rebuilds the board. Live-game analysis preserves the
+  live main line and removes only local branches. Both paths clear AI
+  suggestion/estimate cache state.
 
 Follow-up notes:
 
-- Analysis estimate results are cached per position key in the current session.
-  Live-game estimate still uses a simpler node-shaped cache. Future work:
-  generalize both into one shared per-position cache that invalidates cleanly on
-  imported tree/komi/model changes.
+- Analysis estimate results are cached per position key in the shared
+  analysis-session controller and invalidate on imported tree/komi/model
+  changes.
 - Finished-game estimate is viewable on any node by any user, including
   finalized nodes and games without settled territory.
-- Live-game analysis estimate is not dismissed by an incoming move while the
-  user is in local analysis. In live view, incoming moves still dismiss estimate
-  and return to the live board.
+- Live-game analysis estimate and AI suggestion are not dismissed by incoming
+  moves while the user is in local analysis. Incoming moves update the live
+  main-line reference and refresh active analysis modes. In live view, incoming
+  moves still dismiss estimate and return to the live board.
 
 ## Feature Extraction
 
