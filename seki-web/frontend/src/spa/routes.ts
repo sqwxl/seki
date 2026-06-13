@@ -36,6 +36,10 @@ export function parseRoute(url: URL): Route {
     return { kind: "analysis" };
   }
 
+  if (path === "/bot") {
+    return { kind: "bot" };
+  }
+
   if (path === "/login") {
     return {
       kind: "login",

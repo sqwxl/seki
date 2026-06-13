@@ -4,6 +4,7 @@ import { ratingDisplayPreference } from "../utils/preferences";
 import { authUrl } from "../utils/spa-navigation";
 import {
   IconAnalysis,
+  IconBot,
   IconLogin,
   IconLogout,
   IconPlus,
@@ -89,6 +90,13 @@ export function MobileMenu({
                 onClick={() => setOpen(false)}
               >
                 <IconPublic /> Spectate
+              </a>
+              <a
+                class="nav-dropdown-item"
+                href="/bot"
+                onClick={() => setOpen(false)}
+              >
+                <IconBot /> Bot Practice
               </a>
               <a
                 class="nav-dropdown-item"

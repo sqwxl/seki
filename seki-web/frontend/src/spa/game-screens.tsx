@@ -24,6 +24,7 @@ import type {
 
 const loadLiveGameModule = () => import("../layouts/live-game");
 const loadAnalysisModule = () => import("../layouts/analysis");
+const loadBotModule = () => import("../layouts/bot");
 const loadGameSettingsFormModule = () =>
   import("../layouts/game-settings-form");
 
@@ -88,6 +89,37 @@ export function AnalysisScreen() {
 
   return (
     <div class="game-page analysis-page">
+      <div ref={rootRef} class="game-page-body" />
+      {!mod && <LoadingState />}
+    </div>
+  );
+}
+
+export function BotScreen() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { mod, error } = useLazyModule(loadBotModule);
+
+  useEffect(() => {
+    setHead(
+      pageTitle("Bot Practice"),
+      "Practice Go locally against a browser bot",
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!rootRef.current || !mod) {
+      return;
+    }
+
+    return mod.initBot(rootRef.current);
+  }, [mod]);
+
+  if (error) {
+    return <ErrorState message={error} />;
+  }
+
+  return (
+    <div class="game-page">
       <div ref={rootRef} class="game-page-body" />
       {!mod && <LoadingState />}
     </div>

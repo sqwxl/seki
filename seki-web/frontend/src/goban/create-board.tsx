@@ -65,6 +65,8 @@ export type Board = {
   save: () => void;
   render: () => void;
   renderBoardOnly: () => void;
+  playMove: (col: number, row: number) => boolean;
+  undoMove: () => boolean;
   pass: () => boolean;
   navigate: (action: NavAction) => void;
   navigateBoardOnly: (action: NavAction) => void;
@@ -597,16 +599,7 @@ class BoardController implements Board {
         return;
       }
 
-      const oldTreeNodeCount = this.engine.tree_node_count();
-
-      if (this.engine.try_play(col, row)) {
-        this.passiveOverlay = undefined;
-        if (this.engine.tree_node_count() > oldTreeNodeCount) {
-          this.config.onStonePlay?.();
-        }
-        this.save();
-        this.render();
-      }
+      this.playStone(col, row);
     };
 
     const overlayBlocksPlay = !!overlay && overlay !== this.passiveOverlay;
@@ -661,6 +654,40 @@ class BoardController implements Board {
     const territoryInfo = this.renderBoard();
 
     this.config.onRender?.(this.engine, territoryInfo);
+  }
+
+  private playStone(col: number, row: number): boolean {
+    const oldTreeNodeCount = this.engine.tree_node_count();
+
+    if (!this.engine.try_play(col, row)) {
+      return false;
+    }
+
+    this.passiveOverlay = undefined;
+    if (this.engine.tree_node_count() > oldTreeNodeCount) {
+      this.config.onStonePlay?.();
+    }
+    this.save();
+    this.render();
+
+    return true;
+  }
+
+  playMove(col: number, row: number): boolean {
+    return this.playStone(col, row);
+  }
+
+  undoMove(): boolean {
+    if (!this.engine.undo()) {
+      return false;
+    }
+
+    this.territoryState = undefined;
+    this.passiveOverlay = undefined;
+    this.save();
+    this.render();
+
+    return true;
   }
 
   // ---- Navigation ----

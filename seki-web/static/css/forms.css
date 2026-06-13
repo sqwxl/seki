@@ -37,6 +37,14 @@ form:not(nav form) {
   }
 }
 
+.game-page-body > form {
+  grid-column: 1/-1;
+  grid-row: 1/-1;
+  max-width: 50em;
+  margin: 0 auto;
+  padding: 0 2em;
+}
+
 label {
   display: inline-flex;
   align-items: center;

@@ -8,6 +8,7 @@ import {
 } from "./auth-screens";
 import {
   AnalysisScreen,
+  BotScreen,
   ChallengeScreen,
   GameScreenRoute,
   GamesScreen,
@@ -43,6 +44,7 @@ export function Screen({
       case "new-game":
       case "challenge":
       case "analysis":
+      case "bot":
       case "players":
       case "game":
         if (
@@ -77,6 +79,8 @@ export function Screen({
       return <GameScreenRoute route={route} navigate={navigate} />;
     case "analysis":
       return <AnalysisScreen />;
+    case "bot":
+      return <BotScreen />;
     case "profile":
       return (
         <ProfileScreen

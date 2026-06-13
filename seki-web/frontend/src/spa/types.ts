@@ -14,6 +14,7 @@ export type Route =
   | { kind: "players" }
   | { kind: "new-game" }
   | { kind: "challenge"; username: string }
+  | { kind: "bot" }
   | {
       kind: "game";
       id: number;

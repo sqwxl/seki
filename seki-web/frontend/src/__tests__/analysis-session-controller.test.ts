@@ -71,6 +71,7 @@ function mockBoard() {
     markSettled: vi.fn(),
     navigate: vi.fn(),
     pass: vi.fn(),
+    playMove: vi.fn(),
     render: vi.fn(),
     renderBoardOnly: vi.fn(),
     restoreBaseMoves: vi.fn(),
@@ -81,6 +82,7 @@ function mockBoard() {
     setMoveTreeEl: vi.fn(),
     setPassiveOverlay: vi.fn(),
     setShowCoordinates: vi.fn(),
+    undoMove: vi.fn(),
     updateBaseMoves: vi.fn(),
   } as never;
 

@@ -8,6 +8,7 @@ import {
   IconFileUpload,
   IconGrid4x4,
   IconKomi,
+  IconRenew,
   IconSpinner,
   IconTrash,
   IconX,
@@ -91,6 +92,8 @@ export type ControlsProps = {
   confirmMove?: ButtonDef;
 
   clearVariations?: ButtonDef;
+
+  newGame?: ButtonDef;
 
   // Presentation
   controlRequestResponse?: {
@@ -380,6 +383,19 @@ export function ClearVariationsBtn(props: ButtonDef) {
       onClick={props.onClick}
     >
       <ButtonContent pending={props.pending} icon={IconTrash} />
+    </button>
+  );
+}
+
+export function NewGameBtn(props: ButtonDef) {
+  return (
+    <button
+      class={props.active ? "btn-on" : ""}
+      title={props.title ?? "New game"}
+      disabled={props.disabled || props.pending}
+      onClick={props.onClick}
+    >
+      <ButtonContent pending={props.pending} icon={IconRenew} />
     </button>
   );
 }

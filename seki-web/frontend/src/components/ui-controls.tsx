@@ -5,6 +5,7 @@ import {
   ClearVariationsBtn,
   EstimateBtn,
   KomiSelect,
+  NewGameBtn,
   SgfExportButton,
   SgfImportButton,
   SizeSelect,
@@ -176,6 +177,9 @@ export function UIControls(
     {
       node: props.komiSelect && <KomiSelect {...props.komiSelect} />,
       collapses: props.komiSelect?.collapses,
+    },
+    {
+      node: props.newGame && <NewGameBtn {...props.newGame} />,
     },
   ];
 
