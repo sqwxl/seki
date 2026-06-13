@@ -610,10 +610,10 @@ function BotGame({
       }
       controls={
         <div class={`controls-row${compact ? " controls-row--compact" : ""}`}>
-          <span class="controls-start"></span>
-          <span class="btn-group controls-middle">
+          <span class="controls-start">
             <GameControls {...controls} />
           </span>
+          <span class="btn-group controls-middle"></span>
           <span class="btn-group controls-end">
             <UIControls {...controls} compact={compact} />
           </span>
