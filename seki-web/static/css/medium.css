@@ -185,27 +185,17 @@
     display: none;
   }
 
-  .controls-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
-    column-gap: 0.75em;
-  }
-
-  .controls-row > .controls-start,
-  .controls-row > .controls-nav,
-  .controls-row > .controls-middle,
-  .controls-row > .controls-end {
-    order: 0;
-  }
-
   .controls-row > .controls-start {
-    justify-self: center;
-    justify-content: center;
+    justify-self: end;
   }
 
   .controls-row > .controls-middle {
-    justify-self: end;
+    justify-self: center;
+  }
+
+  .controls-row > .controls-end {
+    display: inline-flex;
+    justify-self: start;
   }
 
   .controls-row > .controls-end {

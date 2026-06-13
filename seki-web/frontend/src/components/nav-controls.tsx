@@ -137,6 +137,7 @@ function HoldNavButton({
 export function NavControls({
   nav,
   counterOverride,
+  compact,
 }: {
   nav: ControlsProps["nav"];
   counterOverride?: {
@@ -145,9 +146,10 @@ export function NavControls({
     title?: string;
     content: preact.ComponentChildren;
   };
+  compact?: boolean;
 }) {
   return (
-    <div class="controls-nav">
+    <>
       <HoldNavButton
         action="back"
         className="btn-raised controls-nav-prev"
@@ -157,22 +159,24 @@ export function NavControls({
       >
         <IconPrev />
       </HoldNavButton>
-      <button
-        class={
-          counterOverride
-            ? "btn-raised controls-counter controls-confirm"
-            : "btn-raised controls-counter"
-        }
-        title={counterOverride?.title ?? "Go to end of main line"}
-        disabled={counterOverride ? counterOverride.disabled : nav.atMainEnd}
-        onClick={
-          counterOverride
-            ? counterOverride.onClick
-            : () => nav.onNavigate("main-end")
-        }
-      >
-        {counterOverride ? counterOverride.content : nav.counter}
-      </button>
+      {!compact && (
+        <button
+          class={
+            counterOverride
+              ? "btn-raised controls-counter controls-confirm"
+              : "btn-raised controls-counter"
+          }
+          title={counterOverride?.title ?? "Go to end of main line"}
+          disabled={counterOverride ? counterOverride.disabled : nav.atMainEnd}
+          onClick={
+            counterOverride
+              ? counterOverride.onClick
+              : () => nav.onNavigate("main-end")
+          }
+        >
+          {counterOverride ? counterOverride.content : nav.counter}
+        </button>
+      )}
       <HoldNavButton
         action="forward"
         className="btn-raised controls-nav-next"
@@ -182,6 +186,6 @@ export function NavControls({
       >
         <IconNext />
       </HoldNavButton>
-    </div>
+    </>
   );
 }

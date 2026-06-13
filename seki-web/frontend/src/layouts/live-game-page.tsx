@@ -118,7 +118,7 @@ function LiveGameBottomPanel() {
 
 function LiveGameControls(props: LiveGamePageProps) {
   const isMobile = useMediaQuery("(max-width: 767px)");
-  const compact = isMobile && mobileTab.value === "analysis";
+  const compact = isMobile;
   const caps = liveGameControlsState.value;
   const controls = removeMobileEnterAnalysisControl(
     buildControls(caps, props.channel, props.mc, {
