@@ -35,14 +35,6 @@ function renderLivePosition({
 }) {
   const enterAnalysis = vi.fn();
   const exitEstimate = vi.fn();
-  const navState = signal({
-    atStart: false,
-    atLatest: false,
-    atMainEnd: false,
-    counter: "0",
-    boardTurnStone: 1,
-    boardLastMoveWasPass: false,
-  });
   const engine = {
     current_node_id: () => currentNodeId,
     view_index: () => viewIndex,
@@ -64,7 +56,6 @@ function renderLivePosition({
     estimateScore: signal(undefined),
     presentationActive: signal(presentationActive),
     isPresenter: signal(isPresenter),
-    navState,
     broadcastSnapshot: vi.fn(),
     saveAnalysis: vi.fn(),
     enterAnalysis,
@@ -72,12 +63,12 @@ function renderLivePosition({
     enterEstimateFn: vi.fn(),
   });
 
-  return { enterAnalysis, exitEstimate, navState };
+  return { enterAnalysis, exitEstimate };
 }
 
 describe("live game board render", () => {
   it("stays live at the exact server base tip", () => {
-    const { enterAnalysis, navState } = renderLivePosition({
+    const { enterAnalysis } = renderLivePosition({
       baseTipNodeId: 89,
       currentNodeId: 89,
       viewIndex: 90,
@@ -85,7 +76,6 @@ describe("live game board render", () => {
     });
 
     expect(enterAnalysis).not.toHaveBeenCalled();
-    expect(navState.value.counter).toBe("90");
   });
 
   it("leaves live mode when local analysis is ahead of server moves", () => {

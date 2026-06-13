@@ -200,10 +200,8 @@ export function liveGame(
         estimateScore,
         presentationActive,
         isPresenter,
-        navState,
         broadcastSnapshot,
-        saveAnalysis: () =>
-          saveAnalysis(board.value, analysisMode.value, analysisKey),
+        saveAnalysis: saveAnalysisIfChanged,
         enterAnalysis,
         exitEstimateFn: doExitEstimate,
         enterEstimateFn: enterEstimate,
@@ -228,8 +226,26 @@ export function liveGame(
 
   // --- Analysis persistence helpers ---
   const analysisKey = gameAnalysisKey(gameId);
+  let lastSavedAnalysisSignature: string | undefined;
 
   // Imported from sidebar.tsx: readSavedAnalysis, saveAnalysis, loadSavedAnalysisTree, restoreAnalysisPosition
+
+  function saveAnalysisIfChanged() {
+    const currentBoard = board.value;
+
+    if (!currentBoard || !analysisMode.value) {
+      return;
+    }
+
+    const signature = `${currentBoard.engine.current_node_id()}:${currentBoard.engine.tree_node_count()}`;
+
+    if (signature === lastSavedAnalysisSignature) {
+      return;
+    }
+
+    lastSavedAnalysisSignature = signature;
+    saveAnalysis(currentBoard, true, analysisKey);
+  }
 
   function clearLiveAnalysisVariations() {
     const currentBoard = board.value;
@@ -239,7 +255,8 @@ export function liveGame(
     }
 
     currentBoard.restoreBaseMoves();
-    saveAnalysis(currentBoard, analysisMode.value, analysisKey);
+    lastSavedAnalysisSignature = undefined;
+    saveAnalysisIfChanged();
     currentBoard.render();
   }
 
@@ -250,6 +267,7 @@ export function liveGame(
     nodeId,
   }: { restorePosition?: boolean; nodeId?: number } = {}) {
     const cur = gamePhase.value;
+    const alreadyAnalysis = analysisMode.value;
     const carryEstimate = cur.phase === "estimate" && !cur.fromAnalysis;
     clearPendingMove();
 
@@ -257,10 +275,12 @@ export function liveGame(
       doExitEstimate();
     }
 
-    if (cur.phase === "presentation" && cur.role === "synced-viewer") {
-      toPresentationLocalAnalysis();
-    } else {
-      toAnalysis();
+    if (!alreadyAnalysis) {
+      if (cur.phase === "presentation" && cur.role === "synced-viewer") {
+        toPresentationLocalAnalysis();
+      } else {
+        toAnalysis();
+      }
     }
 
     mobileTab.value = "analysis";
@@ -268,7 +288,7 @@ export function liveGame(
     // Tree is already loaded by the page setup path — just restore the
     // analysis position if needed. Avoid replace_tree here because it
     // would clobber the _baseTipNodeId set by updateBaseMoves.
-    const saved = readSavedAnalysis(analysisKey);
+    const saved = restorePosition ? readSavedAnalysis(analysisKey) : undefined;
 
     if (nodeId != null && board.value) {
       if (nodeId >= 0) {
@@ -281,26 +301,44 @@ export function liveGame(
     }
 
     board.value?.setMoveTreeEl(moveTreeEl);
-    board.value?.render();
+    if (
+      !alreadyAnalysis ||
+      nodeId != null ||
+      restorePosition ||
+      carryEstimate
+    ) {
+      board.value?.render();
+    }
 
     if (carryEstimate) {
       analysisSession.toggleEstimate();
     }
   }
 
-  function returnToLiveMainline() {
+  function returnToLiveMainline(renderMode: "full" | "board-only" = "full") {
     toLive();
-    board.value?.navigate("main-end");
+    if (renderMode === "board-only") {
+      board.value?.navigateBoardOnly("main-end");
+    } else {
+      board.value?.navigate("main-end");
+    }
   }
 
-  function exitAnalysis() {
+  function exitAnalysis({
+    renderMode = "full",
+  }: { renderMode?: "full" | "board-only" } = {}) {
     if (gamePhase.value.phase === "estimate") {
       doExitEstimate();
     }
 
     const cur = gamePhase.value;
+    const wasAnalysis = analysisMode.value;
     const carryEstimate =
       analysisEstimateActive() && cur.phase !== "presentation";
+
+    if (!wasAnalysis && !carryEstimate) {
+      return;
+    }
 
     if (analysisEstimateActive()) {
       analysisSession.clearEstimate();
@@ -308,7 +346,7 @@ export function liveGame(
     }
     analysisSession.clearAiSuggestion(false);
     clearPendingMove();
-    saveAnalysis(board.value, analysisMode.value, analysisKey);
+    saveAnalysisIfChanged();
 
     if (cur.phase === "presentation" && cur.role === "local-analysis") {
       toPresentationSyncedViewer();
@@ -317,11 +355,10 @@ export function liveGame(
         board.value.importSnapshot(lastPresentationSnapshot);
       }
     } else {
-      returnToLiveMainline();
+      returnToLiveMainline(renderMode);
     }
 
     mobileTab.value = "board";
-    board.value?.render();
 
     if (carryEstimate) {
       void enterEstimate();
@@ -796,8 +833,7 @@ export function liveGame(
       setLastPresentationSnapshot: (v: string) => {
         lastPresentationSnapshot = v;
       },
-      saveAnalysis: () =>
-        saveAnalysis(board.value, analysisMode.value, analysisKey),
+      saveAnalysis: saveAnalysisIfChanged,
       exitAnalysis,
       restoreAnalysisPosition: () => restoreAnalysisPosition(board.value),
     }),
@@ -932,12 +968,19 @@ export function liveGame(
     }),
   );
 
-  // --- Re-render board when returning from Chat tab ---
+  // --- Repaint board when returning from Chat tab ---
   disposers.push(
     effect(() => {
-      if (mobileTab.value !== "chat" && board.value) {
+      const tab = mobileTab.value;
+
+      if (
+        tab !== "chat" &&
+        !(tab === "analysis" && !analysisMode.peek()) &&
+        !(tab === "board" && analysisMode.peek()) &&
+        board.value
+      ) {
         requestAnimationFrame(() => {
-          board.value?.render();
+          board.value?.renderBoardOnly();
         });
       }
     }),
@@ -962,19 +1005,8 @@ export function liveGame(
 
       if (tab === "analysis" && !analysisMode.peek()) {
         untracked(() => enterAnalysis());
-      } else if (tab === "chat" && analysisMode.peek()) {
-        // Force board to live state without changing mobile tab
-        untracked(() => {
-          if (gamePhase.value.phase === "estimate") {
-            doExitEstimate();
-          }
-          clearPendingMove();
-          saveAnalysis(board.value, analysisMode.value, analysisKey);
-          returnToLiveMainline();
-          board.value?.render();
-        });
       } else if (tab === "board" && analysisMode.peek()) {
-        untracked(() => exitAnalysis());
+        untracked(() => exitAnalysis({ renderMode: "board-only" }));
       }
     }),
   );

@@ -67,6 +67,7 @@ export type Board = {
   renderBoardOnly: () => void;
   pass: () => boolean;
   navigate: (action: NavAction) => void;
+  navigateBoardOnly: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string) => void;
   restoreBaseMoves: () => void;
   setHandicap: (handicap: number) => void;
@@ -691,6 +692,18 @@ class BoardController implements Board {
       }
 
       this.render();
+    }
+  }
+
+  navigateBoardOnly(action: NavAction): void {
+    if (this.territoryState) {
+      this.territoryState = undefined;
+    }
+    this.passiveOverlay = undefined;
+
+    if (navigateEngine(this.engine, action)) {
+      this.config.onNavigate?.();
+      this.renderBoardOnly();
     }
   }
 

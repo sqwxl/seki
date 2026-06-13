@@ -16,14 +16,6 @@ export function onRenderCallback(
     estimateScore: Signal<unknown>;
     presentationActive: Signal<boolean>;
     isPresenter: Signal<boolean>;
-    navState: Signal<{
-      atStart: boolean;
-      atLatest: boolean;
-      atMainEnd: boolean;
-      counter: string;
-      boardTurnStone: number;
-      boardLastMoveWasPass: boolean;
-    }>;
     broadcastSnapshot: () => void;
     saveAnalysis: () => void;
     enterAnalysis: (opts?: {
@@ -45,7 +37,6 @@ export function onRenderCallback(
     estimateScore,
     presentationActive,
     isPresenter,
-    navState,
     broadcastSnapshot,
     saveAnalysis,
     enterAnalysis,
@@ -103,12 +94,4 @@ export function onRenderCallback(
     broadcastSnapshot();
   }
   saveAnalysis();
-  navState.value = {
-    atStart: engine.is_at_start(),
-    atLatest: engine.is_at_latest(),
-    atMainEnd: engine.is_at_main_end(),
-    counter: `${viewIndex}`,
-    boardTurnStone: engine.current_turn_stone(),
-    boardLastMoveWasPass: engine.last_move_was_pass(),
-  };
 }
