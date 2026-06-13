@@ -10,6 +10,7 @@ import { GameControls } from "../components/game-controls";
 import { GameStatus } from "../components/game-status";
 import {
   IconBot,
+  IconCheck,
   IconSpinner,
   StoneBlack,
   StoneWhite,
@@ -23,6 +24,12 @@ import { createBoard, ensureWasm, type Board } from "../goban/create-board";
 import type { GhostStoneData, HeatData, Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { useMediaQuery } from "../utils/media-query";
+import {
+  createMoveConfirm,
+  dismissMoveConfirmOnClickOutside,
+  handleMoveConfirmClick,
+  type MoveConfirmState,
+} from "../utils/move-confirm";
 import { storage } from "../utils/storage";
 import { ColorPickerField, SettingsFieldset } from "./form-variants/shared";
 import { GamePageLayout } from "./game-page-layout";
@@ -228,6 +235,13 @@ function BotGame({
   );
   const hintHeatRef = useRef<(HeatData | null)[] | undefined>(undefined);
   const hintGhostRef = useRef<(GhostStoneData | null)[] | undefined>(undefined);
+  const mcRef = useRef<MoveConfirmState | null>(null);
+
+  if (!mcRef.current) {
+    mcRef.current = createMoveConfirm({
+      getSign: () => humanStoneRef.current,
+    });
+  }
 
   const [botThinking, setBotThinking] = useState(false);
   const [status, setStatus] = useState("Loading board");
@@ -237,6 +251,7 @@ function BotGame({
   const [aiSuggestPending, setAiSuggestPending] = useState(false);
   const [aiSuggestActive, setAiSuggestActive] = useState(false);
   const [estimateActive, setEstimateActive] = useState(false);
+  const [pendingMcMove, setPendingMcMove] = useState(false);
 
   const humanStone = settings.color === "black" ? 1 : -1;
 
@@ -272,7 +287,6 @@ function BotGame({
         storageKey: BOT_TREE_KEY,
         komi: KOMI,
         showCoordinates: readShowCoordinates(),
-        canPlay: () => canHumanPlay(),
         ghostStoneOverlay: () => hintGhostRef.current,
         heatOverlay: () => hintHeatRef.current,
         onStonePlay: () => {
@@ -287,7 +301,40 @@ function BotGame({
           setEstimateActive(false);
           setError(undefined);
         },
-        onNavigate: () => clearHintOverlay(false, true),
+        ghostStone: () => mcRef.current?.getGhostStone(),
+        onVertexClick: (col: number, row: number) => {
+          const board = boardRef.current;
+          const mc = mcRef.current;
+
+          if (!board || !canHumanPlay()) {
+            return true;
+          }
+
+          if (!mc?.enabled) {
+            return false;
+          }
+
+          const action = handleMoveConfirmClick(
+            mc,
+            col,
+            row,
+            board.engine.is_legal(col, row),
+          );
+
+          setPendingMcMove(!!mc.value);
+
+          if (action === "confirm") {
+            return false;
+          }
+
+          board.render();
+          return true;
+        },
+        onNavigate: () => {
+          clearHintOverlay(false, true);
+          mcRef.current?.clear();
+          setPendingMcMove(false);
+        },
         onRender: () => {
           syncUi();
           maybeRequestBotMove();
@@ -410,6 +457,23 @@ function BotGame({
     };
   }, [settings.color, settings.hints, settings.takebacks]);
 
+  useEffect(() => {
+    const mc = mcRef.current;
+
+    if (!mc) {
+      return;
+    }
+
+    return dismissMoveConfirmOnClickOutside(
+      mc,
+      () => gobanRef.current,
+      () => {
+        setPendingMcMove(false);
+        boardRef.current?.render();
+      },
+    );
+  }, []);
+
   function clearHintOverlay(renderBoard = true, cancelRequests = true) {
     if (cancelRequests) {
       requestIdRef.current += 1;
@@ -507,6 +571,8 @@ function BotGame({
     suppressBotRef.current = true;
     clearHintOverlay(false, true);
     setEstimateActive(false);
+    mcRef.current?.clear();
+    setPendingMcMove(false);
 
     let changed = false;
 
@@ -537,6 +603,8 @@ function BotGame({
     setStatus("You resigned");
     setCanHumanAct(false);
     setError(undefined);
+    mcRef.current?.clear();
+    setPendingMcMove(false);
   }
 
   const compact = useMediaQuery("(max-width: 767px)");
@@ -564,6 +632,22 @@ function BotGame({
       onConfirm: resign,
       disabled: !canHumanAct || botThinking,
     },
+    confirmMove: pendingMcMove
+      ? {
+          onClick: () => {
+            const mc = mcRef.current;
+            const pos = mc?.value;
+
+            if (pos && boardRef.current) {
+              const [col, row] = pos;
+
+              mc.clear();
+              setPendingMcMove(false);
+              boardRef.current.playMove(col, row);
+            }
+          },
+        }
+      : undefined,
     aiSuggest: settings.hints
       ? {
           onClick: showAiSuggestion,
@@ -592,9 +676,7 @@ function BotGame({
       playerTop={
         <BotPlayer
           label={humanStone === 1 ? "white" : "black"}
-          thinking={
-            botThinking && currentTurn === -1 && currentTurn !== humanStone
-          }
+          thinking={botThinking && currentTurn !== humanStone}
         />
       }
       playerBottom={
@@ -610,10 +692,20 @@ function BotGame({
       }
       controls={
         <div class={`controls-row${compact ? " controls-row--compact" : ""}`}>
-          <span class="controls-start">
+          <span class="btn-group controls-start">
             <GameControls {...controls} />
           </span>
-          <span class="btn-group controls-middle"></span>
+          <span class="btn-group controls-middle">
+            {controls.confirmMove && (
+              <button
+                class="btn-raised controls-confirm"
+                title="Confirm move"
+                onClick={controls.confirmMove.onClick}
+              >
+                <IconCheck />
+              </button>
+            )}
+          </span>
           <span class="btn-group controls-end">
             <UIControls {...controls} compact={compact} />
           </span>
