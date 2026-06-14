@@ -1,6 +1,7 @@
 use go_engine::goban::Captures;
 use go_engine::mcts::{
-    self, BotMove, ExternalEvaluation, ExternalMctsConfig, ExternalMctsSearch, MctsConfig,
+    self, BotMove, DeadStoneEvalConfig, ExternalEvaluation, ExternalMctsConfig, ExternalMctsSearch,
+    MctsConfig,
 };
 use go_engine::{Engine, GameState, Ko, Stone, Turn};
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,14 @@ struct PolicyMctsRequest {
     fpu_reduction: Option<f32>,
     max_policy_actions: Option<usize>,
     komi: Option<f64>,
+    dead_stone_eval: Option<PolicyMctsDeadStoneEval>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+enum PolicyMctsDeadStoneEval {
+    Off,
+    Blend { weight: f32 },
 }
 
 #[derive(Debug, Deserialize)]
@@ -130,6 +139,12 @@ struct WasmMctsDiagnostics {
     cycle_visits: u32,
     terminal_visits: u32,
     invalid_action_visits: u32,
+    dead_stone_augmented_evaluations: u32,
+    dead_stone_dead_points: u32,
+    dead_stone_model_value_sum: f32,
+    dead_stone_heuristic_value_sum: f32,
+    dead_stone_final_value_sum: f32,
+    dead_stone_abs_delta_sum: f32,
     root_visit_entropy: f32,
     visited_root_moves: usize,
     visited_root_policy_mass: f32,
@@ -237,6 +252,12 @@ impl WasmPolicyMcts {
                     cycle_visits: 0,
                     terminal_visits: 0,
                     invalid_action_visits: 0,
+                    dead_stone_augmented_evaluations: 0,
+                    dead_stone_dead_points: 0,
+                    dead_stone_model_value_sum: 0.0,
+                    dead_stone_heuristic_value_sum: 0.0,
+                    dead_stone_final_value_sum: 0.0,
+                    dead_stone_abs_delta_sum: 0.0,
                     root_visit_entropy: 0.0,
                     visited_root_moves: 0,
                     visited_root_policy_mass: 0.0,
@@ -274,6 +295,14 @@ impl WasmPolicyMcts {
                 cycle_visits: summary.diagnostics.cycle_visits,
                 terminal_visits: summary.diagnostics.terminal_visits,
                 invalid_action_visits: summary.diagnostics.invalid_action_visits,
+                dead_stone_augmented_evaluations: summary
+                    .diagnostics
+                    .dead_stone_augmented_evaluations,
+                dead_stone_dead_points: summary.diagnostics.dead_stone_dead_points,
+                dead_stone_model_value_sum: summary.diagnostics.dead_stone_model_value_sum,
+                dead_stone_heuristic_value_sum: summary.diagnostics.dead_stone_heuristic_value_sum,
+                dead_stone_final_value_sum: summary.diagnostics.dead_stone_final_value_sum,
+                dead_stone_abs_delta_sum: summary.diagnostics.dead_stone_abs_delta_sum,
                 root_visit_entropy: summary.diagnostics.root_visit_entropy,
                 visited_root_moves: summary.diagnostics.visited_root_moves,
                 visited_root_policy_mass: summary.diagnostics.visited_root_policy_mass,
@@ -302,6 +331,20 @@ pub fn create(engine: &Engine, request_json: &str) -> WasmPolicyMcts {
         .max_policy_actions
         .map(|limit| limit.clamp(1, 10_000));
     let komi = request.komi.unwrap_or(6.5);
+    let dead_stone_eval = match request
+        .dead_stone_eval
+        .unwrap_or(PolicyMctsDeadStoneEval::Off)
+    {
+        PolicyMctsDeadStoneEval::Off => DeadStoneEvalConfig::Off,
+        PolicyMctsDeadStoneEval::Blend { weight } => {
+            let weight = if weight.is_finite() {
+                weight.clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            DeadStoneEvalConfig::Blend { weight, komi }
+        }
+    };
 
     WasmPolicyMcts {
         search: Some(ExternalMctsSearch::new(
@@ -313,6 +356,7 @@ pub fn create(engine: &Engine, request_json: &str) -> WasmPolicyMcts {
                     fpu_reduction,
                 },
                 max_policy_actions,
+                dead_stone_eval,
             },
         )),
         error: None,
@@ -668,6 +712,7 @@ mod tests {
         );
         assert_eq!(summary["diagnostics"]["catchUpVisits"], 0);
         assert_eq!(summary["diagnostics"]["cycleVisits"], 0);
+        assert_eq!(summary["diagnostics"]["deadStoneAugmentedEvaluations"], 0);
         assert_eq!(summary["diagnostics"]["rootVisitEntropy"], 0.0);
         assert_eq!(summary["diagnostics"]["visitedRootMoves"], 0);
         assert_eq!(summary["diagnostics"]["visitedRootPolicyMass"], 0.0);

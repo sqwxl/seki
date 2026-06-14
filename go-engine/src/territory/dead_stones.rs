@@ -301,6 +301,8 @@ pub fn detect_dead_stones(goban: &Goban) -> HashSet<Point> {
     let rows = goban.rows();
     let size = cols as usize * rows as usize;
 
+    let prob = get_probability_map(goban, 100);
+
     // --- Phase 1: Benson simplified-board territory ---
     let mut simplified_board = vec![0i8; size];
     for &(x, y) in &alive {
@@ -328,14 +330,19 @@ pub fn detect_dead_stones(goban: &Goban) -> HashSet<Point> {
             if let Some(stone) = goban.stone_at((x, y)) {
                 let idx = y as usize * cols as usize + x as usize;
                 if ownership[idx] == stone.opp().to_int() {
-                    dead.insert((x, y));
+                    let chain = goban.chain((x, y));
+                    let liberty_score = chain_liberty_score(goban, &chain, &prob);
+                    if (stone.to_int() as f64) * liberty_score <= 0.0 {
+                        for pt in chain {
+                            dead.insert(pt);
+                        }
+                    }
                 }
             }
         }
     }
 
     // --- Phase 2: Monte Carlo for remaining chains ---
-    let prob = get_probability_map(goban, 100);
     let mut visited = vec![false; size];
 
     for y in 0..rows {
@@ -363,20 +370,8 @@ pub fn detect_dead_stones(goban: &Goban) -> HashSet<Point> {
                 continue;
             }
 
-            // Collect unique liberty vertices for this chain
-            let mut lib_seen = vec![false; size];
-            let mut lib_prob_sum = 0.0;
-            let mut lib_count = 0;
-            for &(cx, cy) in &chain {
-                for n in goban.neighbors((cx, cy)) {
-                    let ni = n.1 as usize * cols as usize + n.0 as usize;
-                    if goban.stone_at(n).is_none() && !lib_seen[ni] {
-                        lib_seen[ni] = true;
-                        lib_prob_sum += prob[ni];
-                        lib_count += 1;
-                    }
-                }
-            }
+            let liberty_score = chain_liberty_score(goban, &chain, &prob);
+            let lib_count = chain_liberty_count(goban, &chain);
 
             // Zero-liberty chain → dead (captured in practice)
             if lib_count == 0 {
@@ -387,9 +382,13 @@ pub fn detect_dead_stones(goban: &Goban) -> HashSet<Point> {
             }
 
             // Average liberty probability opposes stone color → dead
-            let avg_lib_prob = lib_prob_sum / lib_count as f64;
-            let stone_sign = stone.to_int() as f64;
-            if stone_sign * avg_lib_prob < 0.0 {
+            let stone_liberty_score = (stone.to_int() as f64) * liberty_score;
+            let liberty_regions = chain_liberty_region_count(goban, &chain);
+            let eye_regions = chain_eye_region_count(goban, &chain, stone);
+            if stone_liberty_score < 0.0
+                || (liberty_regions < 2 && stone_liberty_score < 0.1)
+                || (lib_count <= 3 && eye_regions < 2 && stone_liberty_score < 0.6)
+            {
                 for &pt in &chain {
                     dead.insert(pt);
                 }
@@ -398,4 +397,451 @@ pub fn detect_dead_stones(goban: &Goban) -> HashSet<Point> {
     }
 
     dead
+}
+
+fn chain_liberty_score(goban: &Goban, chain: &[Point], probability: &[f64]) -> f64 {
+    let cols = goban.cols();
+    let rows = goban.rows();
+    let size = cols as usize * rows as usize;
+    let mut seen = vec![false; size];
+    let mut sum = 0.0;
+    let mut count = 0;
+
+    for &(cx, cy) in chain {
+        for n in goban.neighbors((cx, cy)) {
+            let idx = n.1 as usize * cols as usize + n.0 as usize;
+            if goban.stone_at(n).is_none() && !seen[idx] {
+                seen[idx] = true;
+                sum += probability[idx];
+                count += 1;
+            }
+        }
+    }
+
+    if count == 0 { 0.0 } else { sum / count as f64 }
+}
+
+fn chain_liberty_count(goban: &Goban, chain: &[Point]) -> usize {
+    let cols = goban.cols();
+    let rows = goban.rows();
+    let size = cols as usize * rows as usize;
+    let mut seen = vec![false; size];
+    let mut count = 0;
+
+    for &(cx, cy) in chain {
+        for n in goban.neighbors((cx, cy)) {
+            let idx = n.1 as usize * cols as usize + n.0 as usize;
+            if goban.stone_at(n).is_none() && !seen[idx] {
+                seen[idx] = true;
+                count += 1;
+            }
+        }
+    }
+
+    count
+}
+
+fn chain_liberty_region_count(goban: &Goban, chain: &[Point]) -> usize {
+    let cols = goban.cols();
+    let rows = goban.rows();
+    let size = cols as usize * rows as usize;
+    let mut liberty_seeds = vec![false; size];
+
+    for &(cx, cy) in chain {
+        for n in goban.neighbors((cx, cy)) {
+            if goban.stone_at(n).is_none() {
+                liberty_seeds[n.1 as usize * cols as usize + n.0 as usize] = true;
+            }
+        }
+    }
+
+    let mut visited = vec![false; size];
+    let mut count = 0;
+
+    for idx in 0..size {
+        if !liberty_seeds[idx] || visited[idx] {
+            continue;
+        }
+
+        count += 1;
+        let x = (idx % cols as usize) as u8;
+        let y = (idx / cols as usize) as u8;
+        let mut stack = vec![(x, y)];
+        while let Some(point) = stack.pop() {
+            let point_idx = point.1 as usize * cols as usize + point.0 as usize;
+            if visited[point_idx] {
+                continue;
+            }
+            visited[point_idx] = true;
+
+            for n in goban.neighbors(point) {
+                let ni = n.1 as usize * cols as usize + n.0 as usize;
+                if goban.stone_at(n).is_none() && !visited[ni] {
+                    stack.push(n);
+                }
+            }
+        }
+    }
+
+    count
+}
+
+fn chain_eye_region_count(goban: &Goban, chain: &[Point], stone: Stone) -> usize {
+    let cols = goban.cols();
+    let rows = goban.rows();
+    let size = cols as usize * rows as usize;
+    let chain_set: HashSet<Point> = chain.iter().copied().collect();
+    let mut liberty_seeds = vec![false; size];
+
+    for &(cx, cy) in chain {
+        for n in goban.neighbors((cx, cy)) {
+            if goban.stone_at(n).is_none() {
+                liberty_seeds[n.1 as usize * cols as usize + n.0 as usize] = true;
+            }
+        }
+    }
+
+    let mut visited = vec![false; size];
+    let mut count = 0;
+
+    for idx in 0..size {
+        if !liberty_seeds[idx] || visited[idx] {
+            continue;
+        }
+
+        let x = (idx % cols as usize) as u8;
+        let y = (idx / cols as usize) as u8;
+        let mut stack = vec![(x, y)];
+        let mut is_eye = true;
+
+        while let Some(point) = stack.pop() {
+            let point_idx = point.1 as usize * cols as usize + point.0 as usize;
+            if visited[point_idx] {
+                continue;
+            }
+            visited[point_idx] = true;
+
+            for n in goban.neighbors(point) {
+                let ni = n.1 as usize * cols as usize + n.0 as usize;
+                match goban.stone_at(n) {
+                    None if !visited[ni] => stack.push(n),
+                    Some(neighbor_stone) if neighbor_stone == stone && chain_set.contains(&n) => {}
+                    Some(_) => is_eye = false,
+                    None => {}
+                }
+            }
+        }
+
+        if is_eye {
+            count += 1;
+        }
+    }
+
+    count
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Engine;
+    use crate::territory::score;
+
+    fn play(engine: &mut Engine, stone: Stone, point: Point) {
+        engine.try_play(stone, point).expect("legal move");
+    }
+
+    fn bot_false_eye_position() -> Engine {
+        let mut engine = Engine::new(9, 9);
+        for (stone, point) in [
+            (Stone::Black, (4, 4)),
+            (Stone::White, (2, 4)),
+            (Stone::Black, (5, 6)),
+            (Stone::White, (6, 2)),
+            (Stone::Black, (4, 2)),
+            (Stone::White, (6, 4)),
+            (Stone::Black, (2, 6)),
+            (Stone::White, (2, 2)),
+            (Stone::Black, (1, 3)),
+            (Stone::White, (2, 3)),
+            (Stone::Black, (1, 5)),
+            (Stone::White, (4, 5)),
+            (Stone::Black, (3, 5)),
+            (Stone::White, (5, 5)),
+            (Stone::Black, (3, 4)),
+            (Stone::White, (4, 6)),
+            (Stone::Black, (6, 1)),
+            (Stone::White, (1, 4)),
+            (Stone::Black, (0, 4)),
+            (Stone::White, (2, 5)),
+            (Stone::Black, (1, 6)),
+            (Stone::White, (3, 6)),
+            (Stone::Black, (3, 1)),
+            (Stone::White, (2, 1)),
+            (Stone::Black, (5, 3)),
+            (Stone::White, (6, 3)),
+            (Stone::Black, (5, 1)),
+            (Stone::White, (0, 5)),
+            (Stone::Black, (7, 2)),
+            (Stone::White, (7, 3)),
+            (Stone::Black, (7, 1)),
+            (Stone::White, (3, 7)),
+            (Stone::Black, (2, 7)),
+            (Stone::White, (3, 0)),
+            (Stone::Black, (4, 0)),
+            (Stone::White, (2, 0)),
+            (Stone::Black, (0, 6)),
+            (Stone::White, (1, 2)),
+            (Stone::Black, (0, 3)),
+            (Stone::White, (3, 2)),
+            (Stone::Black, (4, 1)),
+            (Stone::White, (5, 4)),
+            (Stone::Black, (4, 3)),
+            (Stone::White, (0, 2)),
+            (Stone::Black, (0, 5)),
+            (Stone::White, (8, 2)),
+            (Stone::Black, (8, 1)),
+            (Stone::White, (8, 3)),
+            (Stone::Black, (7, 0)),
+            (Stone::White, (5, 2)),
+        ] {
+            play(&mut engine, stone, point);
+        }
+        engine
+    }
+
+    fn bot_large_black_live_position() -> Engine {
+        let mut engine = Engine::new(9, 9);
+        for (stone, point) in [
+            (Stone::Black, (3, 3)),
+            (Stone::White, (5, 5)),
+            (Stone::Black, (5, 4)),
+            (Stone::White, (3, 5)),
+            (Stone::Black, (6, 5)),
+            (Stone::White, (6, 4)),
+            (Stone::Black, (5, 3)),
+            (Stone::White, (7, 5)),
+            (Stone::Black, (6, 6)),
+            (Stone::White, (6, 3)),
+            (Stone::Black, (4, 5)),
+            (Stone::White, (5, 6)),
+            (Stone::Black, (4, 6)),
+            (Stone::White, (5, 7)),
+            (Stone::Black, (7, 6)),
+            (Stone::White, (4, 7)),
+            (Stone::Black, (3, 6)),
+            (Stone::White, (3, 4)),
+            (Stone::Black, (4, 4)),
+            (Stone::White, (2, 3)),
+            (Stone::Black, (7, 4)),
+            (Stone::White, (7, 3)),
+            (Stone::Black, (8, 5)),
+            (Stone::White, (5, 2)),
+            (Stone::Black, (4, 2)),
+            (Stone::White, (5, 1)),
+            (Stone::Black, (2, 2)),
+            (Stone::White, (2, 6)),
+            (Stone::Black, (3, 7)),
+            (Stone::White, (2, 7)),
+            (Stone::Black, (2, 5)),
+            (Stone::White, (3, 8)),
+            (Stone::Black, (2, 4)),
+            (Stone::White, (1, 5)),
+            (Stone::Black, (1, 4)),
+            (Stone::White, (0, 5)),
+            (Stone::Black, (2, 8)),
+            (Stone::White, (1, 8)),
+            (Stone::Black, (0, 7)),
+            (Stone::White, (4, 1)),
+            (Stone::Black, (7, 1)),
+            (Stone::White, (7, 2)),
+            (Stone::Black, (3, 1)),
+            (Stone::White, (6, 1)),
+            (Stone::Black, (4, 0)),
+            (Stone::White, (7, 0)),
+            (Stone::Black, (6, 7)),
+            (Stone::White, (5, 0)),
+            (Stone::Black, (3, 0)),
+            (Stone::White, (8, 3)),
+            (Stone::Black, (8, 1)),
+            (Stone::White, (8, 2)),
+            (Stone::Black, (8, 4)),
+            (Stone::White, (8, 0)),
+            (Stone::Black, (5, 8)),
+        ] {
+            play(&mut engine, stone, point);
+        }
+        engine
+    }
+
+    fn bot_bottom_black_only_live_position() -> Engine {
+        let mut engine = Engine::new(9, 9);
+        for (stone, point) in [
+            (Stone::Black, (3, 5)),
+            (Stone::White, (5, 3)),
+            (Stone::Black, (3, 3)),
+            (Stone::White, (5, 5)),
+            (Stone::Black, (4, 1)),
+            (Stone::White, (2, 3)),
+            (Stone::Black, (2, 2)),
+            (Stone::White, (5, 1)),
+            (Stone::Black, (4, 2)),
+            (Stone::White, (2, 4)),
+            (Stone::Black, (2, 5)),
+            (Stone::White, (3, 4)),
+            (Stone::Black, (4, 5)),
+            (Stone::White, (4, 4)),
+            (Stone::Black, (4, 3)),
+            (Stone::White, (5, 6)),
+            (Stone::Black, (3, 7)),
+            (Stone::White, (5, 2)),
+            (Stone::Black, (5, 0)),
+            (Stone::White, (1, 2)),
+            (Stone::Black, (1, 1)),
+            (Stone::White, (2, 1)),
+            (Stone::Black, (3, 2)),
+            (Stone::White, (1, 3)),
+            (Stone::Black, (3, 1)),
+            (Stone::White, (2, 0)),
+            (Stone::Black, (1, 0)),
+            (Stone::White, (0, 1)),
+            (Stone::Black, (3, 0)),
+            (Stone::White, (6, 1)),
+            (Stone::Black, (5, 7)),
+            (Stone::White, (6, 7)),
+            (Stone::Black, (4, 7)),
+            (Stone::White, (1, 5)),
+            (Stone::Black, (1, 6)),
+            (Stone::White, (0, 6)),
+            (Stone::Black, (1, 7)),
+            (Stone::White, (6, 8)),
+            (Stone::Black, (5, 8)),
+            (Stone::White, (0, 7)),
+            (Stone::Black, (2, 8)),
+            (Stone::White, (4, 6)),
+            (Stone::Black, (3, 6)),
+            (Stone::White, (6, 6)),
+        ] {
+            play(&mut engine, stone, point);
+        }
+        engine
+    }
+
+    fn bot_lonely_left_black_dead_position() -> Engine {
+        let mut engine = Engine::new(9, 9);
+        for (stone, point) in [
+            (Stone::Black, (5, 4)),
+            (Stone::White, (3, 4)),
+            (Stone::Black, (4, 2)),
+            (Stone::White, (4, 6)),
+            (Stone::Black, (6, 6)),
+            (Stone::White, (2, 2)),
+            (Stone::Black, (2, 6)),
+            (Stone::White, (5, 3)),
+            (Stone::Black, (6, 2)),
+            (Stone::White, (4, 4)),
+            (Stone::Black, (6, 4)),
+            (Stone::White, (5, 2)),
+            (Stone::Black, (5, 1)),
+            (Stone::White, (4, 3)),
+            (Stone::Black, (6, 3)),
+            (Stone::White, (3, 6)),
+            (Stone::Black, (2, 7)),
+            (Stone::White, (1, 5)),
+            (Stone::Black, (5, 7)),
+            (Stone::White, (4, 7)),
+            (Stone::Black, (4, 8)),
+            (Stone::White, (3, 8)),
+            (Stone::Black, (5, 8)),
+            (Stone::White, (3, 7)),
+            (Stone::Black, (3, 1)),
+            (Stone::White, (2, 1)),
+            (Stone::Black, (3, 2)),
+            (Stone::White, (3, 0)),
+            (Stone::Black, (4, 0)),
+            (Stone::White, (2, 0)),
+            (Stone::Black, (6, 1)),
+            (Stone::White, (5, 6)),
+            (Stone::Black, (6, 7)),
+            (Stone::White, (3, 3)),
+            (Stone::Black, (4, 1)),
+            (Stone::White, (5, 5)),
+            (Stone::Black, (6, 5)),
+            (Stone::White, (2, 5)),
+        ] {
+            play(&mut engine, stone, point);
+        }
+        engine
+    }
+
+    #[test]
+    fn bot_false_eye_position_marks_left_black_group_dead() {
+        let engine = bot_false_eye_position();
+        let dead = detect_dead_stones(engine.goban());
+        let expected_dead_black: HashSet<Point> = [
+            (0, 3),
+            (0, 4),
+            (0, 5),
+            (0, 6),
+            (1, 3),
+            (1, 5),
+            (1, 6),
+            (2, 6),
+            (2, 7),
+            (5, 6),
+        ]
+        .into_iter()
+        .collect();
+
+        assert_eq!(dead, expected_dead_black);
+
+        let ownership = estimate_territory(engine.goban(), &dead);
+        let final_score = score(engine.goban(), &ownership, &dead, 6.5);
+
+        assert_eq!(final_score.black.territory, 3);
+    }
+
+    #[test]
+    fn bot_large_black_live_position_keeps_black_alive() {
+        let engine = bot_large_black_live_position();
+        let dead = detect_dead_stones(engine.goban());
+
+        for point in [(4, 4), (5, 4), (6, 5), (6, 6), (6, 7)] {
+            assert!(!dead.contains(&point), "expected {point:?} to be alive");
+        }
+    }
+
+    #[test]
+    fn bot_bottom_black_only_live_position_marks_upper_black_dead() {
+        let engine = bot_bottom_black_only_live_position();
+        let dead = detect_dead_stones(engine.goban());
+
+        for point in [(1, 0), (3, 0), (3, 2), (4, 2), (5, 0)] {
+            assert!(dead.contains(&point), "expected {point:?} to be dead");
+        }
+
+        for point in [(2, 5), (3, 5), (3, 7), (4, 7), (5, 8)] {
+            assert!(!dead.contains(&point), "expected {point:?} to be alive");
+        }
+
+        let ownership = estimate_territory(engine.goban(), &dead);
+        let final_score = score(engine.goban(), &ownership, &dead, 6.5);
+        assert!(final_score.white_total() > final_score.black_total());
+    }
+
+    #[test]
+    fn bot_lonely_left_black_dead_position_keeps_bottom_white_alive() {
+        let engine = bot_lonely_left_black_dead_position();
+        let dead = detect_dead_stones(engine.goban());
+
+        assert!(dead.contains(&(2, 6)));
+        assert!(dead.contains(&(2, 7)));
+
+        for point in [(3, 6), (3, 7), (3, 8), (4, 6), (4, 7), (5, 5), (5, 6)] {
+            assert!(!dead.contains(&point), "expected {point:?} to be alive");
+        }
+
+        for point in [(4, 0), (4, 1), (5, 7), (5, 8), (6, 5), (6, 6)] {
+            assert!(!dead.contains(&point), "expected {point:?} to be alive");
+        }
+    }
 }

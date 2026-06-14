@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::territory::{estimate_territory, score};
+use crate::territory::{detect_dead_stones, estimate_territory, score};
 use crate::{Engine, GoError, Point, Stage, Stone};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -191,6 +191,12 @@ pub struct SearchDiagnostics {
     pub cycle_visits: u32,
     pub terminal_visits: u32,
     pub invalid_action_visits: u32,
+    pub dead_stone_augmented_evaluations: u32,
+    pub dead_stone_dead_points: u32,
+    pub dead_stone_model_value_sum: f32,
+    pub dead_stone_heuristic_value_sum: f32,
+    pub dead_stone_final_value_sum: f32,
+    pub dead_stone_abs_delta_sum: f32,
     pub root_visit_entropy: f32,
     pub visited_root_moves: usize,
     pub visited_root_policy_mass: f32,
@@ -200,6 +206,17 @@ pub struct SearchDiagnostics {
 pub struct ExternalMctsConfig {
     pub search: MctsConfig,
     pub max_policy_actions: Option<usize>,
+    pub dead_stone_eval: DeadStoneEvalConfig,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub enum DeadStoneEvalConfig {
+    #[default]
+    Off,
+    Blend {
+        weight: f32,
+        komi: f64,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -584,11 +601,18 @@ impl ExternalMctsSearch {
                 &evaluation.policy_logits,
                 self.config.max_policy_actions,
             );
-            let value = if evaluation.value.is_finite() {
+            let model_value = if evaluation.value.is_finite() {
                 evaluation.value.clamp(-1.0, 1.0)
             } else {
                 0.0
             };
+            let value = augment_external_value(
+                &pending.engine,
+                to_play,
+                model_value,
+                self.config.dead_stone_eval,
+                &mut self.diagnostics,
+            );
 
             self.nodes[pending.node_id.0].set_raw_value(value);
             self.expand_node(pending.node_id, &pending.engine, priors);
@@ -1227,8 +1251,17 @@ fn rollout_value(
 
 fn score_value(engine: &Engine, to_play: Stone, komi: f64) -> f32 {
     let dead_stones = HashSet::new();
-    let ownership = estimate_territory(engine.goban(), &dead_stones);
-    let score = score(engine.goban(), &ownership, &dead_stones, komi);
+    score_value_with_dead_stones(engine, to_play, komi, &dead_stones)
+}
+
+fn score_value_with_dead_stones(
+    engine: &Engine,
+    to_play: Stone,
+    komi: f64,
+    dead_stones: &HashSet<Point>,
+) -> f32 {
+    let ownership = estimate_territory(engine.goban(), dead_stones);
+    let score = score(engine.goban(), &ownership, dead_stones, komi);
     let diff = score.black_total() - score.white_total();
     let perspective_diff = match to_play {
         Stone::Black => diff,
@@ -1240,6 +1273,40 @@ fn score_value(engine: &Engine, to_play: Stone, komi: f64) -> f32 {
     }
 
     score_diff_to_score_utility(perspective_diff, engine.cols(), engine.rows())
+}
+
+fn augment_external_value(
+    engine: &Engine,
+    to_play: Stone,
+    model_value: f32,
+    config: DeadStoneEvalConfig,
+    diagnostics: &mut SearchDiagnostics,
+) -> f32 {
+    let DeadStoneEvalConfig::Blend { weight, komi } = config else {
+        return model_value;
+    };
+    let weight = if weight.is_finite() {
+        weight.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    if weight == 0.0 {
+        return model_value;
+    }
+
+    let dead_stones = detect_dead_stones(engine.goban());
+    let heuristic_value = score_value_with_dead_stones(engine, to_play, komi, &dead_stones);
+    let final_value = (model_value * (1.0 - weight)) + (heuristic_value * weight);
+    let final_value = final_value.clamp(-1.0, 1.0);
+
+    diagnostics.dead_stone_augmented_evaluations += 1;
+    diagnostics.dead_stone_dead_points += dead_stones.len() as u32;
+    diagnostics.dead_stone_model_value_sum += model_value;
+    diagnostics.dead_stone_heuristic_value_sum += heuristic_value;
+    diagnostics.dead_stone_final_value_sum += final_value;
+    diagnostics.dead_stone_abs_delta_sum += (heuristic_value - model_value).abs();
+
+    final_value
 }
 
 fn score_diff_to_result_value(diff: f64) -> f32 {
@@ -1455,6 +1522,7 @@ mod tests {
                     fpu_reduction: 0.2,
                 },
                 max_policy_actions: Some(2),
+                dead_stone_eval: DeadStoneEvalConfig::Off,
             },
         );
         let root = search.next_evaluations(4);
@@ -1480,7 +1548,49 @@ mod tests {
         assert_eq!(summary.visits, 2);
         assert_eq!(summary.best_move, Some(BotMove::Play((2, 2))));
         assert!((summary.root_value - 0.375).abs() < 0.0001);
+        assert_eq!(summary.diagnostics.dead_stone_augmented_evaluations, 0);
         assert!(search.is_complete());
+    }
+
+    #[test]
+    fn external_mcts_blends_dead_stone_value_when_enabled() {
+        let engine = Engine::new(3, 3);
+        let mut search = ExternalMctsSearch::new(
+            engine.clone(),
+            ExternalMctsConfig {
+                search: MctsConfig {
+                    visits: 1,
+                    cpuct: 1.5,
+                    fpu_reduction: 0.2,
+                },
+                max_policy_actions: Some(2),
+                dead_stone_eval: DeadStoneEvalConfig::Blend {
+                    weight: 0.25,
+                    komi: 0.5,
+                },
+            },
+        );
+        let root = search.next_evaluations(1);
+        let dead_stones = detect_dead_stones(engine.goban());
+        let heuristic = score_value_with_dead_stones(&engine, Stone::Black, 0.5, &dead_stones);
+        let expected = (1.0 * 0.75) + (heuristic * 0.25);
+
+        search.apply_evaluations(vec![ExternalEvaluation {
+            id: root[0].id,
+            policy_logits: vec![0.0; 10],
+            value: 1.0,
+        }]);
+
+        let summary = search.summary();
+        assert!((summary.root_value - expected).abs() < 0.0001);
+        assert_eq!(summary.diagnostics.dead_stone_augmented_evaluations, 1);
+        assert_eq!(
+            summary.diagnostics.dead_stone_dead_points,
+            dead_stones.len() as u32
+        );
+        assert!((summary.diagnostics.dead_stone_model_value_sum - 1.0).abs() < 0.0001);
+        assert!((summary.diagnostics.dead_stone_heuristic_value_sum - heuristic).abs() < 0.0001);
+        assert!((summary.diagnostics.dead_stone_final_value_sum - expected).abs() < 0.0001);
     }
 
     #[test]
@@ -1495,6 +1605,7 @@ mod tests {
                     fpu_reduction: 0.2,
                 },
                 max_policy_actions: Some(4),
+                dead_stone_eval: DeadStoneEvalConfig::Off,
             },
         );
         let root = search.next_evaluations(1);

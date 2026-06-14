@@ -1800,6 +1800,10 @@ async function runAnalyzePosition(
     maxPolicyActions: config.maxPolicyActions,
     batchSize: config.batchSize,
     fpuReduction: config.fpuReduction,
+    deadStoneEval:
+      request.preset === "tuning"
+        ? { kind: "blend", weight: 0.25 }
+        : { kind: "off" },
     position: request.position,
   });
 

@@ -6,10 +6,7 @@ import {
   heatMapFromRootMoves,
 } from "../ai/heatmap";
 import { ensureAiModelAvailable } from "../ai/model-download";
-import {
-  aiEstimatePositionFromEngine,
-  aiPositionFromEngine,
-} from "../ai/position";
+import { aiPositionFromEngine } from "../ai/position";
 import type { ControlsProps } from "../components/controls-shared";
 import { GameStatus } from "../components/game-status";
 import { IconBot, IconSpinner } from "../components/icons";
@@ -31,7 +28,7 @@ import {
 } from "../utils/move-confirm";
 import { storage } from "../utils/storage";
 import { chooseBotMove } from "./bot-move";
-import { scoreBotGameFromOwnership } from "./bot-score";
+import { scoreBotGameFromEngine } from "./bot-score";
 import { Controls } from "./controls";
 import { ColorPickerField, SettingsFieldset } from "./form-variants/shared";
 import { GamePageLayout } from "./game-page-layout";
@@ -325,7 +322,7 @@ function BotGame({
           setError(undefined);
         },
         onTerritoryReviewStart: () => {
-          void finalizeWithAiEstimate();
+          void finalizeWithEngineScore();
           return true;
         },
         ghostStone: () => mcRef.current?.getGhostStone(),
@@ -433,7 +430,7 @@ function BotGame({
       }
     }
 
-    async function finalizeWithAiEstimate() {
+    async function finalizeWithEngineScore() {
       const board = boardRef.current;
 
       if (!board) {
@@ -447,18 +444,9 @@ function BotGame({
       setError(undefined);
 
       try {
-        if (
-          !(await ensureAiModelAvailable({
-            manifestUrl: KATA9X9_MANIFEST,
-            context: "bot",
-          }))
-        ) {
-          throw new Error("AI model download cancelled");
-        }
-
-        const result = await analyzePositionDirect(
-          aiEstimatePositionFromEngine(board.engine, KOMI),
-        );
+        const deadStonesJson = board.engine.detect_dead_stones();
+        const ownershipJson = board.engine.estimate_territory(deadStonesJson);
+        const scoreJson = board.engine.score(deadStonesJson, KOMI);
 
         if (
           disposed ||
@@ -468,19 +456,16 @@ function BotGame({
           return;
         }
 
-        const final = scoreBotGameFromOwnership({
-          board: Array.from(board.engine.board()),
+        const final = scoreBotGameFromEngine({
           cols: board.engine.cols(),
           rows: board.engine.rows(),
-          captures: {
-            black: board.engine.captures_black(),
-            white: board.engine.captures_white(),
-          },
-          ownership: result.analysis.ownership ?? [],
+          scoreJson,
+          ownershipJson,
+          deadStonesJson,
         });
 
         if (!final) {
-          throw new Error("AI estimate did not return ownership");
+          throw new Error("Engine score did not return territory");
         }
 
         const finalResult = formatResult(final.score, KOMI);

@@ -6,6 +6,10 @@ export type AiPocBackendPreference = "auto" | "webgpu" | "wasm";
 
 export type AiPocRuntime = "tfjs" | "onnxruntime-web";
 
+export type AiPocDeadStoneEval =
+  | { kind: "off" }
+  | { kind: "blend"; weight: number };
+
 export type AiPocManifest = {
   id: string;
   version: number;
@@ -83,6 +87,7 @@ export type AiPocRustLeafPolicyMctsRequest = Omit<
   maxPolicyActions: number;
   batchSize: number;
   fpuReduction: number;
+  deadStoneEval?: AiPocDeadStoneEval;
   position?: AiPocPosition;
 };
 
@@ -124,6 +129,12 @@ export type AiPocRandomMctsDiagnostics = {
   cycleVisits: number;
   terminalVisits: number;
   invalidActionVisits: number;
+  deadStoneAugmentedEvaluations?: number;
+  deadStoneDeadPoints?: number;
+  deadStoneModelValueSum?: number;
+  deadStoneHeuristicValueSum?: number;
+  deadStoneFinalValueSum?: number;
+  deadStoneAbsDeltaSum?: number;
   rootVisitEntropy: number;
   visitedRootMoves: number;
   visitedRootPolicyMass: number;

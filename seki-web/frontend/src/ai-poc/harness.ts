@@ -596,6 +596,7 @@ function runRustLeafPolicyMcts() {
     maxPolicyActions: Number(maxChildrenInput.value),
     batchSize: Number(batchSizeInput.value),
     fpuReduction: Number(fpuReductionInput.value),
+    deadStoneEval: { kind: "blend", weight: 0.25 },
   };
 
   postRequest(request, "Running Rust leaf-policy MCTS...");

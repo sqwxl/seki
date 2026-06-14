@@ -221,6 +221,7 @@ export async function runLeafPolicyMcts(
       maxPolicyActions: request.maxPolicyActions,
       komi: position.komi,
       fpuReduction: request.fpuReduction,
+      deadStoneEval: request.deadStoneEval,
     }),
   );
   const wasmStartedAt = performance.now();
