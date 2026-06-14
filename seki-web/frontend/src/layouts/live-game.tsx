@@ -1,6 +1,7 @@
 import { effect, signal, untracked } from "@preact/signals";
 import { createRef, render } from "preact";
-import { analyzePositionDirect } from "../ai/analyze";
+import { KATA9X9_MANIFEST, analyzePositionDirect } from "../ai/analyze";
+import { ensureAiModelAvailable } from "../ai/model-download";
 import { aiPositionFromEngine } from "../ai/position";
 import type { ChatEntry } from "../components/chat";
 import { liveGameControlsState } from "../game/capabilities";
@@ -475,6 +476,21 @@ export function liveGame(
         currentBoard.engine,
         initialProps.komi,
       );
+      if (
+        !(await ensureAiModelAvailable({
+          manifestUrl: KATA9X9_MANIFEST,
+          context: "analysis",
+        }))
+      ) {
+        estimatePending.value = false;
+        aiTerritoryNodeId = undefined;
+        aiTerritoryOwnership = undefined;
+        toEstimate();
+        currentBoard.enterEstimate();
+
+        return;
+      }
+
       const aiResult = await analyzePositionDirect(position);
       const ownership = aiResult.analysis.ownership;
 

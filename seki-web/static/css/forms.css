@@ -151,6 +151,14 @@ input[type="radio"] {
   margin: 0;
 }
 
+.ai-model-download-dialog {
+  min-width: min(22rem, calc(100vw - (var(--viewport-padding) * 2)));
+}
+
+.ai-model-download-dialog progress {
+  width: 100%;
+}
+
 .pregame-opponent-status {
   display: inline-flex;
   align-items: center;

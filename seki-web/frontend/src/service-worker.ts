@@ -1,7 +1,9 @@
 // @ts-nocheck -- ServiceWorkerGlobalScope types
 const CACHE_NAME = "seki-v4";
+const MODEL_CACHE_NAME = "seki-ai-models-v1";
 const NETWORK_ONLY_PATHS = ["/static/css/", "/static/dist/", "/static/wasm/"];
 const CACHE_FIRST_PATHS = ["/static/images/", "/static/sounds/"];
+const MODEL_PATHS = ["/static/models/"];
 
 self.addEventListener("install", () => {
   // The SPA shell embeds user-specific bootstrap data, so do not precache it.
@@ -28,9 +30,13 @@ self.addEventListener("activate", (event) => {
 });
 
 function isStaticAsset(url: URL): boolean {
-  return [...NETWORK_ONLY_PATHS, ...CACHE_FIRST_PATHS].some((p) =>
-    url.pathname.startsWith(p),
+  return [...NETWORK_ONLY_PATHS, ...CACHE_FIRST_PATHS, ...MODEL_PATHS].some(
+    (p) => url.pathname.startsWith(p),
   );
+}
+
+function isModelAsset(url: URL): boolean {
+  return MODEL_PATHS.some((p) => url.pathname.startsWith(p));
 }
 
 function isNetworkOnlyAsset(url: URL): boolean {
@@ -89,6 +95,28 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isStaticAsset(url)) {
+    if (isModelAsset(url)) {
+      event.respondWith(
+        caches.open(MODEL_CACHE_NAME).then((cache) =>
+          cache.match(event.request).then((cached) => {
+            if (cached) {
+              return cached;
+            }
+
+            return fetch(event.request).then((response) => {
+              if (response.ok) {
+                cache.put(event.request, response.clone());
+              }
+
+              return response;
+            });
+          }),
+        ),
+      );
+
+      return;
+    }
+
     if (isNetworkOnlyAsset(url)) {
       event.respondWith(fetch(event.request));
 

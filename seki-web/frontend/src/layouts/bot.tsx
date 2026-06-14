@@ -1,10 +1,11 @@
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { analyzePositionDirect } from "../ai/analyze";
+import { KATA9X9_MANIFEST, analyzePositionDirect } from "../ai/analyze";
 import {
   ghostStoneMapFromRootMoves,
   heatMapFromRootMoves,
 } from "../ai/heatmap";
+import { ensureAiModelAvailable } from "../ai/model-download";
 import {
   aiEstimatePositionFromEngine,
   aiPositionFromEngine,
@@ -119,7 +120,16 @@ function BotPracticeScreen() {
     return (
       <BotSetupForm
         initial={storedState.settings}
-        onStart={(settings) => {
+        onStart={async (settings) => {
+          if (
+            !(await ensureAiModelAvailable({
+              manifestUrl: KATA9X9_MANIFEST,
+              context: "bot",
+            }))
+          ) {
+            return;
+          }
+
           clearBotTree();
           const next = { started: true, settings };
 
@@ -149,7 +159,7 @@ function BotSetupForm({
   onStart,
 }: {
   initial: BotSettings;
-  onStart: (settings: BotSettings) => void;
+  onStart: (settings: BotSettings) => void | Promise<void>;
 }) {
   const [color, setColor] = useState<BotSettings["color"]>(initial.color);
   const [hints, setHints] = useState(initial.hints);
@@ -166,7 +176,7 @@ function BotSetupForm({
 
   function submit(event: Event) {
     event.preventDefault();
-    onStart({ color, hints, takebacks });
+    void onStart({ color, hints, takebacks });
   }
 
   return (
@@ -437,6 +447,15 @@ function BotGame({
       setError(undefined);
 
       try {
+        if (
+          !(await ensureAiModelAvailable({
+            manifestUrl: KATA9X9_MANIFEST,
+            context: "bot",
+          }))
+        ) {
+          throw new Error("AI model download cancelled");
+        }
+
         const result = await analyzePositionDirect(
           aiEstimatePositionFromEngine(board.engine, KOMI),
         );
@@ -507,6 +526,15 @@ function BotGame({
       setError(undefined);
 
       try {
+        if (
+          !(await ensureAiModelAvailable({
+            manifestUrl: KATA9X9_MANIFEST,
+            context: "bot",
+          }))
+        ) {
+          throw new Error("AI model download cancelled");
+        }
+
         const result = await analyzePositionDirect(
           aiPositionFromEngine(board.engine, KOMI),
         );
@@ -607,6 +635,15 @@ function BotGame({
     setError(undefined);
 
     try {
+      if (
+        !(await ensureAiModelAvailable({
+          manifestUrl: KATA9X9_MANIFEST,
+          context: "bot",
+        }))
+      ) {
+        return;
+      }
+
       const result = await analyzePositionDirect(
         aiPositionFromEngine(board.engine, KOMI),
       );

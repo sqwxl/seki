@@ -5,7 +5,7 @@ import type {
   AiPocResponse,
 } from "../ai-poc/types";
 
-const KATA9X9_MANIFEST =
+export const KATA9X9_MANIFEST =
   "/static/models/kata9x9-b18c384nbt-20231025/manifest.json";
 
 let worker: Worker | undefined;

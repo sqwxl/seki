@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { AccountLinks } from "./components/account-menu";
+import { AiModelDownloadDialog } from "./components/ai-model-download-dialog";
 import { ConnectionStatus } from "./components/connection-status";
 import { IconPlus } from "./components/icons";
 import { MobileMenu } from "./components/mobile-menu";
@@ -480,6 +481,7 @@ function App() {
         </div>
       </nav>
       <FlashBanner />
+      <AiModelDownloadDialog />
       {offline && (
         <div style="background:#e74c3c;color:#fff;text-align:center;padding:8px;font-size:14px">
           You are offline. Some features may be unavailable.

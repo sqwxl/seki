@@ -2,6 +2,7 @@
   "id": "kaya-b28c512-uint8",
   "version": 1,
   "kind": "onnx",
+  "artifactBytes": 75176902,
   "source": {
     "name": "Kaya ONNX conversion of KataGo kata1-b28c512nbt-adam-s11165M-d5387M",
     "url": "https://huggingface.co/kaya-go/kaya/tree/main/kata1-b28c512nbt-adam-s11165M-d5387M"

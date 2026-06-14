@@ -2,6 +2,7 @@
   "id": "kata9x9-b18c384nbt-20231025",
   "version": 1,
   "kind": "onnx",
+  "artifactBytes": 105526431,
   "source": {
     "name": "KataGo kata9x9 b18c384nbt exported with official KataGo ONNX builder",
     "url": "https://media.katagotraining.org/uploaded/networks/models_extra/kata9x9-b18c384nbt-20231025.bin.gz"

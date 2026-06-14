@@ -2,6 +2,7 @@
   "id": "lionffen-b6c64-19x19",
   "version": 1,
   "kind": "onnx",
+  "artifactBytes": 1837658,
   "source": {
     "name": "KataGo lionffen b6c64 exported with official KataGo ONNX builder",
     "url": "https://media.katagotraining.org/uploaded/networks/models_extra/lionffen_b6c64_3x3_v10.txt.gz"

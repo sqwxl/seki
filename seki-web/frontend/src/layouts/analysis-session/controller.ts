@@ -1,8 +1,9 @@
-import { analyzePositionDirect } from "../../ai/analyze";
+import { KATA9X9_MANIFEST, analyzePositionDirect } from "../../ai/analyze";
 import {
   ghostStoneMapFromRootMoves,
   heatMapFromRootMoves,
 } from "../../ai/heatmap";
+import { ensureAiModelAvailable } from "../../ai/model-download";
 import {
   aiEstimatePositionFromEngine,
   aiPositionFromEngine,
@@ -37,6 +38,7 @@ type AnalysisSessionOptions = {
   moveConfirm: MoveConfirmState;
   getKomi: () => number;
   canUseAi?: () => boolean;
+  ensureAiModel?: () => Promise<boolean>;
   onRender?: (board: Board, territoryInfo: TerritoryInfo) => void;
   onPlaySound?: () => void;
   onPassSound?: () => void;
@@ -185,6 +187,16 @@ export function createAnalysisSessionController(
     clearEstimate();
   }
 
+  function ensureModel() {
+    return (
+      options.ensureAiModel?.() ??
+      ensureAiModelAvailable({
+        manifestUrl: KATA9X9_MANIFEST,
+        context: "analysis",
+      })
+    );
+  }
+
   function refreshAiSuggestion() {
     const current = board();
 
@@ -231,12 +243,11 @@ export function createAnalysisSessionController(
 
     const requestId = ++aiRequestId;
     const nodeId = current.engine.current_node_id();
-    const position = aiPositionFromEngine(current.engine, options.getKomi());
     const sign = current.engine.current_turn_stone() as Sign;
     const cachedEval = aiEvalCache.get(nodeId);
 
     if (cachedEval) {
-      applyAiSuggestion(cachedEval.result, nodeId, position.boardSize, sign);
+      applyAiSuggestion(cachedEval.result, nodeId, current.engine.cols(), sign);
       renderAiOverlay(current);
 
       return;
@@ -245,6 +256,15 @@ export function createAnalysisSessionController(
     state.ai.value = { enabled: true, pending: true };
 
     try {
+      if (!(await ensureModel())) {
+        if (requestId === aiRequestId) {
+          state.ai.value = { enabled: false, pending: false };
+        }
+
+        return;
+      }
+
+      const position = aiPositionFromEngine(current.engine, options.getKomi());
       const result = await analyzePositionDirect(position);
 
       if (
@@ -344,10 +364,6 @@ export function createAnalysisSessionController(
       return true;
     }
 
-    const position = aiEstimatePositionFromEngine(
-      current.engine,
-      options.getKomi(),
-    );
     state.estimate.value = {
       pending: true,
       mode,
@@ -355,6 +371,25 @@ export function createAnalysisSessionController(
     };
 
     try {
+      if (!(await ensureModel())) {
+        state.estimate.value = {
+          pending: false,
+          mode,
+          nodeId,
+        };
+        if (mode === "estimate") {
+          current.enterEstimate();
+        } else {
+          enterOverlay();
+        }
+
+        return true;
+      }
+
+      const position = aiEstimatePositionFromEngine(
+        current.engine,
+        options.getKomi(),
+      );
       const result = await analyzePositionDirect(position);
       const ownership = result.analysis.ownership;
 

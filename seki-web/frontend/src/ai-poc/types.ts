@@ -10,6 +10,7 @@ export type AiPocManifest = {
   id: string;
   version: number;
   kind: "tfjs-graph-model" | "onnx" | "synthetic";
+  artifactBytes?: number;
   source: {
     name: string;
     url?: string;
