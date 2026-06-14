@@ -9,6 +9,12 @@ pub struct AreaOptions {
     pub unsafe_big_territories: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndependentLifeArea {
+    pub area: Vec<i8>,
+    pub white_minus_black_region_count: i32,
+}
+
 #[derive(Debug)]
 struct Chain {
     points: Vec<Point>,
@@ -26,16 +32,8 @@ struct Region {
 
 pub fn calculate_area(goban: &Goban, options: AreaOptions) -> Vec<i8> {
     let mut result = vec![0; board_len(goban)];
-    let black = calculate_area_for_player(goban, Stone::Black, options);
-    let white = calculate_area_for_player(goban, Stone::White, options);
-
-    for i in 0..result.len() {
-        match (black[i], white[i]) {
-            (b, 0) => result[i] = b,
-            (0, w) => result[i] = w,
-            _ => {}
-        }
-    }
+    calculate_area_for_player(goban, Stone::Black, options, &mut result);
+    calculate_area_for_player(goban, Stone::White, options, &mut result);
 
     if options.non_pass_alive_stones {
         for (i, &stone) in goban.board().iter().enumerate() {
@@ -48,11 +46,55 @@ pub fn calculate_area(goban: &Goban, options: AreaOptions) -> Vec<i8> {
     result
 }
 
-fn calculate_area_for_player(goban: &Goban, pla: Stone, options: AreaOptions) -> Vec<i8> {
-    let mut result = vec![0; board_len(goban)];
+pub fn calculate_independent_life_area(
+    goban: &Goban,
+    keep_territories: bool,
+    keep_stones: bool,
+) -> IndependentLifeArea {
+    let mut basic_area = calculate_area(
+        goban,
+        AreaOptions {
+            non_pass_alive_stones: false,
+            safe_big_territories: true,
+            unsafe_big_territories: true,
+        },
+    );
+
+    for (idx, &stone) in goban.board().iter().enumerate() {
+        if basic_area[idx] == 0 {
+            basic_area[idx] = stone.signum();
+        }
+    }
+
+    let (mut area, white_minus_black_region_count) =
+        calculate_independent_life_area_helper(goban, &basic_area);
+
+    if keep_territories {
+        for (idx, &owner) in basic_area.iter().enumerate() {
+            if owner != 0 && owner != goban.board()[idx].signum() {
+                area[idx] = owner;
+            }
+        }
+    }
+
+    if keep_stones {
+        for (idx, &owner) in basic_area.iter().enumerate() {
+            if owner != 0 && owner == goban.board()[idx].signum() {
+                area[idx] = owner;
+            }
+        }
+    }
+
+    IndependentLifeArea {
+        area,
+        white_minus_black_region_count,
+    }
+}
+
+fn calculate_area_for_player(goban: &Goban, pla: Stone, options: AreaOptions, result: &mut [i8]) {
     let (chains, chain_by_point) = collect_chains(goban, pla);
     if chains.is_empty() {
-        return result;
+        return;
     }
 
     let mut regions = collect_regions(goban, pla, &chain_by_point);
@@ -117,19 +159,120 @@ fn calculate_area_for_player(goban: &Goban, pla: Stone, options: AreaOptions) ->
             .any(|&chain_idx| chain_alive[chain_idx]);
         let is_strict_eye_space =
             region.internal_spaces_max_2 <= 1 && !region.borders_non_pass_alive;
-        let is_big_territory = borders_alive_chain
-            && !region.borders_non_pass_alive
-            && !region.contains_opp
-            && (options.safe_big_territories || options.unsafe_big_territories);
 
-        if borders_alive_chain && (is_strict_eye_space || is_big_territory) {
+        if borders_alive_chain && is_strict_eye_space {
             for point in region.points {
                 result[point_idx(goban, point)] = pla.to_int();
             }
+            continue;
+        }
+
+        if borders_alive_chain && !region.borders_non_pass_alive && !region.contains_opp {
+            if options.safe_big_territories {
+                for point in region.points {
+                    result[point_idx(goban, point)] = pla.to_int();
+                }
+            } else if options.unsafe_big_territories {
+                for point in region.points {
+                    let idx = point_idx(goban, point);
+                    if result[idx] == 0 {
+                        result[idx] = pla.to_int();
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn calculate_independent_life_area_helper(goban: &Goban, basic_area: &[i8]) -> (Vec<i8>, i32) {
+    let mut is_seki = vec![false; board_len(goban)];
+
+    for row in 0..goban.rows() {
+        for col in 0..goban.cols() {
+            let point = (col, row);
+            let idx = point_idx(goban, point);
+            if basic_area[idx] == 0 || is_seki[idx] || !is_seki_seed(goban, basic_area, point) {
+                continue;
+            }
+
+            mark_seki_component(goban, basic_area, &mut is_seki, point, basic_area[idx]);
         }
     }
 
-    result
+    let mut result = vec![0; board_len(goban)];
+    let mut white_minus_black_region_count = 0;
+
+    for row in 0..goban.rows() {
+        for col in 0..goban.cols() {
+            let point = (col, row);
+            let idx = point_idx(goban, point);
+            let owner = basic_area[idx];
+            if owner == 0 || is_seki[idx] || result[idx] == owner {
+                continue;
+            }
+
+            white_minus_black_region_count += if owner == Stone::White.to_int() {
+                1
+            } else {
+                -1
+            };
+            copy_component(goban, basic_area, &mut result, point, owner);
+        }
+    }
+
+    (result, white_minus_black_region_count)
+}
+
+fn is_seki_seed(goban: &Goban, basic_area: &[i8], point: Point) -> bool {
+    let idx = point_idx(goban, point);
+    let owner = basic_area[idx];
+
+    if goban.board()[idx].signum() == owner && goban.liberties(point).len() == 1 {
+        return true;
+    }
+
+    goban.neighbors(point).iter().any(|&neighbor| {
+        let neighbor_idx = point_idx(goban, neighbor);
+        goban.board()[neighbor_idx] == 0 && basic_area[neighbor_idx] == 0
+    })
+}
+
+fn mark_seki_component(
+    goban: &Goban,
+    source: &[i8],
+    is_seki: &mut [bool],
+    start: Point,
+    owner: i8,
+) {
+    let mut stack = vec![start];
+
+    while let Some(point) = stack.pop() {
+        let idx = point_idx(goban, point);
+        if source[idx] != owner || is_seki[idx] {
+            continue;
+        }
+        is_seki[idx] = true;
+
+        for neighbor in goban.neighbors(point) {
+            stack.push(neighbor);
+        }
+    }
+}
+
+fn copy_component(goban: &Goban, source: &[i8], target: &mut [i8], start: Point, owner: i8) {
+    let mut stack = vec![start];
+
+    while let Some(point) = stack.pop() {
+        let idx = point_idx(goban, point);
+        if source[idx] != owner || target[idx] == owner {
+            continue;
+        }
+        target[idx] = owner;
+
+        for neighbor in goban.neighbors(point) {
+            stack.push(neighbor);
+        }
+    }
 }
 
 fn collect_chains(goban: &Goban, pla: Stone) -> (Vec<Chain>, Vec<usize>) {
@@ -323,5 +466,35 @@ mod tests {
 
         assert_eq!(area[point_idx(&goban, (1, 1))], 0);
         assert_eq!(area[point_idx(&goban, (3, 1))], 0);
+    }
+
+    #[test]
+    fn independent_life_area_counts_non_seki_region() {
+        let goban = goban_from_layout(&[
+            "BBBBB", //
+            "B+B+B", //
+            "BBBBB",
+        ]);
+
+        let independent = calculate_independent_life_area(&goban, false, false);
+
+        assert_eq!(independent.area, vec![1; 15]);
+        assert_eq!(independent.white_minus_black_region_count, -1);
+    }
+
+    #[test]
+    fn independent_life_area_can_keep_seki_stones() {
+        let goban = goban_from_layout(&[
+            "WBW", //
+            "W+W", //
+            "WWW",
+        ]);
+
+        let without_seki = calculate_independent_life_area(&goban, false, false);
+        let with_stones = calculate_independent_life_area(&goban, false, true);
+
+        let black_atari_stone = point_idx(&goban, (1, 0));
+        assert_eq!(without_seki.area[black_atari_stone], 0);
+        assert_eq!(with_stones.area[black_atari_stone], 1);
     }
 }

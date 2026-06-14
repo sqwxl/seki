@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::territory::{detect_dead_stones, estimate_territory, score};
+use crate::territory::{AreaOptions, calculate_area, estimate_territory, score};
 use crate::{Engine, GoError, Point, Stage, Stone};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1275,6 +1275,41 @@ fn score_value_with_dead_stones(
     score_diff_to_score_utility(perspective_diff, engine.cols(), engine.rows())
 }
 
+fn score_value_with_pass_alive_area(engine: &Engine, to_play: Stone, komi: f64) -> (f32, u32) {
+    let area = calculate_area(
+        engine.goban(),
+        AreaOptions {
+            non_pass_alive_stones: true,
+            safe_big_territories: true,
+            unsafe_big_territories: true,
+        },
+    );
+    let mut diff = -komi;
+    let mut dead_points = 0;
+
+    for (idx, &owner) in area.iter().enumerate() {
+        diff += f64::from(owner.signum());
+
+        let stone = engine.goban().board()[idx].signum();
+        if stone != 0 && owner.signum() == -stone {
+            dead_points += 1;
+        }
+    }
+
+    let perspective_diff = match to_play {
+        Stone::Black => diff,
+        Stone::White => -diff,
+    };
+
+    let value = if !engine.stage().is_play() {
+        score_diff_to_result_value(perspective_diff)
+    } else {
+        score_diff_to_score_utility(perspective_diff, engine.cols(), engine.rows())
+    };
+
+    (value, dead_points)
+}
+
 fn augment_external_value(
     engine: &Engine,
     to_play: Stone,
@@ -1294,13 +1329,12 @@ fn augment_external_value(
         return model_value;
     }
 
-    let dead_stones = detect_dead_stones(engine.goban());
-    let heuristic_value = score_value_with_dead_stones(engine, to_play, komi, &dead_stones);
+    let (heuristic_value, dead_points) = score_value_with_pass_alive_area(engine, to_play, komi);
     let final_value = (model_value * (1.0 - weight)) + (heuristic_value * weight);
     let final_value = final_value.clamp(-1.0, 1.0);
 
     diagnostics.dead_stone_augmented_evaluations += 1;
-    diagnostics.dead_stone_dead_points += dead_stones.len() as u32;
+    diagnostics.dead_stone_dead_points += dead_points;
     diagnostics.dead_stone_model_value_sum += model_value;
     diagnostics.dead_stone_heuristic_value_sum += heuristic_value;
     diagnostics.dead_stone_final_value_sum += final_value;
@@ -1571,8 +1605,7 @@ mod tests {
             },
         );
         let root = search.next_evaluations(1);
-        let dead_stones = detect_dead_stones(engine.goban());
-        let heuristic = score_value_with_dead_stones(&engine, Stone::Black, 0.5, &dead_stones);
+        let (heuristic, dead_points) = score_value_with_pass_alive_area(&engine, Stone::Black, 0.5);
         let expected = (1.0 * 0.75) + (heuristic * 0.25);
 
         search.apply_evaluations(vec![ExternalEvaluation {
@@ -1584,10 +1617,7 @@ mod tests {
         let summary = search.summary();
         assert!((summary.root_value - expected).abs() < 0.0001);
         assert_eq!(summary.diagnostics.dead_stone_augmented_evaluations, 1);
-        assert_eq!(
-            summary.diagnostics.dead_stone_dead_points,
-            dead_stones.len() as u32
-        );
+        assert_eq!(summary.diagnostics.dead_stone_dead_points, dead_points);
         assert!((summary.diagnostics.dead_stone_model_value_sum - 1.0).abs() < 0.0001);
         assert!((summary.diagnostics.dead_stone_heuristic_value_sum - heuristic).abs() < 0.0001);
         assert!((summary.diagnostics.dead_stone_final_value_sum - expected).abs() < 0.0001);
