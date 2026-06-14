@@ -35,7 +35,7 @@ function HoldNavButton({
   action: "back" | "forward";
   className: string;
   disabled: boolean;
-  onNavigate: ControlsProps["nav"]["onNavigate"];
+  onNavigate: NonNullable<ControlsProps["nav"]>["onNavigate"];
   title: string;
   children: preact.ComponentChildren;
 }) {
@@ -139,7 +139,7 @@ export function NavControls({
   counterOverride,
   compact,
 }: {
-  nav: ControlsProps["nav"];
+  nav: NonNullable<ControlsProps["nav"]>;
   counterOverride?: {
     onClick: () => void;
     disabled?: boolean;

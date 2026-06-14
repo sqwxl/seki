@@ -20,7 +20,9 @@ export function Controls(props: ControlsProps) {
 
     return (
       <div class="controls-group">
-        <NavControls nav={props.nav} counterOverride={reviewOverride} />
+        {props.nav && (
+          <NavControls nav={props.nav} counterOverride={reviewOverride} />
+        )}
         {props.territoryExit && (
           <button class="btn-exit" onClick={props.territoryExit.onClick}>
             <IconX />
@@ -52,11 +54,22 @@ export function Controls(props: ControlsProps) {
         <GameControls {...props} />
       </span>
       <span class="btn-group controls-middle">
-        <NavControls
-          nav={props.nav}
-          counterOverride={counterOverride}
-          compact={props.compact}
-        />
+        {props.nav ? (
+          <NavControls
+            nav={props.nav}
+            counterOverride={counterOverride}
+            compact={props.compact}
+          />
+        ) : counterOverride ? (
+          <button
+            class="btn-raised controls-counter controls-confirm"
+            title={counterOverride.title}
+            disabled={counterOverride.disabled}
+            onClick={counterOverride.onClick}
+          >
+            {counterOverride.content}
+          </button>
+        ) : null}
       </span>
       <span class="btn-group controls-end">
         <UIControls {...props} excludeAnalysis={props.compact} />

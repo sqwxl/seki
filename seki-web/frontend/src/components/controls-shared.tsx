@@ -34,7 +34,7 @@ export type ControlsProps = {
   compact?: boolean;
 
   // Nav bar
-  nav: {
+  nav?: {
     atStart: boolean;
     atLatest: boolean;
     atMainEnd: boolean;

@@ -1,5 +1,6 @@
 import { signal } from "@preact/signals";
 import type { AiAnalyzePositionResult } from "../ai-poc/types";
+import type { PlayerPanelProps } from "../components/player-panel";
 import type {
   Board,
   TerritoryInfo,
@@ -50,14 +51,9 @@ export const analysisNavState = signal({
   boardTurnStone: 1,
   boardLastMoveWasPass: false,
 });
-export type AnalysisPanelData = {
+export type AnalysisPanelData = PlayerPanelProps & {
   label: string;
-  captures: number;
-  komi?: number;
-  territory?: number;
   stone: "black" | "white";
-  clock?: string;
-  clockLowTime?: boolean;
 };
 
 export const analysisPanelState = signal<{

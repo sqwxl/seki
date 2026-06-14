@@ -9,20 +9,10 @@ import {
   aiEstimatePositionFromEngine,
   aiPositionFromEngine,
 } from "../ai/position";
-import { GameControls } from "../components/game-controls";
+import type { ControlsProps } from "../components/controls-shared";
 import { GameStatus } from "../components/game-status";
-import {
-  CapturesBlack,
-  CapturesWhite,
-  IconBot,
-  IconCheck,
-  IconGrid3x3,
-  IconSpinner,
-  StoneBlack,
-  StoneWhite,
-} from "../components/icons";
+import { IconBot, IconSpinner } from "../components/icons";
 import { PlayerPanel } from "../components/player-panel";
-import { UIControls } from "../components/ui-controls";
 import { buildPlayerPanels } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { GameStage, UserData, type ScoreData } from "../game/types";
@@ -30,7 +20,7 @@ import { readUserData } from "../game/util";
 import { createBoard, ensureWasm, type Board } from "../goban/create-board";
 import type { GhostStoneData, HeatData, Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
-import { formatN, formatResult } from "../utils/format";
+import { formatResult } from "../utils/format";
 import { useMediaQuery } from "../utils/media-query";
 import {
   createMoveConfirm,
@@ -41,6 +31,7 @@ import {
 import { storage } from "../utils/storage";
 import { chooseBotMove } from "./bot-move";
 import { scoreBotGameFromOwnership } from "./bot-score";
+import { Controls } from "./controls";
 import { ColorPickerField, SettingsFieldset } from "./form-variants/shared";
 import { GamePageLayout } from "./game-page-layout";
 
@@ -737,14 +728,7 @@ function BotGame({
   };
   const topPanel = humanStone === 1 ? whitePanel : blackPanel;
   const bottomPanel = humanStone === 1 ? blackPanel : whitePanel;
-  const controls = {
-    nav: {
-      atStart: true,
-      atLatest: true,
-      atMainEnd: true,
-      counter: "0",
-      onNavigate: () => {},
-    },
+  const controls: ControlsProps = {
     requestUndo: settings.takebacks
       ? {
           onClick: undo,
@@ -803,11 +787,14 @@ function BotGame({
   return (
     <GamePageLayout
       gobanRef={gobanRef}
-      gobanStyle={`aspect-ratio: ${BOARD_SIZE}/${BOARD_SIZE}`}
+      cols={BOARD_SIZE}
+      rows={BOARD_SIZE}
       playerTop={
-        <BotPlayer
+        <PlayerPanel
           {...topPanel}
-          thinking={botThinking && currentTurn !== humanStone}
+          label={
+            <BotLabel thinking={botThinking && currentTurn !== humanStone} />
+          }
         />
       }
       playerBottom={
@@ -818,76 +805,11 @@ function BotGame({
           {error ? <span>{error}</span> : null}
         </GameStatus>
       }
-      controls={
-        <div class={`controls-row${compact ? " controls-row--compact" : ""}`}>
-          <span class="btn-group controls-start">
-            <GameControls {...controls} />
-          </span>
-          <span class="btn-group controls-middle">
-            {controls.confirmMove && (
-              <button
-                class="btn-raised controls-confirm"
-                title="Confirm move"
-                onClick={controls.confirmMove.onClick}
-              >
-                <IconCheck />
-              </button>
-            )}
-          </span>
-          <span class="btn-group controls-end">
-            <UIControls {...controls} compact={compact} />
-          </span>
-        </div>
-      }
+      controls={<Controls {...controls} compact={compact} />}
     />
   );
 }
 
-function BotPlayer({
-  stone,
-  captures,
-  komi,
-  territory,
-  strong,
-  thinking,
-}: {
-  stone: "black" | "white";
-  captures: number;
-  komi?: number;
-  territory?: number;
-  strong?: boolean;
-  thinking: boolean;
-}) {
-  return (
-    <>
-      <span class="player-name-group">
-        <span class="stone-icon">
-          {stone === "black" ? <StoneBlack /> : <StoneWhite />}
-        </span>
-        <span class={`user-label${strong ? " active-turn" : ""}`}>
-          {thinking ? <IconSpinner /> : <IconBot />} Seki Bot
-        </span>
-      </span>
-      <span class="player-clock"></span>
-      <span class="player-captures">
-        {territory != null && (
-          <>
-            {territory}
-            <span class="territory-icon">
-              <IconGrid3x3 title="Territory" />
-            </span>
-          </>
-        )}
-        {formatN(captures)}
-        {komi ? `+${formatN(komi)}` : ""}
-        <span class="captures-icon">
-          {stone === "black" ? (
-            <CapturesBlack title="Captures" />
-          ) : (
-            <CapturesWhite title="Captures" />
-          )}
-        </span>
-      </span>
-    </>
-  );
+function BotLabel({ thinking }: { thinking: boolean }) {
+  return <>{thinking ? <IconSpinner /> : <IconBot />} Seki Bot</>;
 }

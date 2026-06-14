@@ -1,10 +1,19 @@
+import type { ComponentChildren } from "preact";
 import type { RankData, UserData } from "../game/types";
 import { formatN } from "../utils/format";
-import { CapturesBlack, CapturesWhite, IconGrid3x3 } from "./icons";
+import {
+  CapturesBlack,
+  CapturesWhite,
+  IconGrid3x3,
+  IconNigiri,
+  StoneBlack,
+  StoneWhite,
+} from "./icons";
 import { UserLabel } from "./user-label";
 
 export type PlayerPanelProps = {
   userData?: UserData;
+  label?: ComponentChildren;
   captures: number;
   komi?: number;
   territory?: number;
@@ -15,6 +24,14 @@ export type PlayerPanelProps = {
   strong?: boolean;
   rank?: RankData | null;
 };
+
+function PanelStoneIcon({ stone }: { stone: PlayerPanelProps["stone"] }) {
+  if (stone === "nigiri") {
+    return <IconNigiri />;
+  }
+
+  return stone === "black" ? <StoneBlack /> : <StoneWhite />;
+}
 
 export function PlayerPanel(props: PlayerPanelProps) {
   return (
@@ -31,6 +48,15 @@ export function PlayerPanel(props: PlayerPanelProps) {
               rank: { value: props.rank },
             }}
           />
+        ) : props.label ? (
+          <>
+            <span class="stone-icon">
+              <PanelStoneIcon stone={props.stone} />
+            </span>
+            <span class={`user-label${props.strong ? " active-turn" : ""}`}>
+              {props.label}
+            </span>
+          </>
         ) : (
           <span class="user-label">...</span>
         )}

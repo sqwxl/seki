@@ -420,7 +420,8 @@ export function LiveGamePage(props: LiveGamePageProps) {
   return (
     <GamePageLayout
       gobanRef={gobanRef}
-      gobanStyle={`aspect-ratio: ${gameState.value.cols}/${gameState.value.rows}`}
+      cols={gameState.value.cols}
+      rows={gameState.value.rows}
       playerTop={<LiveGameTopPanel />}
       playerBottom={<LiveGameBottomPanel />}
       controls={<LiveGameControls {...props} />}
