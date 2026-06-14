@@ -5,7 +5,10 @@ import {
   ghostStoneMapFromRootMoves,
   heatMapFromRootMoves,
 } from "../ai/heatmap";
-import { aiPositionFromEngine } from "../ai/position";
+import {
+  aiEstimatePositionFromEngine,
+  aiPositionFromEngine,
+} from "../ai/position";
 import { GameControls } from "../components/game-controls";
 import { GameStatus } from "../components/game-status";
 import {
@@ -23,6 +26,7 @@ import { readUserData } from "../game/util";
 import { createBoard, ensureWasm, type Board } from "../goban/create-board";
 import type { GhostStoneData, HeatData, Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
+import { formatResult } from "../utils/format";
 import { useMediaQuery } from "../utils/media-query";
 import {
   createMoveConfirm,
@@ -31,6 +35,8 @@ import {
   type MoveConfirmState,
 } from "../utils/move-confirm";
 import { storage } from "../utils/storage";
+import { chooseBotMove } from "./bot-move";
+import { scoreBotGameFromOwnership } from "./bot-score";
 import { ColorPickerField, SettingsFieldset } from "./form-variants/shared";
 import { GamePageLayout } from "./game-page-layout";
 
@@ -171,7 +177,7 @@ function BotSetupForm({
   return (
     <form onSubmit={submit}>
       <div>
-        <SettingsFieldset>
+        <SettingsFieldset title="Bot Practice">
           <ColorPickerField
             s={colorPickerState}
             set={(_, value) => setColor(value as BotSettings["color"])}
@@ -227,9 +233,12 @@ function BotGame({
   const gobanRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<Board | undefined>(undefined);
   const requestIdRef = useRef(0);
+  const scoringRequestIdRef = useRef(0);
   const botThinkingRef = useRef(false);
   const suppressBotRef = useRef(false);
   const applyingBotMoveRef = useRef(false);
+  const scoringRef = useRef(false);
+  const finalResultRef = useRef<string | undefined>(undefined);
   const humanStoneRef = useRef<StoneChoice>(
     settings.color === "black" ? 1 : -1,
   );
@@ -269,6 +278,9 @@ function BotGame({
 
       boardRef.current?.destroy();
       boardRef.current = undefined;
+      scoringRef.current = false;
+      finalResultRef.current = undefined;
+      scoringRequestIdRef.current += 1;
       setError(undefined);
       setStatus("Loading board");
       setCanHumanAct(false);
@@ -300,6 +312,10 @@ function BotGame({
           clearHintOverlay(false, !applyingBotMoveRef.current);
           setEstimateActive(false);
           setError(undefined);
+        },
+        onTerritoryReviewStart: () => {
+          void finalizeWithAiEstimate();
+          return true;
         },
         ghostStone: () => mcRef.current?.getGhostStone(),
         onVertexClick: (col: number, row: number) => {
@@ -356,7 +372,9 @@ function BotGame({
 
       return (
         !!board &&
+        !finalResultRef.current &&
         !botThinkingRef.current &&
+        !scoringRef.current &&
         !suppressBotRef.current &&
         board.engine.stage() !== GameStage.TerritoryReview &&
         board.engine.stage() !== GameStage.Completed &&
@@ -368,6 +386,18 @@ function BotGame({
       const board = boardRef.current;
 
       if (!board) {
+        return;
+      }
+
+      if (finalResultRef.current) {
+        setStatus(finalResultRef.current);
+        setCanHumanAct(false);
+        return;
+      }
+
+      if (scoringRef.current) {
+        setStatus("Scoring game");
+        setCanHumanAct(false);
         return;
       }
 
@@ -388,12 +418,73 @@ function BotGame({
       }
     }
 
+    async function finalizeWithAiEstimate() {
+      const board = boardRef.current;
+
+      if (!board) {
+        return;
+      }
+
+      const requestId = ++scoringRequestIdRef.current;
+      scoringRef.current = true;
+      setStatus("Scoring game");
+      setCanHumanAct(false);
+      setError(undefined);
+
+      try {
+        const result = await analyzePositionDirect(
+          aiEstimatePositionFromEngine(board.engine, KOMI),
+        );
+
+        if (
+          disposed ||
+          requestId !== scoringRequestIdRef.current ||
+          boardRef.current !== board
+        ) {
+          return;
+        }
+
+        const final = scoreBotGameFromOwnership({
+          board: Array.from(board.engine.board()),
+          cols: board.engine.cols(),
+          rows: board.engine.rows(),
+          captures: {
+            black: board.engine.captures_black(),
+            white: board.engine.captures_white(),
+          },
+          ownership: result.analysis.ownership ?? [],
+        });
+
+        if (!final) {
+          throw new Error("AI estimate did not return ownership");
+        }
+
+        const finalResult = formatResult(final.score, KOMI);
+
+        finalResultRef.current = finalResult;
+        setStatus(finalResult);
+        board.setPassiveOverlay(final.overlay);
+      } catch (err) {
+        if (!disposed && requestId === scoringRequestIdRef.current) {
+          setError(err instanceof Error ? err.message : String(err));
+          setStatus("Scoring failed");
+        }
+      } finally {
+        if (!disposed && requestId === scoringRequestIdRef.current) {
+          scoringRef.current = false;
+          setCanHumanAct(false);
+        }
+      }
+    }
+
     async function maybeRequestBotMove() {
       const board = boardRef.current;
 
       if (
         !board ||
         disposed ||
+        finalResultRef.current ||
+        scoringRef.current ||
         suppressBotRef.current ||
         botThinkingRef.current ||
         board.engine.stage() === GameStage.TerritoryReview ||
@@ -422,11 +513,16 @@ function BotGame({
           return;
         }
 
-        const move = result.analysis.rootMoves[0]?.action;
+        const { move } = chooseBotMove({
+          rootMoves: result.analysis.rootMoves,
+          botStone: board.engine.current_turn_stone() as StoneChoice,
+          lastMoveWasPass: board.engine.last_move_was_pass(),
+          whiteScoreMean: result.analysis.scoreMean,
+        });
 
         applyingBotMoveRef.current = true;
         try {
-          if (!move || move.kind === "pass") {
+          if (move.kind === "pass") {
             board.pass();
           } else if (!board.playMove(move.col, move.row)) {
             throw new Error("Bot selected an illegal move");
@@ -608,6 +704,7 @@ function BotGame({
   }
 
   const compact = useMediaQuery("(max-width: 767px)");
+  const botGameLocked = scoringRef.current || !!finalResultRef.current;
   const controls = {
     nav: {
       atStart: true,
@@ -620,17 +717,19 @@ function BotGame({
       ? {
           onClick: undo,
           disabled:
-            botThinking || (boardRef.current?.engine.view_index() ?? 0) < 2,
+            botThinking ||
+            botGameLocked ||
+            (boardRef.current?.engine.view_index() ?? 0) < 2,
         }
       : undefined,
     pass: {
       onClick: pass,
-      disabled: !canHumanAct,
+      disabled: !canHumanAct || botGameLocked,
     },
     resign: {
       message: "Resign this bot game?",
       onConfirm: resign,
-      disabled: !canHumanAct || botThinking,
+      disabled: !canHumanAct || botThinking || botGameLocked,
     },
     confirmMove: pendingMcMove
       ? {
@@ -653,14 +752,14 @@ function BotGame({
           onClick: showAiSuggestion,
           active: aiSuggestActive,
           pending: aiSuggestPending,
-          disabled: botThinking,
+          disabled: botThinking || botGameLocked,
         }
       : undefined,
     estimate: settings.hints
       ? {
           onClick: toggleEstimate,
           active: estimateActive,
-          disabled: botThinking,
+          disabled: botThinking || botGameLocked,
         }
       : undefined,
     newGame: {

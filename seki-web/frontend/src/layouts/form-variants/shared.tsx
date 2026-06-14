@@ -34,14 +34,16 @@ export type GameSettingsSetter<T extends BaseGameSettings> = <
 ) => void;
 
 export function SettingsFieldset({
+  title,
   children,
 }: {
+  title?: string;
   children: ComponentChildren;
 }) {
   return (
     <fieldset>
       <legend>
-        <IconSettings /> Settings
+        <IconSettings /> {title || "Settings"}
       </legend>
       {children}
     </fieldset>

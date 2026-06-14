@@ -15,7 +15,7 @@ Extend `BoardController` with small public APIs:
   - Preserves board-owned props such as last-move and ko markers; the overlay
     only supplies paint/dim data.
   - Clears on navigation, reset, or when the position changes unless refreshed.
-- `playMove(col, row): boolean`
+- Done: `playMove(col, row): boolean`
   - Calls the same internal play path used by user clicks.
   - Triggers save, render, sounds/callbacks, and territory-review transition
     behavior consistently.
@@ -31,17 +31,16 @@ Current prerequisite status:
   stones, AI ownership estimate, and direct-policy worker calls in product UI.
 - Analysis has a clear-variations button using `IconTrash`; bot screen reset can
   follow the same "clear local state, rebuild board, clear AI cache" shape.
-- Bot screen still needs the public `playMove` API before the game loop should
-  be wired.
+- Bot screen uses the public `playMove` API for direct-policy moves.
 
 ## Route and Navigation
 
 Add a `/bot` SPA route:
 
-- Parse route in SPA router.
-- Lazy-load bot screen module like analysis/game screens.
-- Add navigation entry for non-bot users.
-- Keep bot accounts restricted like other play routes.
+- Done: parse route in SPA router.
+- Done: lazy-load bot screen module like analysis/game screens.
+- Done: add navigation entry for non-bot users.
+- Done: keep bot accounts restricted like other play routes.
 
 No server data endpoint is required for local bot play.
 
@@ -73,10 +72,15 @@ strength. Do not persist local bot games as server games.
    - Request bot `genmove`.
 4. On bot response:
    - Ignore if stale.
+   - If the human just passed and the AI score estimate says the bot is not
+     behind, pass instead of taking the greedy direct-policy move.
    - Validate by calling `BoardController.playMove()` or `pass()`.
    - Render latest winrate/ownership if included.
 5. On pass/pass territory-review stage:
-   - Use existing local territory review and scoring flow.
+   - Skip manual territory review for local bot games.
+   - Request an AI estimate, normalize ownership to black/neutral/white, compute
+     final local score, show the result in the game status, and keep New Game as
+     the primary next action.
 
 All reset, size change, color change, and route dispose paths must cancel active
 worker work and ignore stale responses.
@@ -96,11 +100,13 @@ controls only for:
 Do not add marketing copy or a landing page. The route opens directly into the
 practice board.
 
+Do not add SGF export to local bot practice v1.
+
 ## Acceptance Criteria
 
 - User can play a full local game against the bot.
 - Bot moves are validated through the board API.
-- Pass, territory review, final score, and SGF export work.
+- Pass/pass final scoring works without manual territory review.
 - AI ownership overlay does not block play.
 - Reset/route changes cancel worker work and do not apply stale moves.
 - No server game, ranking, notification, or presentation state is touched.
@@ -110,5 +116,14 @@ practice board.
 - Frontend tests for `/bot` route parsing and lazy screen loading.
 - Unit tests for `BoardController.playMove()` and passive overlay behavior.
 - State tests for game loop stale response handling, reset, and cancel.
-- Browser smoke test full short game, pass/pass scoring, SGF export, model status,
-  and overlay toggle.
+- Browser smoke test full short game, pass/pass scoring, model status, and
+  overlay toggle.
+
+Current next tests:
+
+- Stale direct-policy response ignored after reset/dispose.
+- Bot-black opening request does not race board initialization.
+- Pass/pass skips local territory review and shows AI-finalized score.
+- Takeback removes the bot reply and returns to the human turn.
+- Browser smoke test short game, pass/pass scoring, model status, hints,
+  estimate, reset, and route disposal.

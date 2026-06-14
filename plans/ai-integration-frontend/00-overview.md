@@ -20,8 +20,7 @@ Full practice mode:
 - Local game against a bot on the existing board UI.
 - Strength presets backed by visit counts, with mobile-safe defaults.
 - NN ownership estimate and winrate display for the current position.
-- Pass, territory review, final scoring, and SGF export using existing board
-  behavior.
+- Pass/pass final scoring without manual territory review.
 - Offline reuse after the first model download.
 
 Out of scope for v1:
@@ -30,6 +29,7 @@ Out of scope for v1:
 - Ranked or server-persisted bot games.
 - Pondering on mobile by default.
 - Importing arbitrary user-provided model files.
+- SGF export from local bot practice.
 
 ## Ordered Plan Set
 
@@ -64,8 +64,8 @@ The browser AI path has four layers:
 
 The visible board remains the authority for what the user sees. Every bot move
 returned by the worker is replayed through a public board method so normal
-validation, rendering, sounds, storage, pass handling, territory review, scoring,
-and SGF export remain consistent.
+validation, rendering, sounds, storage, pass handling, and final scoring
+and local state remain consistent.
 
 ## Shared Defaults
 
