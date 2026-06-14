@@ -12,21 +12,25 @@ import {
 import { GameControls } from "../components/game-controls";
 import { GameStatus } from "../components/game-status";
 import {
+  CapturesBlack,
+  CapturesWhite,
   IconBot,
   IconCheck,
+  IconGrid3x3,
   IconSpinner,
   StoneBlack,
   StoneWhite,
 } from "../components/icons";
+import { PlayerPanel } from "../components/player-panel";
 import { UIControls } from "../components/ui-controls";
-import { UserLabel } from "../components/user-label";
+import { buildPlayerPanels } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
-import { GameStage, UserData } from "../game/types";
+import { GameStage, UserData, type ScoreData } from "../game/types";
 import { readUserData } from "../game/util";
 import { createBoard, ensureWasm, type Board } from "../goban/create-board";
 import type { GhostStoneData, HeatData, Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
-import { formatResult } from "../utils/format";
+import { formatN, formatResult } from "../utils/format";
 import { useMediaQuery } from "../utils/media-query";
 import {
   createMoveConfirm,
@@ -261,6 +265,10 @@ function BotGame({
   const [aiSuggestActive, setAiSuggestActive] = useState(false);
   const [estimateActive, setEstimateActive] = useState(false);
   const [pendingMcMove, setPendingMcMove] = useState(false);
+  const [captures, setCaptures] = useState({ black: 0, white: 0 });
+  const [finalScore, setFinalScore] = useState<ScoreData | undefined>(
+    undefined,
+  );
 
   const humanStone = settings.color === "black" ? 1 : -1;
 
@@ -284,6 +292,8 @@ function BotGame({
       setError(undefined);
       setStatus("Loading board");
       setCanHumanAct(false);
+      setCaptures({ black: 0, white: 0 });
+      setFinalScore(undefined);
       clearHintOverlay(false, false);
 
       await ensureWasm();
@@ -404,6 +414,10 @@ function BotGame({
       const stage = board.engine.stage();
       const turn = board.engine.current_turn_stone() as StoneChoice;
 
+      setCaptures({
+        black: board.engine.captures_black(),
+        white: board.engine.captures_white(),
+      });
       setCurrentTurn(turn);
       setCanHumanAct(canHumanPlay());
 
@@ -462,6 +476,7 @@ function BotGame({
         const finalResult = formatResult(final.score, KOMI);
 
         finalResultRef.current = finalResult;
+        setFinalScore(final.score);
         setStatus(finalResult);
         board.setPassiveOverlay(final.overlay);
       } catch (err) {
@@ -705,6 +720,23 @@ function BotGame({
 
   const compact = useMediaQuery("(max-width: 767px)");
   const botGameLocked = scoringRef.current || !!finalResultRef.current;
+  const panelScores = buildPlayerPanels({
+    komi: KOMI,
+    captures,
+    score: finalScore,
+  });
+  const blackPanel = {
+    ...panelScores.black,
+    stone: "black" as const,
+    strong: currentTurn === 1 && !botGameLocked,
+  };
+  const whitePanel = {
+    ...panelScores.white,
+    stone: "white" as const,
+    strong: currentTurn === -1 && !botGameLocked,
+  };
+  const topPanel = humanStone === 1 ? whitePanel : blackPanel;
+  const bottomPanel = humanStone === 1 ? blackPanel : whitePanel;
   const controls = {
     nav: {
       atStart: true,
@@ -774,15 +806,12 @@ function BotGame({
       gobanStyle={`aspect-ratio: ${BOARD_SIZE}/${BOARD_SIZE}`}
       playerTop={
         <BotPlayer
-          label={humanStone === 1 ? "white" : "black"}
+          {...topPanel}
           thinking={botThinking && currentTurn !== humanStone}
         />
       }
       playerBottom={
-        <UserLabel
-          user={user!}
-          options={{ stone: humanStone === 1 ? "black" : "white" }}
-        />
+        <PlayerPanel {...bottomPanel} userData={user} rank={user?.rank} />
       }
       status={
         <GameStatus text={status} warn={!!error}>
@@ -815,20 +844,48 @@ function BotGame({
 }
 
 function BotPlayer({
-  label,
+  stone,
+  captures,
+  komi,
+  territory,
+  strong,
   thinking,
 }: {
-  label: "black" | "white";
+  stone: "black" | "white";
+  captures: number;
+  komi?: number;
+  territory?: number;
+  strong?: boolean;
   thinking: boolean;
 }) {
   return (
     <>
       <span class="player-name-group">
         <span class="stone-icon">
-          {label === "black" ? <StoneBlack /> : <StoneWhite />}
+          {stone === "black" ? <StoneBlack /> : <StoneWhite />}
         </span>
-        <span class="user-label">
+        <span class={`user-label${strong ? " active-turn" : ""}`}>
           {thinking ? <IconSpinner /> : <IconBot />} Seki Bot
+        </span>
+      </span>
+      <span class="player-clock"></span>
+      <span class="player-captures">
+        {territory != null && (
+          <>
+            {territory}
+            <span class="territory-icon">
+              <IconGrid3x3 title="Territory" />
+            </span>
+          </>
+        )}
+        {formatN(captures)}
+        {komi ? `+${formatN(komi)}` : ""}
+        <span class="captures-icon">
+          {stone === "black" ? (
+            <CapturesBlack title="Captures" />
+          ) : (
+            <CapturesWhite title="Captures" />
+          )}
         </span>
       </span>
     </>
