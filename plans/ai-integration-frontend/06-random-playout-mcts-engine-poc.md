@@ -10,6 +10,12 @@ This bot will be weaker than NN-guided MCTS. The target is useful practice on
 small boards, especially 9x9, with simple code that can later accept NN policy
 and value guidance.
 
+Current status: the Rust graph-search path has progressed beyond random
+playouts. It supports external batched leaf policy/value evaluation from the
+frontend ONNX worker and optional deterministic pass-alive area value blending.
+It remains a PoC/search-lab path until tap-time latency, cancellation, and UI
+settings are productized.
+
 ## Inputs
 
 - Existing `go-engine` rules, legal move checks, pass handling, and scoring.
@@ -172,6 +178,10 @@ For NN later:
 - Current Rust/WASM status: root NN policy logits can seed the root priors via
   `RootPolicyRolloutEvaluator`; child/leaf expansion still uses rollout
   fallback until the worker owns an async batched evaluator loop.
+- Current Rust/WASM status: `ExternalMctsSearch` requests root and leaf
+  evaluations from the worker. The frontend ONNX path batches leaf positions and
+  returns policy/value. Diagnostics include model eval counts and dead-stone /
+  pass-alive value-blend deltas.
 
 ## Phase 2 — Shared Playout Primitives
 
@@ -288,7 +298,8 @@ Rules:
 - Current Rust status: active-path cycle guard exists, following KataGo's
   `graphPath` approach at a single-thread level. Selection skips children
   already on the path; if every child cycles, the chosen cycle edge is counted
-  and the playout terminates with neutral value. Batching and WASM API are still
+  and the playout terminates with neutral value. WASM external-search API and
+  frontend batching exist; pondering and product cancellation UX are still
   pending.
 
 Cycle handling:

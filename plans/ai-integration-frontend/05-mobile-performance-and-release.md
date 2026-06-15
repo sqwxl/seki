@@ -59,6 +59,7 @@ Mobile defaults:
 - Any new dependencies reviewed for dependency tree size and browser payload.
 - Build config keeps AI/TF.js out of the initial app bundle where possible.
 - Static model assets have provenance and checksums.
+- Service worker preserves `seki-ai-models-v1` across activation.
 - No server API, DB migration, or rank path is affected.
 
 ## Test Plan
@@ -71,7 +72,7 @@ Mobile defaults:
   - Cached reload.
   - Offline cached reload.
   - Full local bot game.
-  - SGF export.
+  - Pass/pass final scoring.
 - Android/WebView smoke:
   - First download.
   - Cached reload.

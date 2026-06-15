@@ -68,6 +68,10 @@ Current status:
 - The product path currently uses the `direct` analysis preset: one legal-masked
   policy/value evaluation with the 9x9 KataGo model. Leaf MCTS remains a
   pondering/search path because 64-visit tap-to-move MCTS is too slow on Android.
+- Rust MCTS leaf-value blending can now use deterministic KataGo-style
+  pass-alive area scoring from `go-engine::territory::calculate_area`.
+  This is area-style evaluation for search, not a direct replacement for the
+  Japanese dead-stone list used by territory review.
 - Analysis controls include a clear-variations button using `IconTrash`.
   Dedicated analysis removes stored tree/base/finalized/node data for the
   current board size and rebuilds the board. Live-game analysis preserves the
@@ -85,6 +89,8 @@ Follow-up notes:
   moves while the user is in local analysis. Incoming moves update the live
   main-line reference and refresh active analysis modes. In live view, incoming
   moves still dismiss estimate and return to the live board.
+- Pass-alive and independent-life area are implemented in `go-engine`, but not
+  yet exposed through WASM for frontend diagnostics or overlays.
 
 ## Feature Extraction
 

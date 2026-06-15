@@ -3,8 +3,8 @@
 ## Goal
 
 Turn the PoC inference path into a reusable frontend AI runtime. This step owns
-model manifest loading, IndexedDB cache behavior, worker lifecycle, cancellation,
-stale response handling, and user-facing error states.
+model manifest loading, browser Cache API behavior, worker lifecycle,
+cancellation, stale response handling, and user-facing error states.
 
 Do not build MCTS or the bot screen yet. Use fixed-position inference from plan
 01 as the runtime's first functional path.
@@ -14,8 +14,8 @@ Do not build MCTS or the bot screen yet. Use fixed-position inference from plan
 Keep runtime code isolated under a frontend `ai/` module:
 
 - `manifest` loader and validator.
-- IndexedDB model/artifact cache.
-- TF.js backend selection and warmup.
+- Cache API model/artifact cache.
+- ONNX Runtime backend selection and warmup. TF.js remains PoC-only.
 - Worker message types.
 - Worker implementation.
 - Main-thread worker client.
@@ -26,18 +26,18 @@ or AI estimate screen asks for it.
 
 ## Model Cache Behavior
 
-Use IndexedDB for downloaded model artifacts and metadata:
+Use the browser Cache API for downloaded model artifacts:
 
-- Cache by model id and manifest version.
-- Treat version mismatch as a cache miss.
-- Keep enough metadata to show active model id, source version, stored bytes, and
-  last-loaded time.
+- Cache by model artifact URL under `seki-ai-models-v1`.
+- Treat changed artifact URLs as cache misses.
+- Keep manifest metadata available to show active model id, source version, and
+  declared bytes.
 - Verify downloaded artifacts against the manifest checksum when available.
 - Support clearing one model or all AI models.
 
 Failure states must be explicit:
 
-- Browser has no IndexedDB.
+- Browser has no Cache API.
 - Storage quota exceeded.
 - Offline and required model is missing.
 - Manifest fetch failed.
@@ -88,12 +88,21 @@ later surfaces this in model/cache status.
 ## Acceptance Criteria
 
 - AI runtime loads only on demand.
-- A caller can initialize the worker, run fixed-position `estimate`, cancel it,
-  and dispose the worker.
+- A caller can initialize the worker, run fixed-position `analyze-position`, and
+  ignore stale responses after cancellation/dispose.
 - Cached model artifacts are reused offline after first download.
 - Clearing model cache forces a clean re-download.
 - Every known failure state maps to a stable error code and readable message.
 - Stale responses are ignored without changing visible app state.
+
+## Current Gaps
+
+- The model cache exists, but service-worker activation must preserve
+  `seki-ai-models-v1`; otherwise updates can delete downloaded models.
+- The product worker wrapper is still minimal. It uses request ids and stale
+  response guards at call sites, but not a full reusable worker-client class with
+  explicit cancel/timeout/error-code semantics.
+- Manifest checksum verification and clear-model UI are still pending.
 
 ## Test Plan
 

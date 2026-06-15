@@ -2,9 +2,12 @@
 
 ## Intent
 
-Add client-side bot gameplay for practice. The bot runs NN-guided MCTS in the
-browser using preconverted KataGo-derived model artifacts. Model artifacts are
-fetched once, cached in IndexedDB, and reused offline.
+Add client-side bot gameplay for practice. The bot runs browser-local neural
+network inference using preconverted KataGo-derived model artifacts. Current
+product code uses direct legal-masked policy/value for tap-time bot moves;
+NN-guided MCTS is implemented as a worker/Rust-WASM search path but remains a
+tuning path, not the default bot move path. Model artifacts are fetched once,
+cached in the browser Cache API, and reused offline.
 
 Client-side bot games are local only. They never affect player rank, server game
 history, notifications, or shared presentation state.
@@ -18,9 +21,11 @@ legal play, ko, pass handling, and final scoring.
 Full practice mode:
 
 - Local game against a bot on the existing board UI.
-- Strength presets backed by visit counts, with mobile-safe defaults.
+- Direct-policy bot moves for v1, with MCTS retained for slower stronger modes
+  and future pondering.
 - NN ownership estimate and winrate display for the current position.
-- Pass/pass final scoring without manual territory review.
+- Pass/pass final scoring without manual territory review, using engine
+  dead-stone detection plus Japanese territory/capture scoring.
 - Offline reuse after the first model download.
 
 Out of scope for v1:
@@ -78,7 +83,9 @@ and local state remain consistent.
 
 ## Global Open Questions
 
-- Exact default model, decided by the inference PoC.
+- Default product model is currently `kata9x9-b18c384nbt-20231025`.
 - Required Android/WebView target device, needed for measurable acceptance.
 - Whether desktop-only higher strength presets are worth exposing after mobile
   performance is proven.
+- How to present model ownership, engine Japanese dead-stone scoring, and
+  KataGo-style pass-alive area without implying they are the same scoring rule.

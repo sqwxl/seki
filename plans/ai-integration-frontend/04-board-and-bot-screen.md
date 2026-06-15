@@ -78,9 +78,9 @@ strength. Do not persist local bot games as server games.
    - Render latest winrate/ownership if included.
 5. On pass/pass territory-review stage:
    - Skip manual territory review for local bot games.
-   - Request an AI estimate, normalize ownership to black/neutral/white, compute
-     final local score, show the result in the game status, and keep New Game as
-     the primary next action.
+   - Compute final local score through `go-engine`: detect dead stones, estimate
+     Japanese territory, add captures/dead stones/komi, show the result in the
+     game status, and keep New Game as the primary next action.
 
 All reset, size change, color change, and route dispose paths must cancel active
 worker work and ignore stale responses.
@@ -111,6 +111,18 @@ Do not add SGF export to local bot practice v1.
 - Reset/route changes cancel worker work and do not apply stale moves.
 - No server game, ranking, notification, or presentation state is touched.
 
+## Current Status
+
+- `/bot` exists as a local-only 9x9 practice screen.
+- Bot start and bot genmove are gated by the model-download dialog.
+- Bot moves use direct policy/value analysis with a pass-after-opponent-pass
+  heuristic.
+- AI hint overlay uses heatmap and ghost stones from legal root moves.
+- Estimate toggle currently uses the board/engine estimate path. It does not
+  yet request an AI ownership overlay.
+- Pass/pass final scoring uses engine dead-stone detection and Japanese score.
+- Visible model/backend status and clear downloaded model controls are pending.
+
 ## Test Plan
 
 - Frontend tests for `/bot` route parsing and lazy screen loading.
@@ -123,7 +135,7 @@ Current next tests:
 
 - Stale direct-policy response ignored after reset/dispose.
 - Bot-black opening request does not race board initialization.
-- Pass/pass skips local territory review and shows AI-finalized score.
+- Pass/pass skips local territory review and shows engine-finalized score.
 - Takeback removes the bot reply and returns to the human turn.
 - Browser smoke test short game, pass/pass scoring, model status, hints,
   estimate, reset, and route disposal.
