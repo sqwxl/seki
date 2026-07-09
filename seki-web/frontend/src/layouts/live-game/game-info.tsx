@@ -1,9 +1,4 @@
-import {
-  gamePhase,
-  toAnalysis,
-  toLive,
-  toPresentation,
-} from "../../game/phase";
+import { gameMode, toAnalysis, toLive, toPresentation } from "../../game/mode";
 import {
   analysisMode,
   board,
@@ -72,9 +67,9 @@ export function buildWebSocketDeps(params: {
       if (wasPresenter) {
         doExitAnalysis();
       } else {
-        const cur = gamePhase.value;
+        const cur = gameMode.value;
 
-        if (cur.phase === "presentation" && cur.role === "local-analysis") {
+        if (cur.mode === "presentation" && cur.role === "local-analysis") {
           toAnalysis();
         } else {
           toLive();

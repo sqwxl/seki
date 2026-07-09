@@ -5,7 +5,7 @@ import {
   requiresAccessTokenToJoin,
   requiresInviteTokenToJoin,
 } from "../access";
-import { gamePhase } from "../phase";
+import { gameMode } from "../mode";
 import {
   black,
   boardFinalized,
@@ -29,7 +29,7 @@ import { GameStage } from "../types";
 import type { LiveGameStatusState } from "./types";
 
 export const liveGameStatusState = computed((): LiveGameStatusState => {
-  const phase = gamePhase.value;
+  const mode = gameMode.value;
   const stage = gameStage.value;
   const stone = playerStone.value;
   const isPlayer = stone !== 0;
@@ -53,8 +53,8 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
   const hasOpenSlot = !opponent.value && !(b && w);
   const challengee = opponent.value ?? (b?.id !== props.creator_id ? b : w);
   const isReview = stage === GameStage.TerritoryReview;
-  const inEstimate = phase.phase === "estimate";
-  const inPresentation = phase.phase === "presentation";
+  const inEstimate = mode.mode === "estimate";
+  const inPresentation = mode.mode === "presentation";
   const onFinalized = boardFinalized.value;
   const boardNav = navState.value;
 

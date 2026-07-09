@@ -4,42 +4,42 @@ import {
   estimateMode,
   exitEstimate,
   exitPresentation,
-  gamePhase,
-  resetPhase,
+  gameMode,
+  resetMode,
   toAnalysis,
   toEstimate,
   toLive,
   toPresentation,
   toPresentationLocalAnalysis,
   toPresentationSyncedViewer,
-} from "../game/phase";
+} from "../game/mode";
 
 beforeEach(() => {
-  resetPhase();
+  resetMode();
 });
 
-describe("GamePhase transitions", () => {
-  it("starts in live phase", () => {
-    expect(gamePhase.value).toEqual({ phase: "live" });
+describe("GameMode transitions", () => {
+  it("starts in live mode", () => {
+    expect(gameMode.value).toEqual({ mode: "live" });
   });
 
   it("live -> analysis", () => {
     toAnalysis();
-    expect(gamePhase.value).toEqual({ phase: "analysis" });
+    expect(gameMode.value).toEqual({ mode: "analysis" });
     expect(analysisMode.value).toBe(true);
   });
 
   it("analysis -> live", () => {
     toAnalysis();
     toLive();
-    expect(gamePhase.value).toEqual({ phase: "live" });
+    expect(gameMode.value).toEqual({ mode: "live" });
     expect(analysisMode.value).toBe(false);
   });
 
   it("live -> estimate (fromAnalysis: false)", () => {
     toEstimate();
-    expect(gamePhase.value).toEqual({
-      phase: "estimate",
+    expect(gameMode.value).toEqual({
+      mode: "estimate",
       fromAnalysis: false,
     });
     expect(estimateMode.value).toBe(true);
@@ -48,8 +48,8 @@ describe("GamePhase transitions", () => {
   it("analysis -> estimate (fromAnalysis: true)", () => {
     toAnalysis();
     toEstimate();
-    expect(gamePhase.value).toEqual({
-      phase: "estimate",
+    expect(gameMode.value).toEqual({
+      mode: "estimate",
       fromAnalysis: true,
     });
     expect(estimateMode.value).toBe(true);
@@ -59,7 +59,7 @@ describe("GamePhase transitions", () => {
     toAnalysis();
     toEstimate();
     exitEstimate();
-    expect(gamePhase.value).toEqual({ phase: "analysis" });
+    expect(gameMode.value).toEqual({ mode: "analysis" });
     expect(estimateMode.value).toBe(false);
     expect(analysisMode.value).toBe(true);
   });
@@ -67,27 +67,27 @@ describe("GamePhase transitions", () => {
   it("estimate -> returns to live when not fromAnalysis", () => {
     toEstimate();
     exitEstimate();
-    expect(gamePhase.value).toEqual({ phase: "live" });
+    expect(gameMode.value).toEqual({ mode: "live" });
     expect(estimateMode.value).toBe(false);
   });
 
   it("ignores invalid transitions: analysis from estimate", () => {
     toEstimate();
     toAnalysis(); // should be ignored
-    expect(gamePhase.value.phase).toBe("estimate");
+    expect(gameMode.value.mode).toBe("estimate");
   });
 
   it("ignores invalid transitions: estimate from presentation", () => {
     toPresentation("synced-viewer");
     toEstimate(); // should be ignored
-    expect(gamePhase.value.phase).toBe("presentation");
+    expect(gameMode.value.mode).toBe("presentation");
   });
 
   describe("presentation", () => {
     it("live -> presentation(synced-viewer)", () => {
       toPresentation("synced-viewer");
-      expect(gamePhase.value).toEqual({
-        phase: "presentation",
+      expect(gameMode.value).toEqual({
+        mode: "presentation",
         role: "synced-viewer",
       });
       expect(analysisMode.value).toBe(false);
@@ -95,8 +95,8 @@ describe("GamePhase transitions", () => {
 
     it("live -> presentation(presenter)", () => {
       toPresentation("presenter");
-      expect(gamePhase.value).toEqual({
-        phase: "presentation",
+      expect(gameMode.value).toEqual({
+        mode: "presentation",
         role: "presenter",
       });
       expect(analysisMode.value).toBe(true);
@@ -105,8 +105,8 @@ describe("GamePhase transitions", () => {
     it("synced-viewer -> local-analysis", () => {
       toPresentation("synced-viewer");
       toPresentationLocalAnalysis();
-      expect(gamePhase.value).toEqual({
-        phase: "presentation",
+      expect(gameMode.value).toEqual({
+        mode: "presentation",
         role: "local-analysis",
       });
       expect(analysisMode.value).toBe(true);
@@ -116,8 +116,8 @@ describe("GamePhase transitions", () => {
       toPresentation("synced-viewer");
       toPresentationLocalAnalysis();
       toPresentationSyncedViewer();
-      expect(gamePhase.value).toEqual({
-        phase: "presentation",
+      expect(gameMode.value).toEqual({
+        mode: "presentation",
         role: "synced-viewer",
       });
       expect(analysisMode.value).toBe(false);
@@ -126,15 +126,15 @@ describe("GamePhase transitions", () => {
     it("exitPresentation resets to live", () => {
       toPresentation("presenter");
       exitPresentation();
-      expect(gamePhase.value).toEqual({ phase: "live" });
+      expect(gameMode.value).toEqual({ mode: "live" });
       expect(analysisMode.value).toBe(false);
     });
 
     it("ignores local-analysis from presenter", () => {
       toPresentation("presenter");
       toPresentationLocalAnalysis(); // should be ignored
-      expect(gamePhase.value).toEqual({
-        phase: "presentation",
+      expect(gameMode.value).toEqual({
+        mode: "presentation",
         role: "presenter",
       });
     });

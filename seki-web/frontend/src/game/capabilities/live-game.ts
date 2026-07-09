@@ -1,5 +1,5 @@
 import { computed } from "@preact/signals";
-import { gamePhase } from "../phase";
+import { gameMode } from "../mode";
 import {
   currentTurn,
   gameStage,
@@ -25,7 +25,7 @@ import type { UiCapabilities } from "./types";
  * live-game capability shape. Keep new behavior in the focused selectors above.
  */
 export const liveGameCapabilities = computed((): UiCapabilities => {
-  const phase = gamePhase.value;
+  const mode = gameMode.value;
   const stage = gameStage.value;
   const stone = playerStone.value;
   const isPlayer = stone !== 0;
@@ -38,10 +38,10 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     stage === GameStage.Declined;
   const terr = territory.value;
   const settled = settledTerritory.value;
-  const inAnalysis = isAnalysisCapablePhase(phase);
-  const inEstimate = phase.phase === "estimate";
+  const inAnalysis = isAnalysisCapablePhase(mode);
+  const inEstimate = mode.mode === "estimate";
   const isSyncedViewer =
-    phase.phase === "presentation" && phase.role === "synced-viewer";
+    mode.mode === "presentation" && mode.role === "synced-viewer";
   const isMyTurn = isPlayer && currentTurn.value === stone && isPlay;
 
   return {
@@ -57,7 +57,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     canPlayMove:
       inAnalysis || (isPlayer && !isDone && !isChallenge && isMyTurn),
     showGhostStone: !inAnalysis && !inEstimate && moveConfirmEnabled.value,
-    territoryOverlay: deriveTerritoryOverlay(phase, stage, terr, settled),
+    territoryOverlay: deriveTerritoryOverlay(mode, stage, terr, settled),
     boardAspectRatio: `${gameState.value.cols}/${gameState.value.rows}`,
 
     showChat: true,

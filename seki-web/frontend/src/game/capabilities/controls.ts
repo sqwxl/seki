@@ -1,5 +1,5 @@
 import { computed } from "@preact/signals";
-import { gamePhase } from "../phase";
+import { gameMode } from "../mode";
 import {
   allowUndo,
   boardFinalized,
@@ -27,7 +27,7 @@ import { isAnalysisCapablePhase } from "./build-overlay";
 import type { LiveGameControlsState } from "./types";
 
 export const liveGameControlsState = computed((): LiveGameControlsState => {
-  const phase = gamePhase.value;
+  const mode = gameMode.value;
   const stage = gameStage.value;
   const stone = playerStone.value;
   const isPlayer = stone !== 0;
@@ -45,12 +45,12 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
   const terr = territory.value;
   const settled = settledTerritory.value;
   const oppDisconnected = opponentDisconnected.value;
-  const inAnalysis = isAnalysisCapablePhase(phase);
-  const inEstimate = phase.phase === "estimate";
-  const estimateFromAnalysis = phase.phase === "estimate" && phase.fromAnalysis;
-  const inPresentation = phase.phase === "presentation";
+  const inAnalysis = isAnalysisCapablePhase(mode);
+  const inEstimate = mode.mode === "estimate";
+  const estimateFromAnalysis = mode.mode === "estimate" && mode.fromAnalysis;
+  const inPresentation = mode.mode === "presentation";
   const isSyncedViewer =
-    phase.phase === "presentation" && phase.role === "synced-viewer";
+    mode.mode === "presentation" && mode.role === "synced-viewer";
   const modeActive = inAnalysis || inEstimate;
   const undoState = undoRequest.value;
   const myId = currentUserId.value || undefined;

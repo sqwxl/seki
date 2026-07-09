@@ -13,7 +13,7 @@ import {
   currentTurn,
   currentUserId,
   gameFlashMessage,
-  gamePhase,
+  gameMode,
   gameStage,
   initialProps,
   pendingAction,
@@ -107,7 +107,7 @@ function resetSignals() {
   resetGameRuntimeState();
   resetMovesTracker([]);
   batch(() => {
-    gamePhase.value = { phase: "live" };
+    gameMode.value = { mode: "live" };
     gameStage.value = GameStage.Unstarted;
     currentTurn.value = null;
     currentUserId.value = 0;
@@ -396,7 +396,7 @@ describe("board move syncing", () => {
     ];
 
     gameStage.value = GameStage.BlackToPlay;
-    gamePhase.value = { phase: "analysis" };
+    gameMode.value = { mode: "analysis" };
 
     handleGameMessage(stateMessage(nextMoves), buildDeps());
 
@@ -404,7 +404,7 @@ describe("board move syncing", () => {
       JSON.stringify(nextMoves),
     );
     expect(mockBoard.render).toHaveBeenCalled();
-    expect(gamePhase.value).toEqual({ phase: "analysis" });
+    expect(gameMode.value).toEqual({ mode: "analysis" });
   });
 
   it("syncs same-length mainline replacements", () => {
@@ -418,7 +418,7 @@ describe("board move syncing", () => {
 
     resetMovesTracker(oldMoves);
     gameStage.value = GameStage.BlackToPlay;
-    gamePhase.value = { phase: "analysis" };
+    gameMode.value = { mode: "analysis" };
 
     handleGameMessage(stateMessage(nextMoves), buildDeps());
 

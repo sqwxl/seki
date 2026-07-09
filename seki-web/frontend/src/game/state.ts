@@ -125,7 +125,7 @@ export const uiNowMs = signal(Date.now());
 // ---------------------------------------------------------------------------
 export const mobileTab = signal<"board" | "chat" | "analysis">("board");
 
-// analysisMode and estimateMode are derived from gamePhase (see below)
+// analysisMode and estimateMode are derived from gameMode (see below)
 
 // ---------------------------------------------------------------------------
 // Presentation state (post-game collaborative analysis)
@@ -563,6 +563,6 @@ export function clearPresentation(): void {
   });
 }
 
-// Re-export phase for convenience
-export { analysisMode, estimateMode, gamePhase } from "./phase";
-export type { GamePhase } from "./phase";
+// Re-export mode for convenience
+export { analysisMode, estimateMode, gameMode } from "./mode";
+export type { GameMode } from "./mode";

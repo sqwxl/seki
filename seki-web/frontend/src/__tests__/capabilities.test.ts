@@ -5,12 +5,12 @@ import {
   liveGameStatusState,
 } from "../game/capabilities";
 import {
-  resetPhase,
+  resetMode,
   toAnalysis,
   toEstimate,
   toPresentation,
   toPresentationLocalAnalysis,
-} from "../game/phase";
+} from "../game/mode";
 import {
   allowUndo,
   black,
@@ -140,7 +140,7 @@ function resetAllSignals() {
     boardFinalized.value = false;
   });
   wsConnected.value = true;
-  resetPhase();
+  resetMode();
 }
 
 /** Set up a standard in-progress game where we are black and it's black's turn. */
@@ -586,7 +586,7 @@ describe("navigation", () => {
     expect(caps().canNavigate).toBe(true);
   });
 
-  it("enabled in live phase", () => {
+  it("enabled in live mode", () => {
     setupPlayingGame();
     expect(caps().canNavigate).toBe(true);
   });
@@ -1490,7 +1490,7 @@ describe("estimate territory overlay", () => {
     settledTerritory.value = settled;
     toAnalysis();
     toEstimate();
-    // phase is estimate with fromAnalysis=true => no overlay (WASM handles it)
+    // mode is estimate with fromAnalysis=true => no overlay (WASM handles it)
     expect(caps().territoryOverlay).toBeUndefined();
   });
 });

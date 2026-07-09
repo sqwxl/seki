@@ -8,17 +8,17 @@ import { liveGameControlsState } from "../game/capabilities";
 import { createGameChannel } from "../game/channel";
 import type { ClockState } from "../game/clock";
 import { handleGameMessage, resetMovesTracker } from "../game/messages";
-import { createNotificationState } from "../game/notifications";
 import {
-  gamePhase,
+  gameMode,
   exitEstimate as phaseExitEstimate,
-  resetPhase,
+  resetMode,
   toAnalysis,
   toEstimate,
   toLive,
   toPresentationLocalAnalysis,
   toPresentationSyncedViewer,
-} from "../game/phase";
+} from "../game/mode";
+import { createNotificationState } from "../game/notifications";
 import { playPassSound, playStoneSound } from "../game/sound";
 import {
   analysisMode,
@@ -116,7 +116,7 @@ export function liveGame(
   console.debug("InitialGameProps", initialProps);
   console.debug("UserData", userData, "playerStone", pStone);
 
-  resetPhase();
+  resetMode();
   resetGameRuntimeState();
   initGameState(gameId, userData?.id ?? 0, pStone, initialProps);
 
@@ -267,9 +267,9 @@ export function liveGame(
     restorePosition = true,
     nodeId,
   }: { restorePosition?: boolean; nodeId?: number } = {}) {
-    const cur = gamePhase.value;
+    const cur = gameMode.value;
     const alreadyAnalysis = analysisMode.value;
-    const carryEstimate = cur.phase === "estimate" && !cur.fromAnalysis;
+    const carryEstimate = cur.mode === "estimate" && !cur.fromAnalysis;
     clearPendingMove();
 
     if (carryEstimate) {
@@ -277,7 +277,7 @@ export function liveGame(
     }
 
     if (!alreadyAnalysis) {
-      if (cur.phase === "presentation" && cur.role === "synced-viewer") {
+      if (cur.mode === "presentation" && cur.role === "synced-viewer") {
         toPresentationLocalAnalysis();
       } else {
         toAnalysis();
@@ -328,14 +328,14 @@ export function liveGame(
   function exitAnalysis({
     renderMode = "full",
   }: { renderMode?: "full" | "board-only" } = {}) {
-    if (gamePhase.value.phase === "estimate") {
+    if (gameMode.value.mode === "estimate") {
       doExitEstimate();
     }
 
-    const cur = gamePhase.value;
+    const cur = gameMode.value;
     const wasAnalysis = analysisMode.value;
     const carryEstimate =
-      analysisEstimateActive() && cur.phase !== "presentation";
+      analysisEstimateActive() && cur.mode !== "presentation";
 
     if (!wasAnalysis && !carryEstimate) {
       return;
@@ -349,7 +349,7 @@ export function liveGame(
     clearPendingMove();
     saveAnalysisIfChanged();
 
-    if (cur.phase === "presentation" && cur.role === "local-analysis") {
+    if (cur.mode === "presentation" && cur.role === "local-analysis") {
       toPresentationSyncedViewer();
 
       if (lastPresentationSnapshot && board.value) {
@@ -534,9 +534,9 @@ export function liveGame(
   }
 
   function doExitEstimate() {
-    const cur = gamePhase.value;
+    const cur = gameMode.value;
 
-    if (cur.phase !== "estimate") {
+    if (cur.mode !== "estimate") {
       return;
     }
 
@@ -1109,7 +1109,7 @@ export function liveGame(
     territoryCountdown.interval && clearInterval(territoryCountdown.interval);
     clockState.interval && clearInterval(clockState.interval);
     board.value?.destroy();
-    resetPhase();
+    resetMode();
     resetGameRuntimeState();
     render(null, root);
   };

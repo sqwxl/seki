@@ -1,6 +1,6 @@
 import type { TerritoryOverlay } from "../../goban/create-board";
 import type { Point } from "../../goban/types";
-import type { GamePhase } from "../phase";
+import type { GameMode } from "../mode";
 import type { SettledTerritoryData, TerritoryData } from "../types";
 import { GameStage } from "../types";
 
@@ -16,7 +16,7 @@ export function buildTerritoryOverlay(data: {
 }
 
 export function deriveTerritoryOverlay(
-  phase: GamePhase,
+  mode: GameMode,
   stage: GameStage,
   terr: TerritoryData | undefined,
   settled: SettledTerritoryData | undefined,
@@ -26,17 +26,17 @@ export function deriveTerritoryOverlay(
   }
 
   // Settled territory overlay for estimate mode on finished games (not in analysis — WASM handles that)
-  if (phase.phase === "estimate" && !phase.fromAnalysis && settled) {
+  if (mode.mode === "estimate" && !mode.fromAnalysis && settled) {
     return buildTerritoryOverlay(settled);
   }
 
   return;
 }
 
-export function isAnalysisCapablePhase(phase: GamePhase): boolean {
+export function isAnalysisCapablePhase(mode: GameMode): boolean {
   return (
-    phase.phase === "analysis" ||
-    (phase.phase === "presentation" &&
-      (phase.role === "presenter" || phase.role === "local-analysis"))
+    mode.mode === "analysis" ||
+    (mode.mode === "presentation" &&
+      (mode.role === "presenter" || mode.role === "local-analysis"))
   );
 }
