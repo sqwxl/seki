@@ -206,6 +206,20 @@
   }
 }
 
+.controls-nav-confirm-overlay {
+  position: relative;
+  display: inline-flex;
+}
+
+.controls-nav-confirm-overlay .invisible {
+  visibility: hidden;
+}
+
+.controls-nav-confirm-overlay-btn {
+  position: absolute;
+  inset: 0;
+}
+
 .inline-control-group {
   display: inline-flex;
   align-items: center;

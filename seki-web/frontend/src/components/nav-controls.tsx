@@ -148,11 +148,17 @@ export function NavControls({
   };
   compact?: boolean;
 }) {
-  return (
+  const isConfirmOverlay = compact && counterOverride;
+
+  const navButtons = (
     <>
       <HoldNavButton
         action="back"
-        className="btn-raised controls-nav-prev"
+        className={
+          isConfirmOverlay
+            ? "btn-raised controls-nav-prev invisible"
+            : "btn-raised controls-nav-prev"
+        }
         title="Back"
         disabled={nav.atStart}
         onNavigate={nav.onNavigate}
@@ -179,7 +185,11 @@ export function NavControls({
       )}
       <HoldNavButton
         action="forward"
-        className="btn-raised controls-nav-next"
+        className={
+          isConfirmOverlay
+            ? "btn-raised controls-nav-next invisible"
+            : "btn-raised controls-nav-next"
+        }
         title="Forward"
         disabled={nav.atLatest}
         onNavigate={nav.onNavigate}
@@ -188,4 +198,22 @@ export function NavControls({
       </HoldNavButton>
     </>
   );
+
+  if (isConfirmOverlay) {
+    return (
+      <span class="controls-nav-confirm-overlay">
+        {navButtons}
+        <button
+          class="btn-raised controls-confirm controls-nav-confirm-overlay-btn"
+          title={counterOverride.title ?? "Confirm move"}
+          disabled={counterOverride.disabled}
+          onClick={counterOverride.onClick}
+        >
+          {counterOverride.content}
+        </button>
+      </span>
+    );
+  }
+
+  return navButtons;
 }
