@@ -610,7 +610,11 @@ export function liveGame(
       return analysisSession.onVertexClick(col, row);
     }
 
-    if (!board.value || !board.value.engine.is_at_latest()) {
+    if (!board.value || !board.value.engine.is_at_main_end()) {
+      if (board.value && !analysisMode.value) {
+        // In live-navigation: clicking the board returns to live tip
+        board.value.navigate("main-end");
+      }
       return true;
     }
 

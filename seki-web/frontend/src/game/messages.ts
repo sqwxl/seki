@@ -181,6 +181,11 @@ function syncBoardMoves(
     prevMovesJson = currentMovesJson;
     b.updateBaseMoves(currentMovesJson);
     b.save();
+    // If live-navigation position was invalidated (e.g. by undo),
+    // reset to the mainline tip.
+    if (!analysisMode.value && !b.engine.is_on_main_line()) {
+      b.engine.to_main_end();
+    }
     onNewMove?.();
   }
 

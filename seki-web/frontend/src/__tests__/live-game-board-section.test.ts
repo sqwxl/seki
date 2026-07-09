@@ -41,6 +41,7 @@ function renderLivePosition({
     is_at_start: () => currentNodeId < 0,
     is_at_latest: () => currentNodeId === baseTipNodeId,
     is_at_main_end: () => currentNodeId === baseTipNodeId,
+    is_on_main_line: () => currentNodeId >= 0 && currentNodeId <= baseTipNodeId,
     current_turn_stone: () => 1,
     last_move_was_pass: () => false,
   };
@@ -155,7 +156,7 @@ describe("live game board render", () => {
     expect(exitEstimate).toHaveBeenCalledOnce();
   });
 
-  it("carries live estimate into analysis when navigating history", () => {
+  it("exits live estimate when navigating mainline history in live mode", () => {
     const { enterAnalysis, exitEstimate } = renderLivePosition({
       baseTipNodeId: 89,
       currentNodeId: 80,
@@ -164,10 +165,9 @@ describe("live game board render", () => {
       estimateMode: true,
     });
 
-    expect(enterAnalysis).toHaveBeenCalledWith({
-      restorePosition: false,
-      nodeId: 80,
-    });
-    expect(exitEstimate).not.toHaveBeenCalled();
+    // Navigating mainline stays in live mode, does not enter analysis.
+    // Estimate is exited because territory data applies only to the live tip.
+    expect(enterAnalysis).not.toHaveBeenCalled();
+    expect(exitEstimate).toHaveBeenCalledOnce();
   });
 });

@@ -16,6 +16,24 @@ globalThis.localStorage = {
   key: (index: number) => [...store.keys()][index] ?? null,
 };
 
+// Separate store so sessionStorage and localStorage don't share state.
+const sessionStore = new Map<string, string>();
+
+globalThis.sessionStorage = {
+  getItem: (key: string) => sessionStore.get(key) ?? null,
+  setItem: (key: string, value: string) => {
+    sessionStore.set(key, value);
+  },
+  removeItem: (key: string) => {
+    sessionStore.delete(key);
+  },
+  clear: () => sessionStore.clear(),
+  get length() {
+    return sessionStore.size;
+  },
+  key: (index: number) => [...sessionStore.keys()][index] ?? null,
+};
+
 // Stub document for modules that access DOM at import time (e.g. ui.ts favicon).
 // @ts-expect-error -- partial stub
 globalThis.document = globalThis.document ?? {

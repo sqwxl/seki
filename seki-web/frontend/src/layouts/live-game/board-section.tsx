@@ -58,17 +58,11 @@ export function onRenderCallback(
   }
 
   const currentNodeId = engine.current_node_id();
-  const baseTipNodeId = board.value?.baseTipNodeId ?? -1;
-  const viewIndex = engine.view_index();
-  const atLiveTip =
-    (baseTipNodeId >= 0
-      ? currentNodeId === baseTipNodeId
-      : currentNodeId < 0) && viewIndex === moves.value.length;
 
   if (
     board.value &&
     !analysisMode.value &&
-    !atLiveTip &&
+    !engine.is_on_main_line() &&
     !(presentationActive.value && !isPresenter.value)
   ) {
     enterAnalysis({
