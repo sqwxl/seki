@@ -2,7 +2,6 @@ import { render } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { AccountLinks } from "./components/account-menu";
 import { AiModelDownloadDialog } from "./components/ai-model-download-dialog";
-import { ConnectionStatus } from "./components/connection-status";
 import { IconPlus } from "./components/icons";
 import { MobileMenu } from "./components/mobile-menu";
 import { NotificationBell } from "./components/notification-bell";
@@ -41,12 +40,23 @@ import {
   setAppCredential,
 } from "./utils/storage";
 import { initTheme } from "./utils/theme";
-import { ensureConnected } from "./ws";
+import { ensureConnected, wsConnected } from "./ws";
 
 type AuthTokenResponse = {
   token: string;
   user?: UserData;
 };
+
+function NavPresence() {
+  const online = wsConnected.value;
+
+  return (
+    <span
+      class={`nav-presence${online ? " online" : ""}`}
+      title={online ? "Connected" : "Disconnected; reconnecting..."}
+    />
+  );
+}
 
 function App() {
   const navRef = useRef<HTMLElement>(null);
@@ -467,7 +477,7 @@ function App() {
           )}
         </div>
         <div class="nav-actions">
-          <ConnectionStatus />
+          {!currentUser?.is_bot && <NavPresence />}
           {!currentUser?.is_bot && <NotificationBell />}
           <span class="desktop-only">
             {!currentUser?.is_bot && <SettingsMenu />}

@@ -272,6 +272,22 @@ nav {
   margin-left: auto;
 }
 
+/* Navbar connection indicator: fixed-size slot, no layout shift on state change */
+.nav-presence {
+  display: block;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid var(--fg-muted);
+  background: transparent;
+}
+
+.nav-presence.online {
+  border-color: var(--green);
+  background: var(--green);
+}
+
 a,
 a:visited {
   color: inherit;
