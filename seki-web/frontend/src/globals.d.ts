@@ -6,3 +6,7 @@ interface Window {
   };
   SekiBridgeReady?: boolean;
 }
+
+interface Navigator {
+  standalone?: boolean;
+}

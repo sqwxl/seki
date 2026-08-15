@@ -5,6 +5,7 @@ import {
   subscribeToPush,
   unsubscribePush,
 } from "../push";
+import { setFlash } from "./flash";
 import { savePref } from "./preferences";
 import { NOTIFICATIONS, PUSH_SUBSCRIPTION_ID, storage } from "./storage";
 
@@ -32,6 +33,22 @@ function readFcmTokenId(): number | undefined {
   const id = Number(value);
 
   return Number.isInteger(id) ? id : undefined;
+}
+
+function isIos(): boolean {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent);
+}
+
+function isStandalonePwa(): boolean {
+  return (
+    navigator.standalone === true ||
+    (typeof window.matchMedia === "function" &&
+      window.matchMedia("(display-mode: standalone)").matches)
+  );
+}
+
+function iosNeedsInstall(): boolean {
+  return isIos() && !isStandalonePwa();
 }
 
 function compute(): boolean {
@@ -113,6 +130,17 @@ export async function toggleOsNotifications(): Promise<void> {
     return;
   }
 
+  const next = storage.get(NOTIFICATIONS) === "on" ? "off" : "on";
+
+  if (next === "on" && iosNeedsInstall()) {
+    setFlash(
+      "On iPhone or iPad, install Seki to your Home Screen to enable push notifications. In Safari, tap Share, then Add to Home Screen (under View More if hidden).",
+      "info",
+    );
+
+    return;
+  }
+
   if (Notification.permission === "denied") {
     return;
   }
@@ -127,7 +155,6 @@ export async function toggleOsNotifications(): Promise<void> {
     }
   }
 
-  const next = storage.get(NOTIFICATIONS) === "on" ? "off" : "on";
   storage.set(NOTIFICATIONS, next);
   savePref("notifications", next);
 
