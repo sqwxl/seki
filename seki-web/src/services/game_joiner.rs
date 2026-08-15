@@ -154,8 +154,12 @@ pub async fn join_open_game(
         Game::set_white(&mut *tx, gwp.game.id, final_white_id.unwrap()).await?;
         Game::set_stage(&mut *tx, gwp.game.id, start_stage).await?;
     } else if gwp.game.stage == "unstarted" {
-        let (handicap, komi, color) =
-            initial_unrated_pregame_settings(pool, creator_id, user.id).await?;
+        // Custom-settings open games keep the creator's choices;
+        // otherwise derive handicap/komi/color from both players' ratings.
+        let (handicap, komi, color) = match gwp.game.creator_color.as_deref() {
+            Some(color) => (gwp.game.handicap, gwp.game.komi, color.to_string()),
+            None => initial_unrated_pregame_settings(pool, creator_id, user.id).await?,
+        };
         PregameSettingsNegotiation::upsert_initial(&mut *tx, gwp.game.id, handicap, komi, &color)
             .await?;
     }
@@ -201,4 +205,112 @@ async fn initial_unrated_pregame_settings(
     };
 
     Ok((settings.handicap, settings.komi, color))
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+
+    use super::join_open_game;
+    use crate::models::game::{Game, TimeControlType};
+    use crate::models::pregame_settings::PregameSettingsNegotiation;
+    use crate::models::user::User;
+
+    async fn test_pool() -> crate::db::DbPool {
+        let path = std::env::temp_dir().join(format!(
+            "seki-joiner-test-{}-{}.db",
+            std::process::id(),
+            Utc::now().timestamp_nanos_opt().unwrap()
+        ));
+        let url = format!("sqlite://{}", path.display());
+        let pool = crate::db::create_pool(&url).await.unwrap();
+        crate::db::run_migrations(&pool).await.unwrap();
+        pool
+    }
+
+    async fn create_open_game(
+        pool: &crate::db::DbPool,
+        creator_id: i64,
+        creator_color: Option<&str>,
+    ) -> Game {
+        Game::create(
+            pool,
+            creator_id,
+            None,
+            None,
+            None,
+            9,
+            9,
+            0.5,
+            3,
+            false,
+            false,
+            "access-token",
+            None,
+            TimeControlType::None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            creator_color.is_some(),
+            creator_color,
+            None,
+            false,
+            false,
+            "unlimited",
+            None,
+            None,
+            true,
+            true,
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn custom_settings_open_game_uses_creator_choices_at_join() {
+        let pool = test_pool().await;
+        let creator = User::create(&pool).await.unwrap();
+        let joiner = User::create(&pool).await.unwrap();
+
+        let game = create_open_game(&pool, creator.id, Some("white")).await;
+        let gwp = Game::find_with_players(&pool, game.id).await.unwrap();
+
+        join_open_game(&pool, &gwp, &joiner).await.unwrap();
+
+        let settings = PregameSettingsNegotiation::find(&pool, game.id)
+            .await
+            .unwrap()
+            .expect("pregame settings proposal should exist");
+
+        assert_eq!(settings.handicap, 3);
+        assert_eq!(settings.komi, 0.5);
+        assert_eq!(settings.color, "white");
+    }
+
+    #[tokio::test]
+    async fn rank_based_open_game_derives_even_defaults_without_ratings() {
+        let pool = test_pool().await;
+        let creator = User::create(&pool).await.unwrap();
+        let joiner = User::create(&pool).await.unwrap();
+
+        let game = create_open_game(&pool, creator.id, None).await;
+        let gwp = Game::find_with_players(&pool, game.id).await.unwrap();
+
+        join_open_game(&pool, &gwp, &joiner).await.unwrap();
+
+        let settings = PregameSettingsNegotiation::find(&pool, game.id)
+            .await
+            .unwrap()
+            .expect("pregame settings proposal should exist");
+
+        // Neither player has a rating profile -> neutral even-game defaults.
+        assert_eq!(settings.handicap, 0);
+        assert_eq!(settings.komi, 6.5);
+        assert_eq!(settings.color, "black");
+    }
 }

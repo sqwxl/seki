@@ -36,6 +36,9 @@ pub struct CreateGameParams {
     pub ranked: bool,
     pub rating_range: RatingRangePreference,
     pub open_game: bool,
+    /// Creator pre-selected color for custom-settings open games ("black"/"white"/"random").
+    /// When set, handicap/komi come from the game row and are NOT re-derived at join.
+    pub creator_color: Option<String>,
     // TODO: Add support for ruleset selection (Japanese, Chinese, etc.)
 }
 
@@ -179,6 +182,12 @@ pub async fn create_game(
 
     let nigiri = !matches!(params.color.as_str(), "black" | "white");
 
+    // Normalize form vocabulary ("nigiri") to pregame vocabulary ("random").
+    let creator_color = params.creator_color.as_deref().map(|c| match c {
+        "black" | "white" => c.to_string(),
+        _ => "random".to_string(),
+    });
+
     // TODO: With the work mentioned above to stop requiring the color param, we should only
     // ever be assigning these for unranked games
     let (black_id, white_id) = if params.open_game {
@@ -237,6 +246,7 @@ pub async fn create_game(
         initial_clock.as_ref().map(|c| c.black_periods),
         initial_clock.as_ref().map(|c| c.white_periods),
         nigiri,
+        creator_color.as_deref(),
         params.open_to.as_deref(),
         invite_only,
         params.ranked,

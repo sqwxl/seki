@@ -90,6 +90,9 @@ pub(crate) struct CreateGameRequest {
     rating_range_mode: Option<String>,
     #[serde(default)]
     max_rating_difference: Option<i32>,
+    /// Create an open game with creator-chosen handicap/komi/color instead of deriving them at join.
+    #[serde(default)]
+    custom_settings: bool,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -149,7 +152,8 @@ pub(super) async fn create_game(
             .invite_username
             .as_ref()
             .is_none_or(|username| username.is_empty());
-    if (is_open || body.ranked)
+    let custom_settings = is_open && !body.ranked && body.custom_settings;
+    if (body.ranked || (is_open && !custom_settings))
         && (body.komi.is_some() || body.handicap.is_some() || body.color.is_some())
     {
         return Err(AppError::UnprocessableEntity(
@@ -168,16 +172,25 @@ pub(super) async fn create_game(
         RatingRangePreference::Unlimited
     };
 
+    let color = if body.ranked || (is_open && !custom_settings) {
+        "black".to_string()
+    } else {
+        body.color
+            .clone()
+            .ok_or_else(|| AppError::UnprocessableEntity("Missing color".to_string()))?
+    };
+    let creator_color = custom_settings.then(|| color.clone());
+
     let params = game_creator::CreateGameParams {
         cols: body.cols,
         rows: body.rows.unwrap_or(body.cols),
-        komi: if is_open || body.ranked {
+        komi: if body.ranked || (is_open && !custom_settings) {
             6.5
         } else {
             body.komi
                 .ok_or_else(|| AppError::UnprocessableEntity("Missing komi".to_string()))?
         },
-        handicap: if is_open || body.ranked {
+        handicap: if body.ranked || (is_open && !custom_settings) {
             0
         } else {
             body.handicap
@@ -185,12 +198,7 @@ pub(super) async fn create_game(
         },
         is_private: body.is_private,
         allow_undo: body.allow_undo,
-        color: if is_open || body.ranked {
-            "black".to_string()
-        } else {
-            body.color
-                .ok_or_else(|| AppError::UnprocessableEntity("Missing color".to_string()))?
-        },
+        color,
         invite_email: body.invite_email,
         invite_username: body.invite_username,
         time_control: body.time_control.unwrap_or_default(),
@@ -202,6 +210,7 @@ pub(super) async fn create_game(
         ranked: body.ranked,
         rating_range,
         open_game: is_open,
+        creator_color,
     };
 
     let game = game_creator::create_game(&state.db, &api_user, params).await?;

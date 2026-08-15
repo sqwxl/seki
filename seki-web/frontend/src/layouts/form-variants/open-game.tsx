@@ -1,12 +1,16 @@
 // Open game variant.
-// Open games defer handicap/komi/color until an opponent joins.
+// Three modes:
+// - rated: handicap/komi/color derived from ratings at join; game affects ratings.
+// - rank-based unrated: same derivation, no rating impact.
+// - custom unrated: creator pre-selects handicap/komi/color, used as initial proposal at join.
 
+import { IconBalance } from "../../components/icons";
+import { BoardSettingsFields } from "./board-parameters";
 import {
   AllowUndoField,
   BoardSizeField,
   MaxRatingDifferenceField,
   PrivateSpectatorsField,
-  RankedGameField,
   SettingsFieldset,
   type GameSettingsSetter,
 } from "./shared";
@@ -20,6 +24,7 @@ export type OpenGameSettings = {
   allowUndo: boolean;
   isPrivate: boolean;
   ranked: boolean;
+  customSettings: boolean;
 };
 
 export const OPEN_DEFAULTS: OpenGameSettings = {
@@ -31,6 +36,7 @@ export const OPEN_DEFAULTS: OpenGameSettings = {
   allowUndo: false,
   isPrivate: false,
   ranked: false,
+  customSettings: false,
 };
 
 type Props = {
@@ -40,6 +46,65 @@ type Props = {
   rankedUnavailableReason?: string | null;
   currentRatingText: string;
 };
+
+function OpenGameModeField({
+  s,
+  set,
+  ratedDisabled,
+  help,
+}: {
+  s: OpenGameSettings;
+  set: GameSettingsSetter<OpenGameSettings>;
+  ratedDisabled?: boolean;
+  help?: string;
+}) {
+  const mode = s.ranked ? "rated" : s.customSettings ? "custom" : "rank";
+
+  function selectMode(next: "rated" | "rank" | "custom") {
+    set("ranked", next === "rated");
+    set("customSettings", next === "custom");
+  }
+
+  return (
+    <div>
+      <label>
+        <IconBalance /> Game type
+      </label>
+      <input type="hidden" name="ranked" value={s.ranked ? "true" : "false"} />
+      <div class="opponent-mode-radios">
+        <label>
+          <input
+            type="radio"
+            name="_open_mode"
+            checked={mode === "rated"}
+            disabled={ratedDisabled}
+            onChange={() => selectMode("rated")}
+          />
+          Rated
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="_open_mode"
+            checked={mode === "rank"}
+            onChange={() => selectMode("rank")}
+          />
+          Unrated — settings from rank
+        </label>
+        <label>
+          <input
+            type="radio"
+            name="_open_mode"
+            checked={mode === "custom"}
+            onChange={() => selectMode("custom")}
+          />
+          Unrated — custom settings
+        </label>
+      </div>
+      {help && <span class="form-help">{help}</span>}
+    </div>
+  );
+}
 
 export function OpenGameForm({
   s,
@@ -55,10 +120,10 @@ export function OpenGameForm({
 
   return (
     <SettingsFieldset>
-      <RankedGameField
+      <OpenGameModeField
         s={s}
         set={set}
-        disabled={!isRegistered || Boolean(rankedBlockedReason)}
+        ratedDisabled={!isRegistered || Boolean(rankedBlockedReason)}
         help={
           rankedBlockedReason
             ? rankedBlockedReason
@@ -67,7 +132,11 @@ export function OpenGameForm({
               : "Your first ranked game starts from a provisional rating."
         }
       />
-      <BoardSizeField s={s} set={set} />
+      {s.customSettings && !s.ranked ? (
+        <BoardSettingsFields s={s} set={set} />
+      ) : (
+        <BoardSizeField s={s} set={set} />
+      )}
       <MaxRatingDifferenceField s={s} set={set} />
 
       <AllowUndoField s={s} set={set} />

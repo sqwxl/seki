@@ -575,7 +575,8 @@ Expected behavior:
 - ranked games cannot be invite-only
 - open games cannot later be converted into direct challenges
 - challenge recipients cannot adjust game settings before accepting
-- open-game handicap, komi, and color are not chosen at creation; they are derived for rated games and negotiated for unrated games after an opponent joins
+- by default open-game handicap, komi, and color are not chosen at creation; they are derived for rated games and negotiated for unrated games after an opponent joins
+- custom-settings open games are an exception: the creator pre-selects handicap, komi, and color, which become the initial negotiation proposal
 
 Color-assignment behavior:
 
@@ -684,7 +685,8 @@ Form behavior expectations:
 - board size changes clamp handicap down to the size-specific maximum
 - handicap changes to >2 set komi to 0.5
 - open games expose a 0-40 rating-difference slider; 40 renders and submits as unlimited
-- open rated and open unrated forms omit handicap, komi, and color controls
+- open game forms offer three modes: rated, unrated with settings derived from rank, and unrated with custom settings
+- rated and rank-derived open forms omit handicap, komi, and color controls; the custom-settings open form renders them, and the creator's choices become the initial pre-game proposal when an opponent joins
 - unrated open games with both seats filled show a pre-game settings popover in place of the lobby popover
 
 Opponent selection behavior:

@@ -61,6 +61,7 @@ pub struct Game {
     pub clock_expires_at: Option<DateTime<Utc>>,
     pub territory_review_expires_at: Option<DateTime<Utc>>,
     pub nigiri: bool,
+    pub creator_color: Option<String>,
     pub open_to: Option<String>,
     pub invite_only: bool,
     pub ranked: bool,
@@ -376,6 +377,7 @@ impl Game {
         clock_black_periods: Option<i32>,
         clock_white_periods: Option<i32>,
         nigiri: bool,
+        creator_color: Option<&str>,
         open_to: Option<&str>,
         invite_only: bool,
         ranked: bool,
@@ -389,10 +391,10 @@ impl Game {
             "INSERT INTO games (creator_id, opponent_id, black_id, white_id, cols, rows, komi, handicap, \
              is_private, allow_undo, access_token, invite_token, time_control, main_time_secs, \
              increment_secs, byoyomi_time_secs, byoyomi_periods, \
-             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, open_to, invite_only, ranked, \
+             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, creator_color, open_to, invite_only, ranked, \
              rating_range_mode, max_rating_difference_lower, max_rating_difference_higher, \
              rating_difference_lower_unlimited, rating_difference_higher_unlimited)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
              RETURNING *",
         )
         .bind(creator_id)
@@ -417,6 +419,7 @@ impl Game {
         .bind(clock_black_periods)
         .bind(clock_white_periods)
         .bind(nigiri)
+        .bind(creator_color)
         .bind(open_to)
         .bind(invite_only)
         .bind(ranked)

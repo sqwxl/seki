@@ -82,6 +82,7 @@ async fn ranked_rematch(
         ranked: true,
         rating_range: RatingRangePreference::Unlimited,
         open_game: false,
+        creator_color: None,
     };
 
     let game = game_creator::create_game(&state.db, player, params).await?;
@@ -120,6 +121,7 @@ async fn unranked_rematch(
         ranked: false,
         rating_range: RatingRangePreference::Unlimited,
         open_game: false,
+        creator_color: None,
     };
 
     let game = game_creator::create_game(&state.db, player, params).await?;

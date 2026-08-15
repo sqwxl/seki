@@ -37,6 +37,7 @@ pub struct CreateGameForm {
     pub rating_range_mode: Option<String>,
     pub max_rating_difference: Option<i32>,
     pub variant: Option<String>,
+    pub custom_settings: Option<String>,
 }
 
 // POST /games
@@ -71,20 +72,22 @@ pub async fn create_game(
     let is_ranked = form.ranked.as_deref() == Some("true");
     let is_open = variant == "open";
     let is_email = variant == "email";
+    // Custom-settings open games: creator pre-selects handicap/komi/color.
+    let custom_settings = is_open && !is_ranked && form.custom_settings.as_deref() == Some("true");
 
-    let komi = if is_open || is_ranked {
+    let komi = if is_ranked || (is_open && !custom_settings) {
         6.5
     } else {
         form.komi
             .ok_or_else(|| AppError::UnprocessableEntity("Missing komi".to_string()))?
     };
-    let handicap = if is_open || is_ranked {
+    let handicap = if is_ranked || (is_open && !custom_settings) {
         0
     } else {
         form.handicap
             .ok_or_else(|| AppError::UnprocessableEntity("Missing handicap".to_string()))?
     };
-    if (is_open || is_ranked)
+    if (is_ranked || (is_open && !custom_settings))
         && (form.komi.is_some() || form.handicap.is_some() || form.color.is_some())
     {
         return Err(AppError::UnprocessableEntity(
@@ -103,13 +106,14 @@ pub async fn create_game(
         RatingRangePreference::Unlimited
     };
 
-    let color = if is_open || is_ranked {
+    let color = if is_ranked || (is_open && !custom_settings) {
         "black".to_string()
     } else {
         form.color
             .clone()
             .ok_or_else(|| AppError::UnprocessableEntity("Missing color".to_string()))?
     };
+    let creator_color = custom_settings.then(|| color.clone());
 
     let cols = form.cols;
 
@@ -169,6 +173,7 @@ pub async fn create_game(
         ranked: is_ranked && !is_email,
         rating_range,
         open_game: is_open,
+        creator_color,
     };
 
     match game_creator::create_game(&state.db, &current_user, params).await {
