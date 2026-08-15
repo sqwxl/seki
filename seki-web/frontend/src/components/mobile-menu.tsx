@@ -77,85 +77,91 @@ export function MobileMenu({
           </>
         )}
       </button>
-      {open && (
-        <div class="nav-dropdown mobile-menu-dropdown">
-          {showNavigation && (
-            <div class="nav-dropdown-section">
-              <a
-                class="nav-dropdown-item"
-                href="/games/new"
-                onClick={() => setOpen(false)}
-              >
-                <IconPlus /> New game
-              </a>
-              <a
-                class="nav-dropdown-item"
-                href="/games/spectate"
-                onClick={() => setOpen(false)}
-              >
-                <IconPublic /> Spectate
-              </a>
-              <a
-                class="nav-dropdown-item"
-                href="/bot"
-                onClick={() => setOpen(false)}
-              >
-                <IconBot /> Bot Practice
-              </a>
-              <a
-                class="nav-dropdown-item"
-                href="/analysis"
-                onClick={() => setOpen(false)}
-              >
-                <IconAnalysis /> Analysis Board
-              </a>
-              <a
-                class="nav-dropdown-item"
-                href="/players"
-                onClick={() => setOpen(false)}
-              >
-                <IconUser /> Players
-              </a>
-            </div>
-          )}
-          <SettingsDropdownContent showLabel={false} />
+      <div
+        class={`mobile-drawer-backdrop${open ? " open" : ""}`}
+        onClick={() => setOpen(false)}
+      />
+      <div
+        class={`nav-dropdown mobile-menu-dropdown${open ? " open" : ""}`}
+        role="dialog"
+        aria-label="Menu"
+      >
+        {showNavigation && (
           <div class="nav-dropdown-section">
             <a
               class="nav-dropdown-item"
-              href={`/users/${username}`}
+              href="/games/new"
               onClick={() => setOpen(false)}
             >
-              <IconSettings /> Profile
+              <IconPlus /> New game
             </a>
-            {isRegistered ? (
-              <button
-                type="button"
-                class="nav-dropdown-item"
-                onClick={handleLogout}
-              >
-                <IconLogout /> Log out
-              </button>
-            ) : (
-              <>
-                <a
-                  class="nav-dropdown-item"
-                  href={authUrl("login")}
-                  onClick={() => setOpen(false)}
-                >
-                  <IconLogin /> Log in
-                </a>
-                <a
-                  class="nav-dropdown-item"
-                  href={authUrl("register")}
-                  onClick={() => setOpen(false)}
-                >
-                  <IconRegister /> Register
-                </a>
-              </>
-            )}
+            <a
+              class="nav-dropdown-item"
+              href="/games/spectate"
+              onClick={() => setOpen(false)}
+            >
+              <IconPublic /> Spectate
+            </a>
+            <a
+              class="nav-dropdown-item"
+              href="/bot"
+              onClick={() => setOpen(false)}
+            >
+              <IconBot /> Bot Practice
+            </a>
+            <a
+              class="nav-dropdown-item"
+              href="/analysis"
+              onClick={() => setOpen(false)}
+            >
+              <IconAnalysis /> Analysis Board
+            </a>
+            <a
+              class="nav-dropdown-item"
+              href="/players"
+              onClick={() => setOpen(false)}
+            >
+              <IconUser /> Players
+            </a>
           </div>
+        )}
+        <SettingsDropdownContent showLabel={false} />
+        <div class="nav-dropdown-section">
+          <a
+            class="nav-dropdown-item"
+            href={`/users/${username}`}
+            onClick={() => setOpen(false)}
+          >
+            <IconSettings /> Profile
+          </a>
+          {isRegistered ? (
+            <button
+              type="button"
+              class="nav-dropdown-item"
+              onClick={handleLogout}
+            >
+              <IconLogout /> Log out
+            </button>
+          ) : (
+            <>
+              <a
+                class="nav-dropdown-item"
+                href={authUrl("login")}
+                onClick={() => setOpen(false)}
+              >
+                <IconLogin /> Log in
+              </a>
+              <a
+                class="nav-dropdown-item"
+                href={authUrl("register")}
+                onClick={() => setOpen(false)}
+              >
+                <IconRegister /> Register
+              </a>
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
