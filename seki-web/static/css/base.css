@@ -300,6 +300,10 @@ a:visited {
   height: 1.25em;
 }
 
+.mobile-menu-wrapper .nav-icon svg:last-child {
+  margin-left: 0.5em;
+}
+
 /* --- Nav dropdown (shared by notification bell + user menu) --- */
 
 .nav-dropdown-wrapper {

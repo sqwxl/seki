@@ -7,6 +7,7 @@ import {
   IconBot,
   IconLogin,
   IconLogout,
+  IconMenu,
   IconPlus,
   IconPublic,
   IconRegister,
@@ -60,13 +61,16 @@ export function MobileMenu({
         aria-expanded={open}
       >
         {user ? (
-          <UserLabel
-            user={user}
-            noLink
-            options={{
-              rank: { displayMode: ratingDisplayPreference.value },
-            }}
-          />
+          <>
+            <UserLabel
+              user={user}
+              noLink
+              options={{
+                rank: { displayMode: ratingDisplayPreference.value },
+              }}
+            />
+            <IconMenu />
+          </>
         ) : (
           <>
             <IconUser /> Guest
