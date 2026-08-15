@@ -15,19 +15,15 @@ import {
 
 let serverPrefs: UserPreferences = {};
 
-function storedRatingDisplayPreference(): RatingDisplayMode {
+export function readRatingDisplayPreference(): RatingDisplayMode {
   return parseRatingDisplayMode(
     storage.get(RATING_DISPLAY) ?? serverPrefs.rating_display,
   );
 }
 
 export const ratingDisplayPreference = signal<RatingDisplayMode>(
-  storedRatingDisplayPreference(),
+  readRatingDisplayPreference(),
 );
-
-export function readRatingDisplayPreference(): RatingDisplayMode {
-  return storedRatingDisplayPreference();
-}
 
 /**
  * Initialize preferences from the server-provided UserData.

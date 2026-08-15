@@ -1,6 +1,7 @@
 import { signal } from "@preact/signals";
 import type { AiAnalyzePositionResult } from "../ai-poc/types";
 import type { PlayerPanelProps } from "../components/player-panel";
+import { DEFAULT_NAV_STATE, type NavState } from "../game/state";
 import type {
   Board,
   TerritoryInfo,
@@ -43,14 +44,7 @@ export const analysisTerritoryInfo = signal<TerritoryInfo>({
   finalized: false,
   score: undefined,
 });
-export const analysisNavState = signal({
-  atStart: true,
-  atLatest: true,
-  atMainEnd: true,
-  counter: "0",
-  boardTurnStone: 1,
-  boardLastMoveWasPass: false,
-});
+export const analysisNavState = signal<NavState>(DEFAULT_NAV_STATE);
 export type AnalysisPanelData = PlayerPanelProps & {
   label: string;
   stone: "black" | "white";
@@ -72,13 +66,6 @@ export function resetAnalysisRuntimeState(): void {
     finalized: false,
     score: undefined,
   };
-  analysisNavState.value = {
-    atStart: true,
-    atLatest: true,
-    atMainEnd: true,
-    counter: "0",
-    boardTurnStone: 1,
-    boardLastMoveWasPass: false,
-  };
+  analysisNavState.value = DEFAULT_NAV_STATE;
   analysisPanelState.value = {};
 }

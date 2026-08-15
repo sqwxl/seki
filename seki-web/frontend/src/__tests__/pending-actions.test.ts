@@ -12,7 +12,6 @@ import {
   clearPendingAction,
   currentTurn,
   currentUserId,
-  gameFlashMessage,
   gameMode,
   gameStage,
   initialProps,
@@ -27,6 +26,7 @@ import {
   white,
 } from "../game/state";
 import { GameStage, type GameState, type UserData } from "../game/types";
+import { activeFlash } from "../utils/flash";
 
 vi.mock("../game/sound", () => ({
   playPassSound: vi.fn(),
@@ -385,7 +385,7 @@ describe("pending action reconciliation", () => {
     );
 
     expect(pendingAction.value).toBeUndefined();
-    expect(gameFlashMessage.value).toBe("Request failed");
+    expect(activeFlash.value?.message).toBe("Request failed");
   });
 
   it("clears stale pending state on websocket reconnect", () => {
@@ -444,7 +444,7 @@ describe("pending action reconciliation", () => {
     );
 
     expect(chatMessages.value).toEqual([]);
-    expect(gameFlashMessage.value).toBe("Message too long");
+    expect(activeFlash.value?.message).toBe("Message too long");
   });
 
   it("retries pending local chat messages after websocket reconnect", async () => {

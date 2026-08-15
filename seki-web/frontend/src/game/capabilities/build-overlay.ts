@@ -32,11 +32,3 @@ export function deriveTerritoryOverlay(
 
   return;
 }
-
-export function isAnalysisCapablePhase(mode: GameMode): boolean {
-  return (
-    mode.mode === "analysis" ||
-    (mode.mode === "presentation" &&
-      (mode.role === "presenter" || mode.role === "local-analysis"))
-  );
-}

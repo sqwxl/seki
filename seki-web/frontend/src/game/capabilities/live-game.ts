@@ -1,5 +1,5 @@
 import { computed } from "@preact/signals";
-import { gameMode } from "../mode";
+import { gameMode, isAnalysisCapable } from "../mode";
 import {
   currentTurn,
   gameStage,
@@ -11,10 +11,7 @@ import {
   territory,
 } from "../state";
 import { GameStage, isPlayStage } from "../types";
-import {
-  deriveTerritoryOverlay,
-  isAnalysisCapablePhase,
-} from "./build-overlay";
+import { deriveTerritoryOverlay } from "./build-overlay";
 import { liveGameControlsState } from "./controls";
 import { liveGamePanelState } from "./panels";
 import { liveGameStatusState } from "./status";
@@ -38,7 +35,7 @@ export const liveGameCapabilities = computed((): UiCapabilities => {
     stage === GameStage.Declined;
   const terr = territory.value;
   const settled = settledTerritory.value;
-  const inAnalysis = isAnalysisCapablePhase(mode);
+  const inAnalysis = isAnalysisCapable(mode);
   const inEstimate = mode.mode === "estimate";
   const isSyncedViewer =
     mode.mode === "presentation" && mode.role === "synced-viewer";

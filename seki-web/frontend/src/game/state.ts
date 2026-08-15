@@ -2,7 +2,7 @@ import { batch, computed, signal } from "@preact/signals";
 import type { ChatEntry } from "../components/chat";
 import type { Board } from "../goban/create-board";
 import type { Point } from "../goban/types";
-import { activeFlashMessage, clearFlash, setFlash } from "../utils/flash";
+import { clearFlash, setFlash } from "../utils/flash";
 import { readMoveConfirmation } from "../utils/move-confirm";
 import { SHOW_COORDINATES, SOUND_ENABLED, storage } from "../utils/storage";
 import type {
@@ -106,7 +106,6 @@ export type PendingActionId =
   | "reject-control-request"
   | "rematch";
 export const pendingAction = signal<PendingActionId | undefined>(undefined);
-export const gameFlashMessage = computed(() => activeFlashMessage.value);
 export const opponentDisconnected = signal<
   { since: Date; gracePeriodMs?: number; gone: boolean } | undefined
 >(undefined);
@@ -150,14 +149,25 @@ export const liveSgfExport = signal<(() => void) | undefined>(undefined);
 // ---------------------------------------------------------------------------
 // Nav / estimate state (updated by board callbacks)
 // ---------------------------------------------------------------------------
-export const navState = signal({
+export type NavState = {
+  atStart: boolean;
+  atLatest: boolean;
+  atMainEnd: boolean;
+  counter: string;
+  boardTurnStone: number;
+  boardLastMoveWasPass: boolean;
+};
+
+export const DEFAULT_NAV_STATE: NavState = {
   atStart: true,
   atLatest: true,
   atMainEnd: true,
   counter: "0",
   boardTurnStone: 1,
   boardLastMoveWasPass: false,
-});
+};
+
+export const navState = signal<NavState>(DEFAULT_NAV_STATE);
 export const estimateScore = signal<ScoreData | undefined>(undefined);
 export const boardFinalized = signal(false);
 export const boardFinalizedScore = signal<ScoreData | undefined>(undefined);
@@ -284,14 +294,7 @@ export function resetGameRuntimeState(): void {
     controlRequest.value = undefined;
     board.value = undefined;
     liveSgfExport.value = undefined;
-    navState.value = {
-      atStart: true,
-      atLatest: true,
-      atMainEnd: true,
-      counter: "0",
-      boardTurnStone: 1,
-      boardLastMoveWasPass: false,
-    };
+    navState.value = DEFAULT_NAV_STATE;
     estimateScore.value = undefined;
     estimatePending.value = false;
     boardFinalized.value = false;

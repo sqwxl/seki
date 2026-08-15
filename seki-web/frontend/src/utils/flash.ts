@@ -10,7 +10,6 @@ export type FlashMessage = {
 const flashState = signal<FlashMessage | undefined>(undefined);
 
 export const activeFlash = computed(() => flashState.value);
-export const activeFlashMessage = computed(() => flashState.value?.message);
 
 export function setFlash(
   message: string,

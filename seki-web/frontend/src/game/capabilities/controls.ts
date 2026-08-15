@@ -1,5 +1,5 @@
 import { computed } from "@preact/signals";
-import { gameMode } from "../mode";
+import { gameMode, isAnalysisCapable } from "../mode";
 import {
   allowUndo,
   boardFinalized,
@@ -23,7 +23,6 @@ import {
   undoRequest,
 } from "../state";
 import { GameStage, isPlayStage } from "../types";
-import { isAnalysisCapablePhase } from "./build-overlay";
 import type { LiveGameControlsState } from "./types";
 
 export const liveGameControlsState = computed((): LiveGameControlsState => {
@@ -45,7 +44,7 @@ export const liveGameControlsState = computed((): LiveGameControlsState => {
   const terr = territory.value;
   const settled = settledTerritory.value;
   const oppDisconnected = opponentDisconnected.value;
-  const inAnalysis = isAnalysisCapablePhase(mode);
+  const inAnalysis = isAnalysisCapable(mode);
   const inEstimate = mode.mode === "estimate";
   const estimateFromAnalysis = mode.mode === "estimate" && mode.fromAnalysis;
   const inPresentation = mode.mode === "presentation";

@@ -23,7 +23,7 @@ export const estimateMode = computed(() => gameMode.value.mode === "estimate");
 // ---------------------------------------------------------------------------
 
 /** True for modes where analysis-style interaction is available. */
-function isAnalysisCapable(p: GameMode): boolean {
+export function isAnalysisCapable(p: GameMode): boolean {
   return (
     p.mode === "analysis" ||
     (p.mode === "presentation" &&
