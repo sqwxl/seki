@@ -36,6 +36,7 @@ import {
   initGameState,
   initialProps as initialPropsSignal,
   isPresenter,
+  liveSgfExport,
   mobileTab,
   moveConfirmEnabled,
   moves,
@@ -603,6 +604,7 @@ export function liveGame(
 
     downloadSgf(sgf, `${todayYYYYMMDD()}-${bName}-vs-${wName}.sgf`);
   }
+  liveSgfExport.value = handleSgfExport;
 
   // --- Vertex click handler ---
   function handleVertexClick(col: number, row: number): boolean {

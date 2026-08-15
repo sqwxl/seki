@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { liveGameControlsState } from "../game/capabilities/controls";
+import { liveSgfExport } from "../game/state";
 import type { UserData } from "../game/types";
 import { ratingDisplayPreference } from "../utils/preferences";
 import { authUrl } from "../utils/spa-navigation";
 import {
   IconAnalysis,
   IconBot,
+  IconFileExport,
   IconLogin,
   IconLogout,
   IconMenu,
@@ -123,6 +126,21 @@ export function MobileMenu({
             >
               <IconUser /> Players
             </a>
+          </div>
+        )}
+        {liveSgfExport.value && (
+          <div class="nav-dropdown-section">
+            <button
+              type="button"
+              class="nav-dropdown-item"
+              disabled={liveGameControlsState.value.canExitEstimate}
+              onClick={() => {
+                setOpen(false);
+                liveSgfExport.value?.();
+              }}
+            >
+              <IconFileExport /> Download SGF
+            </button>
           </div>
         )}
         <SettingsDropdownContent showLabel={false} />

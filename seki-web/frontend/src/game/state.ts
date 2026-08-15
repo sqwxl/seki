@@ -143,6 +143,9 @@ export const controlRequest = signal<
 // Board reference (async, set after WASM loads)
 // ---------------------------------------------------------------------------
 export const board = signal<Board | undefined>(undefined);
+// Set by the live game page while mounted; the mobile nav drawer renders
+// the Download SGF item only while this is non-null.
+export const liveSgfExport = signal<(() => void) | undefined>(undefined);
 
 // ---------------------------------------------------------------------------
 // Nav / estimate state (updated by board callbacks)
@@ -280,6 +283,7 @@ export function resetGameRuntimeState(): void {
     originatorId.value = 0;
     controlRequest.value = undefined;
     board.value = undefined;
+    liveSgfExport.value = undefined;
     navState.value = {
       atStart: true,
       atLatest: true,

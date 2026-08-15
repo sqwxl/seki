@@ -134,6 +134,10 @@ function LiveGameControls(props: LiveGamePageProps) {
     }),
     { isMobile, canEnterAnalysis: caps.canEnterAnalysis },
   );
+  // On mobile the SGF export lives in the main nav drawer instead.
+  if (isMobile) {
+    controls.sgfExport = undefined;
+  }
 
   return <Controls {...controls} compact={compact} />;
 }
