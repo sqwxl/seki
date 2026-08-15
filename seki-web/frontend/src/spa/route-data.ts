@@ -119,6 +119,52 @@ export function prefetchRouteData(url: string | undefined): void {
   void fetchRouteData(url);
 }
 
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+
+  if (
+    typeof a !== "object" ||
+    typeof b !== "object" ||
+    a === null ||
+    b === null
+  ) {
+    return false;
+  }
+
+  const aIsArray = Array.isArray(a);
+  const bIsArray = Array.isArray(b);
+
+  if (aIsArray !== bIsArray) {
+    return false;
+  }
+
+  if (aIsArray) {
+    const arrA = a as unknown[];
+    const arrB = b as unknown[];
+
+    return (
+      arrA.length === arrB.length &&
+      arrA.every((value, index) => deepEqual(value, arrB[index]))
+    );
+  }
+
+  const objA = a as Record<string, unknown>;
+  const objB = b as Record<string, unknown>;
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+
+  return (
+    keysA.length === keysB.length &&
+    keysA.every(
+      (key) =>
+        Object.prototype.hasOwnProperty.call(objB, key) &&
+        deepEqual(objA[key], objB[key]),
+    )
+  );
+}
+
 export function useRouteData<T>(url: string) {
   const [data, setData] = useState<T | undefined>(
     () => routeDataCache.get(url) as T | undefined,
@@ -134,7 +180,12 @@ export function useRouteData<T>(url: string) {
     refreshRouteData<T>(url)
       .then((next) => {
         if (!cancelled) {
-          setData(next);
+          // Reuse the cached reference when the refreshed payload is
+          // value-equal, so consumers keyed on object identity (e.g. the
+          // live game boot effect) don't re-run on identical data.
+          setData(
+            cached !== undefined && deepEqual(cached, next) ? cached : next,
+          );
         }
       })
       .catch((err: FetchError) => {

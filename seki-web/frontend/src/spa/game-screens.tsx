@@ -38,6 +38,11 @@ function LiveGameScreen({
   mod: LiveGameModule;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const dataRef = useRef(data);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   useEffect(() => {
     setHead(data.og_title, data.og_description);
@@ -49,12 +54,12 @@ function LiveGameScreen({
     }
 
     return mod.liveGame(
-      data.game_props,
-      data.game_id,
+      dataRef.current.game_props,
+      dataRef.current.game_id,
       rootRef.current,
-      data.chat_log,
+      dataRef.current.chat_log,
     );
-  }, [data, mod]);
+  }, [data.game_id, mod]);
 
   return (
     <div class="game-page">
@@ -264,8 +269,7 @@ export function NewGameScreen({ navigate }: { navigate: NavigateFn }) {
   );
 
   const FormComponent = formModule?.GameSettingsForm as
-    | ComponentType<GameSettingsFormProps>
-    | undefined;
+    ComponentType<GameSettingsFormProps> | undefined;
 
   useEffect(() => {
     setHead(pageTitle("New Game"), "Play Go (Weiqi/Baduk) online with friends");
@@ -332,8 +336,7 @@ export function ChallengeScreen({
   );
 
   const FormComponent = formModule?.GameSettingsForm as
-    | ComponentType<GameSettingsFormProps>
-    | undefined;
+    ComponentType<GameSettingsFormProps> | undefined;
 
   const oppRank = data?.opponent_rank;
   const oppRankText = fullRankText(oppRank);
