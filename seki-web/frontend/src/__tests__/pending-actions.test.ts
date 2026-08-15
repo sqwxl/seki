@@ -159,6 +159,130 @@ describe("pending action reconciliation", () => {
     expect(pendingAction.value).toBeUndefined();
   });
 
+  it("derives 'received' from negotiations.undo_request for the on-turn player", () => {
+    batch(() => {
+      currentUserId.value = 12;
+      undoRequest.value = "none";
+    });
+
+    handleGameMessage(
+      {
+        kind: "state",
+        stage: GameStage.WhiteToPlay,
+        state: defaultState,
+        current_turn_stone: -1,
+        moves: [{ kind: "play", stone: 1, pos: [3, 3] }],
+        negotiations: { undo_request: {} },
+        black: null,
+        white: alice,
+        result: null,
+        undo_rejected: false,
+      },
+      buildDeps(),
+    );
+
+    expect(undoRequest.value).toBe("received");
+  });
+
+  it("derives 'sent' from negotiations.undo_request for the out-of-turn player", () => {
+    batch(() => {
+      currentUserId.value = 12;
+      undoRequest.value = "none";
+    });
+
+    handleGameMessage(
+      {
+        kind: "state",
+        stage: GameStage.WhiteToPlay,
+        state: defaultState,
+        current_turn_stone: -1,
+        moves: [{ kind: "play", stone: 1, pos: [3, 3] }],
+        negotiations: { undo_request: {} },
+        black: alice,
+        white: null,
+        result: null,
+        undo_rejected: false,
+      },
+      buildDeps(),
+    );
+
+    expect(undoRequest.value).toBe("sent");
+  });
+
+  it("clears a stale undo dialog when the state broadcast drops the pending flag", () => {
+    batch(() => {
+      currentUserId.value = 12;
+      undoRequest.value = "received";
+    });
+
+    handleGameMessage(
+      {
+        kind: "state",
+        stage: GameStage.WhiteToPlay,
+        state: defaultState,
+        current_turn_stone: -1,
+        moves: [{ kind: "play", stone: 1, pos: [3, 3] }],
+        black: null,
+        white: alice,
+        result: null,
+        undo_rejected: false,
+      },
+      buildDeps(),
+    );
+
+    expect(undoRequest.value).toBe("none");
+  });
+
+  it("keeps 'received' when the state broadcast still carries the pending flag", () => {
+    batch(() => {
+      currentUserId.value = 12;
+      undoRequest.value = "received";
+    });
+
+    handleGameMessage(
+      {
+        kind: "state",
+        stage: GameStage.WhiteToPlay,
+        state: defaultState,
+        current_turn_stone: -1,
+        moves: [{ kind: "play", stone: 1, pos: [3, 3] }],
+        negotiations: { undo_request: {} },
+        black: null,
+        white: alice,
+        result: null,
+        undo_rejected: false,
+      },
+      buildDeps(),
+    );
+
+    expect(undoRequest.value).toBe("received");
+  });
+
+  it("ignores negotiations.undo_request for spectators", () => {
+    batch(() => {
+      currentUserId.value = 999;
+      undoRequest.value = "none";
+    });
+
+    handleGameMessage(
+      {
+        kind: "state",
+        stage: GameStage.WhiteToPlay,
+        state: defaultState,
+        current_turn_stone: -1,
+        moves: [{ kind: "play", stone: 1, pos: [3, 3] }],
+        negotiations: { undo_request: {} },
+        black: null,
+        white: alice,
+        result: null,
+        undo_rejected: false,
+      },
+      buildDeps(),
+    );
+
+    expect(undoRequest.value).toBe("none");
+  });
+
   it("clears pass pending state from authoritative turn change", () => {
     batch(() => {
       gameStage.value = GameStage.BlackToPlay;

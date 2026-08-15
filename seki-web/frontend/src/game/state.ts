@@ -370,13 +370,29 @@ export function applyGameStateMessage(
       opponent.value = data.opponent ?? undefined;
     }
 
-    // Server undo_rejected resets per-move; sync local undo state.
-    // Always dismiss on game end so the popover doesn't linger.
+    // Server-authoritative undo state: the pending flag travels in
+    // negotiations.undo_request, rejections in undo_rejected. Derive the
+    // local UI state from those instead of guessing from message order,
+    // so broadcasts/reconnects reconcile instead of leaving stale dialogs.
     if (data.result) {
       undoRequest.value = "none";
     } else if (data.undo_rejected) {
       undoRequest.value = "rejected";
-    } else if (undoRequest.value !== "received") {
+    } else if (data.negotiations?.undo_request) {
+      const myStone =
+        data.black?.id === currentUserId.value
+          ? 1
+          : data.white?.id === currentUserId.value
+            ? -1
+            : 0;
+      // On-turn player is the responder; out-of-turn player is the requester.
+      undoRequest.value =
+        myStone === 0 || data.current_turn_stone == null
+          ? "none"
+          : data.current_turn_stone === myStone
+            ? "received"
+            : "sent";
+    } else {
       undoRequest.value = "none";
     }
 

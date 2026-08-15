@@ -112,17 +112,20 @@ pub async fn send_initial_state(
         send_to_client(tx, &msg.to_string());
     }
 
-    // If there's a pending undo request, send targeted UI control messages
+    // If there's a pending undo request, send targeted UI control messages.
+    // Only the actual players get them: the requester (out of turn) gets
+    // undo_request_sent, the responder (on turn) gets undo_response_needed.
     if undo_requested {
         let current_turn = engine.current_turn_stone();
         let requesting_player = gwp.out_of_turn_player(current_turn);
+        let turn_player = gwp.turn_player(current_turn);
 
         if requesting_player.is_some_and(|p| p.id == player_id) {
             send_to_client(
                 tx,
                 &json!({ "kind": "undo_request_sent", "game_id": game_id }).to_string(),
             );
-        } else {
+        } else if turn_player.is_some_and(|p| p.id == player_id) {
             let requesting_name = requesting_player
                 .map(|p| p.display_name().to_string())
                 .unwrap_or_else(|| "Opponent".to_string());
@@ -299,6 +302,11 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
             "new_message",
             format!("New message from {actor_username}"),
             format!("/games/{game_id}#chat"),
+        ),
+        "request_undo" => (
+            "undo_request",
+            format!("{actor_username} requests an undo"),
+            format!("/games/{game_id}"),
         ),
         _ => return,
     };

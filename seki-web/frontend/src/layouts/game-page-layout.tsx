@@ -1,6 +1,6 @@
 import type { ComponentChildren, Ref } from "preact";
 import { GameBoardDisplay } from "../components/game-board-display";
-import { mobileTab } from "../game/state";
+import { mobileTab, undoRequest } from "../game/state";
 
 export type GamePageLayoutProps = {
   header?: ComponentChildren;
@@ -35,7 +35,7 @@ export function GamePageLayout(props: GamePageLayoutProps) {
           topPanel={props.playerTop}
           bottomPanel={props.playerBottom}
           controls={props.controls}
-          hideControls={showChat}
+          hideControls={showChat && undoRequest.value !== "received"}
         />
         <div class="game-sidebar-column">
           {props.moveTree}
