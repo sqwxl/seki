@@ -85,7 +85,7 @@ async fn ranked_rematch(
         creator_color: None,
     };
 
-    let game = game_creator::create_game(&state.db, player, params).await?;
+    let game = game_creator::create_game(state, player, params).await?;
     Ok(game.id)
 }
 
@@ -124,6 +124,6 @@ async fn unranked_rematch(
         creator_color: None,
     };
 
-    let game = game_creator::create_game(&state.db, player, params).await?;
+    let game = game_creator::create_game(state, player, params).await?;
     Ok(game.id)
 }

@@ -176,7 +176,7 @@ pub async fn create_game(
         creator_color,
     };
 
-    match game_creator::create_game(&state.db, &current_user, params).await {
+    match game_creator::create_game(&state, &current_user, params).await {
         Ok(game) => {
             if let Ok(gwp) = Game::find_with_players(&state.db, game.id).await {
                 crate::services::live::notify_game_created(&state, &gwp);

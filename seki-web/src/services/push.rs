@@ -4,8 +4,11 @@ use web_push::{
     WebPushMessageBuilder,
 };
 
+use crate::AppState;
 use crate::error::AppError;
+use crate::models::game::Game;
 use crate::models::push_destination::PushDestination;
+use crate::services::fcm::{FcmPayload, FcmService};
 
 #[derive(Debug, Serialize)]
 pub struct PushPayload {
@@ -123,4 +126,78 @@ impl PushService {
 
         Ok(())
     }
+}
+
+/// Send a web push (VAPID) and FCM notification to a single user.
+pub async fn send_notification(
+    state: &AppState,
+    target_id: i64,
+    event_type: &str,
+    title: &str,
+    url: &str,
+    game_id: i64,
+) {
+    let payload = PushPayload {
+        title: title.to_string(),
+        body: None,
+        icon: None,
+        badge: None,
+        data: Some(PushNotificationData {
+            event_type: event_type.to_string(),
+            game_id: Some(game_id),
+            url: Some(url.to_string()),
+        }),
+    };
+
+    let vapid_keys = crate::models::vapid_config::load_or_generate(&state.db)
+        .await
+        .unwrap_or_default();
+    if vapid_keys.private_key.is_empty() {
+        tracing::warn!("push: vapid keys empty, cannot send notification");
+        return;
+    }
+
+    let service = match PushService::new(&vapid_keys.private_key) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("push: failed to create PushService: {e}");
+            return;
+        }
+    };
+
+    tracing::info!(
+        "push: sending {event_type} notification to user {target_id} for game {game_id}"
+    );
+
+    if let Err(e) = service.send_to_user(&state.db, target_id, &payload).await {
+        tracing::error!("push: failed to send notification to user {target_id}: {e}");
+    }
+
+    let fcm_payload = FcmPayload {
+        title: title.to_string(),
+        body: None,
+        url: Some(url.to_string()),
+    };
+    if let Ok(fcm_service) = FcmService::from_env() {
+        let _ = fcm_service
+            .send_to_user(&state.db, target_id, &fcm_payload)
+            .await;
+    }
+}
+
+/// Notify the invited user that a direct challenge was created.
+pub async fn notify_direct_challenge(state: &AppState, game: &Game, creator_username: &str) {
+    let Some(target_id) = game.opponent_id else {
+        return;
+    };
+
+    send_notification(
+        state,
+        target_id,
+        "challenge",
+        &format!("{creator_username} challenged you"),
+        &format!("/games/{}", game.id),
+        game.id,
+    )
+    .await;
 }

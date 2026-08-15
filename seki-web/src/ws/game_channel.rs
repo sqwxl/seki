@@ -6,8 +6,7 @@ use serde_json::json;
 use crate::AppState;
 use crate::models::game::Game;
 use crate::models::user::User;
-use crate::services::fcm::{FcmPayload, FcmService};
-use crate::services::push::{PushNotificationData, PushPayload, PushService};
+use crate::services::push;
 use crate::services::state_assembly;
 use crate::services::{game_actions, presentation_actions};
 use crate::ws::registry::WsSender;
@@ -311,50 +310,7 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
         _ => return,
     };
 
-    let payload = PushPayload {
-        title: title.to_string(),
-        body: None, // TODO: Revisit
-        icon: None,
-        badge: None,
-        data: Some(PushNotificationData {
-            event_type: event_type.to_string(),
-            game_id: Some(game_id),
-            url: Some(url),
-        }),
-    };
-
-    let vapid_keys = crate::models::vapid_config::load_or_generate(&state.db)
-        .await
-        .unwrap_or_default();
-    if vapid_keys.private_key.is_empty() {
-        tracing::warn!("push: vapid keys empty, cannot send notification");
-        return;
-    }
-
-    let service = match PushService::new(&vapid_keys.private_key) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::error!("push: failed to create PushService: {e}");
-            return;
-        }
-    };
-
-    tracing::info!("push: sending {action} notification to user {target_id} for game {game_id}");
-
-    if let Err(e) = service.send_to_user(&state.db, target_id, &payload).await {
-        tracing::error!("push: failed to send notification to user {target_id}: {e}");
-    }
-
-    let fcm_payload = FcmPayload {
-        title: title.to_string(),
-        body: None,
-        url: Some(format!("/games/{game_id}")),
-    };
-    if let Ok(fcm_service) = FcmService::from_env() {
-        let _ = fcm_service
-            .send_to_user(&state.db, target_id, &fcm_payload)
-            .await;
-    }
+    push::send_notification(state, target_id, event_type, &title, &url, game_id).await;
 }
 
 async fn handle_play(

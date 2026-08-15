@@ -1,12 +1,12 @@
 use rand::RngExt;
 
-use crate::db::DbPool;
+use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
-use crate::services::rating;
+use crate::services::{push, rating};
 
 // TODO: Move to config file
 const MAX_CORRESPONDENCE_DAYS: i32 = 30;
@@ -68,7 +68,7 @@ impl RatingRangePreference {
 }
 
 pub async fn create_game(
-    pool: &DbPool,
+    state: &AppState,
     creator: &User,
     params: CreateGameParams,
 ) -> Result<Game, AppError> {
@@ -127,7 +127,7 @@ pub async fn create_game(
     let opponent = if let Some(ref username) = params.invite_username {
         if !username.is_empty() {
             Some(
-                User::find_by_username(pool, username)
+                User::find_by_username(&state.db, username)
                     .await?
                     .ok_or_else(|| {
                         AppError::UnprocessableEntity(format!("User '{username}' not found"))
@@ -140,7 +140,7 @@ pub async fn create_game(
         if !email.is_empty() {
             // If a user with this email exists, create a challenge with them.
             // Otherwise leave the slot empty — they join via the invitation link.
-            User::find_by_email(pool, email).await?
+            User::find_by_email(&state.db, email).await?
         } else {
             None
         }
@@ -155,7 +155,7 @@ pub async fn create_game(
     let is_private = params.is_private || invite_only;
 
     if params.ranked {
-        let creator_profile = RatingProfile::find(pool, creator.id).await?;
+        let creator_profile = RatingProfile::find(&state.db, creator.id).await?;
 
         rating::can_create_ranked(
             creator,
@@ -171,11 +171,11 @@ pub async fn create_game(
         )?;
 
         if let Some(opponent) = opponent.as_ref() {
-            let opponent_profile = RatingProfile::find(pool, opponent.id).await?;
+            let opponent_profile = RatingProfile::find(&state.db, opponent.id).await?;
             rating::can_join_ranked(opponent, opponent_profile.as_ref())?;
         }
 
-        RatingProfile::get_or_create(pool, creator.id).await?;
+        RatingProfile::get_or_create(&state.db, creator.id).await?;
     }
 
     let opponent_id = opponent.as_ref().map(|f| f.id);
@@ -223,7 +223,7 @@ pub async fn create_game(
     ) = params.rating_range.db_values();
 
     let game = Game::create(
-        pool,
+        &state.db,
         creator.id,
         opponent_id,
         black_id,
@@ -261,7 +261,7 @@ pub async fn create_game(
     if black_id.is_some()
         && white_id.is_some()
         && let Err(e) = rating::capture_ranked_snapshot(
-            pool,
+            &state.db,
             game.id,
             black_id.unwrap(),
             white_id.unwrap(),
@@ -279,7 +279,8 @@ pub async fn create_game(
     // When both seats are assigned up front, this is a direct challenge:
     // the invited player must accept or decline before play starts.
     if opponent.is_some() {
-        Game::set_stage(pool, game.id, "challenge").await?;
+        Game::set_stage(&state.db, game.id, "challenge").await?;
+        push::notify_direct_challenge(state, &game, &creator.username).await;
     }
 
     Ok(game)

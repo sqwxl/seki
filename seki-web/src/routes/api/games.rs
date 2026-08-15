@@ -213,7 +213,7 @@ pub(super) async fn create_game(
         creator_color,
     };
 
-    let game = game_creator::create_game(&state.db, &api_user, params).await?;
+    let game = game_creator::create_game(&state, &api_user, params).await?;
     let gwp = Game::find_with_players(&state.db, game.id).await?;
     crate::services::live::notify_game_created(&state, &gwp);
     if let (Some(email), Some(token)) = (&invite_email, &game.invite_token) {
