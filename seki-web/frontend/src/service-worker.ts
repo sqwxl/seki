@@ -47,6 +47,17 @@ function isApiRequest(url: URL): boolean {
   return url.pathname.startsWith("/api/");
 }
 
+function isGameDataRequest(url: URL): boolean {
+  return /^\/api\/web\/games\/\d+$/.test(url.pathname);
+}
+
+function offlineJson(): Response {
+  return new Response(JSON.stringify({ error: "offline" }), {
+    status: 503,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 async function hasActiveClient(): Promise<boolean> {
   const clients = await self.clients.matchAll({
     type: "window",
@@ -56,6 +67,23 @@ async function hasActiveClient(): Promise<boolean> {
   return clients.some(
     (client) => client.focused || client.visibilityState === "visible",
   );
+}
+
+async function preloadGameState(gameId: number): Promise<void> {
+  const url = `/api/web/games/${gameId}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+    });
+
+    if (response.ok) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(url, response);
+    }
+  } catch {
+    // Preload failure is non-fatal; the page fetches normally.
+  }
 }
 
 async function fetchAndCache(request: Request): Promise<Response> {
@@ -76,15 +104,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (isApiRequest(url)) {
+  if (isGameDataRequest(url)) {
+    const network = fetch(event.request).then(async (response) => {
+      if (response.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(event.request, response.clone());
+      }
+
+      return response;
+    });
+
+    event.waitUntil(network.catch(() => undefined));
+
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response(JSON.stringify({ error: "offline" }), {
-          status: 503,
-          headers: { "Content-Type": "application/json" },
-        });
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request);
+
+        return cached ?? (await network.catch(() => offlineJson()));
       }),
     );
+
+    return;
+  }
+
+  if (isApiRequest(url)) {
+    event.respondWith(fetch(event.request).catch(() => offlineJson()));
 
     return;
   }
@@ -169,6 +213,10 @@ self.addEventListener("push", (event) => {
       (async () => {
         if (await hasActiveClient()) {
           return;
+        }
+
+        if (payload.data?.gameId != null) {
+          await preloadGameState(payload.data.gameId);
         }
 
         await self.registration.showNotification(payload.title, {
