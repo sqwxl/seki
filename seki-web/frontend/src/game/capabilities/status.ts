@@ -173,6 +173,7 @@ export const liveGameStatusState = computed((): LiveGameStatusState => {
       hasOpenSlot,
       isBlackTurn: boardNav.boardTurnStone === 1,
       isPlayer,
+      isMyTurn: isPlayer && stone === boardNav.boardTurnStone,
       opponentApproved,
       territoryCountdownSecs,
     }) ?? "";

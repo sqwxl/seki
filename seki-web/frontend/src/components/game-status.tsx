@@ -40,6 +40,7 @@ export type StatusInput = {
   hasOpenSlot?: boolean;
   // Territory review
   isPlayer?: boolean;
+  isMyTurn?: boolean;
   opponentApproved?: boolean;
   territoryCountdownSecs?: number;
 };
@@ -69,12 +70,20 @@ export function getStatusText(input: StatusInput): string | undefined {
   }
 
   if (stage === GameStage.BlackToPlay) {
+    if (input.isMyTurn) {
+      return "Your turn";
+    }
+
     return input.lastMoveWasPass
       ? "Black to play (White passed)"
       : "Black to play";
   }
 
   if (stage === GameStage.WhiteToPlay) {
+    if (input.isMyTurn) {
+      return "Your turn";
+    }
+
     return input.lastMoveWasPass
       ? "White to play (Black passed)"
       : "White to play";
@@ -108,6 +117,10 @@ export function getStatusText(input: StatusInput): string | undefined {
   }
 
   // Fallback for analysis: use turn
+  if (input.isMyTurn) {
+    return "Your turn";
+  }
+
   if (input.isBlackTurn !== undefined) {
     if (input.lastMoveWasPass) {
       return input.isBlackTurn
