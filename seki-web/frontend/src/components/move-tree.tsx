@@ -6,307 +6,14 @@ import {
   useRef,
   useState,
 } from "preact/hooks";
+import { placeTree } from "../game/move-tree-layout";
 import type { GameTreeData } from "../game/types";
 import { useMediaQuery } from "../utils/media-query";
 
 const BASE_NODE_RADIUS = 12;
-const BASE_COL_SPACING = 32;
-const BASE_ROW_SPACING = 34;
+const BASE_COLUMN_SPACING = 32;
+const BASE_TRACK_SPACING = 34;
 const BASE_PADDING = 20;
-
-type LayoutNode = {
-  id: number;
-  col: number;
-  row: number;
-};
-
-// ---------------------------------------------------------------------------
-// Packing tree layout
-//
-// Mainline (children[0] chain) always stays on row 0.
-// Variant chains are packed tightly against the mainline: each chain tries
-// rows 1, 2, … and settles on the first row where its connector, drop path,
-// and node span don't collide with existing nodes or connector turns.
-// │ (drop) cells can stack; └ (connector) and node cells are exclusive.
-//
-// Processing order: mainline tip → root (reverse).  Deeper variants claim
-// lower rows first; shallower ones fill gaps above them.
-// ---------------------------------------------------------------------------
-
-function layoutTree(
-  tree: GameTreeData,
-  mainLineTipNodeId?: number,
-): LayoutNode[] {
-  if (tree.nodes.length === 0) {
-    return [];
-  }
-
-  const layout: LayoutNode[] = new Array(tree.nodes.length);
-
-  // Node cells — exclusive (nothing else can occupy)
-  const nodeCells = new Set<string>();
-  const nodeRowsByCol = new Map<number, Set<number>>();
-  // Connector-turn cells (└ / ├) — exclusive with nodes and other connectors,
-  // but drops (│) can pass through them.
-  const connectorCells = new Set<string>();
-  // Drop cells (│) — can stack with other drops and with connectors,
-  // but blocked by nodes.
-  const dropCells = new Set<string>();
-
-  function key(row: number, col: number): string {
-    return `${row},${col}`;
-  }
-
-  /** True if no node, connector, or drop occupies the cell. */
-  function isFree(row: number, col: number): boolean {
-    const k = key(row, col);
-    return !nodeCells.has(k) && !dropCells.has(k);
-  }
-
-  /** True if a connector (└) can go here — blocked by nodes and other connectors. */
-  function isFreeConnector(row: number, col: number): boolean {
-    const k = key(row, col);
-    return !nodeCells.has(k) && !connectorCells.has(k);
-  }
-
-  function markNode(row: number, col: number): void {
-    nodeCells.add(key(row, col));
-    let rows = nodeRowsByCol.get(col);
-
-    if (!rows) {
-      rows = new Set();
-      nodeRowsByCol.set(col, rows);
-    }
-
-    rows.add(row);
-  }
-
-  function markConnector(row: number, col: number): void {
-    connectorCells.add(key(row, col));
-  }
-
-  function markDrop(row: number, col: number): void {
-    dropCells.add(key(row, col));
-  }
-
-  function isDropPathFree(
-    fromRow: number,
-    toRow: number,
-    col: number,
-  ): boolean {
-    const rows = nodeRowsByCol.get(col);
-
-    if (!rows) {
-      return true;
-    }
-
-    for (const row of rows) {
-      if (row >= fromRow && row <= toRow) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  function mainlinePathFromTip(): number[] | undefined {
-    if (
-      mainLineTipNodeId == null ||
-      mainLineTipNodeId < 0 ||
-      mainLineTipNodeId >= tree.nodes.length
-    ) {
-      return undefined;
-    }
-
-    const path: number[] = [];
-    const seen = new Set<number>();
-    let id: number | null = mainLineTipNodeId;
-
-    while (id != null) {
-      if (id < 0 || id >= tree.nodes.length || seen.has(id)) {
-        return undefined;
-      }
-
-      path.push(id);
-      seen.add(id);
-      id = tree.nodes[id].parent;
-    }
-
-    path.reverse();
-
-    return tree.root_children.includes(path[0]) ? path : undefined;
-  }
-
-  // ---- Mainline ----
-  const mainlinePath = mainlinePathFromTip();
-  const mainlineNext = new Map<number, number>();
-
-  if (mainlinePath) {
-    for (let i = 0; i < mainlinePath.length - 1; i++) {
-      mainlineNext.set(mainlinePath[i], mainlinePath[i + 1]);
-    }
-  }
-
-  function walkMainline(): number[] {
-    const order: number[] = [];
-    let col = 0;
-
-    function place(id: number): void {
-      layout[id] = { id, col, row: 0 };
-      markNode(0, col);
-      order.push(id);
-      col++;
-    }
-
-    if (mainlinePath) {
-      for (const id of mainlinePath) {
-        place(id);
-      }
-
-      return order;
-    }
-
-    function walk(ids: number[]): void {
-      for (const id of ids) {
-        place(id);
-        const children = tree.nodes[id].children;
-        if (children.length > 0) {
-          walk([children[0]]);
-        }
-      }
-    }
-
-    walk(tree.root_children);
-    return order;
-  }
-
-  const mainlineOrder = walkMainline();
-
-  // ---- Chain helpers ----
-
-  /** Return the length of the children[0] chain starting at nodeId (including nodeId). */
-  function chainLen(nodeId: number): number {
-    let len = 1;
-    let cur = nodeId;
-    const seen = new Set<number>([nodeId]);
-
-    while (true) {
-      const kids = tree.nodes[cur].children;
-      if (kids.length === 0) break;
-      if (seen.has(kids[0])) break;
-      cur = kids[0];
-      seen.add(cur);
-      len++;
-    }
-    return len;
-  }
-
-  /** Place a variant chain (nodeId and its children[0] descendants).
-   *  parentRow / parentCol refer to the node this chain branches from. */
-  function placeChain(
-    nodeId: number,
-    parentRow: number,
-    parentCol: number,
-  ): void {
-    const len = chainLen(nodeId);
-
-    // Find the first row that fits
-    let bestRow = -1;
-    const maxSearchRow = parentRow + tree.nodes.length + 1;
-
-    for (let R = parentRow + 1; R <= maxSearchRow; R++) {
-      // Node cells: cols parentCol+1 .. parentCol+len on row R
-      let ok = true;
-      for (let c = parentCol + 1; c <= parentCol + len; c++) {
-        if (!isFree(R, c)) {
-          ok = false;
-          break;
-        }
-      }
-      if (!ok) continue;
-
-      // Connector cell: col parentCol on row R
-      if (!isFreeConnector(R, parentCol)) continue;
-
-      ok = isDropPathFree(parentRow + 1, R - 1, parentCol);
-      if (!ok) continue;
-
-      bestRow = R;
-      break;
-    }
-
-    const R = bestRow === -1 ? maxSearchRow : bestRow;
-
-    // Place connector
-    markConnector(R, parentCol);
-
-    // Place drop cells
-    for (let r = parentRow + 1; r < R; r++) {
-      markDrop(r, parentCol);
-    }
-
-    // Place chain nodes (children[0] walk)
-    {
-      let col = parentCol + 1;
-      let cur = nodeId;
-      const seen = new Set<number>();
-
-      while (true) {
-        if (seen.has(cur)) break;
-        seen.add(cur);
-        layout[cur] = { id: cur, col, row: R };
-        markNode(R, col);
-        col++;
-        const kids = tree.nodes[cur].children;
-        if (kids.length === 0) break;
-        cur = kids[0];
-      }
-    }
-
-    // Recurse into sub-variants of the chain nodes
-    {
-      let cur = nodeId;
-      let col = parentCol + 1;
-      const seen = new Set<number>();
-
-      while (true) {
-        if (seen.has(cur)) break;
-        seen.add(cur);
-        const kids = tree.nodes[cur].children;
-        for (let j = 1; j < kids.length; j++) {
-          placeChain(kids[j], R, col);
-        }
-        if (kids.length === 0) break;
-        cur = kids[0];
-        col++;
-      }
-    }
-  }
-
-  // ---- Place variant chains in reverse mainline order ----
-  for (let i = mainlineOrder.length - 1; i >= 0; i--) {
-    const nodeId = mainlineOrder[i];
-    const pos = layout[nodeId];
-    const children = tree.nodes[nodeId].children;
-    const mainlineChild = mainlinePath ? mainlineNext.get(nodeId) : children[0];
-
-    for (const child of children) {
-      if (child !== mainlineChild) {
-        placeChain(child, pos.row, pos.col);
-      }
-    }
-  }
-
-  // Also handle root_children beyond the mainline root
-  const mainlineRoot = mainlineOrder[0];
-  for (const rootChild of tree.root_children) {
-    if (rootChild !== mainlineRoot) {
-      placeChain(rootChild, 0, -1);
-    }
-  }
-
-  return layout;
-}
 
 type MoveTreeProps = {
   tree: GameTreeData;
@@ -374,8 +81,8 @@ export function MoveTree({
   const svgRef = useRef<SVGSVGElement>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const containerLayout = useContainerLayout(scrollRef);
-  const layout = useMemo(
-    () => layoutTree(tree, mainLineTipNodeId),
+  const placement = useMemo(
+    () => placeTree(tree, mainLineTipNodeId),
     [tree, mainLineTipNodeId],
   );
   const resolvedDirection = direction ?? containerLayout.direction;
@@ -384,8 +91,8 @@ export function MoveTree({
     verticalGrowth === "auto" ? containerLayout.growth : verticalGrowth;
   const scale = isDesktop ? 2 : 1;
   const nodeRadius = BASE_NODE_RADIUS * scale;
-  const colSpacing = BASE_COL_SPACING * scale;
-  const rowSpacing = BASE_ROW_SPACING * scale;
+  const columnSpacing = BASE_COLUMN_SPACING * scale;
+  const trackSpacing = BASE_TRACK_SPACING * scale;
   const padding = BASE_PADDING * scale;
   const treeEdgePadding = nodeRadius + 4 * scale;
 
@@ -443,29 +150,35 @@ export function MoveTree({
     onNavigate(mainlineTipId);
   }
 
-  const maxCol = layout.reduce((m, n) => (n ? Math.max(m, n.col) : m), 0);
-  const maxRow = layout.reduce((m, n) => (n ? Math.max(m, n.row) : m), 0);
+  const maxColumn = placement.reduce(
+    (m, n) => (n ? Math.max(m, n.column) : m),
+    0,
+  );
+  const maxTrack = placement.reduce(
+    (m, n) => (n ? Math.max(m, n.track) : m),
+    0,
+  );
 
   const svgWidth = vertical
-    ? maxRow * rowSpacing + treeEdgePadding * 2
-    : maxCol * colSpacing + treeEdgePadding * 2;
+    ? maxTrack * trackSpacing + treeEdgePadding * 2
+    : maxColumn * columnSpacing + treeEdgePadding * 2;
   const svgHeight = vertical
-    ? maxCol * colSpacing + treeEdgePadding * 2
-    : maxRow * rowSpacing + treeEdgePadding * 2;
+    ? maxColumn * columnSpacing + treeEdgePadding * 2
+    : maxTrack * trackSpacing + treeEdgePadding * 2;
 
-  function cx(col: number, row: number): number {
+  function cx(column: number, track: number): number {
     if (!vertical) {
-      return treeEdgePadding + col * colSpacing;
+      return treeEdgePadding + column * columnSpacing;
     }
 
     return resolvedGrowth === "left"
-      ? svgWidth - treeEdgePadding - row * rowSpacing
-      : treeEdgePadding + row * rowSpacing;
+      ? svgWidth - treeEdgePadding - track * trackSpacing
+      : treeEdgePadding + track * trackSpacing;
   }
-  function cy(col: number, row: number): number {
+  function cy(column: number, track: number): number {
     return vertical
-      ? treeEdgePadding + col * colSpacing
-      : treeEdgePadding + row * rowSpacing;
+      ? treeEdgePadding + column * columnSpacing
+      : treeEdgePadding + track * trackSpacing;
   }
 
   // Auto-scroll to keep current node visible.
@@ -496,14 +209,14 @@ export function MoveTree({
         x = cx(0, 0);
         y = cy(0, 0);
       } else {
-        const cur = layout.find((n) => n && n.id === currentNodeId);
+        const cur = placement.find((n) => n && n.id === currentNodeId);
 
         if (!cur) {
           return undefined;
         }
 
-        x = cx(cur.col, cur.row);
-        y = cy(cur.col, cur.row);
+        x = cx(cur.column, cur.track);
+        y = cy(cur.column, cur.track);
       }
 
       const scrollRect = scrollEl.getBoundingClientRect();
@@ -609,15 +322,15 @@ export function MoveTree({
   }, [
     currentNodeId,
     tree,
-    layout,
+    placement,
     resolvedDirection,
     resolvedGrowth,
-    maxRow,
-    maxCol,
+    maxTrack,
+    maxColumn,
     isDesktop,
   ]);
 
-  if (layout.length === 0) {
+  if (placement.length === 0) {
     return null;
   }
 
@@ -625,7 +338,7 @@ export function MoveTree({
   const inactiveEdges: h.JSX.Element[] = [];
   const activeEdges: h.JSX.Element[] = [];
 
-  for (const node of layout) {
+  for (const node of placement) {
     if (!node) {
       continue;
     }
@@ -633,13 +346,13 @@ export function MoveTree({
     const treeNode = tree.nodes[node.id];
 
     if (treeNode.parent != null) {
-      const parentLayout = layout[treeNode.parent];
+      const parentLayout = placement[treeNode.parent];
 
       if (parentLayout) {
-        const x1 = cx(parentLayout.col, parentLayout.row);
-        const y1 = cy(parentLayout.col, parentLayout.row);
-        const x2 = cx(node.col, node.row);
-        const y2 = cy(node.col, node.row);
+        const x1 = cx(parentLayout.column, parentLayout.track);
+        const y1 = cy(parentLayout.column, parentLayout.track);
+        const x2 = cx(node.column, node.track);
+        const y2 = cy(node.column, node.track);
 
         // Same-branch check: horizontal checks y, vertical checks x
         const straight = vertical ? x1 === x2 : y1 === y2;
@@ -668,12 +381,12 @@ export function MoveTree({
           // diagonal connector
           const s = resolvedGrowth === "left" ? 1 : -1;
           const ortho = vertical
-            ? `H ${x2 + s * colSpacing}`
-            : `V ${y2 - colSpacing}`;
-          const c = colSpacing * 0.5; // curvature
+            ? `H ${x2 + s * columnSpacing}`
+            : `V ${y2 - columnSpacing}`;
+          const c = columnSpacing * 0.5; // curvature
           const C = vertical
             ? `C ${x2 + s * c},${y1} ${x2},${y2 - c} ${x2},${y2}`
-            : `C ${x1},${y2 - colSpacing + c} ${x2 - c},${y2} ${x2},${y2}`;
+            : `C ${x1},${y2 - columnSpacing + c} ${x2 - c},${y2} ${x2},${y2}`;
           edges.push(
             <path
               key={`e-${treeNode.parent}-${node.id}`}
@@ -694,14 +407,14 @@ export function MoveTree({
   const rootNodes: h.JSX.Element[] = [];
   const nodes: h.JSX.Element[] = [];
 
-  for (const node of layout) {
+  for (const node of placement) {
     if (!node) {
       continue;
     }
 
     const treeNode = tree.nodes[node.id];
-    const x = cx(node.col, node.row);
-    const y = cy(node.col, node.row);
+    const x = cx(node.column, node.track);
+    const y = cy(node.column, node.track);
     const isCurrent = node.id === currentNodeId;
     const stone = treeNode.turn.stone;
     const isPass = treeNode.turn.kind === "pass";
@@ -811,7 +524,7 @@ export function MoveTree({
               fill: textFill,
             }}
           >
-            {node.col}
+            {node.column}
           </text>
         )}
       </g>
