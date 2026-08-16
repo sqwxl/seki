@@ -405,6 +405,44 @@ export function MoveTree({
     return path;
   }, [currentNodeId, tree]);
 
+  // Latest mainline node — target for double-tap on empty space.
+  const mainlineTipId = useMemo(() => {
+    if (
+      mainLineTipNodeId != null &&
+      mainLineTipNodeId >= 0 &&
+      mainLineTipNodeId < tree.nodes.length
+    ) {
+      return mainLineTipNodeId;
+    }
+
+    let id = tree.root_children[0];
+    const seen = new Set<number>();
+
+    while (id != null && id < tree.nodes.length && !seen.has(id)) {
+      seen.add(id);
+      const kids = tree.nodes[id].children;
+      if (kids.length === 0) break;
+      id = kids[0];
+    }
+
+    return id;
+  }, [tree, mainLineTipNodeId]);
+
+  const lastTapAt = useRef(0);
+
+  function jumpToMainlineTip(target: EventTarget | null): void {
+    // Only empty space (container or svg background), not nodes/edges
+    if (target !== scrollRef.current && target !== svgRef.current) {
+      return;
+    }
+
+    if (mainlineTipId == null || mainlineTipId === currentNodeId) {
+      return;
+    }
+
+    onNavigate(mainlineTipId);
+  }
+
   const maxCol = layout.reduce((m, n) => (n ? Math.max(m, n.col) : m), 0);
   const maxRow = layout.reduce((m, n) => (n ? Math.max(m, n.row) : m), 0);
 
@@ -794,6 +832,17 @@ export function MoveTree({
         minHeight: 0,
         overflow: "auto",
         scrollBehavior: "smooth",
+        touchAction: "manipulation",
+      }}
+      onDblClick={(e) => jumpToMainlineTip(e.target)}
+      onTouchEnd={(e) => {
+        const now = Date.now();
+        const isDoubleTap = now - lastTapAt.current < 300;
+        lastTapAt.current = now;
+
+        if (isDoubleTap) {
+          jumpToMainlineTip(e.target);
+        }
       }}
     >
       <svg
