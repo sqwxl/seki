@@ -80,7 +80,7 @@ pub async fn load_game_state(
             .await
             .ok()
             .flatten()
-            .map(|raw| state_serializer::build_settled_territory(engine, gwp.game.komi, raw))
+            .map(|raw| state_serializer::build_settled_territory(engine, raw))
     } else {
         None
     };

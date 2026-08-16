@@ -20,11 +20,19 @@ pub struct TerritoryData {
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+/// Score shape emitted on the wire — komi is deliberately excluded to match
+/// `territory.score` and the frontend/seki-api `TerritoryScore` definitions.
+#[derive(Serialize)]
+pub struct ScoreData {
+    pub black: go_engine::territory::PlayerPoints,
+    pub white: go_engine::territory::PlayerPoints,
+}
+
 #[derive(Serialize)]
 pub struct SettledTerritoryData {
     pub ownership: Vec<i8>,
     pub dead_stones: Vec<(u8, u8)>,
-    pub score: go_engine::territory::GameScore,
+    pub score: ScoreData,
 }
 
 #[derive(Serialize)]
@@ -58,7 +66,6 @@ impl PregameSettingsData {
 /// Build a `SettledTerritoryData` from raw DB tuple (dead_stones JSON, bt, bc, wt, wc).
 pub fn build_settled_territory(
     engine: &Engine,
-    komi: f64,
     raw: (Option<serde_json::Value>, i32, i32, i32, i32),
 ) -> SettledTerritoryData {
     let (dead_json, bt, bc, wt, wc) = raw;
@@ -74,7 +81,7 @@ pub fn build_settled_territory(
     SettledTerritoryData {
         ownership,
         dead_stones: dead_list,
-        score: go_engine::territory::GameScore {
+        score: ScoreData {
             black: go_engine::territory::PlayerPoints {
                 territory: bt as u32,
                 captures: bc as u32,
@@ -83,7 +90,6 @@ pub fn build_settled_territory(
                 territory: wt as u32,
                 captures: wc as u32,
             },
-            komi,
         },
     }
 }
