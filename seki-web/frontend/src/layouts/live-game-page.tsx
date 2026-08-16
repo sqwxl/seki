@@ -55,6 +55,7 @@ import { readUserData } from "../game/util";
 import { formatResult } from "../utils/format";
 import { useMediaQuery } from "../utils/media-query";
 import type { MoveConfirmState } from "../utils/move-confirm";
+import { promptForOsNotificationsIfDisabled } from "../utils/os-notifications";
 import { postForm, type WebRequestError } from "../utils/web-client";
 import type { AnalysisSessionController } from "./analysis-session/controller";
 import { Controls } from "./controls";
@@ -308,6 +309,7 @@ function LiveGameStatusSlot(
           }}
           onJoin={() => {
             clearGameFlashMessage();
+            promptForOsNotificationsIfDisabled();
 
             if (!setPendingAction("join-game")) {
               return;

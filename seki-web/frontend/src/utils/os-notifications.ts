@@ -1,13 +1,19 @@
 import { signal } from "@preact/signals";
 import { getFcmToken, isNativeApp, onBridgeReady } from "../native/bridge";
 import {
+  isPushSupported,
   registerSubscription,
   subscribeToPush,
   unsubscribePush,
 } from "../push";
 import { setFlash } from "./flash";
 import { savePref } from "./preferences";
-import { NOTIFICATIONS, PUSH_SUBSCRIPTION_ID, storage } from "./storage";
+import {
+  NOTIFICATIONS,
+  NOTIF_PROMPTED,
+  PUSH_SUBSCRIPTION_ID,
+  storage,
+} from "./storage";
 
 const FCM_TOKEN_ID = "seki:fcm_token_id";
 
@@ -64,6 +70,27 @@ function compute(): boolean {
 }
 
 export const osNotificationsEnabled = signal(compute());
+
+// Ask once per device, at value moments (creating or joining a game). The
+// localStorage marker is set the moment we prompt, so granting, denying, or
+// dismissing all count as "asked". Never toggles notifications off — only
+// prompts when they are currently off and the permission is still askable.
+export function promptForOsNotificationsIfDisabled(): void {
+  if (osNotificationsEnabled.value || storage.get(NOTIF_PROMPTED) != null) {
+    return;
+  }
+
+  if (
+    !("Notification" in window) ||
+    Notification.permission !== "default" ||
+    !isPushSupported()
+  ) {
+    return;
+  }
+
+  storage.set(NOTIF_PROMPTED, "1");
+  void toggleOsNotifications();
+}
 
 async function registerFcmToken(): Promise<void> {
   const token = getFcmToken();

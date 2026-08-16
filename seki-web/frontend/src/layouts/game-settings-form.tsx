@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { IconBell, IconTimer, IconUser } from "../components/icons";
 import type { DerivedHandicapKomi, RankData } from "../game/types";
+import { promptForOsNotificationsIfDisabled } from "../utils/os-notifications";
 import { fullRankText } from "../utils/rating";
 import { GAME_SETTINGS, storage } from "../utils/storage";
 import {
@@ -58,12 +59,7 @@ type AllSettings = {
 };
 
 type CommonSettingKey =
-  | "cols"
-  | "handicap"
-  | "komi"
-  | "color"
-  | "allowUndo"
-  | "isPrivate";
+  "cols" | "handicap" | "komi" | "color" | "allowUndo" | "isPrivate";
 
 const COMMON_SETTING_KEYS: CommonSettingKey[] = [
   "cols",
@@ -321,6 +317,8 @@ export function GameSettingsForm({
     }
 
     const onSubmit = () => {
+      promptForOsNotificationsIfDisabled();
+
       try {
         storage.setJson(GAME_SETTINGS, settingsRef.current);
       } catch {}
