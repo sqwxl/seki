@@ -20,14 +20,12 @@ async function getServiceWorkerRegistration(): Promise<
     return undefined;
   }
 
-  const existing = await navigator.serviceWorker.getRegistration("/");
-
-  if (existing) {
-    return existing;
-  }
-
   try {
-    return await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    // register() is idempotent; ready resolves only once the worker is ACTIVE.
+    // subscribe() hangs in Firefox if the worker isn't active yet (first
+    // toggle = first-ever registration).
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    return await navigator.serviceWorker.ready;
   } catch {
     return undefined;
   }
@@ -70,12 +68,17 @@ export async function subscribeToPush(): Promise<
     return undefined;
   }
 
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidKey),
-  });
+  try {
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    });
 
-  return subscription.toJSON();
+    return subscription.toJSON();
+  } catch (error) {
+    console.error("push: subscribe failed", error);
+    return undefined;
+  }
 }
 
 export async function registerSubscription(
