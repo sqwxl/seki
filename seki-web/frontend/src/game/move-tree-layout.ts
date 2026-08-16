@@ -2,16 +2,20 @@
 // Move-tree positioning: a channel router.
 //
 // The game tree is routed onto a grid. The mainline (children[0] chain) sits
-// on track 0, and each variant net drops from its parent onto the first track
-// below where its span fits. A net occupies three cell kinds:
-//   - node cells — exclusive with everything;
+// on track 0; every variant net hangs below its parent. A net occupies three
+// cell kinds:
+//   - node cells — blocked by nodes and trunks; a dogleg may tuck behind one;
 //   - dogleg cells (└) — the elbow where a net turns down; exclusive with
 //     nodes and other doglegs, but trunks may pass through;
 //   - trunk cells (│) — the vertical run of a dogleg; may stack with trunks
 //     and doglegs, but blocked by nodes.
 //
-// Nets are placed in reverse mainline order (tip → root), so deeper nets
-// claim tracks closer to the mainline first.
+// Nets are routed in reverse mainline order (tip → root), so deeper nets
+// claim tracks closer to the mainline first. Within a net, nodes are placed
+// one at a time, each on the lowest track ≥ the track of the node before it
+// (the vertical constraint): a node that drops to clear a collision stays
+// down for the rest of the net (a monotone dogleg), and non-overlapping nets
+// may share a track.
 // ---------------------------------------------------------------------------
 
 export type PlacedNode = {
@@ -35,7 +39,7 @@ export function placeTree(
 
   const placement: PlacedNode[] = new Array(tree.nodes.length);
 
-  // Node cells — exclusive (nothing else can occupy).
+  // Node cells — blocked by other nodes and trunks; a dogleg may tuck behind.
   const nodeCells = new Set<string>();
   const nodeTracksByColumn = new Map<number, Set<number>>();
   // Dogleg cells (└) — exclusive with nodes and other doglegs,
@@ -176,101 +180,85 @@ export function placeTree(
 
   // ---- Net helpers ----
 
-  /** Length of the children[0] chain starting at nodeId (including nodeId). */
-  function netLength(nodeId: number): number {
-    let len = 1;
-    let cur = nodeId;
-    const seen = new Set<number>([nodeId]);
+  /** First track ≥ floor where a node fits; fallback to maxSearchTrack. */
+  function findNodeTrack(
+    floor: number,
+    column: number,
+    parentTrack: number,
+    parentColumn: number,
+  ): number {
+    const maxSearchTrack = tree.nodes.length + 1;
 
-    while (true) {
-      const kids = tree.nodes[cur].children;
-      if (kids.length === 0) break;
-      if (seen.has(kids[0])) break;
-      cur = kids[0];
-      seen.add(cur);
-      len++;
+    for (let t = floor; t <= maxSearchTrack; t++) {
+      if (!isNodeCellFree(t, column)) continue;
+
+      if (t > parentTrack) {
+        if (!isDoglegCellFree(t, parentColumn)) continue;
+        if (!isTrunkPathFree(parentTrack + 1, t - 1, parentColumn)) continue;
+      }
+
+      return t;
     }
-    return len;
+
+    return maxSearchTrack;
   }
 
   /** Route a variant net (nodeId and its children[0] descendants).
-   *  parentTrack / parentColumn refer to the node this net branches from. */
+   *  parentTrack / parentColumn refer to the node this net branches from.
+   *
+   *  Nodes are placed one at a time, each on the lowest track ≥ the track of
+   *  the node before it (the vertical constraint). A node that drops to clear
+   *  a collision stays down for the rest of the net (a monotone dogleg). */
   function placeNet(
     nodeId: number,
     parentTrack: number,
     parentColumn: number,
   ): void {
-    const len = netLength(nodeId);
-
-    // Find the first track that fits
-    let bestTrack = -1;
-    const maxSearchTrack = parentTrack + tree.nodes.length + 1;
-
-    for (let t = parentTrack + 1; t <= maxSearchTrack; t++) {
-      // Node cells: columns parentColumn+1 .. parentColumn+len on track t
-      let ok = true;
-      for (let c = parentColumn + 1; c <= parentColumn + len; c++) {
-        if (!isNodeCellFree(t, c)) {
-          ok = false;
-          break;
-        }
-      }
-      if (!ok) continue;
-
-      // Dogleg cell: column parentColumn on track t
-      if (!isDoglegCellFree(t, parentColumn)) continue;
-
-      ok = isTrunkPathFree(parentTrack + 1, t - 1, parentColumn);
-      if (!ok) continue;
-
-      bestTrack = t;
-      break;
-    }
-
-    const t = bestTrack === -1 ? maxSearchTrack : bestTrack;
-
-    // Place dogleg
-    markDogleg(t, parentColumn);
-
-    // Place trunk cells
-    for (let r = parentTrack + 1; r < t; r++) {
-      markTrunk(r, parentColumn);
-    }
-
-    // Place net nodes (children[0] walk)
+    // Phase 1: place the net nodes (children[0] walk), monotone tracks.
+    const chainNodes: number[] = [];
     {
-      let column = parentColumn + 1;
       let cur = nodeId;
+      let column = parentColumn + 1;
+      let prevTrack = parentTrack;
+      let prevColumn = parentColumn;
+      let floor = parentTrack + 1; // the first node drops below its parent
       const seen = new Set<number>();
 
       while (true) {
         if (seen.has(cur)) break;
         seen.add(cur);
-        placement[cur] = { id: cur, column, track: t };
-        markNode(t, column);
-        column++;
+
+        const track = findNodeTrack(floor, column, prevTrack, prevColumn);
+
+        placement[cur] = { id: cur, column, track };
+        markNode(track, column);
+
+        if (track > prevTrack) {
+          markDogleg(track, prevColumn);
+          for (let r = prevTrack + 1; r < track; r++) {
+            markTrunk(r, prevColumn);
+          }
+        }
+
+        chainNodes.push(cur);
+
         const kids = tree.nodes[cur].children;
         if (kids.length === 0) break;
+
+        prevTrack = track;
+        prevColumn = column;
+        floor = track; // subsequent nodes may stay on this track
+        column++;
         cur = kids[0];
       }
     }
 
-    // Route sub-nets of the net nodes
-    {
-      let cur = nodeId;
-      let column = parentColumn + 1;
-      const seen = new Set<number>();
-
-      while (true) {
-        if (seen.has(cur)) break;
-        seen.add(cur);
-        const kids = tree.nodes[cur].children;
-        for (let j = 1; j < kids.length; j++) {
-          placeNet(kids[j], t, column);
-        }
-        if (kids.length === 0) break;
-        cur = kids[0];
-        column++;
+    // Phase 2: route sub-nets, after the whole net is placed.
+    for (const cur of chainNodes) {
+      const pos = placement[cur];
+      const kids = tree.nodes[cur].children;
+      for (let j = 1; j < kids.length; j++) {
+        placeNet(kids[j], pos.track, pos.column);
       }
     }
   }
