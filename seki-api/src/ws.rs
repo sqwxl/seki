@@ -12,141 +12,213 @@ use crate::user::UserData;
 // ---------------------------------------------------------------------------
 
 /// Messages sent from client to server via WebSocket.
+/// Discriminated by the `action` field; each variant carries its own payload
+/// so the action and payload can never disagree.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ClientMsg {
-    pub action: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub game_id: Option<i64>,
-    #[serde(flatten)]
-    pub payload: ClientPayload,
-}
-
-/// Variant payload for client messages, keyed by `action`.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum ClientPayload {
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum ClientMsg {
+    // -- Transport / connection-level --
+    /// Client is closing the connection deliberately.
+    Bye,
+    /// Client heartbeat.
+    Ping,
+    /// Subscribe to a game room.
     JoinGame {
+        game_id: i64,
         #[serde(skip_serializing_if = "Option::is_none")]
         access_token: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         invite_token: Option<String>,
     },
+    /// Leave a game room without closing the connection.
+    LeaveGame {
+        game_id: i64,
+    },
+    /// Subscribe to presence updates for the given user ids.
+    SubscribePresence {
+        user_ids: Vec<i64>,
+    },
+
+    // -- Game actions --
     Play {
+        game_id: i64,
         col: i32,
         row: i32,
         #[serde(skip_serializing_if = "Option::is_none")]
         client_move_time_ms: Option<i64>,
     },
     Pass {
+        game_id: i64,
         #[serde(skip_serializing_if = "Option::is_none")]
         client_move_time_ms: Option<i64>,
     },
-    RespondToUndo {
-        response: String,
+    Resign {
+        game_id: i64,
     },
-    /// Pregame settings negotiation payload.
-    PregameSettings {
-        handicap: i32,
-        komi: f64,
-        color: String,
+    AcceptChallenge {
+        game_id: i64,
     },
-    /// Chat message payload.
+    DeclineChallenge {
+        game_id: i64,
+    },
+    Abort {
+        game_id: i64,
+    },
     Chat {
+        game_id: i64,
         message: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         client_message_id: Option<String>,
     },
-    /// Territory chain toggle.
+    RequestUndo {
+        game_id: i64,
+    },
+    RespondToUndo {
+        game_id: i64,
+        response: String,
+    },
     ToggleChain {
+        game_id: i64,
         col: u8,
         row: u8,
     },
+    ApproveTerritory {
+        game_id: i64,
+    },
+    /// Pregame settings negotiation update.
+    UpdatePregameSettings {
+        game_id: i64,
+        handicap: i32,
+        komi: f64,
+        color: String,
+    },
+    AcceptPregameSettings {
+        game_id: i64,
+    },
+    RejectPregameSettings {
+        game_id: i64,
+    },
+    ClaimVictory {
+        game_id: i64,
+    },
+    TimeoutFlag {
+        game_id: i64,
+    },
+    TerritoryTimeoutFlag {
+        game_id: i64,
+    },
+    StartPresentation {
+        game_id: i64,
+    },
+    EndPresentation {
+        game_id: i64,
+    },
     /// Presentation snapshot update.
     PresentationState {
+        game_id: i64,
         #[serde(default)]
         snapshot: String,
     },
-    /// Give presentation control to another user.
     GiveControl {
+        game_id: i64,
         target_user_id: i64,
     },
-    Empty,
+    TakeControl {
+        game_id: i64,
+    },
+    RequestControl {
+        game_id: i64,
+    },
+    CancelControlRequest {
+        game_id: i64,
+    },
+    RejectControlRequest {
+        game_id: i64,
+    },
 }
 
 impl ClientMsg {
+    /// The game id carried by game-scoped variants (None for transport messages).
+    pub fn game_id(&self) -> Option<i64> {
+        match self {
+            ClientMsg::Bye | ClientMsg::Ping | ClientMsg::SubscribePresence { .. } => None,
+            ClientMsg::JoinGame { game_id, .. }
+            | ClientMsg::LeaveGame { game_id, .. }
+            | ClientMsg::Play { game_id, .. }
+            | ClientMsg::Pass { game_id, .. }
+            | ClientMsg::Resign { game_id }
+            | ClientMsg::AcceptChallenge { game_id }
+            | ClientMsg::DeclineChallenge { game_id }
+            | ClientMsg::Abort { game_id }
+            | ClientMsg::Chat { game_id, .. }
+            | ClientMsg::RequestUndo { game_id }
+            | ClientMsg::RespondToUndo { game_id, .. }
+            | ClientMsg::ToggleChain { game_id, .. }
+            | ClientMsg::ApproveTerritory { game_id }
+            | ClientMsg::UpdatePregameSettings { game_id, .. }
+            | ClientMsg::AcceptPregameSettings { game_id }
+            | ClientMsg::RejectPregameSettings { game_id }
+            | ClientMsg::ClaimVictory { game_id }
+            | ClientMsg::TimeoutFlag { game_id }
+            | ClientMsg::TerritoryTimeoutFlag { game_id }
+            | ClientMsg::StartPresentation { game_id }
+            | ClientMsg::EndPresentation { game_id }
+            | ClientMsg::PresentationState { game_id, .. }
+            | ClientMsg::GiveControl { game_id, .. }
+            | ClientMsg::TakeControl { game_id }
+            | ClientMsg::RequestControl { game_id }
+            | ClientMsg::CancelControlRequest { game_id }
+            | ClientMsg::RejectControlRequest { game_id } => Some(*game_id),
+        }
+    }
+
+    // -- Constructor helpers (used by bot crates) --
+
     pub fn join_game(game_id: i64) -> Self {
-        ClientMsg {
-            action: "join_game".into(),
-            game_id: Some(game_id),
-            payload: ClientPayload::JoinGame {
-                access_token: None,
-                invite_token: None,
-            },
+        ClientMsg::JoinGame {
+            game_id,
+            access_token: None,
+            invite_token: None,
         }
     }
 
     pub fn play(game_id: i64, col: i32, row: i32) -> Self {
-        ClientMsg {
-            action: "play".into(),
-            game_id: Some(game_id),
-            payload: ClientPayload::Play {
-                col,
-                row,
-                client_move_time_ms: None,
-            },
+        ClientMsg::Play {
+            game_id,
+            col,
+            row,
+            client_move_time_ms: None,
         }
     }
 
     pub fn pass(game_id: i64) -> Self {
-        ClientMsg {
-            action: "pass".into(),
-            game_id: Some(game_id),
-            payload: ClientPayload::Pass {
-                client_move_time_ms: None,
-            },
+        ClientMsg::Pass {
+            game_id,
+            client_move_time_ms: None,
         }
     }
 
     pub fn resign(game_id: i64) -> Self {
-        ClientMsg {
-            action: "resign".into(),
-            game_id: Some(game_id),
-            payload: ClientPayload::Empty,
-        }
+        ClientMsg::Resign { game_id }
     }
 
     pub fn accept_challenge(game_id: i64) -> Self {
-        ClientMsg {
-            action: "accept_challenge".into(),
-            game_id: Some(game_id),
-            payload: ClientPayload::Empty,
-        }
+        ClientMsg::AcceptChallenge { game_id }
     }
 
     pub fn respond_to_undo(game_id: i64, response: &str) -> Self {
-        ClientMsg {
-            action: "respond_to_undo".into(),
-            game_id: Some(game_id),
-            payload: ClientPayload::RespondToUndo {
-                response: response.to_string(),
-            },
+        ClientMsg::RespondToUndo {
+            game_id,
+            response: response.to_string(),
         }
     }
 
     pub fn accept_pregame_settings(game_id: i64) -> Self {
-        ClientMsg {
-            action: "accept_pregame_settings".into(),
-            game_id: Some(game_id),
-            payload: ClientPayload::Empty,
-        }
+        ClientMsg::AcceptPregameSettings { game_id }
     }
 
     pub fn approve_territory(game_id: i64) -> Self {
-        ClientMsg {
-            action: "approve_territory".into(),
-            game_id: Some(game_id),
-            payload: ClientPayload::Empty,
-        }
+        ClientMsg::ApproveTerritory { game_id }
     }
 }
 

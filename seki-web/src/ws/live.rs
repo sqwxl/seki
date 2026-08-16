@@ -6,6 +6,7 @@ use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::response::Response;
 use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
+use seki_api::ws::ClientMsg;
 use serde_json::json;
 use tokio::sync::mpsc;
 
@@ -135,23 +136,23 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                     ));
                     continue;
                 }
-                if let Ok(data) = serde_json::from_str::<serde_json::Value>(text_str) {
-                    let action = data.get("action").and_then(|v| v.as_str()).unwrap_or("");
-
-                    match action {
-                        "bye" => {
+                if let Ok(msg) = serde_json::from_str::<ClientMsg>(text_str) {
+                    match msg {
+                        ClientMsg::Bye => {
                             bye_received = true;
                         }
-                        "ping" => {
+                        ClientMsg::Ping => {
                             let _ = tx.send(Arc::new(json!({"kind": "pong"}).to_string()));
                         }
-                        "join_game" => {
-                            if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64())
-                                && let Ok(gwp) = Game::find_with_players(&state.db, game_id).await
-                            {
+                        ClientMsg::JoinGame {
+                            game_id,
+                            access_token,
+                            invite_token,
+                        } => {
+                            if let Ok(gwp) = Game::find_with_players(&state.db, game_id).await {
                                 let tokens = crate::services::game_access::GameViewTokens {
-                                    access_token: data.get("access_token").and_then(|v| v.as_str()),
-                                    invite_token: data.get("invite_token").and_then(|v| v.as_str()),
+                                    access_token: access_token.as_deref(),
+                                    invite_token: invite_token.as_deref(),
                                 };
                                 if !crate::services::game_access::can_view_game(
                                     &gwp,
@@ -209,44 +210,36 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                     .ok();
                             }
                         }
-                        "leave_game" => {
-                            if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64()) {
-                                let removed = state.registry.leave(game_id, user_id, &tx).await;
-                                subscribed_games.remove(&game_id);
-                                if removed {
-                                    presentation_actions::handle_presenter_left(
-                                        &state, game_id, user_id,
-                                    )
-                                    .await;
-                                }
+                        ClientMsg::LeaveGame { game_id } => {
+                            let removed = state.registry.leave(game_id, user_id, &tx).await;
+                            subscribed_games.remove(&game_id);
+                            if removed {
+                                presentation_actions::handle_presenter_left(
+                                    &state, game_id, user_id,
+                                )
+                                .await;
                             }
                         }
-                        "subscribe_presence" => {
-                            if let Some(user_ids) = data.get("user_ids").and_then(|v| v.as_array())
-                            {
-                                let ids: Vec<i64> =
-                                    user_ids.iter().filter_map(|v| v.as_i64()).collect();
-                                for &uid in &ids {
-                                    state.presence_subs.subscribe(uid, tx.clone()).await;
-                                }
-                                let mut statuses = Vec::with_capacity(ids.len());
-                                for &uid in &ids {
-                                    let online = state.presence.is_connected(uid).await;
-                                    statuses.push((uid, online));
-                                }
-                                let msg =
-                                    crate::ws::presence_subscriptions::build_presence_state_msg(
-                                        &statuses,
-                                    );
-                                let _ = tx.send(std::sync::Arc::new(msg));
+                        ClientMsg::SubscribePresence { user_ids } => {
+                            for &uid in &user_ids {
+                                state.presence_subs.subscribe(uid, tx.clone()).await;
                             }
+                            let mut statuses = Vec::with_capacity(user_ids.len());
+                            for &uid in &user_ids {
+                                let online = state.presence.is_connected(uid).await;
+                                statuses.push((uid, online));
+                            }
+                            let msg = crate::ws::presence_subscriptions::build_presence_state_msg(
+                                &statuses,
+                            );
+                            let _ = tx.send(std::sync::Arc::new(msg));
                         }
-                        _ => {
+                        msg => {
                             // Game action: route to game_channel
-                            if let Some(game_id) = data.get("game_id").and_then(|v| v.as_i64())
+                            if let Some(game_id) = msg.game_id()
                                 && subscribed_games.contains(&game_id)
                             {
-                                game_channel::handle_message(&state, game_id, user_id, &data, &tx)
+                                game_channel::handle_message(&state, game_id, user_id, msg, &tx)
                                     .await;
                             }
                         }

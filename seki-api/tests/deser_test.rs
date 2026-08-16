@@ -236,3 +236,90 @@ fn server_msg_game_removed_round_trip() {
         _ => panic!("expected GameRemoved"),
     }
 }
+
+// ---------------------------------------------------------------------------
+// ClientMsg — tagged by `action`
+// ---------------------------------------------------------------------------
+
+#[test]
+fn client_msg_play_round_trip() {
+    let json = r#"{"action":"play","game_id":5,"col":3,"row":4}"#;
+    let msg: seki_api::ws::ClientMsg = serde_json::from_str(json).unwrap();
+    match msg {
+        seki_api::ws::ClientMsg::Play {
+            game_id,
+            col,
+            row,
+            client_move_time_ms,
+        } => {
+            assert_eq!(game_id, 5);
+            assert_eq!(col, 3);
+            assert_eq!(row, 4);
+            assert!(client_move_time_ms.is_none());
+        }
+        _ => panic!("expected Play variant"),
+    }
+    // Serializes back without the optional field when None.
+    let out = serde_json::to_string(&seki_api::ws::ClientMsg::Play {
+        game_id: 5,
+        col: 3,
+        row: 4,
+        client_move_time_ms: None,
+    })
+    .unwrap();
+    assert_eq!(out, json);
+}
+
+#[test]
+fn client_msg_transport_variants() {
+    let bye: seki_api::ws::ClientMsg = serde_json::from_str(r#"{"action":"bye"}"#).unwrap();
+    assert!(matches!(bye, seki_api::ws::ClientMsg::Bye));
+    let ping: seki_api::ws::ClientMsg = serde_json::from_str(r#"{"action":"ping"}"#).unwrap();
+    assert!(matches!(ping, seki_api::ws::ClientMsg::Ping));
+}
+
+#[test]
+fn client_msg_join_game_with_tokens() {
+    let json = r#"{"action":"join_game","game_id":7,"access_token":"abc","invite_token":"def"}"#;
+    let msg: seki_api::ws::ClientMsg = serde_json::from_str(json).unwrap();
+    match msg {
+        seki_api::ws::ClientMsg::JoinGame {
+            game_id,
+            access_token,
+            invite_token,
+        } => {
+            assert_eq!(game_id, 7);
+            assert_eq!(access_token.as_deref(), Some("abc"));
+            assert_eq!(invite_token.as_deref(), Some("def"));
+        }
+        _ => panic!("expected JoinGame variant"),
+    }
+}
+
+#[test]
+fn client_msg_constructor_helpers_match_wire() {
+    // The bot-facing helpers must serialize to the same wire shape the
+    // frontend and integration tests send.
+    let play = seki_api::ws::ClientMsg::play(9, 3, 4);
+    let json = serde_json::to_string(&play).unwrap();
+    assert_eq!(json, r#"{"action":"play","game_id":9,"col":3,"row":4}"#);
+
+    let pass = seki_api::ws::ClientMsg::pass(9);
+    let json = serde_json::to_string(&pass).unwrap();
+    assert_eq!(json, r#"{"action":"pass","game_id":9}"#);
+
+    let resign = seki_api::ws::ClientMsg::resign(9);
+    let json = serde_json::to_string(&resign).unwrap();
+    assert_eq!(json, r#"{"action":"resign","game_id":9}"#);
+}
+
+#[test]
+fn client_msg_game_id_helper() {
+    use seki_api::ws::ClientMsg;
+    assert_eq!(ClientMsg::play(9, 3, 4).game_id(), Some(9));
+    assert_eq!(ClientMsg::Bye.game_id(), None);
+    assert_eq!(
+        ClientMsg::SubscribePresence { user_ids: vec![1] }.game_id(),
+        None
+    );
+}

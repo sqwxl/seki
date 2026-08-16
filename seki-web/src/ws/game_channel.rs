@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use go_engine::Stage;
+use seki_api::ws::ClientMsg;
 use serde_json::json;
 
 use crate::AppState;
@@ -143,86 +144,146 @@ pub async fn send_initial_state(
     Ok(())
 }
 
-/// Handle an incoming WebSocket message from a user.
+/// Handle an incoming game-scoped WebSocket message from a user.
 pub async fn handle_message(
     state: &AppState,
     game_id: i64,
     player_id: i64,
-    data: &serde_json::Value,
+    msg: ClientMsg,
     tx: &WsSender,
 ) {
-    let action = data.get("action").and_then(|v| v.as_str()).unwrap_or("");
-
-    let result = match action {
-        "play" => handle_play(state, game_id, player_id, data).await,
-        "pass" => {
-            let client_move_time_ms = data.get("client_move_time_ms").and_then(|v| v.as_i64());
-            game_actions::pass(state, game_id, player_id, client_move_time_ms)
-                .await
-                .map(|_| ())
-        }
-        "resign" => game_actions::resign(state, game_id, player_id)
+    let result = match &msg {
+        ClientMsg::Play {
+            col,
+            row,
+            client_move_time_ms,
+            ..
+        } => handle_play(state, game_id, player_id, *col, *row, *client_move_time_ms).await,
+        ClientMsg::Pass {
+            client_move_time_ms,
+            ..
+        } => game_actions::pass(state, game_id, player_id, *client_move_time_ms)
             .await
             .map(|_| ()),
-        "accept_challenge" => game_actions::accept_challenge(state, game_id, player_id).await,
-        "decline_challenge" => game_actions::decline_challenge(state, game_id, player_id).await,
-        "abort" => game_actions::abort(state, game_id, player_id).await,
-        "chat" => handle_chat(state, game_id, player_id, data).await,
-        "request_undo" => game_actions::request_undo(state, game_id, player_id).await,
-        "respond_to_undo" => handle_respond_to_undo(state, game_id, player_id, data).await,
-        "toggle_chain" => handle_toggle_chain(state, game_id, player_id, data).await,
-        "approve_territory" => game_actions::approve_territory(state, game_id, player_id).await,
-        "update_pregame_settings" => {
-            handle_update_pregame_settings(state, game_id, player_id, data).await
+        ClientMsg::Resign { .. } => game_actions::resign(state, game_id, player_id)
+            .await
+            .map(|_| ()),
+        ClientMsg::AcceptChallenge { .. } => {
+            game_actions::accept_challenge(state, game_id, player_id).await
         }
-        "accept_pregame_settings" => {
+        ClientMsg::DeclineChallenge { .. } => {
+            game_actions::decline_challenge(state, game_id, player_id).await
+        }
+        ClientMsg::Abort { .. } => game_actions::abort(state, game_id, player_id).await,
+        ClientMsg::Chat {
+            message,
+            client_message_id,
+            ..
+        } => {
+            handle_chat(
+                state,
+                game_id,
+                player_id,
+                message,
+                client_message_id.as_deref(),
+            )
+            .await
+        }
+        ClientMsg::RequestUndo { .. } => {
+            game_actions::request_undo(state, game_id, player_id).await
+        }
+        ClientMsg::RespondToUndo { response, .. } => {
+            handle_respond_to_undo(state, game_id, player_id, response).await
+        }
+        ClientMsg::ToggleChain { col, row, .. } => {
+            handle_toggle_chain(state, game_id, player_id, *col, *row).await
+        }
+        ClientMsg::ApproveTerritory { .. } => {
+            game_actions::approve_territory(state, game_id, player_id).await
+        }
+        ClientMsg::UpdatePregameSettings {
+            handicap,
+            komi,
+            color,
+            ..
+        } => {
+            game_actions::update_pregame_settings(
+                state,
+                game_id,
+                player_id,
+                *handicap,
+                *komi,
+                color.clone(),
+            )
+            .await
+        }
+        ClientMsg::AcceptPregameSettings { .. } => {
             game_actions::accept_pregame_settings(state, game_id, player_id).await
         }
-        "reject_pregame_settings" => {
+        ClientMsg::RejectPregameSettings { .. } => {
             game_actions::reject_pregame_settings(state, game_id, player_id).await
         }
-        "claim_victory" => game_actions::claim_victory(state, game_id, player_id).await,
-        "timeout_flag" => game_actions::handle_timeout_flag(state, game_id, player_id).await,
-        "territory_timeout_flag" => {
+        ClientMsg::ClaimVictory { .. } => {
+            game_actions::claim_victory(state, game_id, player_id).await
+        }
+        ClientMsg::TimeoutFlag { .. } => {
+            game_actions::handle_timeout_flag(state, game_id, player_id).await
+        }
+        ClientMsg::TerritoryTimeoutFlag { .. } => {
             game_actions::handle_territory_timeout_flag(state, game_id, player_id).await
         }
-        "start_presentation" => {
+        ClientMsg::StartPresentation { .. } => {
             presentation_actions::start_presentation(state, game_id, player_id).await
         }
-        "end_presentation" => {
+        ClientMsg::EndPresentation { .. } => {
             presentation_actions::end_presentation(state, game_id, player_id).await
         }
-        "presentation_state" => handle_presentation_state(state, game_id, player_id, data).await,
-        "give_control" => handle_give_control(state, game_id, player_id, data).await,
-        "take_control" => presentation_actions::take_control(state, game_id, player_id).await,
-        "request_control" => handle_request_control(state, game_id, player_id).await,
-        "cancel_control_request" => {
+        ClientMsg::PresentationState { snapshot, .. } => {
+            handle_presentation_state(state, game_id, player_id, snapshot).await
+        }
+        ClientMsg::GiveControl { target_user_id, .. } => {
+            handle_give_control(state, game_id, player_id, *target_user_id).await
+        }
+        ClientMsg::TakeControl { .. } => {
+            presentation_actions::take_control(state, game_id, player_id).await
+        }
+        ClientMsg::RequestControl { .. } => handle_request_control(state, game_id, player_id).await,
+        ClientMsg::CancelControlRequest { .. } => {
             presentation_actions::cancel_control_request(state, game_id, player_id).await
         }
-        "reject_control_request" => {
+        ClientMsg::RejectControlRequest { .. } => {
             presentation_actions::reject_control_request(state, game_id, player_id).await
         }
-        _ => {
+        // Transport-level messages never reach game_channel; guard defensively.
+        ClientMsg::Bye
+        | ClientMsg::Ping
+        | ClientMsg::JoinGame { .. }
+        | ClientMsg::LeaveGame { .. }
+        | ClientMsg::SubscribePresence { .. } => {
             send_to_client(
                 tx,
-                &json!({"kind": "error", "game_id": game_id, "message": format!("Unknown action: {action}")}).to_string(),
+                &json!({
+                    "kind": "error",
+                    "game_id": game_id,
+                    "message": format!("Unexpected message: {:?}", msg),
+                })
+                .to_string(),
             );
             return;
         }
     };
 
     if result.is_ok() {
-        let _ = dispatch_push_notification(state, game_id, player_id, action).await;
+        let _ = dispatch_push_notification(state, game_id, player_id, &msg).await;
     }
 
     if let Err(e) = result {
-        tracing::error!("Error handling {action}: {e}");
-        let client_message_id = if action == "chat" {
-            data.get("client_message_id")
-                .and_then(|v| v.as_str())
-                .map(str::to_string)
-        } else {
-            None
+        tracing::error!("Error handling game message: {e}");
+        let client_message_id = match &msg {
+            ClientMsg::Chat {
+                client_message_id, ..
+            } => client_message_id.clone(),
+            _ => None,
         };
         send_to_client(
             tx,
@@ -237,31 +298,12 @@ pub async fn handle_message(
     }
 }
 
-async fn handle_update_pregame_settings(
+async fn dispatch_push_notification(
     state: &AppState,
     game_id: i64,
-    player_id: i64,
-    data: &serde_json::Value,
-) -> Result<(), crate::error::AppError> {
-    let handicap = data
-        .get("handicap")
-        .and_then(|v| v.as_i64())
-        .ok_or_else(|| {
-            crate::error::AppError::UnprocessableEntity("Missing handicap".to_string())
-        })? as i32;
-    let komi = data
-        .get("komi")
-        .and_then(|v| v.as_f64())
-        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing komi".to_string()))?;
-    let color = data
-        .get("color")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing color".to_string()))?
-        .to_string();
-    game_actions::update_pregame_settings(state, game_id, player_id, handicap, komi, color).await
-}
-
-async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i64, action: &str) {
+    actor_id: i64,
+    msg: &ClientMsg,
+) {
     let Ok(gwp) = Game::find_with_players(&state.db, game_id).await else {
         tracing::warn!("push: game {game_id} not found");
         return;
@@ -286,23 +328,23 @@ async fn dispatch_push_notification(state: &AppState, game_id: i64, actor_id: i6
     };
     let actor_username = actor.username;
 
-    let (event_type, title, url) = match action {
-        "play" | "pass" => (
+    let (event_type, title, url) = match msg {
+        ClientMsg::Play { .. } | ClientMsg::Pass { .. } => (
             "your_turn",
             format!("{actor_username} played, it's your turn"),
             format!("/games/{game_id}"),
         ),
-        "accept_challenge" => (
+        ClientMsg::AcceptChallenge { .. } => (
             "challenge_accepted",
             format!("{actor_username} accepted your challenge"),
             format!("/games/{game_id}"),
         ),
-        "chat" => (
+        ClientMsg::Chat { .. } => (
             "new_message",
             format!("New message from {actor_username}"),
             format!("/games/{game_id}#chat"),
         ),
-        "request_undo" => (
+        ClientMsg::RequestUndo { .. } => (
             "undo_request",
             format!("{actor_username} requests an undo"),
             format!("/games/{game_id}"),
@@ -317,20 +359,10 @@ async fn handle_play(
     state: &AppState,
     game_id: i64,
     player_id: i64,
-    data: &serde_json::Value,
+    col: i32,
+    row: i32,
+    client_move_time_ms: Option<i64>,
 ) -> Result<(), crate::error::AppError> {
-    let col = data
-        .get("col")
-        .and_then(|v| v.as_i64())
-        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing col".to_string()))?
-        as i32;
-    let row = data
-        .get("row")
-        .and_then(|v| v.as_i64())
-        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing row".to_string()))?
-        as i32;
-    let client_move_time_ms = data.get("client_move_time_ms").and_then(|v| v.as_i64());
-
     game_actions::play_move(state, game_id, player_id, col, row, client_move_time_ms).await?;
     Ok(())
 }
@@ -339,11 +371,10 @@ async fn handle_chat(
     state: &AppState,
     game_id: i64,
     player_id: i64,
-    data: &serde_json::Value,
+    message: &str,
+    client_message_id: Option<&str>,
 ) -> Result<(), crate::error::AppError> {
-    let text = data.get("message").and_then(|v| v.as_str()).unwrap_or("");
-    let client_message_id = data.get("client_message_id").and_then(|v| v.as_str());
-    game_actions::send_chat(state, game_id, player_id, text, client_message_id).await?;
+    game_actions::send_chat(state, game_id, player_id, message, client_message_id).await?;
     Ok(())
 }
 
@@ -351,19 +382,9 @@ async fn handle_toggle_chain(
     state: &AppState,
     game_id: i64,
     player_id: i64,
-    data: &serde_json::Value,
+    col: u8,
+    row: u8,
 ) -> Result<(), crate::error::AppError> {
-    let col = data
-        .get("col")
-        .and_then(|v| v.as_u64())
-        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing col".to_string()))?
-        as u8;
-    let row = data
-        .get("row")
-        .and_then(|v| v.as_u64())
-        .ok_or_else(|| crate::error::AppError::UnprocessableEntity("Missing row".to_string()))?
-        as u8;
-
     game_actions::toggle_chain(state, game_id, player_id, col, row).await
 }
 
@@ -371,14 +392,9 @@ async fn handle_respond_to_undo(
     state: &AppState,
     game_id: i64,
     player_id: i64,
-    data: &serde_json::Value,
+    response: &str,
 ) -> Result<(), crate::error::AppError> {
-    let response = data
-        .get("response")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim()
-        .to_lowercase();
+    let response = response.trim().to_lowercase();
 
     if response != "accept" && response != "reject" {
         return Err(crate::error::AppError::UnprocessableEntity(
@@ -394,30 +410,17 @@ async fn handle_presentation_state(
     state: &AppState,
     game_id: i64,
     player_id: i64,
-    data: &serde_json::Value,
+    snapshot: &str,
 ) -> Result<(), crate::error::AppError> {
-    let snapshot = data
-        .get("snapshot")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    presentation_actions::update_snapshot(state, game_id, player_id, snapshot).await
+    presentation_actions::update_snapshot(state, game_id, player_id, snapshot.to_string()).await
 }
 
 async fn handle_give_control(
     state: &AppState,
     game_id: i64,
     player_id: i64,
-    data: &serde_json::Value,
+    target_user_id: i64,
 ) -> Result<(), crate::error::AppError> {
-    let target_user_id = data
-        .get("target_user_id")
-        .and_then(|v| v.as_i64())
-        .ok_or_else(|| {
-            crate::error::AppError::UnprocessableEntity("Missing target_user_id".to_string())
-        })?;
-
     presentation_actions::give_control(state, game_id, player_id, target_user_id).await
 }
 
