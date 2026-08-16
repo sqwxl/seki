@@ -10,12 +10,12 @@
 //   - trunk cells (│) — the vertical run of a dogleg; may stack with trunks
 //     and doglegs, but blocked by nodes.
 //
-// Nets are routed in reverse mainline order (tip → root), so deeper nets
-// claim tracks closer to the mainline first. Within a net, nodes are placed
-// one at a time, each on the lowest track ≥ the track of the node before it
-// (the vertical constraint): a node that drops to clear a collision stays
-// down for the rest of the net (a monotone dogleg), and non-overlapping nets
-// may share a track.
+// Nets are routed in reverse mainline order (tip → root), longest first, so
+// the longest chain claims the track closest to the mainline. Within a net,
+// the longest chain is its spine: nodes are placed one at a time, each on the
+// lowest track ≥ the track of the node before it (the vertical constraint). A
+// node that drops to clear a collision stays down for the rest of the net (a
+// monotone dogleg), and non-overlapping nets may share a track.
 // ---------------------------------------------------------------------------
 
 export type PlacedNode = {
@@ -203,7 +203,47 @@ export function placeTree(
     return maxSearchTrack;
   }
 
-  /** Route a variant net (nodeId and its children[0] descendants).
+  // Longest-path length (in nodes) from nodeId to a leaf, memoized.
+  const heights = new Map<number, number>();
+
+  function height(nodeId: number): number {
+    const cached = heights.get(nodeId);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    heights.set(nodeId, 1); // cycle guard
+
+    let best = 1;
+
+    for (const kid of tree.nodes[nodeId].children) {
+      best = Math.max(best, 1 + height(kid));
+    }
+
+    heights.set(nodeId, best);
+    return best;
+  }
+
+  /** Child with the longest path; undefined if nodeId has no children. */
+  function longestChild(nodeId: number): number | undefined {
+    const kids = tree.nodes[nodeId].children;
+    let best: number | undefined;
+    let bestLen = -1;
+
+    for (const kid of kids) {
+      const len = height(kid);
+
+      if (len > bestLen) {
+        bestLen = len;
+        best = kid;
+      }
+    }
+
+    return best;
+  }
+
+  /** Route a variant net: the longest chain starting at nodeId.
    *  parentTrack / parentColumn refer to the node this net branches from.
    *
    *  Nodes are placed one at a time, each on the lowest track ≥ the track of
@@ -214,7 +254,7 @@ export function placeTree(
     parentTrack: number,
     parentColumn: number,
   ): void {
-    // Phase 1: place the net nodes (children[0] walk), monotone tracks.
+    // Phase 1: place the net's spine (longest chain), monotone tracks.
     const chainNodes: number[] = [];
     {
       let cur = nodeId;
@@ -242,14 +282,14 @@ export function placeTree(
 
         chainNodes.push(cur);
 
-        const kids = tree.nodes[cur].children;
-        if (kids.length === 0) break;
+        const next = longestChild(cur);
+        if (next == null) break;
 
         prevTrack = track;
         prevColumn = column;
         floor = track; // subsequent nodes may stay on this track
         column++;
-        cur = kids[0];
+        cur = next;
       }
     }
 
@@ -260,9 +300,13 @@ export function placeTree(
     for (let i = chainNodes.length - 1; i >= 0; i--) {
       const cur = chainNodes[i];
       const pos = placement[cur];
-      const kids = tree.nodes[cur].children;
-      for (let j = 1; j < kids.length; j++) {
-        placeNet(kids[j], pos.track, pos.column);
+      const spine = longestChild(cur);
+      const subNets = tree.nodes[cur].children
+        .filter((kid) => kid !== spine)
+        .sort((a, b) => height(b) - height(a)); // longest first
+
+      for (const sub of subNets) {
+        placeNet(sub, pos.track, pos.column);
       }
     }
   }
@@ -274,19 +318,23 @@ export function placeTree(
     const children = tree.nodes[nodeId].children;
     const mainlineChild = mainlinePath ? mainlineNext.get(nodeId) : children[0];
 
-    for (const child of children) {
-      if (child !== mainlineChild) {
-        placeNet(child, pos.track, pos.column);
-      }
+    const variants = children
+      .filter((child) => child !== mainlineChild)
+      .sort((a, b) => height(b) - height(a)); // longest first
+
+    for (const child of variants) {
+      placeNet(child, pos.track, pos.column);
     }
   }
 
-  // Also route root_children beyond the mainline root
+  // Also route root_children beyond the mainline root, longest first.
   const mainlineRoot = mainlineOrder[0];
-  for (const rootChild of tree.root_children) {
-    if (rootChild !== mainlineRoot) {
-      placeNet(rootChild, 0, -1);
-    }
+  const extraRoots = tree.root_children
+    .filter((rootChild) => rootChild !== mainlineRoot)
+    .sort((a, b) => height(b) - height(a));
+
+  for (const rootChild of extraRoots) {
+    placeNet(rootChild, 0, -1);
   }
 
   return placement;

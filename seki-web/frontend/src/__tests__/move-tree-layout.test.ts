@@ -145,4 +145,49 @@ describe("placeTree", () => {
     expect(placement[9]).toEqual({ id: 9, column: 4, track: 2 });
     expect(placement[10]).toEqual({ id: 10, column: 3, track: 2 });
   });
+
+  it("orders sibling variations longest first", () => {
+    // 1 has variants 3 (short) and 4 (long). 4 must claim track 1, 3 track 2.
+    const t = tree([
+      [1], // 0
+      [2, 3, 4], // 1
+      [], // 2
+      [5], // 3 (short)
+      [6], // 4 (long)
+      [], // 5
+      [7], // 6
+      [], // 7
+    ]);
+    const placement = placeTree(t);
+
+    expect(placement[4]).toEqual({ id: 4, column: 2, track: 1 });
+    expect(placement[6]).toEqual({ id: 6, column: 3, track: 1 });
+    expect(placement[7]).toEqual({ id: 7, column: 4, track: 1 });
+    expect(placement[3]).toEqual({ id: 3, column: 2, track: 2 });
+    expect(placement[5]).toEqual({ id: 5, column: 3, track: 2 });
+  });
+
+  it("uses the longest chain as a net's spine", () => {
+    // Net 3 has children 4 (short, children[0]) and 6 (long, children[1]).
+    // The spine must follow 6, not children[0].
+    const t = tree([
+      [1], // 0
+      [2, 3], // 1
+      [], // 2
+      [4, 6], // 3: 4 short, 6 long
+      [5], // 4
+      [], // 5
+      [7], // 6
+      [8], // 7
+      [], // 8
+    ]);
+    const placement = placeTree(t);
+
+    expect(placement[3]).toEqual({ id: 3, column: 2, track: 1 });
+    expect(placement[6]).toEqual({ id: 6, column: 3, track: 1 });
+    expect(placement[7]).toEqual({ id: 7, column: 4, track: 1 });
+    expect(placement[8]).toEqual({ id: 8, column: 5, track: 1 });
+    expect(placement[4]).toEqual({ id: 4, column: 3, track: 2 });
+    expect(placement[5]).toEqual({ id: 5, column: 4, track: 2 });
+  });
 });
