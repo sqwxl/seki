@@ -155,6 +155,9 @@ impl ClientMsg {
 // ---------------------------------------------------------------------------
 
 /// Messages received from server via WebSocket, discriminated by `kind` field.
+// Wire message enum deserialized once per message; the large `State` payload
+// is not cloned in hot paths, so boxing it would be premature.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ServerMsg {
@@ -170,8 +173,9 @@ pub enum ServerMsg {
     GameUpdated { game: LiveGameItem },
     /// A game was removed from the lobby (aborted/deleted).
     GameRemoved { game_id: i64 },
-    /// Full game state sent on room join (includes `can_start_presentation`).
-    StateSync {
+    /// Full or incremental game state. `hydrate_only` is true on room
+    /// join/reconnect (no side effects) and false for live updates.
+    State {
         game_id: i64,
         stage: String,
         state: go_engine::GameState,
@@ -197,32 +201,7 @@ pub enum ServerMsg {
         clock: Option<InGameClock>,
         #[serde(default)]
         can_start_presentation: Option<bool>,
-    },
-    /// Incremental game state update (subset of `StateSync`, no presentation info).
-    State {
-        game_id: i64,
-        stage: String,
-        state: go_engine::GameState,
-        moves: Vec<Turn>,
-        current_turn_stone: i32,
-        creator: Option<UserData>,
-        opponent: Option<UserData>,
-        black: Option<UserData>,
-        white: Option<UserData>,
-        komi: f64,
-        result: Option<String>,
-        undo_rejected: bool,
-        allow_undo: bool,
-        nigiri: bool,
-        settings: GameSettingsWithSnapshots,
-        #[serde(default)]
-        negotiations: Option<Negotiations>,
-        #[serde(default)]
-        territory: Option<TerritoryState>,
-        #[serde(default)]
-        settled_territory: Option<SettledTerritoryData>,
-        #[serde(default)]
-        clock: Option<InGameClock>,
+        hydrate_only: bool,
     },
     /// Generic error message for a specific game.
     Error {

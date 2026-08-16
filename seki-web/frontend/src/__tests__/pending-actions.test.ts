@@ -168,6 +168,7 @@ describe("pending action reconciliation", () => {
     handleGameMessage(
       {
         kind: "state",
+        hydrate_only: false,
         stage: GameStage.WhiteToPlay,
         state: defaultState,
         current_turn_stone: -1,
@@ -193,6 +194,7 @@ describe("pending action reconciliation", () => {
     handleGameMessage(
       {
         kind: "state",
+        hydrate_only: false,
         stage: GameStage.WhiteToPlay,
         state: defaultState,
         current_turn_stone: -1,
@@ -218,6 +220,7 @@ describe("pending action reconciliation", () => {
     handleGameMessage(
       {
         kind: "state",
+        hydrate_only: false,
         stage: GameStage.WhiteToPlay,
         state: defaultState,
         current_turn_stone: -1,
@@ -242,6 +245,7 @@ describe("pending action reconciliation", () => {
     handleGameMessage(
       {
         kind: "state",
+        hydrate_only: false,
         stage: GameStage.WhiteToPlay,
         state: defaultState,
         current_turn_stone: -1,
@@ -267,6 +271,7 @@ describe("pending action reconciliation", () => {
     handleGameMessage(
       {
         kind: "state",
+        hydrate_only: false,
         stage: GameStage.WhiteToPlay,
         state: defaultState,
         current_turn_stone: -1,
@@ -294,6 +299,7 @@ describe("pending action reconciliation", () => {
     handleGameMessage(
       {
         kind: "state",
+        hydrate_only: false,
         stage: GameStage.WhiteToPlay,
         state: defaultState,
         current_turn_stone: -1,
@@ -319,6 +325,7 @@ describe("pending action reconciliation", () => {
     handleGameMessage(
       {
         kind: "state",
+        hydrate_only: false,
         stage: GameStage.TerritoryReview,
         state: defaultState,
         current_turn_stone: null,
@@ -360,6 +367,7 @@ describe("pending action reconciliation", () => {
     handleGameMessage(
       {
         kind: "state",
+        hydrate_only: false,
         stage: GameStage.Unstarted,
         state: defaultState,
         current_turn_stone: null,
@@ -496,6 +504,7 @@ describe("board move syncing", () => {
   function stateMessage(moves: GameStateMessageMoves) {
     return {
       kind: "state" as const,
+      hydrate_only: false,
       stage: GameStage.WhiteToPlay,
       state: defaultState,
       current_turn_stone: -1,
@@ -568,7 +577,8 @@ describe("territory approval messages", () => {
   it("does not emit approval chat during state sync hydration", () => {
     handleGameMessage(
       {
-        kind: "state_sync",
+        kind: "state",
+        hydrate_only: true,
         stage: GameStage.TerritoryReview,
         state: defaultState,
         current_turn_stone: null,
@@ -589,6 +599,7 @@ describe("territory approval messages", () => {
     handleGameMessage(
       {
         kind: "state",
+        hydrate_only: false,
         stage: GameStage.TerritoryReview,
         state: defaultState,
         current_turn_stone: null,

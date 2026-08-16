@@ -181,64 +181,6 @@ impl BotRunner {
                 self.my_games.remove(&game_id);
                 self.lobby_games.retain(|&id| id != game_id);
             }
-            ServerMsg::StateSync {
-                game_id,
-                ref stage,
-                ref state,
-                current_turn_stone,
-                ref black,
-                ref white,
-                komi: _,
-                ..
-            } => {
-                let our_stone = if black.as_ref().is_some_and(|u| u.id == self.user_id) {
-                    Some(Stone::Black)
-                } else if white.as_ref().is_some_and(|u| u.id == self.user_id) {
-                    Some(Stone::White)
-                } else {
-                    None
-                };
-
-                let is_our_turn_now = our_stone.is_some_and(|s| match s {
-                    Stone::Black => current_turn_stone == 1,
-                    Stone::White => current_turn_stone == -1,
-                });
-
-                let had_opponent = self
-                    .my_games
-                    .get(&game_id)
-                    .map(|g| g.has_opponent)
-                    .unwrap_or(false);
-                let has_opponent = black.is_some() && white.is_some();
-                let stage_before = self.my_games.get(&game_id).map(|g| g.stage.clone());
-                self.my_games
-                    .entry(game_id)
-                    .and_modify(|g| {
-                        g.stage = stage.clone();
-                        g.our_stone = our_stone;
-                        g.board = Some(state.clone());
-                        g.has_opponent = has_opponent;
-                    })
-                    .or_insert_with(|| ActiveGame {
-                        stage: stage.clone(),
-                        our_stone,
-                        board: Some(state.clone()),
-                        has_opponent,
-                    });
-
-                if is_our_turn_now {
-                    info!(
-                        "{} our turn in game {game_id} (stage={stage})",
-                        self.bot_name()
-                    );
-                }
-
-                if stage_before.as_deref() != Some(stage.as_str())
-                    || (!had_opponent && has_opponent)
-                {
-                    self.handle_game_stage_hook(game_id).await;
-                }
-            }
             ServerMsg::State {
                 game_id,
                 ref stage,
@@ -332,7 +274,7 @@ impl BotRunner {
 
     async fn handle_game_stage_hook(&mut self, game_id: i64) {
         // Re-read current state to avoid acting on stale transitions when
-        // multiple messages (GameCreated/Updated/StateSync/State) fire the
+        // multiple messages (GameCreated/Updated/State) fire the
         // hook for the same state change.
         let stage = self.my_games.get(&game_id).map(|ag| ag.stage.clone());
         let has_opponent = self

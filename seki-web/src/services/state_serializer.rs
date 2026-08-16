@@ -173,6 +173,7 @@ pub fn serialize_state(
 
     let mut val = json!({
         "kind": "state",
+        "hydrate_only": false,
         "game_id": gwp.game.id,
         "stage": stage_str,
         "state": game_state,

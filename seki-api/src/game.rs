@@ -54,7 +54,7 @@ pub struct ClockPlayerState {
     pub periods: i32,
 }
 
-/// Full in-game clock state (the JSON sent in `state` / `state_sync` messages).
+/// Full in-game clock state (the JSON sent in `state` messages).
 /// Produced by `clock::ClockState::to_json()`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

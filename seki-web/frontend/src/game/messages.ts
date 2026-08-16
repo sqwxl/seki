@@ -215,10 +215,9 @@ export function handleGameMessage(
   } = deps;
 
   switch (data.kind) {
-    case "state_sync":
     case "state": {
       wsConnected.value = true;
-      const isLiveUpdate = data.kind === "state";
+      const isLiveUpdate = !data.hydrate_only;
 
       const prevStage = gameStage.value;
       applyGameStateMessage(data, { emitApprovalMessages: isLiveUpdate });

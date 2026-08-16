@@ -642,7 +642,7 @@ impl WsClient {
     pub async fn join_game(&mut self, game_id: i64) -> serde_json::Value {
         self.send(json!({"action": "join_game", "game_id": game_id}))
             .await;
-        self.recv_kind("state_sync").await
+        self.recv_kind("state").await
     }
 
     pub async fn play(&mut self, game_id: i64, col: i32, row: i32) {

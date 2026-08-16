@@ -59,7 +59,7 @@ pub async fn send_initial_state(
         state_assembly::load_game_state(state, &gwp, &engine, game_id, undo_requested).await?;
 
     let mut game_state = loaded.value;
-    game_state["kind"] = serde_json::json!("state_sync");
+    game_state["hydrate_only"] = serde_json::json!(true);
 
     let can_start_pres = presentation_actions::can_start_presentation(
         &state.registry,

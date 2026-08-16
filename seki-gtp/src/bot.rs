@@ -100,41 +100,6 @@ impl Bot {
             ServerMsg::GameRemoved { game_id } => {
                 self.handle_game_removed(game_id).await;
             }
-            ServerMsg::StateSync {
-                game_id,
-                stage,
-                moves,
-                current_turn_stone,
-                creator,
-                opponent,
-                black,
-                white,
-                komi,
-                negotiations,
-                territory,
-                settings,
-                ..
-            } => {
-                self.handle_state(
-                    game_id,
-                    &stage,
-                    &serde_json::Value::Null,
-                    &moves,
-                    current_turn_stone,
-                    &creator,
-                    &opponent,
-                    &black,
-                    &white,
-                    komi,
-                    &negotiations,
-                    &territory,
-                    settings.settings.handicap as u8,
-                    settings.settings.cols as u8,
-                    settings.settings.rows as u8,
-                    true,
-                )
-                .await;
-            }
             ServerMsg::State {
                 game_id,
                 stage,
@@ -148,6 +113,7 @@ impl Bot {
                 negotiations,
                 territory,
                 settings,
+                hydrate_only,
                 ..
             } => {
                 self.handle_state(
@@ -166,7 +132,7 @@ impl Bot {
                     settings.settings.handicap as u8,
                     settings.settings.cols as u8,
                     settings.settings.rows as u8,
-                    false,
+                    hydrate_only,
                 )
                 .await;
             }
@@ -415,7 +381,7 @@ impl Bot {
         handicap: u8,
         cols: u8,
         rows: u8,
-        _is_sync: bool,
+        _hydrate_only: bool,
     ) {
         let tx = self.ws_tx.clone();
         let delay_s = self.config.accept_delay_s;

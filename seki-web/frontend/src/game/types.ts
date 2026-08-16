@@ -189,7 +189,8 @@ export type ClockData = {
 };
 
 export type StateMessage = {
-  kind: "state" | "state_sync";
+  kind: "state";
+  hydrate_only: boolean;
   stage: GameStage;
   state: GameState;
   negotiations?: {
