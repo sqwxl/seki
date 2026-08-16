@@ -1,6 +1,6 @@
 use chrono::Utc;
 use go_engine::{Stage, Stone};
-use serde_json::json;
+use seki_api::ws::ServerMsg;
 
 use crate::AppState;
 use crate::error::AppError;
@@ -10,6 +10,7 @@ use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::services::clock::{self, TimeControl};
 use crate::views::user_data_from_user_with_rank;
+use crate::ws::ws_msg;
 
 use super::{
     ChatSent, current_move_number, end_game_on_time, load_or_init_clock, settle_territory,
@@ -67,17 +68,15 @@ pub async fn send_chat(
         .registry
         .broadcast(
             game_id,
-            &json!({
-                "kind": "chat",
-                "game_id": game_id,
-                "id": msg.id,
-                "user_data": user_data,
-                "client_message_id": client_message_id,
-                "text": msg.text,
-                "move_number": msg.move_number,
-                "sent_at": msg.created_at
-            })
-            .to_string(),
+            &ws_msg(&ServerMsg::Chat {
+                game_id,
+                id: Some(msg.id),
+                user_data: Some(user_data),
+                client_message_id: client_message_id.map(str::to_string),
+                text: msg.text.clone(),
+                move_number: msg.move_number,
+                sent_at: Some(msg.created_at.to_rfc3339()),
+            }),
         )
         .await;
 

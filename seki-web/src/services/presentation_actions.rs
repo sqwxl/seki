@@ -1,10 +1,11 @@
 use chrono::Utc;
-use serde_json::json;
+use seki_api::ws::ServerMsg;
 
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::ws::registry::{ControlRequest, GameRegistry};
+use crate::ws::ws_msg;
 
 /// Check whether a user is eligible to start a presentation for a game.
 pub async fn can_start_presentation(
@@ -87,14 +88,13 @@ pub async fn start_presentation(
         .registry
         .broadcast(
             game_id,
-            &json!({
-                "kind": "presentation_started",
-                "game_id": game_id,
-                "presenter_id": user_id,
-                "originator_id": user_id,
-                "snapshot": "",
-            })
-            .to_string(),
+            &ws_msg(&ServerMsg::PresentationStarted {
+                game_id,
+                presenter_id: user_id,
+                originator_id: user_id,
+                snapshot: String::new(),
+                control_request: None,
+            }),
         )
         .await;
 
@@ -122,14 +122,7 @@ pub async fn end_presentation(
 
     state
         .registry
-        .broadcast(
-            game_id,
-            &json!({
-                "kind": "presentation_ended",
-                "game_id": game_id,
-            })
-            .to_string(),
-        )
+        .broadcast(game_id, &ws_msg(&ServerMsg::PresentationEnded { game_id }))
         .await;
 
     Ok(())
@@ -164,12 +157,7 @@ pub async fn update_snapshot(
         .broadcast_except(
             game_id,
             user_id,
-            &json!({
-                "kind": "presentation_update",
-                "game_id": game_id,
-                "snapshot": snapshot,
-            })
-            .to_string(),
+            &ws_msg(&ServerMsg::PresentationUpdate { game_id, snapshot }),
         )
         .await;
 
@@ -206,12 +194,10 @@ pub async fn give_control(
         .registry
         .broadcast(
             game_id,
-            &json!({
-                "kind": "control_changed",
-                "game_id": game_id,
-                "presenter_id": target_user_id,
-            })
-            .to_string(),
+            &ws_msg(&ServerMsg::ControlChanged {
+                game_id,
+                presenter_id: target_user_id,
+            }),
         )
         .await;
 
@@ -237,12 +223,10 @@ pub async fn take_control(state: &AppState, game_id: i64, user_id: i64) -> Resul
         .registry
         .broadcast(
             game_id,
-            &json!({
-                "kind": "control_changed",
-                "game_id": game_id,
-                "presenter_id": user_id,
-            })
-            .to_string(),
+            &ws_msg(&ServerMsg::ControlChanged {
+                game_id,
+                presenter_id: user_id,
+            }),
         )
         .await;
 
@@ -288,13 +272,11 @@ pub async fn request_control(
         .registry
         .broadcast(
             game_id,
-            &json!({
-                "kind": "control_requested",
-                "game_id": game_id,
-                "user_id": user_id,
-                "display_name": display_name,
-            })
-            .to_string(),
+            &ws_msg(&ServerMsg::ControlRequested {
+                game_id,
+                user_id,
+                display_name: display_name.to_string(),
+            }),
         )
         .await;
 
@@ -328,11 +310,7 @@ pub async fn cancel_control_request(
         .registry
         .broadcast(
             game_id,
-            &json!({
-                "kind": "control_request_cancelled",
-                "game_id": game_id,
-            })
-            .to_string(),
+            &ws_msg(&ServerMsg::ControlRequestCancelled { game_id }),
         )
         .await;
 
@@ -368,11 +346,7 @@ pub async fn reject_control_request(
         .registry
         .broadcast(
             game_id,
-            &json!({
-                "kind": "control_request_cancelled",
-                "game_id": game_id,
-            })
-            .to_string(),
+            &ws_msg(&ServerMsg::ControlRequestCancelled { game_id }),
         )
         .await;
 
@@ -399,10 +373,7 @@ pub async fn handle_presenter_left(state: &AppState, game_id: i64, user_id: i64)
             state.registry.end_presentation(game_id).await;
             state
                 .registry
-                .broadcast(
-                    game_id,
-                    &json!({"kind": "presentation_ended", "game_id": game_id}).to_string(),
-                )
+                .broadcast(game_id, &ws_msg(&ServerMsg::PresentationEnded { game_id }))
                 .await;
             return;
         }
@@ -440,12 +411,10 @@ pub async fn handle_presenter_left(state: &AppState, game_id: i64, user_id: i64)
                 .registry
                 .broadcast(
                     game_id,
-                    &json!({
-                        "kind": "control_changed",
-                        "game_id": game_id,
-                        "presenter_id": id,
-                    })
-                    .to_string(),
+                    &ws_msg(&ServerMsg::ControlChanged {
+                        game_id,
+                        presenter_id: id,
+                    }),
                 )
                 .await;
         }
@@ -453,10 +422,7 @@ pub async fn handle_presenter_left(state: &AppState, game_id: i64, user_id: i64)
             state.registry.end_presentation(game_id).await;
             state
                 .registry
-                .broadcast(
-                    game_id,
-                    &json!({"kind": "presentation_ended", "game_id": game_id}).to_string(),
-                )
+                .broadcast(game_id, &ws_msg(&ServerMsg::PresentationEnded { game_id }))
                 .await;
         }
     }

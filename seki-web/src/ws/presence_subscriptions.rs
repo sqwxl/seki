@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use serde_json::json;
+use seki_api::ws::ServerMsg;
 use tokio::sync::RwLock;
 
 use super::registry::WsSender;
+use super::ws_msg;
 
 #[derive(Debug, Clone)]
 pub struct PresenceSubscriptions {
@@ -32,14 +33,7 @@ impl PresenceSubscriptions {
 
     /// Notify all subscribers of a user's presence change.
     pub async fn notify(&self, user_id: i64, online: bool) {
-        let msg = Arc::new(
-            json!({
-                "kind": "presence_changed",
-                "user_id": user_id,
-                "online": online,
-            })
-            .to_string(),
-        );
+        let msg = Arc::new(ws_msg(&ServerMsg::PresenceChanged { user_id, online }));
         let map = self.inner.read().await;
         if let Some(senders) = map.get(&user_id) {
             for sender in senders {
@@ -60,15 +54,11 @@ impl PresenceSubscriptions {
 
 /// Build a presence_state message for a batch of user statuses.
 pub fn build_presence_state_msg(statuses: &[(i64, bool)]) -> String {
-    let users: serde_json::Map<String, serde_json::Value> = statuses
+    let users: HashMap<String, bool> = statuses
         .iter()
-        .map(|(id, online)| (id.to_string(), json!(*online)))
+        .map(|(id, online)| (id.to_string(), *online))
         .collect();
-    json!({
-        "kind": "presence_state",
-        "users": users,
-    })
-    .to_string()
+    ws_msg(&ServerMsg::PresenceState { users })
 }
 
 #[cfg(test)]

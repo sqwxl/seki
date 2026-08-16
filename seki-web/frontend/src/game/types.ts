@@ -266,7 +266,7 @@ export type UndoRequestSentMessage = {
 
 export type UndoResponseNeededMessage = {
   kind: "undo_response_needed";
-  requesting_user: string;
+  requesting_player: string;
 };
 
 export type PlayerDisconnectedMessage = {

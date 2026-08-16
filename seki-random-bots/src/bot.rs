@@ -252,7 +252,7 @@ impl BotRunner {
             ServerMsg::UndoAccepted { game_id, .. } => {
                 info!("{} undo accepted in game {game_id}", self.bot_name());
             }
-            ServerMsg::UndoRejected { game_id } => {
+            ServerMsg::UndoRejected { game_id, .. } => {
                 info!("{} undo rejected in game {game_id}", self.bot_name());
             }
             ServerMsg::Error {
@@ -289,21 +289,21 @@ impl BotRunner {
                     "{} auto-accepting challenge game={game_id}",
                     self.bot_name()
                 );
-                send_json(&self.ws_tx, &ClientMsg::accept_challenge(game_id));
+                send_json(&self.ws_tx, &ClientMsg::AcceptChallenge { game_id });
             }
             Some("unstarted") if has_opponent => {
                 info!(
                     "{} auto-accepting pregame settings game={game_id}",
                     self.bot_name()
                 );
-                send_json(&self.ws_tx, &ClientMsg::accept_pregame_settings(game_id));
+                send_json(&self.ws_tx, &ClientMsg::AcceptPregameSettings { game_id });
             }
             Some("territory_review") => {
                 info!(
                     "{} auto-approving territory game={game_id}",
                     self.bot_name()
                 );
-                send_json(&self.ws_tx, &ClientMsg::approve_territory(game_id));
+                send_json(&self.ws_tx, &ClientMsg::ApproveTerritory { game_id });
             }
             Some("completed" | "resigned" | "aborted" | "declined" | "timeout") => {
                 self.my_games.remove(&game_id);
@@ -406,7 +406,7 @@ impl BotRunner {
                 }
                 GameAction::Resign => {
                     info!("{} resigning game {game_id}", self.bot_name());
-                    send_json(&self.ws_tx, &ClientMsg::resign(*game_id));
+                    send_json(&self.ws_tx, &ClientMsg::Resign { game_id: *game_id });
                 }
                 GameAction::RequestUndo => {
                     // Undo requests are server-initiated; bot can only respond.

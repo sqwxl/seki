@@ -178,7 +178,8 @@ impl Bot {
             | ServerMsg::PresentationUpdate { .. }
             | ServerMsg::ControlChanged { .. }
             | ServerMsg::ControlRequested { .. }
-            | ServerMsg::ControlRequestCancelled { .. } => {
+            | ServerMsg::ControlRequestCancelled { .. }
+            | ServerMsg::Pong => {
                 // Logged by server, no action needed
             }
         }
@@ -425,11 +426,11 @@ impl Bot {
                             tokio::spawn(async move {
                                 tokio::time::sleep(std::time::Duration::from_secs(delay_s)).await;
                                 info!("Accepting challenge game={game_id}");
-                                send_json(&tx, &ClientMsg::accept_challenge(game_id));
+                                send_json(&tx, &ClientMsg::AcceptChallenge { game_id });
                             });
                         } else {
                             info!("Accepting challenge game={game_id}");
-                            send_json(&tx, &ClientMsg::accept_challenge(game_id));
+                            send_json(&tx, &ClientMsg::AcceptChallenge { game_id });
                         }
                     }
                 }
@@ -450,7 +451,7 @@ impl Bot {
                                 gs.pregame_accepted = true;
                                 send_json(
                                     &self.ws_tx,
-                                    &ClientMsg::accept_pregame_settings(game_id),
+                                    &ClientMsg::AcceptPregameSettings { game_id },
                                 );
                             }
                         }
@@ -520,7 +521,7 @@ impl Bot {
                         if opponent_approved {
                             info!("Approving territory game={game_id}");
                             gs.territory_approved = true;
-                            send_json(&self.ws_tx, &ClientMsg::approve_territory(game_id));
+                            send_json(&self.ws_tx, &ClientMsg::ApproveTerritory { game_id });
                         }
                     }
                 }
@@ -723,7 +724,7 @@ impl Bot {
             }
             MoveResult::Resign => {
                 info!("Game {game_id}: bot resigning");
-                send_json(&tx, &ClientMsg::resign(game_id));
+                send_json(&tx, &ClientMsg::Resign { game_id });
             }
         }
     }

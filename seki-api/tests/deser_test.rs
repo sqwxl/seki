@@ -308,7 +308,7 @@ fn client_msg_constructor_helpers_match_wire() {
     let json = serde_json::to_string(&pass).unwrap();
     assert_eq!(json, r#"{"action":"pass","game_id":9}"#);
 
-    let resign = seki_api::ws::ClientMsg::resign(9);
+    let resign = seki_api::ws::ClientMsg::Resign { game_id: 9 };
     let json = serde_json::to_string(&resign).unwrap();
     assert_eq!(json, r#"{"action":"resign","game_id":9}"#);
 }
@@ -322,4 +322,77 @@ fn client_msg_game_id_helper() {
         ClientMsg::SubscribePresence { user_ids: vec![1] }.game_id(),
         None
     );
+}
+
+// ---------------------------------------------------------------------------
+// ServerMsg — Chat / UndoRejected carry full content
+// ---------------------------------------------------------------------------
+
+#[test]
+fn server_msg_chat_with_full_content() {
+    let json = r#"{"kind":"chat","game_id":5,"id":12,"user_data":{"id":1,"display_name":"a","is_registered":true,"preferences":{}},"client_message_id":"c1","text":"hi","move_number":3,"sent_at":"2026-01-01T00:00:00Z"}"#;
+    let msg: ServerMsg = serde_json::from_str(json).unwrap();
+    match msg {
+        ServerMsg::Chat {
+            game_id,
+            id,
+            user_data,
+            client_message_id,
+            text,
+            move_number,
+            sent_at,
+        } => {
+            assert_eq!(game_id, 5);
+            assert_eq!(id, Some(12));
+            assert!(user_data.is_some());
+            assert_eq!(client_message_id.as_deref(), Some("c1"));
+            assert_eq!(text, "hi");
+            assert_eq!(move_number, Some(3));
+            assert!(sent_at.is_some());
+        }
+        _ => panic!("expected Chat variant"),
+    }
+}
+
+#[test]
+fn server_msg_chat_system_minimal() {
+    // System chats omit user_data / client_message_id / sent_at.
+    let json = r#"{"kind":"chat","game_id":5,"id":12,"text":"game over"}"#;
+    let msg: ServerMsg = serde_json::from_str(json).unwrap();
+    match msg {
+        ServerMsg::Chat {
+            game_id, text, id, ..
+        } => {
+            assert_eq!(game_id, 5);
+            assert_eq!(text, "game over");
+            assert_eq!(id, Some(12));
+        }
+        _ => panic!("expected Chat variant"),
+    }
+}
+
+#[test]
+fn server_msg_undo_rejected_carries_full_body() {
+    let json = r#"{"kind":"undo_rejected","game_id":5,"state":{"board":[],"cols":19,"rows":19,"captures":{"black":0,"white":0}},"current_turn_stone":1,"moves":[],"undo_rejected":true}"#;
+    let msg: ServerMsg = serde_json::from_str(json).unwrap();
+    match msg {
+        ServerMsg::UndoRejected {
+            game_id,
+            current_turn_stone,
+            undo_rejected,
+            ..
+        } => {
+            assert_eq!(game_id, 5);
+            assert_eq!(current_turn_stone, 1);
+            assert!(undo_rejected);
+        }
+        _ => panic!("expected UndoRejected variant"),
+    }
+}
+
+#[test]
+fn server_msg_pong_round_trip() {
+    let msg = ServerMsg::Pong;
+    let json = serde_json::to_string(&msg).unwrap();
+    assert_eq!(json, r#"{"kind":"pong"}"#);
 }

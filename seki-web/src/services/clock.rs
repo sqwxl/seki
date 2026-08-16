@@ -1,6 +1,6 @@
 use chrono::{DateTime, TimeDelta, Utc};
 use go_engine::Stone;
-use serde_json::json;
+use seki_api::game::{ClockPlayerState, InGameClock};
 
 use crate::models::game::Game;
 
@@ -418,7 +418,7 @@ impl ClockState {
 
     /// Serialize for WS broadcast. `active_stone` is derived from game stage
     /// and included so the client doesn't need to duplicate the derivation.
-    pub fn to_json(&self, tc: &TimeControl, active_stone: Option<Stone>) -> serde_json::Value {
+    pub fn to_in_game_clock(&self, tc: &TimeControl, active_stone: Option<Stone>) -> InGameClock {
         let tc_type = match tc {
             TimeControl::None => "none",
             TimeControl::Fischer { .. } => "fischer",
@@ -426,20 +426,22 @@ impl ClockState {
             TimeControl::Correspondence { .. } => "correspondence",
         };
         let now = Utc::now();
-        let server_now_ms = now.timestamp_millis();
-        json!({
-            "type": tc_type,
-            "black": {
-                "remaining_ms": self.remaining_ms(Stone::Black, active_stone, now),
-                "periods": self.black_periods
+        InGameClock {
+            clock_type: tc_type.into(),
+            black: ClockPlayerState {
+                remaining_ms: self.remaining_ms(Stone::Black, active_stone, now),
+                periods: self.black_periods,
             },
-            "white": {
-                "remaining_ms": self.remaining_ms(Stone::White, active_stone, now),
-                "periods": self.white_periods
+            white: ClockPlayerState {
+                remaining_ms: self.remaining_ms(Stone::White, active_stone, now),
+                periods: self.white_periods,
             },
-            "active_stone": self.last_move_at.and(active_stone).map(|s| s.to_int() as i32),
-            "server_now_ms": server_now_ms
-        })
+            active_stone: self
+                .last_move_at
+                .and(active_stone)
+                .map(|s| s.to_int() as i32),
+            server_now_ms: now.timestamp_millis(),
+        }
     }
 }
 
@@ -771,7 +773,7 @@ mod tests {
             last_move_at: None,
         };
         let tc = fischer_1m();
-        let json = clock.to_json(&tc, None);
+        let json = serde_json::to_value(clock.to_in_game_clock(&tc, None)).unwrap();
         assert!(json.get("server_now_ms").is_some());
         let server_now = json["server_now_ms"].as_i64().unwrap();
         let now_ms = Utc::now().timestamp_millis();

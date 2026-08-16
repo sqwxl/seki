@@ -1,11 +1,10 @@
 use futures_util::future::join_all;
-use serde::Serialize;
-use serde_json::json;
 use std::collections::HashMap;
 
 use go_engine::Engine;
 use seki_api::game::TimeControl;
 pub use seki_api::game::{ClockSnapshot, GameSettings};
+use seki_api::ws::ServerMsg;
 
 use crate::AppState;
 use crate::db::DbPool;
@@ -183,26 +182,6 @@ fn clock_snapshot_for_game(game: &Game) -> Option<ClockSnapshot> {
     })
 }
 
-/// Lightweight update (no settings — clients already have them from `init` or `game_created`).
-#[derive(Serialize)]
-struct GameUpdate {
-    id: i64,
-    creator: Option<UserData>,
-    opponent: Option<UserData>,
-    stage: String,
-    result: Option<String>,
-    black: Option<UserData>,
-    white: Option<UserData>,
-    move_count: Option<usize>,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    ranked: bool,
-    settings: GameSettings,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    board_state: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    clock: Option<ClockSnapshot>,
-}
-
 /// Notify live clients that a new game appeared (created or joined).
 pub fn notify_game_created(state: &AppState, gwp: &GameWithPlayers) {
     let profiles: HashMap<i64, RatingProfile> = HashMap::new();
@@ -214,11 +193,7 @@ pub fn notify_game_created(state: &AppState, gwp: &GameWithPlayers) {
     );
     let clock = clock_snapshot_for_game(&gwp.game);
     let item = live_item_from_gwp(gwp, None, &profiles, board_state, clock);
-    let msg = json!({
-        "kind": "game_created",
-        "game": item,
-    })
-    .to_string();
+    let msg = crate::ws::ws_msg(&ServerMsg::GameCreated { game: item });
 
     let _ = state.live_tx.send(msg);
 }
@@ -236,38 +211,10 @@ pub fn notify_game_updated(
     clock: Option<ClockSnapshot>,
 ) {
     let profiles: HashMap<i64, RatingProfile> = HashMap::new();
+    let mut item = live_item_from_gwp(gwp, move_count, &profiles, board_state, clock);
+    item.stage = stage.to_string();
 
-    let update =
-        GameUpdate {
-            id: gwp.game.id,
-            stage: stage.to_string(),
-            result: gwp.game.result.clone(),
-            creator: gwp
-                .creator
-                .as_ref()
-                .map(|user| user_data_from_user_with_rank(user, profiles.get(&user.id))),
-            opponent: gwp
-                .opponent
-                .as_ref()
-                .map(|user| user_data_from_user_with_rank(user, profiles.get(&user.id))),
-            black: gwp.black.as_ref().map(|user| {
-                user_data_for_game_player(user, &gwp.game, true, profiles.get(&user.id))
-            }),
-            white: gwp.white.as_ref().map(|user| {
-                user_data_for_game_player(user, &gwp.game, false, profiles.get(&user.id))
-            }),
-            move_count,
-            ranked: gwp.game.ranked,
-            settings: game_settings_for_game(&gwp.game),
-            board_state,
-            clock,
-        };
-
-    let msg = json!({
-        "kind": "game_updated",
-        "game": update,
-    })
-    .to_string();
+    let msg = crate::ws::ws_msg(&ServerMsg::GameUpdated { game: item });
 
     let _ = state.live_tx.send(msg);
 }
@@ -336,11 +283,7 @@ fn rank_from_game_snapshot(game: &Game, is_black: bool) -> Option<RankDto> {
 
 /// Notify live clients that a game was removed (aborted/deleted).
 pub fn notify_game_removed(state: &AppState, game_id: i64) {
-    let msg = json!({
-        "kind": "game_removed",
-        "game_id": game_id,
-    })
-    .to_string();
+    let msg = crate::ws::ws_msg(&ServerMsg::GameRemoved { game_id });
 
     let _ = state.live_tx.send(msg);
 }

@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="${APP_DIR:-}"
 SERVICE_NAME="${SERVICE_NAME:-seki}"
 REMOTE_TMP_DIR="${REMOTE_TMP_DIR:-seki-deploy}"
-DEPLOY_HOST="${DEPLOY_HOST:-nilueps@pi.local}"
+DEPLOY_HOST="${DEPLOY_HOST:-sqwxl@pi5.local}"
 PACKAGE_OUTPUT_FILE="$(mktemp /tmp/seki-package-output.XXXXXX)"
 trap 'rm -f "$PACKAGE_OUTPUT_FILE"' EXIT
 

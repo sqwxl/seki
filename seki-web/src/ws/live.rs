@@ -7,7 +7,7 @@ use axum::response::Response;
 use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
 use seki_api::ws::ClientMsg;
-use serde_json::json;
+use seki_api::ws::{LiveGameItem, ServerMsg};
 use tokio::sync::mpsc;
 
 use crate::AppState;
@@ -21,6 +21,7 @@ use crate::services::live::build_live_items;
 use crate::services::presentation_actions;
 use crate::session::OptionalCurrentUser;
 use crate::ws::game_channel;
+use crate::ws::ws_msg;
 
 /// WebSocket upgrade handler: GET /live
 pub async fn ws_upgrade(
@@ -130,10 +131,11 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
             Message::Text(text) => {
                 let text_str: &str = &text;
                 if text_str.len() > 16 * 1024 {
-                    let _ = tx.send(Arc::new(
-                        json!({"kind": "error", "message": "WebSocket message too large"})
-                            .to_string(),
-                    ));
+                    let _ = tx.send(Arc::new(ws_msg(&ServerMsg::Error {
+                        game_id: None,
+                        message: "WebSocket message too large".into(),
+                        client_message_id: None,
+                    })));
                     continue;
                 }
                 if let Ok(msg) = serde_json::from_str::<ClientMsg>(text_str) {
@@ -142,7 +144,7 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                             bye_received = true;
                         }
                         ClientMsg::Ping => {
-                            let _ = tx.send(Arc::new(json!({"kind": "pong"}).to_string()));
+                            let _ = tx.send(Arc::new(ws_msg(&ServerMsg::Pong)));
                         }
                         ClientMsg::JoinGame {
                             game_id,
@@ -159,14 +161,11 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                                     Some(user_id),
                                     tokens,
                                 ) {
-                                    let _ = tx.send(Arc::new(
-                                        json!({
-                                            "kind": "error",
-                                            "game_id": game_id,
-                                            "message": "Not authorized",
-                                        })
-                                        .to_string(),
-                                    ));
+                                    let _ = tx.send(Arc::new(ws_msg(&ServerMsg::Error {
+                                        game_id: Some(game_id),
+                                        message: "Not authorized".into(),
+                                        client_message_id: None,
+                                    })));
                                     continue;
                                 }
 
@@ -317,14 +316,12 @@ async fn handle_disconnect(state: &AppState, user_id: i64, bye: bool) {
             .registry
             .broadcast(
                 game_id,
-                &json!({
-                    "kind": "player_disconnected",
-                    "game_id": game_id,
-                    "user_id": user_id,
-                    "timestamp": now.to_rfc3339(),
-                    "grace_period_ms": grace_ms,
-                })
-                .to_string(),
+                &ws_msg(&ServerMsg::PlayerDisconnected {
+                    game_id,
+                    user_id,
+                    timestamp: now.to_rfc3339(),
+                    grace_period_ms: grace_ms,
+                }),
             )
             .await;
 
@@ -341,12 +338,7 @@ async fn handle_disconnect(state: &AppState, user_id: i64, bye: bool) {
                     .registry
                     .broadcast(
                         game_id,
-                        &json!({
-                            "kind": "player_gone",
-                            "game_id": game_id,
-                            "user_id": user_id,
-                        })
-                        .to_string(),
+                        &ws_msg(&ServerMsg::PlayerGone { game_id, user_id }),
                     )
                     .await;
             });
@@ -375,12 +367,7 @@ async fn handle_reconnect(state: &AppState, user_id: i64) {
             .registry
             .broadcast(
                 game_id,
-                &json!({
-                    "kind": "player_reconnected",
-                    "game_id": game_id,
-                    "user_id": user_id,
-                })
-                .to_string(),
+                &ws_msg(&ServerMsg::PlayerReconnected { game_id, user_id }),
             )
             .await;
     }
@@ -405,7 +392,7 @@ async fn build_init_message(state: &AppState, user_id: i64) -> String {
         .await
         .unwrap_or_default();
 
-    let user_items_enriched: Vec<serde_json::Value> = user_items
+    let user_items_enriched: Vec<LiveGameItem> = user_items
         .into_iter()
         .zip(player_games.iter())
         .map(|(mut item, gwp)| {
@@ -413,17 +400,15 @@ async fn build_init_message(state: &AppState, user_id: i64) -> String {
             let last_seen = reads.get(&gwp.game.id).copied().unwrap_or(0);
             let mc = item.move_count.unwrap_or(0) as i32;
             item.unread = Some(is_my_turn && mc > last_seen);
-            serde_json::to_value(item).unwrap()
+            item
         })
         .collect();
 
-    json!({
-        "kind": "init",
-        "player_id": user_id,
-        "player_games": user_items_enriched,
-        "public_games": public_items,
+    ws_msg(&ServerMsg::Init {
+        player_id: user_id,
+        player_games: user_items_enriched,
+        public_games: public_items,
     })
-    .to_string()
 }
 
 /// Check whether it's the given user's turn (or they need to respond to a challenge).

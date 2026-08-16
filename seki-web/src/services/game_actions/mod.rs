@@ -24,7 +24,6 @@ pub use undo::{request_undo, respond_to_undo};
 
 use chrono::Utc;
 use go_engine::{Engine, Stone};
-use serde_json::json;
 
 use crate::AppState;
 use crate::error::AppError;
@@ -108,15 +107,15 @@ pub(super) async fn broadcast_system_chat(
         .registry
         .broadcast(
             game_id,
-            &json!({
-                "kind": "chat",
-                "game_id": game_id,
-                "id": id,
-                "text": text,
-                "move_number": move_number,
-                "sent_at": sent_at
-            })
-            .to_string(),
+            &crate::ws::ws_msg(&seki_api::ws::ServerMsg::Chat {
+                game_id,
+                id,
+                user_data: None,
+                client_message_id: None,
+                text: text.to_string(),
+                move_number,
+                sent_at: sent_at.map(|d| d.to_rfc3339()),
+            }),
         )
         .await;
 }

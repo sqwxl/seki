@@ -1,12 +1,13 @@
 use chrono::Utc;
 use go_engine::{GoError, Stage};
-use serde_json::json;
+use seki_api::ws::ServerMsg;
 
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::Game;
 use crate::models::turn::TurnRow;
 use crate::services::clock::{self, ClockState, TimeControl};
+use crate::ws::ws_msg;
 
 use super::{
     load_game_and_check_player, persist_clock, persist_stage, require_not_challenge,
@@ -63,7 +64,7 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
         .send_to_player(
             game_id,
             player_id,
-            &json!({ "kind": "undo_request_sent", "game_id": game_id }).to_string(),
+            &ws_msg(&ServerMsg::UndoRequestSent { game_id }),
         )
         .await;
 
@@ -74,12 +75,10 @@ pub async fn request_undo(state: &AppState, game_id: i64, player_id: i64) -> Res
             .send_to_player(
                 game_id,
                 opponent.id,
-                &json!({
-                    "kind": "undo_response_needed",
-                    "game_id": game_id,
-                    "requesting_player": requesting_name,
-                })
-                .to_string(),
+                &ws_msg(&ServerMsg::UndoResponseNeeded {
+                    game_id,
+                    requesting_player: Some(requesting_name),
+                }),
             )
             .await;
     }
@@ -198,40 +197,40 @@ pub async fn respond_to_undo(
     };
 
     // Build response directly from engine data (no serialize_state overhead)
-    let game_state_json = serde_json::to_value(engine.game_state()).unwrap_or_default();
-    let moves_json: Vec<serde_json::Value> = engine
-        .moves()
-        .iter()
-        .map(|t| serde_json::to_value(t).unwrap_or_default())
-        .collect();
     let current_turn_stone = engine.current_turn_stone().to_int() as i32;
 
     // Include clock data so the client can sync the active player's clock
     let tc = TimeControl::from_game(&gwp.game);
-    let clock_json = if !tc.is_none() {
+    let clock = if !tc.is_none() {
         let stage_str = engine.stage().to_string();
         let active_stone = clock::active_stone_from_stage(&stage_str);
         state
             .registry
             .get_clock(game_id)
             .await
-            .map(|c| c.to_json(&tc, active_stone))
+            .map(|c| c.to_in_game_clock(&tc, active_stone))
     } else {
         None
     };
 
-    let mut msg_val = json!({
-        "kind": kind,
-        "game_id": game_id,
-        "state": game_state_json,
-        "current_turn_stone": current_turn_stone,
-        "moves": moves_json,
-        "undo_rejected": gwp.game.undo_rejected,
-    });
-    if let Some(clock) = clock_json {
-        msg_val["clock"] = clock;
-    }
-    let msg = msg_val.to_string();
+    let msg = match kind {
+        "undo_accepted" => ws_msg(&ServerMsg::UndoAccepted {
+            game_id,
+            state: engine.game_state(),
+            current_turn_stone,
+            moves: engine.moves().to_vec(),
+            undo_rejected: gwp.game.undo_rejected,
+            clock,
+        }),
+        _ => ws_msg(&ServerMsg::UndoRejected {
+            game_id,
+            state: engine.game_state(),
+            current_turn_stone,
+            moves: engine.moves().to_vec(),
+            undo_rejected: gwp.game.undo_rejected,
+            clock,
+        }),
+    };
 
     for pid in [requesting_player_id, player_id] {
         state.registry.send_to_player(game_id, pid, &msg).await;

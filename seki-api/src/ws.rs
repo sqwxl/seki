@@ -198,27 +198,11 @@ impl ClientMsg {
         }
     }
 
-    pub fn resign(game_id: i64) -> Self {
-        ClientMsg::Resign { game_id }
-    }
-
-    pub fn accept_challenge(game_id: i64) -> Self {
-        ClientMsg::AcceptChallenge { game_id }
-    }
-
     pub fn respond_to_undo(game_id: i64, response: &str) -> Self {
         ClientMsg::RespondToUndo {
             game_id,
             response: response.to_string(),
         }
-    }
-
-    pub fn accept_pregame_settings(game_id: i64) -> Self {
-        ClientMsg::AcceptPregameSettings { game_id }
-    }
-
-    pub fn approve_territory(game_id: i64) -> Self {
-        ClientMsg::ApproveTerritory { game_id }
     }
 }
 
@@ -271,7 +255,7 @@ pub enum ServerMsg {
         settled_territory: Option<SettledTerritoryData>,
         #[serde(default)]
         clock: Option<InGameClock>,
-        #[serde(default)]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         can_start_presentation: Option<bool>,
         hydrate_only: bool,
     },
@@ -282,8 +266,21 @@ pub enum ServerMsg {
         #[serde(default)]
         client_message_id: Option<String>,
     },
-    /// Notification-only: chat message was posted (content delivered separately via REST).
-    Chat { game_id: i64 },
+    /// A chat message was posted (broadcast to the room with full content).
+    Chat {
+        game_id: i64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<i64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        user_data: Option<UserData>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        client_message_id: Option<String>,
+        text: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        move_number: Option<i32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        sent_at: Option<String>,
+    },
     /// Undo was accepted and applied.
     UndoAccepted {
         game_id: i64,
@@ -294,8 +291,16 @@ pub enum ServerMsg {
         #[serde(default)]
         clock: Option<InGameClock>,
     },
-    /// Undo was rejected by the opponent.
-    UndoRejected { game_id: i64 },
+    /// Undo was rejected by the opponent (carries the same body as `UndoAccepted`).
+    UndoRejected {
+        game_id: i64,
+        state: go_engine::GameState,
+        current_turn_stone: i32,
+        moves: Vec<Turn>,
+        undo_rejected: bool,
+        #[serde(default)]
+        clock: Option<InGameClock>,
+    },
     /// Confirmation that an undo request was sent to the opponent.
     UndoRequestSent { game_id: i64 },
     /// The recipient needs to respond to an undo request.
@@ -347,6 +352,8 @@ pub enum ServerMsg {
     },
     /// A control request was cancelled or rejected.
     ControlRequestCancelled { game_id: i64 },
+    /// Server heartbeat response.
+    Pong,
 }
 
 // ---------------------------------------------------------------------------

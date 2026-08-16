@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use go_engine::Stage;
-use seki_api::ws::ClientMsg;
+use seki_api::ws::{ClientMsg, ControlRequestData, ServerMsg};
 use serde_json::json;
 
 use crate::AppState;
@@ -11,6 +11,7 @@ use crate::services::push;
 use crate::services::state_assembly;
 use crate::services::{game_actions, presentation_actions};
 use crate::ws::registry::WsSender;
+use crate::ws::ws_msg;
 
 fn send_to_client(tx: &WsSender, msg: &str) {
     let _ = tx.send(Arc::new(msg.to_string()));
@@ -30,7 +31,11 @@ pub async fn send_initial_state(
     if !crate::services::game_access::can_view_game(&gwp, Some(player_id), tokens) {
         send_to_client(
             tx,
-            &json!({"kind": "error", "game_id": game_id, "message": "Not authorized"}).to_string(),
+            &ws_msg(&ServerMsg::Error {
+                game_id: Some(game_id),
+                message: "Not authorized".into(),
+                client_message_id: None,
+            }),
         );
         return Ok(());
     }
@@ -60,7 +65,7 @@ pub async fn send_initial_state(
         state_assembly::load_game_state(state, &gwp, &engine, game_id, undo_requested).await?;
 
     let mut game_state = loaded.value;
-    game_state["hydrate_only"] = serde_json::json!(true);
+    game_state["hydrate_only"] = json!(true);
 
     let can_start_pres = presentation_actions::can_start_presentation(
         &state.registry,
@@ -72,7 +77,7 @@ pub async fn send_initial_state(
         gwp.game.ended_at,
     )
     .await;
-    game_state["can_start_presentation"] = serde_json::json!(can_start_pres);
+    game_state["can_start_presentation"] = json!(can_start_pres);
 
     send_to_client(tx, &game_state.to_string());
 
@@ -85,12 +90,10 @@ pub async fn send_initial_state(
                 .registry
                 .broadcast(
                     game_id,
-                    &json!({
-                        "kind": "control_changed",
-                        "game_id": game_id,
-                        "presenter_id": player_id,
-                    })
-                    .to_string(),
+                    &ws_msg(&ServerMsg::ControlChanged {
+                        game_id,
+                        presenter_id: player_id,
+                    }),
                 )
                 .await;
             player_id
@@ -98,18 +101,17 @@ pub async fn send_initial_state(
             pres.presenter_id
         };
 
-        let msg = json!({
-            "kind": "presentation_started",
-            "game_id": game_id,
-            "presenter_id": presenter_id,
-            "originator_id": pres.originator_id,
-            "snapshot": pres.cached_snapshot,
-            "control_request": pres.control_request.as_ref().map(|cr| json!({
-                "user_id": cr.user_id,
-                "display_name": cr.display_name,
-            })),
+        let msg = ws_msg(&ServerMsg::PresentationStarted {
+            game_id,
+            presenter_id,
+            originator_id: pres.originator_id,
+            snapshot: pres.cached_snapshot.clone(),
+            control_request: pres.control_request.as_ref().map(|cr| ControlRequestData {
+                user_id: cr.user_id,
+                display_name: cr.display_name.clone(),
+            }),
         });
-        send_to_client(tx, &msg.to_string());
+        send_to_client(tx, &msg);
     }
 
     // If there's a pending undo request, send targeted UI control messages.
@@ -121,22 +123,17 @@ pub async fn send_initial_state(
         let turn_player = gwp.turn_player(current_turn);
 
         if requesting_player.is_some_and(|p| p.id == player_id) {
-            send_to_client(
-                tx,
-                &json!({ "kind": "undo_request_sent", "game_id": game_id }).to_string(),
-            );
+            send_to_client(tx, &ws_msg(&ServerMsg::UndoRequestSent { game_id }));
         } else if turn_player.is_some_and(|p| p.id == player_id) {
             let requesting_name = requesting_player
                 .map(|p| p.display_name().to_string())
                 .unwrap_or_else(|| "Opponent".to_string());
             send_to_client(
                 tx,
-                &json!({
-                    "kind": "undo_response_needed",
-                    "game_id": game_id,
-                    "requesting_player": requesting_name,
-                })
-                .to_string(),
+                &ws_msg(&ServerMsg::UndoResponseNeeded {
+                    game_id,
+                    requesting_player: Some(requesting_name),
+                }),
             );
         }
     }
@@ -254,22 +251,14 @@ pub async fn handle_message(
         ClientMsg::RejectControlRequest { .. } => {
             presentation_actions::reject_control_request(state, game_id, player_id).await
         }
-        // Transport-level messages never reach game_channel; guard defensively.
+        // Transport-level messages never reach game_channel (live.rs routes them
+        // first); this arm only satisfies exhaustiveness.
         ClientMsg::Bye
         | ClientMsg::Ping
         | ClientMsg::JoinGame { .. }
         | ClientMsg::LeaveGame { .. }
         | ClientMsg::SubscribePresence { .. } => {
-            send_to_client(
-                tx,
-                &json!({
-                    "kind": "error",
-                    "game_id": game_id,
-                    "message": format!("Unexpected message: {:?}", msg),
-                })
-                .to_string(),
-            );
-            return;
+            unreachable!("transport message routed to game_channel: {:?}", msg)
         }
     };
 
@@ -287,13 +276,11 @@ pub async fn handle_message(
         };
         send_to_client(
             tx,
-            &json!({
-                "kind": "error",
-                "game_id": game_id,
-                "message": e.to_string(),
-                "client_message_id": client_message_id,
-            })
-            .to_string(),
+            &ws_msg(&ServerMsg::Error {
+                game_id: Some(game_id),
+                message: e.to_string(),
+                client_message_id,
+            }),
         );
     }
 }

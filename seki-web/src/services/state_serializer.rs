@@ -2,8 +2,10 @@ use std::collections::HashSet;
 
 use go_engine::{Engine, Point};
 pub use seki_api::game::{
-    PregameSettingsData, SettledTerritoryData, TerritoryScore, TerritorySide, TerritoryState,
+    Negotiations, PregameSettingsData, RatingSnapshot, RatingSnapshots, SettledTerritoryData,
+    TerritoryScore, TerritorySide, TerritoryState,
 };
+use seki_api::ws::{GameSettingsWithSnapshots, ServerMsg};
 use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
@@ -112,80 +114,69 @@ pub fn serialize_state(
     // Resolve stage: the engine derives stage from moves, but the DB is authoritative
     // for terminal states (done), challenges, and started-but-no-moves games.
     let stage_str = resolve_stage(gwp, engine);
-    let current_turn_stone = current_turn_stone(engine);
 
-    let mut negotiations = json!({});
+    let negotiations = Negotiations {
+        undo_request: undo_requested.then(|| json!({})),
+        pregame_settings: pregame_settings
+            .map(|settings| pregame_settings_from_negotiation(settings, engine)),
+    };
 
-    if undo_requested {
-        negotiations["undo_request"] = json!({});
-    }
-    if let Some(settings) = pregame_settings {
-        negotiations["pregame_settings"] =
-            serde_json::to_value(pregame_settings_from_negotiation(settings, engine))
-                .unwrap_or_default();
-    }
-
-    let moves: Vec<_> = engine
-        .moves()
-        .iter()
-        .map(|t| serde_json::to_value(t).unwrap_or_default())
-        .collect();
-
-    let game_state = serde_json::to_value(engine.game_state()).unwrap_or_default();
-    let mut settings =
-        serde_json::to_value(live::game_settings_for_game(&gwp.game)).unwrap_or_else(|_| json!({}));
-    if gwp.game.ranked {
-        settings["rating_snapshots"] = json!({
-            "black": {
-                "rating": gwp.game.black_rating_before,
-                "deviation": gwp.game.black_deviation_before,
-                "volatility": gwp.game.black_volatility_before,
+    let rating_snapshots = if gwp.game.ranked {
+        Some(RatingSnapshots {
+            black: RatingSnapshot {
+                rating: gwp.game.black_rating_before,
+                deviation: gwp.game.black_deviation_before,
+                volatility: gwp.game.black_volatility_before,
             },
-            "white": {
-                "rating": gwp.game.white_rating_before,
-                "deviation": gwp.game.white_deviation_before,
-                "volatility": gwp.game.white_volatility_before,
-            }
-        });
-    }
+            white: RatingSnapshot {
+                rating: gwp.game.white_rating_before,
+                deviation: gwp.game.white_deviation_before,
+                volatility: gwp.game.white_volatility_before,
+            },
+        })
+    } else {
+        None
+    };
 
-    let mut val = json!({
-        "kind": "state",
-        "hydrate_only": false,
-        "game_id": gwp.game.id,
-        "stage": stage_str,
-        "state": game_state,
-        "negotiations": negotiations,
-        "current_turn_stone": current_turn_stone,
-        "moves": moves,
-        "creator": gwp.creator.as_ref().map(user_data_from_user),
-        "opponent": gwp.opponent.as_ref().map(user_data_from_user),
-        "black": gwp.black.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, true, black_profile)),
-        "white": gwp.white.as_ref().map(|user| live::user_data_for_game_player(user, &gwp.game, false, white_profile)),
-        "komi": gwp.game.komi,
-        "result": gwp.game.result,
-        "undo_rejected": gwp.game.undo_rejected,
-        "allow_undo": gwp.game.allow_undo,
-        "nigiri": gwp.game.nigiri,
-        "settings": settings,
+    let clock = clock.map(|(clock_state, time_control)| {
+        let active_stone = clock::active_stone_from_stage(&stage_str);
+        clock_state.to_in_game_clock(time_control, active_stone)
     });
 
-    if let Some(t) = territory {
-        val["territory"] = serde_json::to_value(t).unwrap_or_default();
-    }
+    let msg = ServerMsg::State {
+        game_id: gwp.game.id,
+        stage: stage_str,
+        state: engine.game_state(),
+        moves: engine.moves().to_vec(),
+        current_turn_stone: current_turn_stone(engine),
+        creator: gwp.creator.as_ref().map(user_data_from_user),
+        opponent: gwp.opponent.as_ref().map(user_data_from_user),
+        black: gwp
+            .black
+            .as_ref()
+            .map(|user| live::user_data_for_game_player(user, &gwp.game, true, black_profile)),
+        white: gwp
+            .white
+            .as_ref()
+            .map(|user| live::user_data_for_game_player(user, &gwp.game, false, white_profile)),
+        komi: gwp.game.komi,
+        result: gwp.game.result.clone(),
+        undo_rejected: gwp.game.undo_rejected,
+        allow_undo: gwp.game.allow_undo,
+        nigiri: gwp.game.nigiri,
+        settings: GameSettingsWithSnapshots {
+            settings: live::game_settings_for_game(&gwp.game),
+            rating_snapshots,
+        },
+        negotiations: Some(negotiations),
+        territory: territory.cloned(),
+        settled_territory: settled_territory.cloned(),
+        clock,
+        can_start_presentation: None,
+        hydrate_only: false,
+    };
 
-    if territory.is_none()
-        && let Some(st) = settled_territory
-    {
-        val["settled_territory"] = serde_json::to_value(st).unwrap_or_default();
-    }
-
-    if let Some((clock_state, time_control)) = clock {
-        let active_stone = clock::active_stone_from_stage(&stage_str);
-        val["clock"] = clock_state.to_json(time_control, active_stone);
-    }
-
-    val
+    serde_json::to_value(&msg).unwrap_or_default()
 }
 
 fn current_turn_stone(engine: &Engine) -> i32 {
