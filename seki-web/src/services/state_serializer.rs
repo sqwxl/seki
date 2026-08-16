@@ -1,7 +1,9 @@
 use std::collections::HashSet;
 
 use go_engine::{Engine, Point};
-use serde::Serialize;
+pub use seki_api::game::{
+    PregameSettingsData, SettledTerritoryData, TerritoryScore, TerritorySide, TerritoryState,
+};
 use serde_json::json;
 
 use crate::models::game::GameWithPlayers;
@@ -11,55 +13,22 @@ use crate::services::clock::{self, ClockState, TimeControl};
 use crate::services::live;
 use crate::views::user_data_from_user;
 
-pub struct TerritoryData {
-    pub ownership: Vec<i8>,
-    pub dead_stones: Vec<(u8, u8)>,
-    pub score: go_engine::territory::GameScore,
-    pub black_approved: bool,
-    pub white_approved: bool,
-    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
-}
-
-/// Score shape emitted on the wire — komi is deliberately excluded to match
-/// `territory.score` and the frontend/seki-api `TerritoryScore` definitions.
-#[derive(Serialize)]
-pub struct ScoreData {
-    pub black: go_engine::territory::PlayerPoints,
-    pub white: go_engine::territory::PlayerPoints,
-}
-
-#[derive(Serialize)]
-pub struct SettledTerritoryData {
-    pub ownership: Vec<i8>,
-    pub dead_stones: Vec<(u8, u8)>,
-    pub score: ScoreData,
-}
-
-#[derive(Serialize)]
-pub struct PregameSettingsData {
-    pub handicap: i32,
-    pub komi: f64,
-    pub color: String,
-    pub creator_approved: bool,
-    pub opponent_approved: bool,
-    pub expires_at: Option<String>,
-    pub max_handicap: u8,
-}
-
-impl PregameSettingsData {
-    fn from_settings(settings: &PregameSettingsNegotiation, engine: &Engine) -> Self {
-        Self {
-            handicap: settings.handicap,
-            komi: settings.komi,
-            color: settings.color.clone(),
-            creator_approved: settings.creator_approved,
-            opponent_approved: settings.opponent_approved,
-            expires_at: settings.expires_at.map(|dt| dt.to_rfc3339()),
-            max_handicap: go_engine::handicap::max_handicap(
-                engine.goban().cols(),
-                engine.goban().rows(),
-            ),
-        }
+/// Build a `PregameSettingsData` from the DB negotiation row + engine.
+pub fn pregame_settings_from_negotiation(
+    settings: &PregameSettingsNegotiation,
+    engine: &Engine,
+) -> PregameSettingsData {
+    PregameSettingsData {
+        handicap: settings.handicap,
+        komi: settings.komi,
+        color: settings.color.clone(),
+        creator_approved: settings.creator_approved,
+        opponent_approved: settings.opponent_approved,
+        expires_at: settings.expires_at.map(|dt| dt.to_rfc3339()),
+        max_handicap: go_engine::handicap::max_handicap(
+            engine.goban().cols(),
+            engine.goban().rows(),
+        ),
     }
 }
 
@@ -80,13 +49,13 @@ pub fn build_settled_territory(
     dead_list.sort();
     SettledTerritoryData {
         ownership,
-        dead_stones: dead_list,
-        score: ScoreData {
-            black: go_engine::territory::PlayerPoints {
+        dead_stones: dead_list.into_iter().map(|(c, r)| [c, r]).collect(),
+        score: TerritoryScore {
+            black: TerritorySide {
                 territory: bt as u32,
                 captures: bc as u32,
             },
-            white: go_engine::territory::PlayerPoints {
+            white: TerritorySide {
                 territory: wt as u32,
                 captures: wc as u32,
             },
@@ -101,20 +70,29 @@ pub fn compute_territory_data(
     black_approved: bool,
     white_approved: bool,
     expires_at: Option<chrono::DateTime<chrono::Utc>>,
-) -> TerritoryData {
+) -> TerritoryState {
     let ownership = go_engine::territory::estimate_territory(engine.goban(), dead_stones);
     let score = go_engine::territory::score(engine.goban(), &ownership, dead_stones, komi);
 
     let mut dead_list: Vec<(u8, u8)> = dead_stones.iter().copied().collect();
     dead_list.sort();
 
-    TerritoryData {
+    TerritoryState {
         ownership,
-        dead_stones: dead_list,
-        score,
+        dead_stones: dead_list.into_iter().map(|(c, r)| [c, r]).collect(),
+        score: TerritoryScore {
+            black: TerritorySide {
+                territory: score.black.territory,
+                captures: score.black.captures,
+            },
+            white: TerritorySide {
+                territory: score.white.territory,
+                captures: score.white.captures,
+            },
+        },
         black_approved,
         white_approved,
-        expires_at,
+        expires_at: expires_at.map(|dt| dt.to_rfc3339()),
     }
 }
 
@@ -124,7 +102,7 @@ pub fn serialize_state(
     gwp: &GameWithPlayers,
     engine: &Engine,
     undo_requested: bool,
-    territory: Option<&TerritoryData>,
+    territory: Option<&TerritoryState>,
     settled_territory: Option<&SettledTerritoryData>,
     pregame_settings: Option<&PregameSettingsNegotiation>,
     clock: Option<(&ClockState, &TimeControl)>,
@@ -143,7 +121,7 @@ pub fn serialize_state(
     }
     if let Some(settings) = pregame_settings {
         negotiations["pregame_settings"] =
-            serde_json::to_value(PregameSettingsData::from_settings(settings, engine))
+            serde_json::to_value(pregame_settings_from_negotiation(settings, engine))
                 .unwrap_or_default();
     }
 
@@ -193,24 +171,7 @@ pub fn serialize_state(
     });
 
     if let Some(t) = territory {
-        let dead: Vec<_> = t.dead_stones.iter().map(|&(c, r)| json!([c, r])).collect();
-        val["territory"] = json!({
-            "ownership": t.ownership,
-            "dead_stones": dead,
-            "score": {
-                "black": {
-                    "territory": t.score.black.territory,
-                    "captures": t.score.black.captures,
-                },
-                "white": {
-                    "territory": t.score.white.territory,
-                    "captures": t.score.white.captures,
-                },
-            },
-            "black_approved": t.black_approved,
-            "white_approved": t.white_approved,
-            "expires_at": t.expires_at.map(|dt| dt.to_rfc3339()),
-        });
+        val["territory"] = serde_json::to_value(t).unwrap_or_default();
     }
 
     if territory.is_none()

@@ -9,13 +9,10 @@ use crate::services::state_serializer;
 
 pub struct LoadedGameState {
     pub value: serde_json::Value,
-    pub territory: Option<state_serializer::TerritoryData>,
-    pub clock: Option<(ClockState, TimeControl)>,
 }
 
-/// Load all optional game state components and return a fully assembled
-/// serialized value, plus the raw components for callers that need them
-/// (e.g. API response builders that extract sub-fields).
+/// Load all optional game state components and return the fully assembled
+/// serialized state message.
 pub async fn load_game_state(
     state: &AppState,
     gwp: &GameWithPlayers,
@@ -99,11 +96,7 @@ pub async fn load_game_state(
         white_profile.as_ref(),
     );
 
-    Ok(LoadedGameState {
-        value,
-        territory,
-        clock,
-    })
+    Ok(LoadedGameState { value })
 }
 
 async fn load_player_profiles(
