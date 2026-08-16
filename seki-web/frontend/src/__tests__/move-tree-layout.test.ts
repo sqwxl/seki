@@ -122,4 +122,27 @@ describe("placeTree", () => {
     expect(placement[7]).toEqual({ id: 7, column: 4, track: 1 }); // d
     expect(placement[8]).toEqual({ id: 8, column: 5, track: 1 }); // e
   });
+
+  it("keeps a deep sub-net near its parent (tip-to-root sub-net order)", () => {
+    // Synthetic root (11) → two alternatives [0, 1]. Branch 1 → 3 → 4 → 5 → 6 → 7 → 8
+    // has sub-nets 10 (off 3) and 9 (off 4). 10 must not push 9 to a far track.
+    const nodes = [
+      { parent: 11, children: [2] }, // 0
+      { parent: 11, children: [3] }, // 1
+      { parent: 0, children: [] }, // 2
+      { parent: 1, children: [4, 10] }, // 3
+      { parent: 3, children: [5, 9] }, // 4
+      { parent: 4, children: [6] }, // 5
+      { parent: 5, children: [7] }, // 6
+      { parent: 6, children: [8] }, // 7
+      { parent: 7, children: [] }, // 8
+      { parent: 4, children: [] }, // 9
+      { parent: 3, children: [] }, // 10
+      { parent: null, children: [0, 1] }, // 11
+    ];
+    const placement = placeTree({ nodes, root_children: [11] });
+
+    expect(placement[9]).toEqual({ id: 9, column: 4, track: 2 });
+    expect(placement[10]).toEqual({ id: 10, column: 3, track: 2 });
+  });
 });

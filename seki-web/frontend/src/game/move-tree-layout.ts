@@ -253,8 +253,12 @@ export function placeTree(
       }
     }
 
-    // Phase 2: route sub-nets, after the whole net is placed.
-    for (const cur of chainNodes) {
+    // Phase 2: route sub-nets, tip → root of the net (mirrors the mainline
+    // loop), after the whole net is placed. Deepest-first lets a deep sub-net
+    // claim the closer track; a shallower sibling then tucks behind its
+    // dogleg instead of blocking its drop path.
+    for (let i = chainNodes.length - 1; i >= 0; i--) {
+      const cur = chainNodes[i];
       const pos = placement[cur];
       const kids = tree.nodes[cur].children;
       for (let j = 1; j < kids.length; j++) {
