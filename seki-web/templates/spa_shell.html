@@ -45,5 +45,56 @@
         <script id="bootstrap-data" type="application/json">{{ bootstrap_json|safe }}</script>
         <script src="/static/dist/bundle.js" type="module" defer></script>
     </head>
-    <body></body>
+    <body>
+        <div id="app-fallback" hidden>
+            <div>
+                <p>Seki couldn&rsquo;t load.</p>
+                <button type="button" onclick="location.reload()">Reload</button>
+            </div>
+        </div>
+        <style>
+            #app-fallback {
+                position: fixed;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #fff;
+                color: #1a1a1a;
+                font: 16px system-ui, sans-serif;
+            }
+            #app-fallback[hidden] {
+                display: none;
+            }
+            [data-theme="dark"] #app-fallback {
+                background: #282828;
+                color: #eee;
+            }
+            #app-fallback button {
+                font: inherit;
+                padding: 0.5em 1.25em;
+                border: 1px solid currentColor;
+                border-radius: 0.4em;
+                background: transparent;
+                color: inherit;
+                cursor: pointer;
+            }
+        </style>
+        <script>
+            // If the app never mounts (chunk 404, JS crash, wasm init failure,
+            // stuck fetch), show a static fallback instead of a blank page.
+            // The app sets window.__sekiMounted on mount, which suppresses it.
+            (function () {
+                function showFallback() {
+                    if (window.__sekiMounted) { return; }
+                    var el = document.getElementById("app-fallback");
+                    if (el) { el.hidden = false; }
+                }
+                window.addEventListener("error", showFallback);
+                window.addEventListener("unhandledrejection", showFallback);
+                setTimeout(showFallback, 8000);
+            })();
+        </script>
+        <script src="/static/dist/bundle.js" type="module" defer></script>
+    </body>
 </html>

@@ -5,6 +5,7 @@ interface Window {
     getFcmToken(): string;
   };
   SekiBridgeReady?: boolean;
+  __sekiMounted?: boolean;
 }
 
 interface Navigator {

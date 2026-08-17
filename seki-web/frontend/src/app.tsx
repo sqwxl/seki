@@ -515,4 +515,5 @@ function App() {
 export function mountApp() {
   seedBootstrapCache();
   render(<App />, document.body);
+  window.__sekiMounted = true;
 }
