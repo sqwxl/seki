@@ -31,8 +31,7 @@ function buildAnalysisControls(
   caps: AnalysisCapabilities,
   props: AnalysisPageProps,
 ): ControlsProps {
-  const { onSizeChange, onKomiChange, handleSgfImport, handleSgfExport } =
-    props;
+  const { onSizeChange, onKomiChange } = props;
   const board = analysisBoard.value;
   const nav = analysisNavState.value;
 
@@ -102,17 +101,6 @@ function buildAnalysisControls(
       analysisSize.value === 9 ? "AI suggestion" : "AI suggestion requires 9x9",
   };
 
-  if (caps.showSgfImport) {
-    controlsProps.sgfImport = {
-      onFileChange: handleSgfImport,
-      collapses: true,
-    };
-  }
-
-  if (caps.showSgfExport) {
-    controlsProps.sgfExport = { onClick: handleSgfExport, collapses: true };
-  }
-
   if (caps.showClearVariations) {
     controlsProps.clearVariations = {
       onClick: props.handleClearVariations,
@@ -180,8 +168,6 @@ export type AnalysisPageProps = {
   onEstimate: () => void;
   onConfirmMove: () => void;
   onPass: () => void;
-  handleSgfImport: (input: HTMLInputElement) => void;
-  handleSgfExport: () => void;
   handleClearVariations: () => void;
 };
 

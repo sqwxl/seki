@@ -6,8 +6,6 @@ import {
   EstimateBtn,
   KomiSelect,
   NewGameBtn,
-  SgfExportButton,
-  SgfImportButton,
   SizeSelect,
   type ControlsProps,
 } from "./controls-shared";
@@ -22,8 +20,6 @@ export function hasCollapsedUiControls(
     (!options.excludeAnalysis && props.analyze?.collapses) ||
     props.estimate?.collapses ||
     props.exitEstimate?.collapses ||
-    props.sgfImport?.collapses ||
-    props.sgfExport?.collapses ||
     props.clearVariations?.collapses ||
     props.sizeSelect?.collapses ||
     props.komiSelect?.collapses,
@@ -153,16 +149,6 @@ export function UIControls(
         </button>
       ),
       collapses: props.exitEstimate?.collapses,
-    },
-    {
-      node: props.sgfImport && (
-        <SgfImportButton onFileChange={props.sgfImport.onFileChange} />
-      ),
-      collapses: props.sgfImport?.collapses,
-    },
-    {
-      node: props.sgfExport && <SgfExportButton {...props.sgfExport} />,
-      collapses: props.sgfExport?.collapses,
     },
     {
       node: props.clearVariations && (

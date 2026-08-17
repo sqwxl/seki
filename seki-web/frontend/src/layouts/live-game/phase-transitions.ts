@@ -58,7 +58,6 @@ export function buildControls(
     exitAnalysis: () => void;
     enterEstimate: () => void;
     exitEstimate: () => void;
-    handleSgfExport: () => void;
     enterPresentation: () => void;
     exitPresentation: () => void;
     returnControl: () => void;
@@ -70,7 +69,6 @@ export function buildControls(
     exitAnalysis,
     enterEstimate,
     exitEstimate,
-    handleSgfExport,
     enterPresentation,
     exitPresentation,
     returnControl,
@@ -374,13 +372,6 @@ export function buildControls(
       collapses: true,
     };
   }
-
-  // --- SGF export ---
-  controlsProps.sgfExport = {
-    onClick: handleSgfExport,
-    disabled: caps.canExitEstimate,
-    collapses: true,
-  };
 
   // --- Control request response ---
   if (caps.showControlRequestResponse && caps.controlRequestUserId != null) {

@@ -1,13 +1,22 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { analysisCapabilities } from "../game/capabilities";
 import { liveGameControlsState } from "../game/capabilities/controls";
 import { liveSgfExport } from "../game/state";
 import type { UserData } from "../game/types";
+import {
+  analysisSgfExport,
+  analysisSgfImport,
+  pendingAnalysisSgf,
+} from "../layouts/analysis-state";
+import { setFlash } from "../utils/flash";
 import { ratingDisplayPreference } from "../utils/preferences";
-import { authUrl } from "../utils/spa-navigation";
+import { parseSgfFile } from "../utils/sgf-import";
+import { authUrl, requestSpaNavigation } from "../utils/spa-navigation";
 import {
   IconAnalysis,
   IconBot,
   IconFileExport,
+  IconFileUpload,
   IconLogin,
   IconLogout,
   IconMenu,
@@ -52,6 +61,36 @@ export function MobileMenu({
   async function handleLogout() {
     setOpen(false);
     await onLogout?.();
+  }
+
+  // Import from the drawer: parse and validate the file here, flash on the
+  // current page if it fails; only on success hand it to the analysis page
+  // (if open) or navigate there with the parsed content.
+  async function handleSgfFileSelected(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setOpen(false);
+
+    const result = await parseSgfFile(file);
+
+    if (!result.ok) {
+      setFlash(result.error);
+
+      return;
+    }
+
+    if (analysisSgfImport.value) {
+      analysisSgfImport.value(result.value);
+    } else {
+      pendingAnalysisSgf.value = result.value;
+      requestSpaNavigation("/analysis");
+    }
   }
 
   return (
@@ -128,8 +167,26 @@ export function MobileMenu({
             </a>
           </div>
         )}
-        {liveSgfExport.value && (
-          <div class="nav-dropdown-section">
+        <div class="nav-dropdown-section">
+          <button
+            type="button"
+            class="nav-dropdown-item"
+            onClick={() => {
+              (
+                document.getElementById("sgf-import") as HTMLInputElement
+              )?.click();
+            }}
+          >
+            <IconFileUpload /> Import SGF
+          </button>
+          <input
+            type="file"
+            id="sgf-import"
+            accept=".sgf,.SGF"
+            hidden
+            onChange={handleSgfFileSelected}
+          />
+          {liveSgfExport.value && (
             <button
               type="button"
               class="nav-dropdown-item"
@@ -141,8 +198,21 @@ export function MobileMenu({
             >
               <IconFileExport /> Download SGF
             </button>
-          </div>
-        )}
+          )}
+          {analysisSgfExport.value &&
+            analysisCapabilities.value.showSgfExport && (
+              <button
+                type="button"
+                class="nav-dropdown-item"
+                onClick={() => {
+                  setOpen(false);
+                  analysisSgfExport.value?.();
+                }}
+              >
+                <IconFileExport /> Export SGF
+              </button>
+            )}
+        </div>
         <SettingsDropdownContent showLabel={false} />
         <div class="nav-dropdown-section">
           <a

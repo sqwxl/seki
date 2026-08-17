@@ -3,7 +3,7 @@ import { createRef, render } from "preact";
 import { analysisCapabilities } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { mobileTab, showCoordinates } from "../game/state";
-import { createBoard, ensureWasm } from "../goban/create-board";
+import { createBoard } from "../goban/create-board";
 import type { Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { todayYYYYMMDD } from "../utils/format";
@@ -12,7 +12,8 @@ import {
   dismissMoveConfirmOnClickOutside,
 } from "../utils/move-confirm";
 import type { SgfMeta } from "../utils/sgf";
-import { downloadSgf, readFileAsText } from "../utils/sgf";
+import { downloadSgf } from "../utils/sgf";
+import type { ParsedSgf } from "../utils/sgf-import";
 import {
   ANALYSIS_KOMI,
   ANALYSIS_SGF_META,
@@ -33,8 +34,11 @@ import {
   analysisNavState,
   analysisPanelState,
   analysisPendingMove,
+  analysisSgfExport,
+  analysisSgfImport,
   analysisSize,
   analysisTerritoryInfo,
+  pendingAnalysisSgf,
   resetAnalysisRuntimeState,
 } from "./analysis-state";
 
@@ -183,40 +187,8 @@ export function initAnalysis(root: HTMLElement) {
   }
 
   // --- SGF import ---
-  async function handleSgfImport(input: HTMLInputElement) {
-    const file = input.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    const text = await readFileAsText(file);
-    const wasm = await ensureWasm();
-    const metaJson = wasm.parse_sgf(text);
-    const meta: SgfMeta = JSON.parse(metaJson);
-
-    if (meta.error) {
-      alert(`SGF error: ${meta.error}`);
-      input.value = "";
-
-      return;
-    }
-
-    if (meta.cols !== meta.rows) {
-      alert("Non-square boards are not supported.");
-      input.value = "";
-
-      return;
-    }
-
-    const size = meta.cols;
-
-    if (!VALID_SIZES.includes(size)) {
-      alert(`Unsupported board size: ${size}×${size}`);
-      input.value = "";
-
-      return;
-    }
+  async function applyParsedSgf(parsed: ParsedSgf) {
+    const { meta, size, text } = parsed;
 
     // Update signals + storage
     session.clearAiCaches();
@@ -244,8 +216,6 @@ export function initAnalysis(root: HTMLElement) {
       board.save();
       board.render();
     }
-
-    input.value = "";
   }
 
   // --- Clear variations ---
@@ -352,6 +322,10 @@ export function initAnalysis(root: HTMLElement) {
   ];
 
   resetAnalysisRuntimeState();
+
+  analysisSgfImport.value = applyParsedSgf;
+  analysisSgfExport.value = handleSgfExport;
+
   render(
     <AnalysisPage
       gobanRef={gobanRef}
@@ -363,14 +337,20 @@ export function initAnalysis(root: HTMLElement) {
       onEstimate={handleEstimate}
       onConfirmMove={session.confirmPendingMove}
       onPass={session.pass}
-      handleSgfImport={handleSgfImport}
-      handleSgfExport={handleSgfExport}
       handleClearVariations={handleClearVariations}
     />,
     root,
   );
 
   initBoard(analysisSize.value);
+
+  // SGF import triggered from the nav drawer while this page was not open.
+  const pending = pendingAnalysisSgf.value;
+  pendingAnalysisSgf.value = undefined;
+
+  if (pending) {
+    void applyParsedSgf(pending);
+  }
 
   return () => {
     disposed = true;

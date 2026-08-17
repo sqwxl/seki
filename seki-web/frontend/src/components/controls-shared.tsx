@@ -4,8 +4,6 @@ import {
   IconBalance,
   IconBot,
   IconCheck,
-  IconFileExport,
-  IconFileUpload,
   IconGrid4x4,
   IconKomi,
   IconRenew,
@@ -67,12 +65,6 @@ export type ControlsProps = {
   analyze?: ButtonDef & { active?: boolean };
   estimate?: ButtonDef;
   exitEstimate?: ButtonDef;
-  sgfImport?: {
-    onFileChange: (input: HTMLInputElement) => void;
-    collapses?: boolean;
-  };
-  sgfExport?: ButtonDef;
-
   sizeSelect?: {
     value: number;
     options: number[];
@@ -443,45 +435,6 @@ export function SizeSelect(
         ))}
       </select>
     </span>
-  );
-}
-
-export function SgfImportButton({
-  onFileChange,
-}: {
-  onFileChange: (input: HTMLInputElement) => void;
-}) {
-  return (
-    <>
-      <button
-        class="btn-raised"
-        title="Import SGF file"
-        onClick={() => {
-          (document.getElementById("sgf-import") as HTMLInputElement)?.click();
-        }}
-      >
-        <IconFileUpload />
-      </button>
-      <input
-        type="file"
-        id="sgf-import"
-        accept=".sgf,.SGF"
-        hidden
-        onChange={(e) => onFileChange(e.currentTarget as HTMLInputElement)}
-      />
-    </>
-  );
-}
-
-export function SgfExportButton(props: ButtonDef) {
-  return (
-    <button
-      title={props.title ?? "Export SGF"}
-      disabled={props.disabled || props.pending}
-      onClick={props.onClick}
-    >
-      <ButtonContent pending={props.pending} icon={IconFileExport} />
-    </button>
   );
 }
 

@@ -100,7 +100,6 @@ export type LiveGamePageProps = {
   exitAnalysis: () => void;
   enterEstimate: () => void;
   exitEstimate: () => void;
-  handleSgfExport: () => void;
   enterPresentation: () => void;
   exitPresentation: () => void;
   returnControl: () => void;
@@ -126,7 +125,6 @@ function LiveGameControls(props: LiveGamePageProps) {
       exitAnalysis: props.exitAnalysis,
       enterEstimate: props.enterEstimate,
       exitEstimate: props.exitEstimate,
-      handleSgfExport: props.handleSgfExport,
       enterPresentation: props.enterPresentation,
       exitPresentation: props.exitPresentation,
       returnControl: props.returnControl,
@@ -134,10 +132,6 @@ function LiveGameControls(props: LiveGamePageProps) {
     }),
     { isMobile, canEnterAnalysis: caps.canEnterAnalysis },
   );
-  // On mobile the SGF export lives in the main nav drawer instead.
-  if (isMobile) {
-    controls.sgfExport = undefined;
-  }
 
   return <Controls {...controls} compact={isMobile} />;
 }
@@ -217,7 +211,6 @@ function LiveGameStatusSlot(
             exitAnalysis: props.exitAnalysis,
             enterEstimate: props.enterEstimate,
             exitEstimate: props.exitEstimate,
-            handleSgfExport: props.handleSgfExport,
             enterPresentation: props.enterPresentation,
             exitPresentation: props.exitPresentation,
             returnControl: props.returnControl,

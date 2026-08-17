@@ -686,7 +686,6 @@ export function liveGame(
       exitAnalysis={exitAnalysis}
       enterEstimate={enterEstimate}
       exitEstimate={doExitEstimate}
-      handleSgfExport={handleSgfExport}
       enterPresentation={enterPresentation}
       exitPresentation={exitPresentation}
       returnControl={returnControl}

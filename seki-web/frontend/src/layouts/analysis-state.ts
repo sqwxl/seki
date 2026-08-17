@@ -9,6 +9,7 @@ import type {
 } from "../goban/create-board";
 import type { GhostStoneData, HeatData, Point } from "../goban/types";
 import type { SgfMeta } from "../utils/sgf";
+import type { ParsedSgf } from "../utils/sgf-import";
 
 export const analysisBoard = signal<Board | undefined>(undefined);
 export const analysisMeta = signal<SgfMeta | undefined>(undefined);
@@ -55,6 +56,18 @@ export const analysisPanelState = signal<{
   bottom?: AnalysisPanelData;
 }>({});
 
+// Set by the analysis page while mounted; the nav drawer hands off to it
+// when import is triggered while the page is already open.
+export const analysisSgfImport = signal<
+  ((parsed: ParsedSgf) => void) | undefined
+>(undefined);
+export const analysisSgfExport = signal<(() => void) | undefined>(undefined);
+
+// Set by the nav drawer when an SGF import is triggered off-page; the
+// analysis page consumes it on mount. Deliberately not cleared by reset — it
+// must survive until initAnalysis picks it up.
+export const pendingAnalysisSgf = signal<ParsedSgf | undefined>(undefined);
+
 export function resetAnalysisRuntimeState(): void {
   analysisPendingMove.value = undefined;
   analysisAiState.value = { enabled: false, pending: false };
@@ -68,4 +81,6 @@ export function resetAnalysisRuntimeState(): void {
   };
   analysisNavState.value = DEFAULT_NAV_STATE;
   analysisPanelState.value = {};
+  analysisSgfImport.value = undefined;
+  analysisSgfExport.value = undefined;
 }
