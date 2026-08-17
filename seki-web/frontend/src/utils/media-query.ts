@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { DESKTOP_QUERY, MOBILE_QUERY } from "./constants";
 
 export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() =>
@@ -20,4 +21,12 @@ export function useMediaQuery(query: string): boolean {
   }, [query]);
 
   return matches;
+}
+
+export function useIsMobile(): boolean {
+  return useMediaQuery(MOBILE_QUERY);
+}
+
+export function useIsDesktop(): boolean {
+  return useMediaQuery(DESKTOP_QUERY);
 }

@@ -4,6 +4,7 @@ import type {
   ProfileRatingData,
   RatingHistoryEntryData,
 } from "../spa/types";
+import { DESKTOP_QUERY } from "../utils/constants";
 import { formatSize, formatTimeControl } from "../utils/format";
 import { formatNumericRating, fullRankText } from "../utils/rating";
 import { IconTrendDown, IconTrendUp, StoneBlack, StoneWhite } from "./icons";
@@ -367,7 +368,7 @@ function RatingGraph({
       : null;
   const nodes = buildRatingGraphNodes(graph, filtered, anchorEntry);
   const showTooltip = (node: RatingGraphNode, e: MouseEvent) => {
-    if (!window.matchMedia("(min-width: 768px)").matches) {
+    if (!window.matchMedia(DESKTOP_QUERY).matches) {
       return;
     }
 

@@ -8,7 +8,7 @@ import {
 } from "preact/hooks";
 import { placeTree } from "../game/move-tree-layout";
 import type { GameTreeData } from "../game/types";
-import { useMediaQuery } from "../utils/media-query";
+import { useIsDesktop } from "../utils/media-query";
 
 const BASE_NODE_RADIUS = 12;
 const BASE_COLUMN_SPACING = 32;
@@ -79,7 +79,7 @@ export function MoveTree({
 }: MoveTreeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const isDesktop = useIsDesktop();
   const containerLayout = useContainerLayout(scrollRef);
   const placement = useMemo(
     () => placeTree(tree, mainLineTipNodeId),

@@ -6,7 +6,7 @@ import { TabBar } from "../components/tab-bar";
 import type { AnalysisCapabilities } from "../game/capabilities";
 import { analysisCapabilities } from "../game/capabilities";
 import { GameStage } from "../game/types";
-import { useMediaQuery } from "../utils/media-query";
+import { useIsMobile } from "../utils/media-query";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import {
   analysisAiState,
@@ -143,8 +143,10 @@ function AnalysisBottomPanel() {
 
 function AnalysisControlsSlot(props: AnalysisPageProps) {
   const caps = analysisCapabilities.value;
-  const compact = useMediaQuery("(max-width: 767px)");
-  return <Controls {...buildAnalysisControls(caps, props)} compact={compact} />;
+  const isMobile = useIsMobile();
+  return (
+    <Controls {...buildAnalysisControls(caps, props)} compact={isMobile} />
+  );
 }
 
 function AnalysisMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {

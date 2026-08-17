@@ -19,7 +19,7 @@ import { createBoard, ensureWasm, type Board } from "../goban/create-board";
 import type { GhostStoneData, HeatData, Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { formatResult } from "../utils/format";
-import { useMediaQuery } from "../utils/media-query";
+import { useIsMobile } from "../utils/media-query";
 import {
   createMoveConfirm,
   dismissMoveConfirmOnClickOutside,
@@ -731,7 +731,7 @@ function BotGame({
     setPendingMcMove(false);
   }
 
-  const compact = useMediaQuery("(max-width: 767px)");
+  const isMobile = useIsMobile();
   const botGameLocked = scoringRef.current || !!finalResultRef.current;
   const panelScores = buildPlayerPanels({
     komi: KOMI,
@@ -827,7 +827,7 @@ function BotGame({
           {error ? <span>{error}</span> : null}
         </GameStatus>
       }
-      controls={<Controls {...controls} compact={compact} />}
+      controls={<Controls {...controls} compact={isMobile} />}
     />
   );
 }

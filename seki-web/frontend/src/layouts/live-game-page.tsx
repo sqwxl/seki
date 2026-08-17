@@ -53,7 +53,7 @@ import {
 import { GameStage } from "../game/types";
 import { readUserData } from "../game/util";
 import { formatResult } from "../utils/format";
-import { useMediaQuery } from "../utils/media-query";
+import { useIsMobile } from "../utils/media-query";
 import type { MoveConfirmState } from "../utils/move-confirm";
 import { promptForOsNotificationsIfDisabled } from "../utils/os-notifications";
 import { postForm, type WebRequestError } from "../utils/web-client";
@@ -118,8 +118,7 @@ function LiveGameBottomPanel() {
 }
 
 function LiveGameControls(props: LiveGamePageProps) {
-  const isMobile = useMediaQuery("(max-width: 767px)");
-  const compact = isMobile;
+  const isMobile = useIsMobile();
   const caps = liveGameControlsState.value;
   const controls = removeMobileEnterAnalysisControl(
     buildControls(caps, props.channel, props.mc, {
@@ -140,7 +139,7 @@ function LiveGameControls(props: LiveGamePageProps) {
     controls.sgfExport = undefined;
   }
 
-  return <Controls {...controls} compact={compact} />;
+  return <Controls {...controls} compact={isMobile} />;
 }
 
 function LiveGameStatusSlot(
@@ -356,7 +355,7 @@ function LiveGameStatusSlot(
 }
 
 function LiveGameMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
-  const isMobile = useMediaQuery("(max-width: 767px)");
+  const isMobile = useIsMobile();
   const visible = !isMobile || mobileTab.value === "analysis";
 
   return (

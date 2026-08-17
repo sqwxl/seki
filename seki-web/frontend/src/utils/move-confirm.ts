@@ -8,7 +8,9 @@ export function readMoveConfirmation(): boolean {
     return stored === "true";
   }
 
-  return window.matchMedia("(max-width: 1199px)").matches;
+  // Touch proxy: coarse pointers (touch screens) get confirm-on by default
+  // to guard against stray taps; mice get precise clicks with confirm off.
+  return window.matchMedia("(pointer: coarse)").matches;
 }
 
 export type MoveConfirmState = {
