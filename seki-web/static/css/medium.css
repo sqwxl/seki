@@ -1,14 +1,10 @@
 @media (min-width: 768px) and (max-width: 1199px) {
-  .mobile-nav-brand,
-  .mobile-only {
-    display: none;
-  }
+  /* ponytail: experimental — mobile nav layout applies at all widths.
+     Revert by restoring the .mobile-nav-brand/.desktop-nav-primary display flips here
+     and in desktop.css. */
 
-  .desktop-nav-primary,
-  .desktop-only {
-    display: flex;
-    align-items: center;
-    gap: 0.75em;
+  .nav-dropdown.mobile-menu-dropdown {
+    width: min(80vw, 24em);
   }
 
   .game-page-body {
