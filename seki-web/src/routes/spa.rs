@@ -1,6 +1,6 @@
 use askama::Template;
 use axum::extract::{OriginalUri, State};
-use axum::http::Uri;
+use axum::http::{HeaderValue, Uri, header};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use tower_sessions::Session;
 
@@ -45,7 +45,13 @@ pub async fn shell(
     bootstrap.flash = take_flash(&session).await?;
     let bootstrap_json = serde_json::to_string(&bootstrap)?;
     let tmpl = SpaShellTemplate { bootstrap_json };
-    Ok(Html(tmpl.render()?).into_response())
+    let mut response = Html(tmpl.render()?).into_response();
+    // Shell HTML embeds user-specific bootstrap data; never let a browser
+    // (or PWA container) serve it stale from cache.
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    Ok(response)
 }
 
 async fn redirect_target_for_navigation_error(

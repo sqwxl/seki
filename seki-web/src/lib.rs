@@ -1,10 +1,14 @@
 use axum::Router;
+use axum::body::Body;
 use axum::extract::DefaultBodyLimit;
-use axum::http::{HeaderName, HeaderValue, header};
+use axum::http::{HeaderName, HeaderValue, Request, StatusCode, header};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, patch, post};
 use rand::RngExt;
-use std::path::PathBuf;
+use std::convert::Infallible;
+use std::path::{Path, PathBuf};
 use tokio::sync::broadcast;
+use tower::service_fn;
 use tower_governor::GovernorLayer;
 use tower_governor::governor::GovernorConfigBuilder;
 use tower_http::services::{ServeDir, ServeFile};
@@ -38,6 +42,47 @@ pub struct AppState {
 
 fn no_store_layer() -> SetResponseHeaderLayer<HeaderValue> {
     SetResponseHeaderLayer::overriding(header::CACHE_CONTROL, HeaderValue::from_static("no-store"))
+}
+
+/// Served in place of *.js files that only exist in older releases. A client
+/// holding a stale module graph (cached build from a previous deploy)
+/// evaluates this shim instead of white-screening on a 404; the reload lands
+/// on the current build, whose graph only references current chunks, so the
+/// shim never runs again.
+/// ponytail: the sessionStorage guard only covers the pathological
+/// stale-HTML container (pre-May-16 SW serving cached navigations) where the
+/// reload would loop; in every normal case the post-reload graph is fresh.
+const STALE_CHUNK_SHIM_JS: &str = r#"if(!sessionStorage.getItem("seki:stale")){sessionStorage.setItem("seki:stale","1");location.reload()}throw new Error("stale build");"#;
+
+/// Serves the reload shim for *.js requests that only exist in older
+/// releases. Everything else under /static/dist keeps 404ing as before.
+async fn stale_dist_js_fallback(releases_dir: Option<PathBuf>, path: &str) -> Response {
+    let rel = path.trim_start_matches('/');
+    if !rel.ends_with(".js") || rel.split('/').any(|seg| seg == "..") {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
+    let Some(releases_dir) = releases_dir else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    let Ok(mut entries) = tokio::fs::read_dir(&releases_dir).await else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let candidate = entry.path().join("static").join("dist").join(rel);
+        if tokio::fs::try_exists(&candidate).await.unwrap_or(false) {
+            tracing::info!(path = %path, "stale chunk request, serving reload shim");
+            return Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "text/javascript")
+                .body(Body::from(STALE_CHUNK_SHIM_JS))
+                .expect("static shim response");
+        }
+    }
+
+    StatusCode::NOT_FOUND.into_response()
 }
 
 pub async fn build_router(pool: db::DbPool, session_secure: bool) -> (Router, AppState) {
@@ -125,9 +170,27 @@ pub async fn build_router_with_registry_and_presence(
         jwt_secret,
     };
 
+    // Deploy layout: <releases>/<id>/static/dist is what each release serves;
+    // STATIC_DIR points at the current release's static dir, so the releases
+    // dir is two parents up. The shim lookup depends on old releases staying
+    // on disk (install-release.sh retains them).
+    let releases_dir = static_dir_path
+        .parent()
+        .and_then(Path::parent)
+        .map(|p| p.join("releases"));
+
+    let stale_dist_fallback = service_fn(move |req: Request<Body>| {
+        let releases_dir = releases_dir.clone();
+        let path = req.uri().path().to_string();
+        async move { Ok::<_, Infallible>(stale_dist_js_fallback(releases_dir, &path).await) }
+    });
+
     let static_assets = Router::new()
         .nest_service("/css", ServeDir::new(static_dir_path.join("css")))
-        .nest_service("/dist", ServeDir::new(static_dir_path.join("dist")))
+        .nest_service(
+            "/dist",
+            ServeDir::new(static_dir_path.join("dist")).fallback(stale_dist_fallback),
+        )
         .nest_service("/wasm", ServeDir::new(static_dir_path.join("wasm")))
         .layer(no_store_layer())
         .fallback_service(ServeDir::new(static_dir_path.clone()));
@@ -252,4 +315,82 @@ pub async fn build_router_with_registry_and_presence(
         .with_state(state.clone());
 
     (app, state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::to_bytes;
+    use std::fs;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn fixture() -> PathBuf {
+        let id = DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
+        let root =
+            std::env::temp_dir().join(format!("seki-stale-test-{}-{id}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let old = root.join("releases/20260816/static/dist/chunks");
+        fs::create_dir_all(&old).unwrap();
+        fs::write(old.join("chunk-OLD.js"), "old").unwrap();
+        root
+    }
+
+    #[tokio::test]
+    async fn stale_chunk_serves_reload_shim() {
+        let releases = Some(fixture().join("releases"));
+
+        let resp = stale_dist_js_fallback(releases.clone(), "/chunks/chunk-OLD.js").await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(resp.headers()[header::CONTENT_TYPE], "text/javascript");
+        let js =
+            String::from_utf8(to_bytes(resp.into_body(), 1024).await.unwrap().to_vec()).unwrap();
+        assert!(js.contains("location.reload"));
+        assert!(js.contains("sessionStorage"));
+
+        // Unknown chunk and non-js paths keep 404ing.
+        assert_eq!(
+            stale_dist_js_fallback(releases.clone(), "/chunks/chunk-GONE.js")
+                .await
+                .status(),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            stale_dist_js_fallback(releases, "/styles.css")
+                .await
+                .status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn stale_shim_rejects_traversal_and_missing_releases_dir() {
+        let releases = Some(fixture().join("releases"));
+        assert_eq!(
+            stale_dist_js_fallback(releases, "/../secrets.js")
+                .await
+                .status(),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            stale_dist_js_fallback(None, "/chunks/chunk-OLD.js")
+                .await
+                .status(),
+            StatusCode::NOT_FOUND
+        );
+    }
+
+    #[test]
+    fn releases_dir_derives_from_static_dir() {
+        let static_dir = Path::new("/home/sqwxl/seki/current/static");
+        let releases_dir = static_dir
+            .parent()
+            .and_then(Path::parent)
+            .map(|p| p.join("releases"));
+        assert_eq!(
+            releases_dir,
+            Some(PathBuf::from("/home/sqwxl/seki/releases"))
+        );
+    }
 }
