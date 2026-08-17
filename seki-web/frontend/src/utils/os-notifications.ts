@@ -157,7 +157,16 @@ export async function toggleOsNotifications(): Promise<void> {
     return;
   }
 
-  const next = storage.get(NOTIFICATIONS) === "on" ? "off" : "on";
+  // Intent comes from the visible toggle state, not localStorage: the two can
+  // drift after a denied prompt, and storage alone would re-prompt instead of
+  // turning off.
+  const next = osNotificationsEnabled.value ? "off" : "on";
+
+  // Reflect the click immediately. The DOM checkbox flips on click, so without
+  // a signal change Preact never reconciles it and a denied/dismissed prompt
+  // leaves the toggle stuck on. Every failure path below reverts this, forcing
+  // the re-render that syncs the checkbox back.
+  osNotificationsEnabled.value = next === "on";
 
   if (next === "on" && iosNeedsInstall()) {
     setFlash(
@@ -165,10 +174,14 @@ export async function toggleOsNotifications(): Promise<void> {
       "info",
     );
 
+    osNotificationsEnabled.value = false;
+
     return;
   }
 
   if (Notification.permission === "denied") {
+    osNotificationsEnabled.value = false;
+
     return;
   }
 
