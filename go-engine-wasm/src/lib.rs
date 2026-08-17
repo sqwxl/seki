@@ -137,6 +137,11 @@ impl WasmEngine {
         self.inner.remove_subtree(node_id)
     }
 
+    /// Remove all variations, keeping only the main line.
+    pub fn clear_variations(&mut self) {
+        self.inner.clear_variations();
+    }
+
     // -- Tree API --
 
     pub fn navigate_to(&mut self, node_id: usize) {

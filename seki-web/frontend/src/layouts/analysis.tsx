@@ -168,6 +168,7 @@ export function initAnalysis(root: HTMLElement) {
       onStonePlay: session.onStonePlay,
       onPass: session.onPass,
       onTerritoryReviewStart: session.onTerritoryReviewStart,
+      onClearVariations: session.clearVariations,
       onRender: session.onRender,
     });
 
@@ -220,17 +221,7 @@ export function initAnalysis(root: HTMLElement) {
 
   // --- Clear variations ---
   function clearDedicatedVariations() {
-    const treeKey = analysisTreeKey(analysisSize.value);
-
-    storage.remove(treeKey);
-    storage.remove(`${treeKey}:base`);
-    storage.remove(`${treeKey}:finalized`);
-    storage.remove(`${treeKey}:node`);
-    initBoard(analysisSize.value);
-  }
-
-  function handleClearVariations() {
-    session.clearVariations();
+    analysisBoard.value?.clearVariations();
   }
 
   // --- SGF export ---
@@ -337,7 +328,6 @@ export function initAnalysis(root: HTMLElement) {
       onEstimate={handleEstimate}
       onConfirmMove={session.confirmPendingMove}
       onPass={session.pass}
-      handleClearVariations={handleClearVariations}
     />,
     root,
   );

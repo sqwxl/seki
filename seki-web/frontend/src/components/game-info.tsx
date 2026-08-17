@@ -106,28 +106,6 @@ export function GameInfo(props: GameInfoProps) {
   const isDone =
     props.stage === GameStage.Completed || props.stage === GameStage.Aborted;
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-
-      if (
-        popoverRef.current?.contains(target) ||
-        buttonRef.current?.contains(target)
-      ) {
-        return;
-      }
-
-      setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
-
   useEffect(
     () => () => {
       if (copyTimerRef.current != null) {
@@ -148,99 +126,105 @@ export function GameInfo(props: GameInfoProps) {
         <span>{parts.join(" · ")}</span>
       </button>
       {open && (
-        <div class="game-info-popover popover-surface" ref={popoverRef}>
-          <div class="game-info-popover-header">
-            <IconInfo />
-          </div>
-          <dl class="game-info-details">
-            {statusText && <Row label="Status" value={statusText} />}
-            <Row label="Board" value={size} />
-            <Row label="Rated" value={settings.ranked ? "Yes" : "No"} />
-            {showRatingRange ? (
-              <Row label="Max rating difference" value={ratingRangeText} />
-            ) : (
-              <>
-                <Row label="Komi" value={String(komi)} />
-                {settings.handicap >= 2 && (
-                  <Row label="Handicap" value={String(settings.handicap)} />
-                )}
-                {settings.color_reason && (
-                  <Row
-                    label="Auto settings"
-                    value={
-                      settings.color_reason === "lower_rating_black"
-                        ? "Lower rating plays Black"
-                        : settings.color_reason === "exact_rating_random"
-                          ? "Equal rating random color"
-                          : settings.color_reason
-                    }
-                  />
-                )}
-              </>
-            )}
-            {tcDetail && <Row label="Time" value={tcDetail} />}
-            <Row
-              label="Black"
-              value={
-                props.black ? (
-                  <>
-                    <UserLabel
-                      user={props.black}
-                      options={{ stone: "black" }}
-                    />{" "}
-                    {blackSymbol()} {props.capturesBlack} caps
-                  </>
-                ) : (
-                  "Open"
-                )
-              }
-            />
-            <Row
-              label="White"
-              value={
-                props.white ? (
-                  <>
-                    <UserLabel
-                      user={props.white}
-                      options={{ stone: "white" }}
-                    />{" "}
-                    {whiteSymbol()} {props.capturesWhite} caps
-                  </>
-                ) : (
-                  "Open"
-                )
-              }
-            />
-            <Row label="Moves" value={String(props.moveCount)} />
-            {score && (
+        <>
+          <div
+            class="confirm-popover-backdrop dismissible"
+            onClick={() => setOpen(false)}
+          />
+          <div class="game-info-popover popover-surface" ref={popoverRef}>
+            <div class="game-info-popover-header">
+              <IconInfo />
+            </div>
+            <dl class="game-info-details">
+              {statusText && <Row label="Status" value={statusText} />}
+              <Row label="Board" value={size} />
+              <Row label="Rated" value={settings.ranked ? "Yes" : "No"} />
+              {showRatingRange ? (
+                <Row label="Max rating difference" value={ratingRangeText} />
+              ) : (
+                <>
+                  <Row label="Komi" value={String(komi)} />
+                  {settings.handicap >= 2 && (
+                    <Row label="Handicap" value={String(settings.handicap)} />
+                  )}
+                  {settings.color_reason && (
+                    <Row
+                      label="Auto settings"
+                      value={
+                        settings.color_reason === "lower_rating_black"
+                          ? "Lower rating plays Black"
+                          : settings.color_reason === "exact_rating_random"
+                            ? "Equal rating random color"
+                            : settings.color_reason
+                      }
+                    />
+                  )}
+                </>
+              )}
+              {tcDetail && <Row label="Time" value={tcDetail} />}
               <Row
-                label="Territory"
-                value={`B: ${score.black.territory} / W: ${score.white.territory}`}
-              />
-            )}
-            {isDone && props.result && (
-              <Row label="Result" value={props.result} />
-            )}
-          </dl>
-          <div class="game-info-actions">
-            <button
-              class="game-info-copy"
-              title="Copy access link"
-              onClick={() => {
-                props.copyInviteLink();
-                setCopied(true);
-                if (copyTimerRef.current != null) {
-                  window.clearTimeout(copyTimerRef.current);
+                label="Black"
+                value={
+                  props.black ? (
+                    <>
+                      <UserLabel
+                        user={props.black}
+                        options={{ stone: "black" }}
+                      />{" "}
+                      {blackSymbol()} {props.capturesBlack} caps
+                    </>
+                  ) : (
+                    "Open"
+                  )
                 }
-                copyTimerRef.current = window.setTimeout(() => {
-                  setCopied(false);
-                }, 1500);
-              }}
-            >
-              {copied ? "Copied!" : "Invite"}
-            </button>
+              />
+              <Row
+                label="White"
+                value={
+                  props.white ? (
+                    <>
+                      <UserLabel
+                        user={props.white}
+                        options={{ stone: "white" }}
+                      />{" "}
+                      {whiteSymbol()} {props.capturesWhite} caps
+                    </>
+                  ) : (
+                    "Open"
+                  )
+                }
+              />
+              <Row label="Moves" value={String(props.moveCount)} />
+              {score && (
+                <Row
+                  label="Territory"
+                  value={`B: ${score.black.territory} / W: ${score.white.territory}`}
+                />
+              )}
+              {isDone && props.result && (
+                <Row label="Result" value={props.result} />
+              )}
+            </dl>
+            <div class="game-info-actions">
+              <button
+                class="game-info-copy"
+                title="Copy access link"
+                onClick={() => {
+                  props.copyInviteLink();
+                  setCopied(true);
+                  if (copyTimerRef.current != null) {
+                    window.clearTimeout(copyTimerRef.current);
+                  }
+                  copyTimerRef.current = window.setTimeout(() => {
+                    setCopied(false);
+                  }, 1500);
+                }}
+              >
+                {copied ? "Copied!" : "Invite"}
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

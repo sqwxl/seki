@@ -189,7 +189,5 @@ export type AnalysisCapabilities = {
   showTerritoryExit: boolean;
   showSgfImport: boolean;
   showSgfExport: boolean;
-  showClearVariations: boolean;
-  canClearVariations: boolean;
   statusText: string;
 };

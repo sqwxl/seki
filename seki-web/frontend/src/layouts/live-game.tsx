@@ -771,6 +771,7 @@ export function liveGame(
     },
     branchAtBaseTip: true,
     onTerritoryReviewStart: analysisSession.onTerritoryReviewStart,
+    onClearVariations: analysisSession.clearVariations,
     onRender: analysisSession.onRender,
   }).then((b) => {
     if (disposed) {

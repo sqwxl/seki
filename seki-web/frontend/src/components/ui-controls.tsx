@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import {
   AiBtn,
   ButtonContent,
-  ClearVariationsBtn,
   EstimateBtn,
   KomiSelect,
   NewGameBtn,
@@ -20,7 +19,6 @@ export function hasCollapsedUiControls(
     (!options.excludeAnalysis && props.analyze?.collapses) ||
     props.estimate?.collapses ||
     props.exitEstimate?.collapses ||
-    props.clearVariations?.collapses ||
     props.sizeSelect?.collapses ||
     props.komiSelect?.collapses,
   );
@@ -149,12 +147,6 @@ export function UIControls(
         </button>
       ),
       collapses: props.exitEstimate?.collapses,
-    },
-    {
-      node: props.clearVariations && (
-        <ClearVariationsBtn {...props.clearVariations} />
-      ),
-      collapses: props.clearVariations?.collapses,
     },
     {
       node: props.sizeSelect && <SizeSelect {...props.sizeSelect} />,

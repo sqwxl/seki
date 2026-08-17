@@ -9,6 +9,8 @@ import {
 import { placeTree } from "../game/move-tree-layout";
 import type { GameTreeData } from "../game/types";
 import { useIsDesktop } from "../utils/media-query";
+import { ConfirmButton } from "./controls-shared";
+import { IconTrash } from "./icons";
 
 const BASE_NODE_RADIUS = 12;
 const BASE_COLUMN_SPACING = 32;
@@ -22,6 +24,7 @@ type MoveTreeProps = {
   mainLineTipNodeId?: number;
   verticalGrowth?: "auto" | "left" | "right";
   onNavigate: (nodeId: number) => void;
+  onClearVariations?: () => void;
 };
 
 function useContainerLayout(ref: RefObject<HTMLDivElement>) {
@@ -76,6 +79,7 @@ export function MoveTree({
   mainLineTipNodeId,
   verticalGrowth = "auto",
   onNavigate,
+  onClearVariations,
 }: MoveTreeProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -539,43 +543,71 @@ export function MoveTree({
 
   return (
     <div
-      ref={scrollRef}
       style={{
+        position: "relative",
         flex: 1,
         minHeight: 0,
-        overflow: "auto",
-        scrollBehavior: "smooth",
-        touchAction: "manipulation",
-      }}
-      onDblClick={(e) => jumpToMainlineTip(e.target)}
-      onTouchEnd={(e) => {
-        const now = Date.now();
-        const isDoubleTap = now - lastTapAt.current < 300;
-        lastTapAt.current = now;
-
-        if (isDoubleTap) {
-          jumpToMainlineTip(e.target);
-        }
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <svg
-        ref={svgRef}
-        style={
-          vertical
-            ? {
-                display: "block",
-                marginLeft: resolvedGrowth === "left" ? "auto" : undefined,
-              }
-            : undefined
-        }
-        width={svgWidth}
-        height={svgHeight}
+      <div
+        ref={scrollRef}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "auto",
+          scrollBehavior: "smooth",
+          touchAction: "manipulation",
+        }}
+        onDblClick={(e) => jumpToMainlineTip(e.target)}
+        onTouchEnd={(e) => {
+          const now = Date.now();
+          const isDoubleTap = now - lastTapAt.current < 300;
+          lastTapAt.current = now;
+
+          if (isDoubleTap) {
+            jumpToMainlineTip(e.target);
+          }
+        }}
       >
-        {inactiveEdges}
-        {activeEdges}
-        {rootNodes}
-        {nodes}
-      </svg>
+        <svg
+          ref={svgRef}
+          style={
+            vertical
+              ? {
+                  display: "block",
+                  marginLeft: resolvedGrowth === "left" ? "auto" : undefined,
+                }
+              : undefined
+          }
+          width={svgWidth}
+          height={svgHeight}
+        >
+          {inactiveEdges}
+          {activeEdges}
+          {rootNodes}
+          {nodes}
+        </svg>
+      </div>
+      {onClearVariations && (
+        <ConfirmButton
+          id="move-tree-clear-variations"
+          icon={IconTrash}
+          title="Clear variations"
+          buttonClass={
+            vertical
+              ? "move-tree-clear-btn move-tree-clear-btn--vertical"
+              : "move-tree-clear-btn move-tree-clear-btn--horizontal"
+          }
+          focusOnMount="cancel"
+          confirm={{
+            message: "Clear all variations?",
+            onConfirm: onClearVariations,
+            closeOnConfirm: true,
+          }}
+        />
+      )}
     </div>
   );
 }

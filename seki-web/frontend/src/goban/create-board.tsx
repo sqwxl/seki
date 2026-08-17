@@ -29,8 +29,7 @@ export type TerritoryInfo = {
 };
 
 type GhostStoneGetter = () =>
-  | { col: number; row: number; sign: import("./types").Sign }
-  | undefined;
+  { col: number; row: number; sign: import("./types").Sign } | undefined;
 
 export type BoardConfig = {
   cols: number;
@@ -51,6 +50,7 @@ export type BoardConfig = {
   heatOverlay?: () => (HeatData | null)[] | undefined;
   onRender?: (engine: WasmEngine, territory: TerritoryInfo) => void;
   onNavigate?: () => void;
+  onClearVariations?: () => void;
   canPlay?: () => boolean;
   onVertexClick?: (col: number, row: number) => boolean;
   onStonePlay?: () => void;
@@ -72,6 +72,7 @@ export type Board = {
   navigateBoardOnly: (action: NavAction) => void;
   updateBaseMoves: (movesJson: string) => void;
   restoreBaseMoves: () => void;
+  clearVariations: () => void;
   setHandicap: (handicap: number) => void;
   setKomi: (komi: number) => void;
   setShowCoordinates: (show: boolean) => void;
@@ -637,6 +638,7 @@ class BoardController implements Board {
         this.config.branchAtBaseTip && this._baseTipNodeId >= 0
           ? this._baseTipNodeId
           : undefined,
+        this.config.onClearVariations,
       );
     }
 
@@ -833,6 +835,19 @@ class BoardController implements Board {
     this.engine.replace_moves(this.baseMoves);
     this._baseTipNodeId = this.baseMoveCount > 0 ? this.baseMoveCount - 1 : -1;
     this.engine.to_latest();
+  }
+
+  clearVariations(): void {
+    this.territoryState = undefined;
+    this.passiveOverlay = undefined;
+    this.finalizedNodes = new Map();
+    this.finalizedTerritoryCache = new Map();
+    invalidateTreeCache();
+    this.engine.clear_variations();
+    this._baseTipNodeId = this.baseMoveCount > 0 ? this.baseMoveCount - 1 : -1;
+    this.save();
+    this.saveFinalizedNodes();
+    this.render();
   }
 
   setHandicap(handicap: number): void {

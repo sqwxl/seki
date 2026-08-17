@@ -367,10 +367,6 @@ export function buildControls(
         ? "AI suggestion"
         : "AI suggestion requires 9x9 spectator or finished-game analysis",
     };
-    controlsProps.clearVariations = {
-      onClick: analysisSession.clearVariations,
-      collapses: true,
-    };
   }
 
   // --- Control request response ---

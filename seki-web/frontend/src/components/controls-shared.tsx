@@ -8,7 +8,6 @@ import {
   IconKomi,
   IconRenew,
   IconSpinner,
-  IconTrash,
   IconX,
 } from "./icons";
 
@@ -25,6 +24,7 @@ export type ConfirmDef = {
   message: string;
   onConfirm: () => void;
   pending?: "confirm" | "cancel";
+  closeOnConfirm?: boolean;
 };
 
 export type ControlsProps = {
@@ -82,8 +82,6 @@ export type ControlsProps = {
   territoryExit?: ButtonDef;
 
   confirmMove?: ButtonDef;
-
-  clearVariations?: ButtonDef;
 
   newGame?: ButtonDef;
 
@@ -280,28 +278,6 @@ export function ConfirmButton({
     wasPendingRef.current = isPending;
   }, [isPending]);
 
-  useEffect(() => {
-    if (!open || isPending) {
-      return;
-    }
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-
-      if (buttonRef.current?.contains(target)) {
-        return;
-      }
-
-      if (popoverRef.current?.contains(target)) {
-        return;
-      }
-
-      setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open, isPending]);
-
   return (
     <>
       <button
@@ -323,7 +299,12 @@ export function ConfirmButton({
           key={id}
           icon={icon}
           message={confirm.message}
-          onConfirm={confirm.onConfirm}
+          onConfirm={() => {
+            confirm.onConfirm();
+            if (confirm.closeOnConfirm) {
+              setOpen(false);
+            }
+          }}
           onCancel={closeOnCancelHandler(setOpen)}
           pending={confirm.pending}
           popoverRef={popoverRef}
@@ -363,18 +344,6 @@ export function EstimateBtn(props: ButtonDef) {
       onClick={props.onClick}
     >
       <ButtonContent pending={props.pending} icon={IconBalance} />
-    </button>
-  );
-}
-
-export function ClearVariationsBtn(props: ButtonDef) {
-  return (
-    <button
-      title={props.title ?? "Clear variations"}
-      disabled={props.disabled || props.pending}
-      onClick={props.onClick}
-    >
-      <ButtonContent pending={props.pending} icon={IconTrash} />
     </button>
   );
 }

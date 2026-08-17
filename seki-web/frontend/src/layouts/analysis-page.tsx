@@ -101,15 +101,6 @@ function buildAnalysisControls(
       analysisSize.value === 9 ? "AI suggestion" : "AI suggestion requires 9x9",
   };
 
-  if (caps.showClearVariations) {
-    controlsProps.clearVariations = {
-      onClick: props.handleClearVariations,
-      disabled: !caps.canClearVariations,
-      collapses: true,
-    };
-  }
-
-  // Confirm move (ephemeral)
   if (analysisPendingMove.value) {
     controlsProps.confirmMove = {
       onClick: props.onConfirmMove,
@@ -168,7 +159,6 @@ export type AnalysisPageProps = {
   onEstimate: () => void;
   onConfirmMove: () => void;
   onPass: () => void;
-  handleClearVariations: () => void;
 };
 
 function AnalysisAiStatus() {

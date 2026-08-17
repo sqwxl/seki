@@ -42,8 +42,6 @@ export const analysisCapabilities = computed((): AnalysisCapabilities => {
     showTerritoryExit: confirming,
     showSgfImport: canPlay,
     showSgfExport: canPlay,
-    showClearVariations: canPlay,
-    canClearVariations: canPlay,
     statusText,
   };
 });

@@ -17,8 +17,7 @@ import type { WasmEngine } from "/static/wasm/go_engine_wasm.js";
 // ---------------------------------------------------------------------------
 
 type GhostStoneGetter = () =>
-  | { col: number; row: number; sign: Sign }
-  | undefined;
+  { col: number; row: number; sign: Sign } | undefined;
 
 function renderFromEngine(
   engine: WasmEngine,
@@ -118,6 +117,7 @@ function renderMoveTree(
   doRender: () => void,
   direction?: "horizontal" | "vertical",
   mainLineTipNodeId?: number,
+  onClearVariations?: () => void,
 ): void {
   const nodeCount = engine.tree_node_count();
 
@@ -166,6 +166,7 @@ function renderMoveTree(
       currentNodeId={currentNodeId}
       direction={direction}
       mainLineTipNodeId={mainLineTipNodeId}
+      onClearVariations={onClearVariations}
       onNavigate={(nodeId) => {
         if (nodeId === rootId) {
           engine.to_start();

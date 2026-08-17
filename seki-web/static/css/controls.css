@@ -79,6 +79,31 @@
   padding: 0.25rem;
 }
 
+.move-tree-clear-btn {
+  position: absolute;
+  bottom: 0.5rem;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--fg);
+  opacity: 0.7;
+}
+
+.move-tree-clear-btn:hover,
+.move-tree-clear-btn:active {
+  background: transparent;
+  border-color: transparent;
+  opacity: 1;
+}
+
+.move-tree-clear-btn--vertical {
+  left: 0.5rem;
+}
+
+.move-tree-clear-btn--horizontal {
+  right: 0.5rem;
+}
+
 @media (max-width: 767px) {
   .analysis-page .move-tree-slot {
     padding-bottom: var(--viewport-padding);

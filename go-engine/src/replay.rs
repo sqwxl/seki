@@ -409,6 +409,17 @@ impl Replay {
         }
     }
 
+    /// Remove all variations, keeping only the main line.
+    /// Rebuilds the tree from the main-line turns and jumps to its tip.
+    pub fn clear_variations(&mut self) {
+        let main = self.main_line_path();
+        let turns: Vec<Turn> = main
+            .iter()
+            .map(|&id| self.tree.node(id).turn.clone())
+            .collect();
+        self.replace_moves(turns);
+    }
+
     /// Replace the full move history with a flat list.
     /// Builds a fresh linear GameTree and sets current to latest.
     pub fn replace_moves(&mut self, moves: Vec<Turn>) {
@@ -536,6 +547,33 @@ mod tests {
         // Root's first child has 2 children (the two White variations)
         let root_child = r.tree().root_children()[0];
         assert_eq!(r.tree().children_of(Some(root_child)).len(), 2);
+    }
+
+    #[test]
+    fn clear_variations_keeps_main_line() {
+        let mut r = Replay::new(9, 9);
+        r.try_play(0, 0); // Black at (0,0)
+        r.try_play(1, 0); // White at (1,0) — main line
+        r.back();
+        r.try_play(2, 0); // White at (2,0) — variation
+        assert_eq!(r.tree().len(), 3);
+
+        r.clear_variations();
+
+        // Only the main line (Black 0,0 -> White 1,0) remains.
+        assert_eq!(r.tree().len(), 2);
+        assert_eq!(r.total_moves(), 2);
+        assert!(r.is_at_latest());
+        assert_eq!(r.engine().board()[1], Stone::White as i8);
+        assert_eq!(r.engine().board()[2], 0);
+    }
+
+    #[test]
+    fn clear_variations_empty_tree_is_noop() {
+        let mut r = Replay::new(9, 9);
+        r.clear_variations();
+        assert_eq!(r.tree().len(), 0);
+        assert!(r.is_at_start());
     }
 
     #[test]
