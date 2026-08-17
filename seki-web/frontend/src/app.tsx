@@ -514,6 +514,8 @@ function App() {
 
 export function mountApp() {
   seedBootstrapCache();
+  // Preact appends rather than replaces container children, so clear the
+  // shell's boot UI (spinner/fallback) before mounting the app.
+  document.body.replaceChildren();
   render(<App />, document.body);
-  window.__sekiMounted = true;
 }

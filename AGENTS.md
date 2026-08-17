@@ -21,6 +21,8 @@ just random-bots                    # run QA bots
 just deploy                         # deploy prebuilt artifacts
 ```
 
+Note: the dev server runs on **port 3333** (not the default 3000).
+
 Direct commands:
 
 ```bash
@@ -185,3 +187,9 @@ axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-s
 - Keep new logic in `go-engine` or Rust services when possible; keep `go-engine-wasm` thin
 - Do not add server-rendered page-specific templates unless there is a strong reason; the current app shape is SPA shell + JSON bootstrap
 - Shared API types (game settings, user data, WS messages) belong in `seki-api`, not duplicated between server and client
+
+## Commits & Deploys
+
+- **Never commit, push, or deploy without explicit instruction from the user.** An earlier "sure" or "go ahead" covers only the change it was said about, not later ones. Always stop and ask before each commit, push, or deploy.
+- A deployment is a separate step from a commit/push — asking about one is not asking about the other.
+- When a deploy is interrupted or aborted, report the exact state (what is pushed vs what is live) and wait for instruction before retrying.

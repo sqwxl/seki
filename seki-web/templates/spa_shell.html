@@ -46,47 +46,28 @@
         <script src="/static/dist/bundle.js" type="module" defer></script>
     </head>
     <body>
+        <div id="app-loading" role="status">
+            <img src="/static/images/spinner.svg"
+                 alt=""
+                 aria-hidden="true"
+                 class="app-spinner">
+            <span class="app-loading-label">Loading</span>
+        </div>
         <div id="app-fallback" hidden>
             <div>
                 <p>Seki couldn&rsquo;t load.</p>
                 <button type="button" onclick="location.reload()">Reload</button>
             </div>
         </div>
-        <style>
-            #app-fallback {
-                position: fixed;
-                inset: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: #fff;
-                color: #1a1a1a;
-                font: 16px system-ui, sans-serif;
-            }
-            #app-fallback[hidden] {
-                display: none;
-            }
-            [data-theme="dark"] #app-fallback {
-                background: #282828;
-                color: #eee;
-            }
-            #app-fallback button {
-                font: inherit;
-                padding: 0.5em 1.25em;
-                border: 1px solid currentColor;
-                border-radius: 0.4em;
-                background: transparent;
-                color: inherit;
-                cursor: pointer;
-            }
-        </style>
         <script>
             // If the app never mounts (chunk 404, JS crash, wasm init failure,
             // stuck fetch), show a static fallback instead of a blank page.
-            // The app sets window.__sekiMounted on mount, which suppresses it.
+            // Once the app mounts it clears body, removing these elements, so
+            // later errors are no-ops.
             (function () {
                 function showFallback() {
-                    if (window.__sekiMounted) { return; }
+                    var loading = document.getElementById("app-loading");
+                    if (loading) { loading.hidden = true; }
                     var el = document.getElementById("app-fallback");
                     if (el) { el.hidden = false; }
                 }

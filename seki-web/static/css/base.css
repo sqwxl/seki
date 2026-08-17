@@ -58,7 +58,6 @@
   --tree-text-on-white: #222;
   --tree-root: #555;
 }
-
 .fg-green {
   color: var(--green);
 }
@@ -970,4 +969,32 @@ a.nav-dropdown-item {
 
 .mini-panel-clock {
   font-variant-numeric: tabular-nums;
+}
+
+#app-loading,
+#app-fallback {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--fg);
+
+  > div {
+    text-align: center;
+  }
+}
+
+#app-loading[hidden],
+#app-fallback[hidden] {
+  display: none;
+}
+
+.app-loading-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
