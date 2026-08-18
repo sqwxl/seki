@@ -3,14 +3,6 @@
     font-size: 1.125em;
   }
 
-  /* ponytail: experimental — see medium.css; the mobile nav layout (brand +
-     hamburger drawer, no desktop-nav-primary/settings/account links) now
-     applies at all widths. */
-
-  .nav-dropdown.mobile-menu-dropdown {
-    width: min(80vw, 24em);
-  }
-
   .game-page h2 {
     font-size: 1.5em;
   }

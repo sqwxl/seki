@@ -1,8 +1,4 @@
 @media (min-width: 768px) and (max-width: 1199px) {
-  .nav-dropdown.mobile-menu-dropdown {
-    width: min(80vw, 24em);
-  }
-
   .game-page-body {
     --col-width: min(64vw, var(--goban-max-size));
     display: grid;
