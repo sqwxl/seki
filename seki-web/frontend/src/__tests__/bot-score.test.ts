@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { scoreBotGameFromEngine } from "../layouts/bot-score";
+import {
+  scoreBotGameFromEngine,
+  scoreBotGameFromOwnership,
+} from "../layouts/bot-score";
 
 describe("scoreBotGameFromEngine", () => {
   it("uses engine score and ownership for final territory", () => {
@@ -74,6 +77,74 @@ describe("scoreBotGameFromEngine", () => {
         }),
         ownershipJson: JSON.stringify([1, 1, 1]),
         deadStonesJson: JSON.stringify([]),
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe("scoreBotGameFromOwnership", () => {
+  it("counts empty points owned per color as territory", () => {
+    const result = scoreBotGameFromOwnership({
+      cols: 2,
+      rows: 2,
+      board: [1, 1, -1, 0],
+      capturesBlack: 0,
+      capturesWhite: 0,
+      ownership: [1, 1, -1, 1],
+    });
+
+    expect(result?.score).toEqual({
+      black: { territory: 1, captures: 0 },
+      white: { territory: 0, captures: 0 },
+    });
+    expect(result?.overlay).toEqual({
+      paintMap: [1, 1, -1, 1],
+      dimmedVertices: [],
+    });
+  });
+
+  it("marks opponent-owned stones as dead captures", () => {
+    const result = scoreBotGameFromOwnership({
+      cols: 3,
+      rows: 1,
+      board: [1, -1, 1],
+      capturesBlack: 0,
+      capturesWhite: 0,
+      ownership: [1, 1, 1],
+    });
+
+    expect(result?.score).toEqual({
+      black: { territory: 0, captures: 1 },
+      white: { territory: 0, captures: 0 },
+    });
+    expect(result?.overlay.dimmedVertices).toEqual([[1, 0]]);
+  });
+
+  it("credits dead black stones to white's captures", () => {
+    const result = scoreBotGameFromOwnership({
+      cols: 3,
+      rows: 1,
+      board: [-1, 1, -1],
+      capturesBlack: 2,
+      capturesWhite: 3,
+      ownership: [-1, -1, -1],
+    });
+
+    expect(result?.score).toEqual({
+      black: { territory: 0, captures: 2 },
+      white: { territory: 0, captures: 4 },
+    });
+  });
+
+  it("rejects mismatched board or ownership size", () => {
+    expect(
+      scoreBotGameFromOwnership({
+        cols: 2,
+        rows: 2,
+        board: [1, 1],
+        capturesBlack: 0,
+        capturesWhite: 0,
+        ownership: [1, 1, 1, 1],
       }),
     ).toBeUndefined();
   });

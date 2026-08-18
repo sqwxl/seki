@@ -31,6 +31,65 @@ export function scoreBotGameFromEngine(options: {
   };
 }
 
+/**
+ * Final score derived directly from AI ownership (inference result):
+ * territory = empty points owned per color, dead stones = stones whose
+ * owner disagrees with the ownership map, counted as captures for the
+ * capturing color (Japanese convention).
+ */
+export function scoreBotGameFromOwnership(options: {
+  cols: number;
+  rows: number;
+  board: number[];
+  capturesBlack: number;
+  capturesWhite: number;
+  ownership: number[];
+}): BotFinalScore | undefined {
+  const size = options.cols * options.rows;
+
+  if (options.board.length !== size || options.ownership.length !== size) {
+    return undefined;
+  }
+
+  const deadStones: [number, number][] = [];
+  let blackTerritory = 0;
+  let whiteTerritory = 0;
+  let blackCaptures = options.capturesBlack;
+  let whiteCaptures = options.capturesWhite;
+
+  for (let index = 0; index < size; index++) {
+    const owner = options.ownership[index] ?? 0;
+    const stone = options.board[index] ?? 0;
+
+    if (stone === 0) {
+      if (owner > 0) {
+        blackTerritory += 1;
+      } else if (owner < 0) {
+        whiteTerritory += 1;
+      }
+    } else if (owner !== 0 && Math.sign(stone) !== Math.sign(owner)) {
+      deadStones.push([index % options.cols, Math.floor(index / options.cols)]);
+
+      if (owner > 0) {
+        blackCaptures += 1;
+      } else {
+        whiteCaptures += 1;
+      }
+    }
+  }
+
+  return {
+    score: {
+      black: { territory: blackTerritory, captures: blackCaptures },
+      white: { territory: whiteTerritory, captures: whiteCaptures },
+    },
+    overlay: {
+      paintMap: options.ownership.map((owner) => (owner === 0 ? null : owner)),
+      dimmedVertices: deadStones,
+    },
+  };
+}
+
 function parseScore(json: string): ScoreData | undefined {
   try {
     const parsed = JSON.parse(json) as Partial<ScoreData>;

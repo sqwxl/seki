@@ -33,8 +33,9 @@ import {
   type MoveConfirmState,
 } from "../utils/move-confirm";
 import { storage } from "../utils/storage";
+import { estimateCacheKey } from "./analysis-session/overlays";
 import { chooseBotMove } from "./bot-move";
-import { scoreBotGameFromEngine } from "./bot-score";
+import { scoreBotGameFromEngine, scoreBotGameFromOwnership } from "./bot-score";
 import { Controls } from "./controls";
 import { ColorPickerField, SettingsFieldset } from "./form-variants/shared";
 import { GamePageLayout } from "./game-page-layout";
@@ -258,7 +259,11 @@ function BotGame({
   const hintHeatRef = useRef<(HeatData | null)[] | undefined>(undefined);
   const hintGhostRef = useRef<(GhostStoneData | null)[] | undefined>(undefined);
   const mcRef = useRef<MoveConfirmState | null>(null);
-  const aiCacheRef = useRef<Map<number, CachedAiAnalysis>>(new Map());
+  const aiCacheRef = useRef<Map<string, CachedAiAnalysis>>(new Map());
+  const analysisInFlightRef = useRef<
+    Map<string, Promise<CachedAiAnalysis | undefined>>
+  >(new Map());
+  const estimateRequestIdRef = useRef(0);
   const togglesRef = useRef({ aiSuggest: false, estimate: false });
 
   if (!mcRef.current) {
@@ -275,6 +280,7 @@ function BotGame({
   const [aiSuggestPending, setAiSuggestPending] = useState(false);
   const [aiSuggestActive, setAiSuggestActive] = useState(false);
   const [estimateActive, setEstimateActive] = useState(false);
+  const [estimatePending, setEstimatePending] = useState(false);
   const [pendingMcMove, setPendingMcMove] = useState(false);
   const [captures, setCaptures] = useState({ black: 0, white: 0 });
   const [finalScore, setFinalScore] = useState<ScoreData | undefined>(
@@ -337,18 +343,20 @@ function BotGame({
             return undefined;
           }
 
-          return aiCacheRef.current.get(board.engine.current_node_id())
+          return aiCacheRef.current.get(estimateCacheKey(board, KOMI))
             ?.ownership;
         },
         onStonePlay: () => {
           playStoneSound();
           clearHintOverlay(false, !applyingBotMoveRef.current);
+          cancelEstimateRequest();
           setEstimateActive(false);
           setError(undefined);
         },
         onPass: () => {
           playPassSound();
           clearHintOverlay(false, !applyingBotMoveRef.current);
+          cancelEstimateRequest();
           setEstimateActive(false);
           setError(undefined);
         },
@@ -414,7 +422,9 @@ function BotGame({
           }
 
           if (togglesRef.current.estimate) {
-            boardRef.current?.enterEstimate();
+            refreshEstimate();
+          } else {
+            setEstimateActive(false);
           }
         },
         onRender: () => {
@@ -429,6 +439,10 @@ function BotGame({
       }
 
       boardRef.current = board;
+      // Land on the main-line tip: for a finished game (ended in passes)
+      // this re-applies the final score/territory overlay, since the last
+      // pass node isn't persisted as the view position.
+      board.navigate("main-end");
       syncUi();
       maybeRequestBotMove();
     }
@@ -506,31 +520,51 @@ function BotGame({
       }
 
       const requestId = ++scoringRequestIdRef.current;
+      const nodeId = board.engine.current_node_id();
       scoringRef.current = true;
       setStatus("Scoring game");
       setCanHumanAct(false);
       setError(undefined);
 
       try {
-        const deadStonesJson = board.engine.detect_dead_stones();
-        const ownershipJson = board.engine.estimate_territory(deadStonesJson);
-        const scoreJson = board.engine.score(deadStonesJson, KOMI);
+        const analysis = await ensurePositionAnalysis(board);
 
         if (
           disposed ||
           requestId !== scoringRequestIdRef.current ||
-          boardRef.current !== board
+          boardRef.current !== board ||
+          board.engine.current_node_id() !== nodeId
         ) {
           return;
         }
 
-        const final = scoreBotGameFromEngine({
-          cols: board.engine.cols(),
-          rows: board.engine.rows(),
-          scoreJson,
-          ownershipJson,
-          deadStonesJson,
-        });
+        const aiFinal =
+          analysis?.ownership &&
+          scoreBotGameFromOwnership({
+            cols: board.engine.cols(),
+            rows: board.engine.rows(),
+            board: Array.from(board.engine.board()),
+            capturesBlack: board.engine.captures_black(),
+            capturesWhite: board.engine.captures_white(),
+            ownership: analysis.ownership,
+          });
+
+        let final = aiFinal;
+
+        if (!final) {
+          // No AI ownership available — fall back to the engine heuristic.
+          const deadStonesJson = board.engine.detect_dead_stones();
+          const ownershipJson = board.engine.estimate_territory(deadStonesJson);
+          const scoreJson = board.engine.score(deadStonesJson, KOMI);
+
+          final = scoreBotGameFromEngine({
+            cols: board.engine.cols(),
+            rows: board.engine.rows(),
+            scoreJson,
+            ownershipJson,
+            deadStonesJson,
+          });
+        }
 
         if (!final) {
           throw new Error("Engine score did not return territory");
@@ -574,8 +608,6 @@ function BotGame({
       }
 
       const requestId = ++requestIdRef.current;
-      const nodeId = board.engine.current_node_id();
-      const botStone = board.engine.current_turn_stone() as StoneChoice;
       botThinkingRef.current = true;
       setBotThinking(true);
       setStatus("Bot thinking");
@@ -591,6 +623,8 @@ function BotGame({
           throw new Error("AI model download cancelled");
         }
 
+        const botStone = board.engine.current_turn_stone() as StoneChoice;
+        const positionKey = estimateCacheKey(board, KOMI);
         const result = await analyzePositionDirect(
           aiPositionFromEngine(board.engine, KOMI),
         );
@@ -599,7 +633,7 @@ function BotGame({
           return;
         }
 
-        cacheAiAnalysis(nodeId, result, botStone);
+        cacheAiAnalysis(result, botStone, positionKey);
 
         if (requestId !== requestIdRef.current || boardRef.current !== board) {
           return;
@@ -678,25 +712,95 @@ function BotGame({
 
   function cancelAiRequests() {
     requestIdRef.current += 1;
+    estimateRequestIdRef.current += 1;
     setAiSuggestPending(false);
+    setEstimatePending(false);
   }
 
   function cacheAiAnalysis(
-    nodeId: number,
     result: AiAnalyzePositionResult,
     sign: Sign,
-  ) {
-    aiCacheRef.current.set(nodeId, {
+    positionKey: string,
+  ): CachedAiAnalysis {
+    const analysis: CachedAiAnalysis = {
       heatMap: heatMapFromRootMoves(result.analysis.rootMoves, BOARD_SIZE),
       ghostStoneMap: ghostStoneMapFromRootMoves(
         result.analysis.rootMoves,
         BOARD_SIZE,
         sign,
       ),
-      ownership: result.analysis.ownership?.map((value) =>
-        Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0,
-      ),
-    });
+      ownership: normalizeOwnership(result.analysis.ownership),
+    };
+
+    aiCacheRef.current.set(positionKey, analysis);
+    return analysis;
+  }
+
+  function normalizeOwnership(
+    ownership: number[] | undefined,
+  ): number[] | undefined {
+    return ownership?.map((value) =>
+      Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0,
+    );
+  }
+
+  /**
+   * Full analysis (suggestion + ownership) for the current position: one
+   * position-keyed cache (a pass does not change the board, so the bot's
+   * pre-pass analysis hits the final position), else one inference shared by
+   * all callers via the in-flight map.
+   */
+  async function ensurePositionAnalysis(
+    board: Board,
+  ): Promise<CachedAiAnalysis | undefined> {
+    const positionKey = estimateCacheKey(board, KOMI);
+    const cached = aiCacheRef.current.get(positionKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const inFlight = analysisInFlightRef.current.get(positionKey);
+
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const pending = runPositionAnalysis(board);
+    analysisInFlightRef.current.set(positionKey, pending);
+
+    try {
+      return await pending;
+    } finally {
+      if (analysisInFlightRef.current.get(positionKey) === pending) {
+        analysisInFlightRef.current.delete(positionKey);
+      }
+    }
+  }
+
+  async function runPositionAnalysis(
+    board: Board,
+  ): Promise<CachedAiAnalysis | undefined> {
+    if (
+      !(await ensureAiModelAvailable({
+        manifestUrl: KATA9X9_MANIFEST,
+        context: "bot",
+      }))
+    ) {
+      return undefined;
+    }
+
+    try {
+      const sign = board.engine.current_turn_stone() as Sign;
+      const positionKey = estimateCacheKey(board, KOMI);
+      const result = await analyzePositionDirect(
+        aiPositionFromEngine(board.engine, KOMI),
+      );
+
+      return cacheAiAnalysis(result, sign, positionKey);
+    } catch {
+      return undefined;
+    }
   }
 
   async function computeAiSuggestion() {
@@ -707,45 +811,26 @@ function BotGame({
     }
 
     const requestId = ++requestIdRef.current;
+    const nodeId = board.engine.current_node_id();
     setAiSuggestPending(true);
     setError(undefined);
 
     try {
+      const analysis = await ensurePositionAnalysis(board);
+
       if (
-        !(await ensureAiModelAvailable({
-          manifestUrl: KATA9X9_MANIFEST,
-          context: "bot",
-        }))
+        requestId !== requestIdRef.current ||
+        boardRef.current !== board ||
+        board.engine.current_node_id() !== nodeId
       ) {
         return;
       }
 
-      const nodeId = board.engine.current_node_id();
-      const sign = board.engine.current_turn_stone() as Sign;
-      const result = await analyzePositionDirect(
-        aiPositionFromEngine(board.engine, KOMI),
-      );
-
-      cacheAiAnalysis(nodeId, result, sign);
-
-      if (requestId !== requestIdRef.current || boardRef.current !== board) {
-        return;
-      }
-
-      hintHeatRef.current = heatMapFromRootMoves(
-        result.analysis.rootMoves,
-        BOARD_SIZE,
-      );
-      hintGhostRef.current = ghostStoneMapFromRootMoves(
-        result.analysis.rootMoves,
-        BOARD_SIZE,
-        sign,
-      );
-      setAiSuggestActive(true);
-      board.renderBoardOnly();
-    } catch (err) {
-      if (requestId === requestIdRef.current) {
-        setError(err instanceof Error ? err.message : String(err));
+      if (analysis) {
+        hintHeatRef.current = analysis.heatMap;
+        hintGhostRef.current = analysis.ghostStoneMap;
+        setAiSuggestActive(true);
+        board.renderBoardOnly();
       }
     } finally {
       if (requestId === requestIdRef.current) {
@@ -761,7 +846,7 @@ function BotGame({
       return;
     }
 
-    const cached = aiCacheRef.current.get(board.engine.current_node_id());
+    const cached = aiCacheRef.current.get(estimateCacheKey(board, KOMI));
 
     if (cached) {
       hintHeatRef.current = cached.heatMap;
@@ -772,6 +857,46 @@ function BotGame({
     }
 
     void computeAiSuggestion();
+  }
+
+  function cancelEstimateRequest() {
+    estimateRequestIdRef.current += 1;
+    setEstimatePending(false);
+  }
+
+  async function applyEstimate(board: Board) {
+    const requestId = ++estimateRequestIdRef.current;
+    const nodeId = board.engine.current_node_id();
+    setEstimatePending(true);
+
+    const analysis = await ensurePositionAnalysis(board);
+
+    if (
+      requestId !== estimateRequestIdRef.current ||
+      boardRef.current !== board ||
+      board.engine.current_node_id() !== nodeId
+    ) {
+      return;
+    }
+
+    setEstimatePending(false);
+
+    if (analysis?.ownership) {
+      board.enterEstimate();
+      setEstimateActive(true);
+    } else {
+      setEstimateActive(false);
+    }
+  }
+
+  function refreshEstimate() {
+    const board = boardRef.current;
+
+    if (!board) {
+      return;
+    }
+
+    void applyEstimate(board);
   }
 
   async function showAiSuggestion() {
@@ -787,20 +912,20 @@ function BotGame({
     refreshAiSuggestion();
   }
 
-  function toggleEstimate() {
+  async function toggleEstimate() {
     const board = boardRef.current;
 
-    if (!board) {
+    if (!board || estimatePending) {
       return;
     }
 
     if (estimateActive) {
       board.exitTerritoryReview();
       setEstimateActive(false);
-    } else {
-      board.enterEstimate();
-      setEstimateActive(true);
+      return;
     }
+
+    await applyEstimate(board);
   }
 
   function pass() {
@@ -822,6 +947,7 @@ function BotGame({
 
     suppressBotRef.current = true;
     clearHintOverlay(false, true);
+    cancelEstimateRequest();
     setEstimateActive(false);
     mcRef.current?.clear();
     setPendingMcMove(false);
@@ -947,6 +1073,7 @@ function BotGame({
       ? {
           onClick: toggleEstimate,
           active: estimateActive,
+          pending: estimatePending,
           disabled: botThinking || botGameLocked,
         }
       : undefined,
