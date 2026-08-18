@@ -1,5 +1,7 @@
 import { signal } from "@preact/signals";
 
+import { onLifecycleEvent } from "./native/bridge";
+
 /**
  * Shared live WebSocket connection.
  *
@@ -299,6 +301,14 @@ if (typeof window !== "undefined") {
     }
   });
 }
+
+// Native PWA: the Android shell dispatches sekilifecycle on activity resume,
+// which is more reliable than visibilitychange inside a WebView.
+onLifecycleEvent((event) => {
+  if (event === "foreground") {
+    becameVisible();
+  }
+});
 
 export {
   ensureConnected,
