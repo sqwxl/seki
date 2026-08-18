@@ -18,7 +18,7 @@ import {
   themeMode,
 } from "../utils/theme";
 import { IconBalance, IconSettings } from "./icons";
-import { ToggleButton } from "./toggle-button";
+import { MenuToggleItem } from "./toggle-button";
 
 function ThemeButton() {
   const mode = themeMode.value;
@@ -76,17 +76,17 @@ export function SettingsDropdownContent({
       <ThemeButton />
       {!userData?.is_bot && (
         <>
-          <ToggleButton
+          <MenuToggleItem
             on={moveConfirmEnabled.value}
             label="Move confirmation"
             onToggle={handleMoveConfirmToggle}
           />
-          <ToggleButton
+          <MenuToggleItem
             on={showCoordinates.value}
             label="Coordinates"
             onToggle={handleCoordsToggle}
           />
-          <ToggleButton
+          <MenuToggleItem
             on={soundEnabled.value}
             label="Sound"
             onToggle={handleSoundToggle}

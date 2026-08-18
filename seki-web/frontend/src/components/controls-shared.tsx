@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { NavAction } from "../goban/create-board";
 import { IconBalance, IconBot, IconRenew, IconSpinner } from "./icons";
+import { ToggleButton } from "./toggle-button";
 
 export {
   closeOnCancelHandler,
@@ -112,34 +113,33 @@ export function ButtonContent(props: {
 export function AiBtn(props?: ButtonDef) {
   if (!props) return null;
   return (
-    <button
-      class={props.active ? "btn-on" : ""}
+    <ToggleButton
+      enabled={!!props.active}
+      onToggle={props.onClick}
       title={props.title ?? "AI suggestion"}
       disabled={props.disabled || props.pending}
-      onClick={props.onClick}
     >
       <ButtonContent pending={props.pending} icon={IconBot} />
-    </button>
+    </ToggleButton>
   );
 }
 
 export function EstimateBtn(props: ButtonDef) {
   return (
-    <button
-      class={props.active ? "btn-on" : ""}
+    <ToggleButton
+      enabled={!!props.active}
+      onToggle={props.onClick}
       title={props.title ?? "Estimate score"}
       disabled={props.disabled || props.pending}
-      onClick={props.onClick}
     >
       <ButtonContent pending={props.pending} icon={IconBalance} />
-    </button>
+    </ToggleButton>
   );
 }
 
 export function NewGameBtn(props: ButtonDef) {
   return (
     <button
-      class={props.active ? "btn-on" : ""}
       title={props.title ?? "New game"}
       disabled={props.disabled || props.pending}
       onClick={props.onClick}

@@ -6,7 +6,7 @@ import {
   toggleOsNotifications,
 } from "../utils/os-notifications";
 import { IconBell, IconBellDisabled, IconBellUnread } from "./icons";
-import { ToggleButton } from "./toggle-button";
+import { MenuToggleItem } from "./toggle-button";
 
 function isNotifSupported(): boolean {
   return "Notification" in window;
@@ -86,7 +86,7 @@ export function NotificationBell() {
           </div>
           {isNotifSupported() && (
             <div class="nav-dropdown-section">
-              <ToggleButton
+              <MenuToggleItem
                 on={osNotificationsEnabled.value}
                 label="OS notifications"
                 onToggle={toggleOsNotifications}

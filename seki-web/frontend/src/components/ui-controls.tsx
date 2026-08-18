@@ -7,6 +7,7 @@ import {
   type ControlsProps,
 } from "./controls-shared";
 import { IconAnalysis, IconX, IconZen } from "./icons";
+import { ToggleButton } from "./toggle-button";
 
 export function hasCollapsedUiControls(
   props: ControlsProps,
@@ -107,14 +108,14 @@ export function UIControls(
           )}
         </>
       ) : (
-        <button
-          class={props.analyze.active ? "btn-on" : undefined}
+        <ToggleButton
+          enabled={!!props.analyze.active}
+          onToggle={props.analyze.onClick}
           title={props.analyze.title ?? "Analyze"}
           disabled={props.analyze.disabled || props.analyze.pending}
-          onClick={props.analyze.onClick}
         >
           <ButtonContent pending={props.analyze.pending} icon={IconAnalysis} />
-        </button>
+        </ToggleButton>
       )}
     </>
   );
@@ -150,13 +151,14 @@ export function UIControls(
     },
     {
       node: !props.compact && (
-        <button
-          class={`zen-toggle${zenMode ? " btn-on" : ""}`}
+        <ToggleButton
+          enabled={zenMode}
+          onToggle={() => setZenMode((value) => !value)}
           title={zenMode ? "Exit zen mode" : "Zen mode"}
-          onClick={() => setZenMode((value) => !value)}
+          classOn="zen-toggle"
         >
           <ButtonContent icon={IconZen} />
-        </button>
+        </ToggleButton>
       ),
     },
   ];
