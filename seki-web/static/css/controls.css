@@ -238,3 +238,11 @@
   position: absolute;
   inset: 0;
 }
+
+/* Zen mode: dim everything except player panels, board, and controls */
+.game-page-body:has(.zen-toggle.btn-on) .game-header,
+.game-page-body:has(.zen-toggle.btn-on) .game-status-slot,
+.game-page-body:has(.zen-toggle.btn-on) .game-sidebar-column > * {
+  opacity: 0.15;
+  transition: opacity 0.25s ease;
+}

@@ -6,7 +6,7 @@ import {
   NewGameBtn,
   type ControlsProps,
 } from "./controls-shared";
-import { IconAnalysis, IconX } from "./icons";
+import { IconAnalysis, IconX, IconZen } from "./icons";
 
 export function hasCollapsedUiControls(
   props: ControlsProps,
@@ -27,6 +27,7 @@ export function UIControls(
   },
 ) {
   const [analyzeChoiceOpen, setAnalyzeChoiceOpen] = useState(false);
+  const [zenMode, setZenMode] = useState(false);
   const analyzeChoiceRef = useRef<HTMLDivElement>(null);
   const analyzeChoiceButtonRef = useRef<HTMLButtonElement>(null);
   const analyzeChoicePending =
@@ -146,6 +147,17 @@ export function UIControls(
     },
     {
       node: props.newGame && <NewGameBtn {...props.newGame} />,
+    },
+    {
+      node: !props.compact && (
+        <button
+          class={`zen-toggle${zenMode ? " btn-on" : ""}`}
+          title={zenMode ? "Exit zen mode" : "Zen mode"}
+          onClick={() => setZenMode((value) => !value)}
+        >
+          <ButtonContent icon={IconZen} />
+        </button>
+      ),
     },
   ];
 
