@@ -1,6 +1,6 @@
 use askama::Template;
 use axum::extract::{OriginalUri, State};
-use axum::http::{HeaderValue, Uri, header};
+use axum::http::{HeaderValue, StatusCode, Uri, header};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use tower_sessions::Session;
 
@@ -13,6 +13,18 @@ use crate::session::{CurrentUser, OptionalCurrentUser};
 use crate::views::shell::SpaShellTemplate;
 
 // TODO: Add terse docstring
+/// Generic 404 page for unmatched routes. Extends the shared base template
+/// so it carries the same branding (favicon, theme, manifest) as the app.
+pub async fn not_found_page() -> Response {
+    match crate::views::shell::NotFoundTemplate.render() {
+        Ok(html) => (StatusCode::NOT_FOUND, Html(html)).into_response(),
+        Err(err) => {
+            tracing::error!(?err, "failed to render 404 template");
+            StatusCode::NOT_FOUND.into_response()
+        }
+    }
+}
+
 pub async fn shell(
     State(state): State<AppState>,
     OriginalUri(uri): OriginalUri,

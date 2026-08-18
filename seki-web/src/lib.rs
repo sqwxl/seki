@@ -288,6 +288,7 @@ pub async fn build_router_with_registry_and_presence(
             "/manifest.json",
             ServeFile::new(static_dir_path.join("manifest.json")),
         )
+        .fallback(routes::spa::not_found_page)
         .layer(SetResponseHeaderLayer::if_not_present(
             header::REFERRER_POLICY,
             HeaderValue::from_static("same-origin"),

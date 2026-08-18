@@ -1,41 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <title>Seki</title>
-        <meta name="description" content="Seki">
-        <meta name="keywords" content="go,weiqi,baduk">
-        <meta name="viewport" content="width=device-width,initial-scale=1">
-        <meta name="color-scheme" content="light dark">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="theme_color"
-              content="#fff"
-              media="(prefers-color-scheme: light)">
-        <meta name="theme_color"
-              content="#282828"
-              media="(prefers-color-scheme: dark)">
-        <link rel="manifest" href="/manifest.json">
-        <meta property="og:site_name" content="Seki">
-        <meta property="og:type" content="website">
-        <meta property="og:title" content="Seki — Play Go Online">
-        <meta property="og:description"
-              content="Play Go (Weiqi/Baduk) online with friends">
-        <link rel="icon"
-              id="favicon"
-              href="/static/images/favicon-light.svg"
-              type="image/svg+xml">
-        <script>
-            (function() {
-                var m = localStorage.getItem("seki:theme") || "auto";
-                var d = m === "dark" || (m === "auto" && matchMedia("(prefers-color-scheme:dark)").matches);
-                document.documentElement.dataset.theme = d ? "dark" : "light";
-                var q = matchMedia("(prefers-color-scheme:dark)");
-                function setFavicon(dark) { document.getElementById("favicon").href = "/static/images/favicon-" + (dark ? "dark" : "light") + ".svg"; }
-                setFavicon(q.matches);
-                q.addEventListener("change", function(e) { setFavicon(e.matches); });
-            })();
-        </script>
-        <link rel="stylesheet" href="/static/css/styles.css">
+{% extends "base.html" %}
+{% block head %}
         <link rel="modulepreload" href="/static/wasm/go_engine_wasm.js">
         <link rel="preload"
               href="/static/wasm/go_engine_wasm_bg.wasm"
@@ -44,13 +8,10 @@
               crossorigin>
         <script id="bootstrap-data" type="application/json">{{ bootstrap_json|safe }}</script>
         <script src="/static/dist/bundle.js" type="module" defer></script>
-    </head>
-    <body>
+{% endblock %}
+{% block body %}
         <div id="app-loading" role="status">
-            <img src="/static/images/spinner.svg"
-                 alt=""
-                 aria-hidden="true"
-                 class="app-spinner">
+            <span class="app-spinner" aria-hidden="true"><svg width="36" height="36" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><style>.spinner_aj0A{transform-origin:center;animation:spinner_KYSC .75s infinite linear}@keyframes spinner_KYSC{100%{transform:rotate(360deg)}}</style><path d="M12,4a8,8,0,0,1,7.89,6.7A1.53,1.53,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.53,1.53,0,0,0,1.49-1.3A8,8,0,0,1,12,4Z" class="spinner_aj0A"/></svg></span>
             <span class="app-loading-label">Loading</span>
         </div>
         <div id="app-fallback" hidden>
@@ -76,6 +37,4 @@
                 setTimeout(showFallback, 8000);
             })();
         </script>
-        <script src="/static/dist/bundle.js" type="module" defer></script>
-    </body>
-</html>
+{% endblock %}

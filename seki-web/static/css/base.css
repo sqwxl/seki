@@ -998,3 +998,38 @@ a.nav-dropdown-item {
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
+
+.app-spinner {
+  color: var(--fg);
+}
+
+/* Standalone 404 page (served by the router fallback, no app bundle). */
+.not-found {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.5em;
+}
+
+.not-found h1 {
+  font-size: 4em;
+  margin: 0;
+}
+
+.not-found a {
+  color: var(--blue);
+}
+
+/* Pages whose theme script did not run follow the system theme. The shell
+   always sets data-theme before first paint, so this never affects it. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #282828;
+    --fg: #ebdbb2;
+    --blue: #83a598;
+  }
+}

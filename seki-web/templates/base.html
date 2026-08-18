@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>
-            {% block title %}Seki{% endblock %}
-        </title>
+        <title>{% block title %}Seki{% endblock %}</title>
         <meta name="description" content="Seki">
         <meta name="keywords" content="go,weiqi,baduk">
         <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -16,6 +14,7 @@
         <meta name="theme_color"
               content="#282828"
               media="(prefers-color-scheme: dark)">
+        <link rel="manifest" href="/manifest.json">
         {% block og %}
             <meta property="og:site_name" content="Seki">
             <meta property="og:type" content="website">
@@ -39,33 +38,9 @@
             })();
         </script>
         <link rel="stylesheet" href="/static/css/styles.css">
-        <script id="user-data" type="application/json">{{ user_data|safe }}</script>
-        <script src="/static/dist/bundle.js" type="module" defer></script>
         {% block head %}{% endblock %}
     </head>
     <body>
-        <nav>
-            <div>
-                <a href="/games/new" title="New game">
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         width="20"
-                         height="20"
-                         viewBox="0 -960 960 960"
-                         fill="currentColor">
-                        <path d="M451.5-131.5Q440-143 440-160v-280H160q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520h280v-280q0-17 11.5-28.5T480-840q17 0 28.5 11.5T520-800v280h280q17 0 28.5 11.5T840-480q0 17-11.5 28.5T800-440H520v280q0 17-11.5 28.5T480-120q-17 0-28.5-11.5Z" />
-                    </svg>
-                </a>
-                <a href="/games">Games</a>
-                <a href="/analysis">Analysis</a>
-            </div>
-            <div>
-                <span id="connection-status"></span>
-                <span id="notification-bell"></span>
-                <span id="user-menu"></span>
-            </div>
-        </nav>
-        <main>
-            {% block content %}{% endblock %}
-        </main>
+        {% block body %}{% endblock %}
     </body>
 </html>
