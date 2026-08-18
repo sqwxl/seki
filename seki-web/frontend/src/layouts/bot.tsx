@@ -785,7 +785,7 @@ function BotGame({
       return;
     }
 
-    await computeAiSuggestion();
+    refreshAiSuggestion();
   }
 
   function toggleEstimate() {
@@ -794,8 +794,6 @@ function BotGame({
     if (!board) {
       return;
     }
-
-    clearHintOverlay(false, true);
 
     if (estimateActive) {
       board.exitTerritoryReview();
