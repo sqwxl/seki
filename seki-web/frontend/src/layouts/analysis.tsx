@@ -138,6 +138,24 @@ export function initAnalysis(root: HTMLElement) {
     initBoard(size);
   }
 
+  // --- Board reset ---
+  function handleBoardReset() {
+    const size = analysisSize.value;
+    session.clearAiCaches();
+    analysisMeta.value = undefined;
+    sgfText = undefined;
+    storage.remove(ANALYSIS_SGF_META);
+    storage.remove(ANALYSIS_SGF_TEXT);
+
+    const treeKey = analysisTreeKey(size);
+    storage.remove(treeKey);
+    storage.remove(`${treeKey}:base`);
+    storage.remove(`${treeKey}:finalized`);
+    storage.remove(`${treeKey}:node`);
+
+    initBoard(size);
+  }
+
   // --- Board initialization ---
   async function initBoard(size: number) {
     const initVersion = ++boardInitVersion;
@@ -324,6 +342,7 @@ export function initAnalysis(root: HTMLElement) {
       moveTreeEl={moveTreeEl}
       onSizeChange={handleSizeChange}
       onKomiChange={handleKomiChange}
+      onReset={handleBoardReset}
       onAiSuggestChange={handleAiSuggestChange}
       onEstimate={handleEstimate}
       onConfirmMove={session.confirmPendingMove}

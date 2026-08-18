@@ -46,6 +46,7 @@ export const analysisTerritoryInfo = signal<TerritoryInfo>({
   score: undefined,
 });
 export const analysisNavState = signal<NavState>(DEFAULT_NAV_STATE);
+export const analysisTab = signal<"board" | "settings">("board");
 export type AnalysisPanelData = PlayerPanelProps & {
   label: string;
   stone: "black" | "white";
@@ -80,6 +81,7 @@ export function resetAnalysisRuntimeState(): void {
     score: undefined,
   };
   analysisNavState.value = DEFAULT_NAV_STATE;
+  analysisTab.value = "board";
   analysisPanelState.value = {};
   analysisSgfImport.value = undefined;
   analysisSgfExport.value = undefined;

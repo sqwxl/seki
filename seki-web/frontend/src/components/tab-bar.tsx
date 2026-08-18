@@ -1,50 +1,40 @@
-import { hasUnreadChat, mobileTab } from "../game/state";
-import { IconAnalysis, IconChat, IconChatUnread, IconStonesBw } from "./icons";
+import type { Signal } from "@preact/signals";
+import { hasUnreadChat } from "../game/state";
+import { IconChatUnread } from "./icons";
 
-type Tab = "board" | "chat" | "analysis";
+export type TabDef = {
+  id: string;
+  label: string;
+  icon: preact.ComponentType<{ title?: string }>;
+};
 
-const tabs: { id: Tab; label: string }[] = [
-  { id: "board", label: "Board" },
-  { id: "chat", label: "Chat" },
-  { id: "analysis", label: "Analysis" },
-];
-
-function TabIcon({ id }: { id: Tab }) {
-  if (id === "board") {
-    return <IconStonesBw />;
-  }
-
-  if (id === "chat") {
-    return hasUnreadChat.value ? <IconChatUnread /> : <IconChat />;
-  }
-
-  if (id === "analysis") {
-    return <IconAnalysis />;
-  }
-
-  return null;
-}
-
-export function TabBar() {
-  const current = mobileTab.value;
-
+export function TabBar(props: {
+  tabs: TabDef[];
+  active: Signal<string>;
+  unreadTabId?: string;
+  onSelect?: (id: string) => void;
+}) {
   return (
     <div class="mobile-tab-bar">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          aria-pressed={current === t.id ? "true" : "false"}
-          title={t.label}
-          onClick={() => {
-            mobileTab.value = t.id;
-            if (t.id === "chat") {
-              hasUnreadChat.value = false;
-            }
-          }}
-        >
-          <TabIcon id={t.id} />
-        </button>
-      ))}
+      {props.tabs.map((t) => {
+        const isActive = props.active.value === t.id;
+        const unread = props.unreadTabId === t.id && hasUnreadChat.value;
+        const Icon = unread ? IconChatUnread : t.icon;
+
+        return (
+          <button
+            key={t.id}
+            aria-pressed={isActive ? "true" : "false"}
+            title={t.label}
+            onClick={() => {
+              props.active.value = t.id;
+              props.onSelect?.(t.id);
+            }}
+          >
+            <Icon />
+          </button>
+        );
+      })}
     </div>
   );
 }

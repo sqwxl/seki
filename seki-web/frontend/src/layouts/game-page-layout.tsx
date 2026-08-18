@@ -1,6 +1,7 @@
+import type { Signal } from "@preact/signals";
 import type { ComponentChildren, Ref } from "preact";
 import { GameBoardDisplay } from "../components/game-board-display";
-import { mobileTab, undoRequest } from "../game/state";
+import { undoRequest } from "../game/state";
 
 export type GamePageLayoutProps = {
   header?: ComponentChildren;
@@ -12,15 +13,21 @@ export type GamePageLayoutProps = {
   playerBottom?: ComponentChildren;
   controls?: ComponentChildren;
   status?: ComponentChildren;
-  chat?: ComponentChildren;
-  moveTree?: ComponentChildren;
+  sidebarLeft?: ComponentChildren;
+  sidebarRight?: ComponentChildren;
+  sidebarRightTabId?: string;
+  activeTab?: Signal<string>;
   tabBar?: ComponentChildren;
 };
 
 export function GamePageLayout(props: GamePageLayoutProps) {
-  const tab = mobileTab.value;
-  const hasChat = !!props.chat;
-  const showChat = hasChat && tab === "chat";
+  const tab = props.activeTab?.value;
+  const hasRight = !!props.sidebarRight;
+  const rightTabActive =
+    !props.sidebarRightTabId || tab === props.sidebarRightTabId;
+  const showRight = hasRight && rightTabActive;
+  const hideControls =
+    showRight && !!props.sidebarRightTabId && undoRequest.value !== "received";
 
   return (
     <>
@@ -35,18 +42,20 @@ export function GamePageLayout(props: GamePageLayoutProps) {
           topPanel={props.playerTop}
           bottomPanel={props.playerBottom}
           controls={props.controls}
-          hideControls={showChat && undoRequest.value !== "received"}
+          hideControls={hideControls}
         />
         <div class="game-sidebar-column">
-          {props.moveTree}
-          {hasChat && (
-            <div class={`game-chat-slot${!showChat ? " mobile-hidden" : ""}`}>
-              {props.chat}
+          {props.sidebarLeft}
+          {hasRight && (
+            <div
+              class={`game-sidebar-right${!showRight ? " mobile-hidden" : ""}`}
+            >
+              {props.sidebarRight}
             </div>
           )}
         </div>
       </div>
-      {hasChat && props.tabBar}
+      {props.tabBar}
     </>
   );
 }

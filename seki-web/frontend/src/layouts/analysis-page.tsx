@@ -1,8 +1,18 @@
-import type { ControlsProps } from "../components/controls-shared";
+import {
+  ConfirmButton,
+  type ControlsProps,
+} from "../components/controls-shared";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
+import {
+  IconGrid4x4,
+  IconKomi,
+  IconSettings,
+  IconStonesBw,
+  IconTrash,
+} from "../components/icons";
 import { PlayerPanel } from "../components/player-panel";
-import { TabBar } from "../components/tab-bar";
+import { TabBar, type TabDef } from "../components/tab-bar";
 import type { AnalysisCapabilities } from "../game/capabilities";
 import { analysisCapabilities } from "../game/capabilities";
 import { GameStage } from "../game/types";
@@ -18,6 +28,7 @@ import {
   analysisPanelState,
   analysisPendingMove,
   analysisSize,
+  analysisTab,
   analysisTerritoryInfo,
 } from "./analysis-state";
 import { Controls } from "./controls";
@@ -31,7 +42,6 @@ function buildAnalysisControls(
   caps: AnalysisCapabilities,
   props: AnalysisPageProps,
 ): ControlsProps {
-  const { onSizeChange, onKomiChange } = props;
   const board = analysisBoard.value;
   const nav = analysisNavState.value;
 
@@ -46,17 +56,6 @@ function buildAnalysisControls(
       atMainEnd: nav.atMainEnd,
       counter: nav.counter,
       onNavigate: (action) => board?.navigate(action),
-    },
-    sizeSelect: {
-      value: analysisSize.value,
-      options: [9, 13, 19],
-      onChange: onSizeChange,
-      collapses: true,
-    },
-    komiSelect: {
-      value: analysisKomi.value,
-      onChange: onKomiChange,
-      collapses: true,
     },
   };
 
@@ -129,9 +128,12 @@ function AnalysisControlsSlot(props: AnalysisPageProps) {
 }
 
 function AnalysisMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
+  const isMobile = useIsMobile();
+  const visible = !isMobile || analysisTab.value === "board";
+
   return (
     <div
-      class="move-tree-slot"
+      class={`move-tree-slot${!visible ? " hidden" : ""}`}
       ref={(el) => {
         if (el && !el.contains(moveTreeEl)) {
           el.appendChild(moveTreeEl);
@@ -141,8 +143,67 @@ function AnalysisMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
   );
 }
 
+function AnalysisSettingsPanel(props: AnalysisPageProps) {
+  return (
+    <form class="analysis-settings" onSubmit={(e) => e.preventDefault()}>
+      <div>
+        <label for="analysis_size">
+          <IconGrid4x4 /> Board size
+        </label>
+        <select
+          id="analysis_size"
+          value={analysisSize.value}
+          onChange={(e) =>
+            props.onSizeChange(parseInt(e.currentTarget.value, 10))
+          }
+        >
+          {[9, 13, 19].map((s) => (
+            <option key={s} value={s}>
+              {s}×{s}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label for="analysis_komi">
+          <IconKomi /> Komi
+        </label>
+        <input
+          id="analysis_komi"
+          type="number"
+          value={analysisKomi.value}
+          min={-100.5}
+          max={100.5}
+          step={0.5}
+          onChange={(e) =>
+            props.onKomiChange(parseFloat(e.currentTarget.value) || 0)
+          }
+        />
+      </div>
+      <div>
+        <ConfirmButton
+          id="analysis-reset"
+          icon={IconTrash}
+          label="Reset"
+          title="Reset board"
+          confirm={{
+            message: "Reset board? All moves and variations will be cleared.",
+            onConfirm: props.onReset,
+            closeOnConfirm: true,
+          }}
+        />
+      </div>
+    </form>
+  );
+}
+
+const analysisTabs: TabDef[] = [
+  { id: "board", label: "Board", icon: IconStonesBw },
+  { id: "settings", label: "Settings", icon: IconSettings },
+];
+
 function AnalysisTabBar() {
-  return <TabBar />;
+  return <TabBar tabs={analysisTabs} active={analysisTab} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +216,7 @@ export type AnalysisPageProps = {
   moveTreeEl: HTMLElement;
   onSizeChange: (size: number) => void;
   onKomiChange: (komi: number) => void;
+  onReset: () => void;
   onAiSuggestChange: () => void;
   onEstimate: () => void;
   onConfirmMove: () => void;
@@ -289,7 +351,10 @@ export function AnalysisPage(props: AnalysisPageProps) {
           </GameStatus>
         ) : undefined
       }
-      moveTree={<AnalysisMoveTree moveTreeEl={moveTreeEl} />}
+      sidebarLeft={<AnalysisMoveTree moveTreeEl={moveTreeEl} />}
+      sidebarRight={<AnalysisSettingsPanel {...props} />}
+      sidebarRightTabId="settings"
+      activeTab={analysisTab}
       tabBar={<AnalysisTabBar />}
     />
   );

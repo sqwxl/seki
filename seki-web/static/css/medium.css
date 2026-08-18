@@ -1,8 +1,4 @@
 @media (min-width: 768px) and (max-width: 1199px) {
-  /* ponytail: experimental — mobile nav layout applies at all widths.
-     Revert by restoring the .mobile-nav-brand/.desktop-nav-primary display flips here
-     and in desktop.css. */
-
   .nav-dropdown.mobile-menu-dropdown {
     width: min(80vw, 24em);
   }
@@ -89,7 +85,7 @@
     display: flex;
   }
 
-  .game-page-body:not(:has(.game-chat-slot)) .move-tree-slot {
+  .game-page-body:not(:has(.game-sidebar-right)) .move-tree-slot {
     flex: 1;
   }
 
@@ -100,7 +96,7 @@
     overflow: auto;
   }
 
-  .game-page-body .game-chat-slot {
+  .game-page-body .game-sidebar-right {
     flex: none;
     align-self: stretch;
     width: auto;
@@ -112,7 +108,7 @@
     min-width: 0;
   }
 
-  .game-page-body .game-chat-slot .chat {
+  .game-page-body .game-sidebar-right .chat {
     flex: none;
     display: flex;
     flex-direction: column;
@@ -121,19 +117,19 @@
     overflow: hidden;
   }
 
-  .game-page-body .game-chat-slot .chat-box {
+  .game-page-body .game-sidebar-right .chat-box {
     flex: none;
     height: calc(5lh + 1rem);
     max-height: calc(5lh + 1rem);
     overflow: auto;
   }
 
-  .game-page-body .game-chat-slot .chat form input[type="text"] {
+  .game-page-body .game-sidebar-right .chat form input[type="text"] {
     width: 0;
     min-width: 0;
   }
 
-  .game-page-body .game-chat-slot .chat form button[type="submit"] {
+  .game-page-body .game-sidebar-right .chat form button[type="submit"] {
     flex: 0 0 auto;
     min-width: 2.4em;
     padding-inline: 0.65em;

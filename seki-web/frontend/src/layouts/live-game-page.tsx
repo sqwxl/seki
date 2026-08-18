@@ -3,13 +3,14 @@ import { Chat } from "../components/chat";
 import type { ControlsProps } from "../components/controls-shared";
 import { GameInfo } from "../components/game-info";
 import { GameStatus } from "../components/game-status";
+import { IconAnalysis, IconChat, IconStonesBw } from "../components/icons";
 import { LobbyControls } from "../components/lobby-controls";
 import {
   LobbyPopover,
   PregameSettingsPopover,
 } from "../components/lobby-popover";
 import { PlayerPanel } from "../components/player-panel";
-import { TabBar } from "../components/tab-bar";
+import { TabBar, type TabDef } from "../components/tab-bar";
 import {
   liveGameControlsState,
   liveGamePanelState,
@@ -363,8 +364,25 @@ function LiveGameMoveTree({ moveTreeEl }: { moveTreeEl: HTMLElement }) {
   );
 }
 
+const liveGameTabs: TabDef[] = [
+  { id: "board", label: "Board", icon: IconStonesBw },
+  { id: "chat", label: "Chat", icon: IconChat },
+  { id: "analysis", label: "Analysis", icon: IconAnalysis },
+];
+
 function LiveGameTabBar() {
-  return <TabBar />;
+  return (
+    <TabBar
+      tabs={liveGameTabs}
+      active={mobileTab}
+      unreadTabId="chat"
+      onSelect={(id) => {
+        if (id === "chat") {
+          hasUnreadChat.value = false;
+        }
+      }}
+    />
+  );
 }
 
 function LiveGameChat({ channel }: Pick<LiveGamePageProps, "channel">) {
@@ -431,8 +449,10 @@ export function LiveGamePage(props: LiveGamePageProps) {
           onCancelSpectate={() => setIsSpectatingPopover(false)}
         />
       }
-      chat={<LiveGameChat channel={channel} />}
-      moveTree={<LiveGameMoveTree moveTreeEl={moveTreeEl} />}
+      sidebarLeft={<LiveGameMoveTree moveTreeEl={moveTreeEl} />}
+      sidebarRight={<LiveGameChat channel={channel} />}
+      sidebarRightTabId="chat"
+      activeTab={mobileTab}
       tabBar={<LiveGameTabBar />}
     />
   );

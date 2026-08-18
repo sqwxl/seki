@@ -3,9 +3,7 @@ import {
   AiBtn,
   ButtonContent,
   EstimateBtn,
-  KomiSelect,
   NewGameBtn,
-  SizeSelect,
   type ControlsProps,
 } from "./controls-shared";
 import { IconAnalysis, IconX } from "./icons";
@@ -18,9 +16,7 @@ export function hasCollapsedUiControls(
     props.aiSuggest?.collapses ||
     (!options.excludeAnalysis && props.analyze?.collapses) ||
     props.estimate?.collapses ||
-    props.exitEstimate?.collapses ||
-    props.sizeSelect?.collapses ||
-    props.komiSelect?.collapses,
+    props.exitEstimate?.collapses,
   );
 }
 
@@ -147,14 +143,6 @@ export function UIControls(
         </button>
       ),
       collapses: props.exitEstimate?.collapses,
-    },
-    {
-      node: props.sizeSelect && <SizeSelect {...props.sizeSelect} />,
-      collapses: props.sizeSelect?.collapses,
-    },
-    {
-      node: props.komiSelect && <KomiSelect {...props.komiSelect} />,
-      collapses: props.komiSelect?.collapses,
     },
     {
       node: props.newGame && <NewGameBtn {...props.newGame} />,

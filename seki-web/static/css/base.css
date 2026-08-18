@@ -696,9 +696,12 @@ a.nav-dropdown-item {
   .mobile-hidden {
     display: none !important;
   }
+
+  .game-board-view .game-sidebar-right .analysis-settings {
+    flex: 1;
+  }
 }
 
-/* Board view fills available space */
 .game-board-view {
   flex: 1;
   min-height: 0;
@@ -725,8 +728,7 @@ a.nav-dropdown-item {
   margin-inline: auto;
 }
 
-/* Chat slot inside board view — takes remaining space below the board */
-.game-board-view .game-chat-slot {
+.game-board-view .game-sidebar-right {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -736,7 +738,7 @@ a.nav-dropdown-item {
   max-width: var(--goban-max-size);
 }
 
-.game-board-view .game-chat-slot .chat {
+.game-board-view .game-sidebar-right .chat {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -744,16 +746,15 @@ a.nav-dropdown-item {
   width: 100%;
 }
 
-.game-board-view .game-chat-slot .chat-box {
+.game-board-view .game-sidebar-right .chat-box {
   flex: 1;
   height: auto;
   overflow-y: auto;
 }
 
-/* Tab bar */
 .mobile-tab-bar {
   display: flex;
-  padding: 0;
+  padding: var(--viewport-padding) 0 0;
   flex-shrink: 0;
   align-self: stretch;
   width: 100%;

@@ -100,7 +100,7 @@
     overflow: auto;
   }
 
-  .game-page-body .game-chat-slot {
+  .game-page-body .game-sidebar-right {
     flex: none;
     grid-column: 3;
     grid-row: 4;
@@ -113,14 +113,18 @@
     overflow: hidden;
   }
 
-  .game-page-body .game-chat-slot .chat {
+  .game-page-body .game-sidebar-right .analysis-settings {
+    flex: 1;
+  }
+
+  .game-page-body .game-sidebar-right .chat {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
   }
 
-  .game-page-body .game-chat-slot .chat-box {
+  .game-page-body .game-sidebar-right .chat-box {
     flex: 1;
     overflow: auto;
   }

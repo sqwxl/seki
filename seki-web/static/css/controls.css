@@ -244,9 +244,3 @@
   position: absolute;
   inset: 0;
 }
-
-.inline-control-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25em;
-}

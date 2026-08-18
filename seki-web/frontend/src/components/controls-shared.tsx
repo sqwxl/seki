@@ -4,8 +4,6 @@ import {
   IconBalance,
   IconBot,
   IconCheck,
-  IconGrid4x4,
-  IconKomi,
   IconRenew,
   IconSpinner,
   IconX,
@@ -65,18 +63,6 @@ export type ControlsProps = {
   analyze?: ButtonDef & { active?: boolean };
   estimate?: ButtonDef;
   exitEstimate?: ButtonDef;
-  sizeSelect?: {
-    value: number;
-    options: number[];
-    onChange: (size: number) => void;
-    collapses?: boolean;
-  };
-
-  komiSelect?: {
-    value: number;
-    onChange: (komi: number) => void;
-    collapses?: boolean;
-  };
 
   territoryReady?: ButtonDef;
   territoryExit?: ButtonDef;
@@ -245,6 +231,7 @@ export function ConfirmModal({
 export function ConfirmButton({
   id,
   icon,
+  label,
   title,
   disabled,
   confirm,
@@ -254,6 +241,7 @@ export function ConfirmButton({
 }: {
   id: string;
   icon: preact.ComponentType<{ title?: string }>;
+  label?: string;
   title: string;
   disabled?: boolean;
   confirm: ConfirmDef;
@@ -288,7 +276,7 @@ export function ConfirmButton({
         disabled={disabled || isPending}
         onClick={() => setOpen((value) => !value)}
       >
-        <ButtonContent pending={isPending} icon={Icon} />
+        <ButtonContent pending={isPending} icon={Icon} label={label} />
       </button>
       <ConfirmModal
         open={open}
@@ -358,52 +346,6 @@ export function NewGameBtn(props: ButtonDef) {
     >
       <ButtonContent pending={props.pending} icon={IconRenew} />
     </button>
-  );
-}
-
-export function KomiSelect(
-  props: Pick<ControlsProps, "komiSelect">["komiSelect"],
-) {
-  return (
-    <span class="inline-control-group">
-      <IconKomi title="Komi" />
-      <input
-        type="number"
-        title="Komi"
-        value={props?.value}
-        step={0.5}
-        min={-100.5}
-        max={100.5}
-        onChange={(e) =>
-          props?.onChange(parseFloat(e.currentTarget.value) || 0)
-        }
-      />
-    </span>
-  );
-}
-
-export function SizeSelect(
-  props?: Pick<ControlsProps, "sizeSelect">["sizeSelect"],
-) {
-  if (!props) return;
-
-  return (
-    <span class="inline-control-group">
-      <IconGrid4x4 title="Board size" />
-      <select
-        title="Board size"
-        value={String(props?.value)}
-        onChange={(e) =>
-          props?.onChange(parseInt((e.target as HTMLSelectElement).value, 10))
-        }
-      >
-        {props?.options.map((s) => (
-          <option key={s} value={String(s)}>
-            {s}×{s}
-          </option>
-        ))}
-      </select>
-    </span>
   );
 }
 
