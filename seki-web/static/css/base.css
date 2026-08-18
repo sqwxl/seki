@@ -162,6 +162,26 @@ button:disabled:hover {
   border-color: var(--border);
 }
 
+/* Default focus ring flashes on click (mouse/touch); keep ring for keyboard only */
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.quick-confirm {
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
 button > .icon {
   font-size: 1.2em;
 }

@@ -189,6 +189,18 @@ input[type="radio"] {
   color: var(--bg);
 }
 
+/* Keep warn/success colors while pressed — base.css `button:active` (white bg)
+   would otherwise flash the label invisible for a frame on state-change clicks */
+button.btn-success:active {
+  background: var(--green);
+  color: var(--bg);
+}
+
+button.btn-warn:active {
+  background: var(--red);
+  color: var(--bg);
+}
+
 .color-picker {
   font-size: 2em;
   flex-direction: row;

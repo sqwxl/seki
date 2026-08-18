@@ -57,10 +57,9 @@ export function QuickConfirmButton({
     <button
       id={id}
       ref={rootRef}
-      class={armed ? `${baseClass} ${confirmClass}` : baseClass}
+      class={`quick-confirm ${armed ? `${baseClass} ${confirmClass}` : baseClass}`}
       title={title}
       disabled={disabled || isPending}
-      aria-pressed={armed}
       onClick={() => {
         if (armed) {
           confirm.onConfirm();
