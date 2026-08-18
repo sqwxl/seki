@@ -2,7 +2,6 @@ import {
   ButtonContent,
   ConfirmButton,
   ModalConfirmPopover,
-  QuickConfirmButton,
   type ControlsProps,
 } from "./controls-shared";
 import {
@@ -46,21 +45,23 @@ export function GameControls(props: ControlsProps) {
         </button>
       )}
       {props.pass && props.confirmPass && (
-        <QuickConfirmButton
+        <ConfirmButton
           id="pass-btn"
           icon={IconPass}
           title={props.pass.title ?? "Pass"}
           disabled={props.pass.disabled}
           confirm={props.confirmPass}
+          focusOnMount="cancel"
         />
       )}
       {props.resign && (
-        <QuickConfirmButton
+        <ConfirmButton
           id="resign-btn"
           icon={IconWhiteFlag}
           title="Resign"
           disabled={props.resign.disabled}
           confirm={props.resign}
+          focusOnMount="cancel"
         />
       )}
       {props.rematch && (

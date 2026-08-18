@@ -9,7 +9,7 @@ import {
 import { placeTree } from "../game/move-tree-layout";
 import type { GameTreeData } from "../game/types";
 import { useIsDesktop } from "../utils/media-query";
-import { QuickConfirmButton } from "./controls-shared";
+import { ConfirmButton } from "./controls-shared";
 import { IconTrash } from "./icons";
 
 const BASE_NODE_RADIUS = 12;
@@ -591,7 +591,7 @@ export function MoveTree({
         </svg>
       </div>
       {onClearVariations && (
-        <QuickConfirmButton
+        <ConfirmButton
           id="move-tree-clear-variations"
           icon={IconTrash}
           title="Clear variations"
@@ -600,8 +600,11 @@ export function MoveTree({
               ? "move-tree-clear-btn move-tree-clear-btn--vertical"
               : "move-tree-clear-btn move-tree-clear-btn--horizontal"
           }
+          focusOnMount="cancel"
           confirm={{
+            message: "Clear all variations?",
             onConfirm: onClearVariations,
+            closeOnConfirm: true,
           }}
         />
       )}
