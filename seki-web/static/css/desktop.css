@@ -165,15 +165,6 @@
     column-gap: 1em;
   }
 
-  .controls-row > .controls-start {
-    justify-self: end;
-  }
-
-  .controls-row > .controls-end {
-    display: inline-flex;
-    justify-self: start;
-  }
-
   .confirm-actions button:focus {
     outline: 2px solid Highlight;
     outline-offset: 2px;
