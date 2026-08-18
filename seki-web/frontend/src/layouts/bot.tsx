@@ -1,5 +1,6 @@
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
+import type { AiAnalyzePositionResult } from "../ai-poc/types";
 import { KATA9X9_MANIFEST, analyzePositionDirect } from "../ai/analyze";
 import {
   ghostStoneMapFromRootMoves,
@@ -15,7 +16,12 @@ import { buildPlayerPanels } from "../game/capabilities";
 import { playPassSound, playStoneSound } from "../game/sound";
 import { GameStage, UserData, type ScoreData } from "../game/types";
 import { readUserData } from "../game/util";
-import { createBoard, ensureWasm, type Board } from "../goban/create-board";
+import {
+  createBoard,
+  ensureWasm,
+  type Board,
+  type NavAction,
+} from "../goban/create-board";
 import type { GhostStoneData, HeatData, Sign } from "../goban/types";
 import { readShowCoordinates } from "../utils/coord-toggle";
 import { formatResult } from "../utils/format";
@@ -42,6 +48,11 @@ type BotSettings = {
 type BotStoredState = {
   started: boolean;
   settings: BotSettings;
+};
+type CachedAiAnalysis = {
+  heatMap: (HeatData | null)[];
+  ghostStoneMap: (GhostStoneData | null)[];
+  ownership?: number[];
 };
 
 const BOARD_SIZE = 9;
@@ -247,6 +258,8 @@ function BotGame({
   const hintHeatRef = useRef<(HeatData | null)[] | undefined>(undefined);
   const hintGhostRef = useRef<(GhostStoneData | null)[] | undefined>(undefined);
   const mcRef = useRef<MoveConfirmState | null>(null);
+  const aiCacheRef = useRef<Map<number, CachedAiAnalysis>>(new Map());
+  const togglesRef = useRef({ aiSuggest: false, estimate: false });
 
   if (!mcRef.current) {
     mcRef.current = createMoveConfirm({
@@ -267,11 +280,19 @@ function BotGame({
   const [finalScore, setFinalScore] = useState<ScoreData | undefined>(
     undefined,
   );
+  const [navState, setNavState] = useState({
+    atStart: true,
+    atLatest: true,
+    atMainEnd: true,
+    counter: "0",
+  });
 
   const humanStone = settings.color === "black" ? 1 : -1;
 
   humanStoneRef.current = humanStone;
   botThinkingRef.current = botThinking;
+  togglesRef.current.aiSuggest = aiSuggestActive;
+  togglesRef.current.estimate = estimateActive;
 
   const [user] = useState<UserData | undefined>(() => readUserData());
 
@@ -309,6 +330,16 @@ function BotGame({
         showCoordinates: readShowCoordinates(),
         ghostStoneOverlay: () => hintGhostRef.current,
         heatOverlay: () => hintHeatRef.current,
+        territoryReviewOwnership: () => {
+          const board = boardRef.current;
+
+          if (!board) {
+            return undefined;
+          }
+
+          return aiCacheRef.current.get(board.engine.current_node_id())
+            ?.ownership;
+        },
         onStonePlay: () => {
           playStoneSound();
           clearHintOverlay(false, !applyingBotMoveRef.current);
@@ -330,7 +361,16 @@ function BotGame({
           const board = boardRef.current;
           const mc = mcRef.current;
 
-          if (!board || !canHumanPlay()) {
+          if (!board) {
+            return true;
+          }
+
+          if (!board.engine.is_at_main_end()) {
+            board.navigate("main-end");
+            return true;
+          }
+
+          if (!canHumanPlay()) {
             return true;
           }
 
@@ -355,9 +395,27 @@ function BotGame({
           return true;
         },
         onNavigate: () => {
-          clearHintOverlay(false, true);
+          cancelAiRequests();
+          hintHeatRef.current = undefined;
+          hintGhostRef.current = undefined;
+
+          if (botThinkingRef.current) {
+            botThinkingRef.current = false;
+            setBotThinking(false);
+          }
+
           mcRef.current?.clear();
           setPendingMcMove(false);
+
+          if (togglesRef.current.aiSuggest) {
+            refreshAiSuggestion();
+          } else {
+            setAiSuggestActive(false);
+          }
+
+          if (togglesRef.current.estimate) {
+            boardRef.current?.enterEstimate();
+          }
         },
         onRender: () => {
           syncUi();
@@ -371,6 +429,7 @@ function BotGame({
       }
 
       boardRef.current = board;
+      board.clearVariations();
       syncUi();
       maybeRequestBotMove();
     }
@@ -396,6 +455,16 @@ function BotGame({
       if (!board) {
         return;
       }
+
+      const engine = board.engine;
+      const atMainEnd = engine.is_at_main_end();
+
+      setNavState({
+        atStart: engine.is_at_start(),
+        atLatest: atMainEnd,
+        atMainEnd,
+        counter: `${engine.view_index()}`,
+      });
 
       if (finalResultRef.current) {
         setStatus(finalResultRef.current);
@@ -497,6 +566,7 @@ function BotGame({
         scoringRef.current ||
         suppressBotRef.current ||
         botThinkingRef.current ||
+        !board.engine.is_at_main_end() ||
         board.engine.stage() === GameStage.TerritoryReview ||
         board.engine.stage() === GameStage.Completed ||
         board.engine.current_turn_stone() === humanStoneRef.current
@@ -505,6 +575,8 @@ function BotGame({
       }
 
       const requestId = ++requestIdRef.current;
+      const nodeId = board.engine.current_node_id();
+      const botStone = board.engine.current_turn_stone() as StoneChoice;
       botThinkingRef.current = true;
       setBotThinking(true);
       setStatus("Bot thinking");
@@ -524,17 +596,19 @@ function BotGame({
           aiPositionFromEngine(board.engine, KOMI),
         );
 
-        if (
-          disposed ||
-          requestId !== requestIdRef.current ||
-          boardRef.current !== board
-        ) {
+        if (disposed) {
+          return;
+        }
+
+        cacheAiAnalysis(nodeId, result, botStone);
+
+        if (requestId !== requestIdRef.current || boardRef.current !== board) {
           return;
         }
 
         const { move } = chooseBotMove({
           rootMoves: result.analysis.rootMoves,
-          botStone: board.engine.current_turn_stone() as StoneChoice,
+          botStone,
           lastMoveWasPass: board.engine.last_move_was_pass(),
           whiteScoreMean: result.analysis.scoreMean,
         });
@@ -603,15 +677,33 @@ function BotGame({
     }
   }
 
-  async function showAiSuggestion() {
+  function cancelAiRequests() {
+    requestIdRef.current += 1;
+    setAiSuggestPending(false);
+  }
+
+  function cacheAiAnalysis(
+    nodeId: number,
+    result: AiAnalyzePositionResult,
+    sign: Sign,
+  ) {
+    aiCacheRef.current.set(nodeId, {
+      heatMap: heatMapFromRootMoves(result.analysis.rootMoves, BOARD_SIZE),
+      ghostStoneMap: ghostStoneMapFromRootMoves(
+        result.analysis.rootMoves,
+        BOARD_SIZE,
+        sign,
+      ),
+      ownership: result.analysis.ownership?.map((value) =>
+        Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0,
+      ),
+    });
+  }
+
+  async function computeAiSuggestion() {
     const board = boardRef.current;
 
     if (!board || aiSuggestPending) {
-      return;
-    }
-
-    if (aiSuggestActive) {
-      clearHintOverlay();
       return;
     }
 
@@ -629,15 +721,17 @@ function BotGame({
         return;
       }
 
+      const nodeId = board.engine.current_node_id();
+      const sign = board.engine.current_turn_stone() as Sign;
       const result = await analyzePositionDirect(
         aiPositionFromEngine(board.engine, KOMI),
       );
 
+      cacheAiAnalysis(nodeId, result, sign);
+
       if (requestId !== requestIdRef.current || boardRef.current !== board) {
         return;
       }
-
-      const sign = board.engine.current_turn_stone() as Sign;
 
       hintHeatRef.current = heatMapFromRootMoves(
         result.analysis.rootMoves,
@@ -659,6 +753,39 @@ function BotGame({
         setAiSuggestPending(false);
       }
     }
+  }
+
+  function refreshAiSuggestion() {
+    const board = boardRef.current;
+
+    if (!board) {
+      return;
+    }
+
+    const cached = aiCacheRef.current.get(board.engine.current_node_id());
+
+    if (cached) {
+      hintHeatRef.current = cached.heatMap;
+      hintGhostRef.current = cached.ghostStoneMap;
+      setAiSuggestActive(true);
+      board.renderBoardOnly();
+      return;
+    }
+
+    void computeAiSuggestion();
+  }
+
+  async function showAiSuggestion() {
+    if (!boardRef.current || aiSuggestPending) {
+      return;
+    }
+
+    if (aiSuggestActive) {
+      clearHintOverlay();
+      return;
+    }
+
+    await computeAiSuggestion();
   }
 
   function toggleEstimate() {
@@ -689,6 +816,10 @@ function BotGame({
     const board = boardRef.current;
 
     if (!board || !settings.takebacks || botThinking) {
+      return;
+    }
+
+    if (!board.engine.is_at_main_end()) {
       return;
     }
 
@@ -731,6 +862,20 @@ function BotGame({
     setPendingMcMove(false);
   }
 
+  function handleNavigate(action: NavAction) {
+    const board = boardRef.current;
+
+    if (!board) {
+      return;
+    }
+
+    if (action === "forward" && board.engine.is_at_main_end()) {
+      return;
+    }
+
+    board.navigate(action === "end" ? "main-end" : action);
+  }
+
   const isMobile = useIsMobile();
   const botGameLocked = scoringRef.current || !!finalResultRef.current;
   const panelScores = buildPlayerPanels({
@@ -751,13 +896,21 @@ function BotGame({
   const topPanel = humanStone === 1 ? whitePanel : blackPanel;
   const bottomPanel = humanStone === 1 ? blackPanel : whitePanel;
   const controls: ControlsProps = {
+    nav: {
+      atStart: navState.atStart,
+      atLatest: navState.atLatest,
+      atMainEnd: navState.atMainEnd,
+      counter: navState.counter,
+      onNavigate: handleNavigate,
+    },
     requestUndo: settings.takebacks
       ? {
           onClick: undo,
           disabled:
             botThinking ||
             botGameLocked ||
-            (boardRef.current?.engine.view_index() ?? 0) < 2,
+            (boardRef.current?.engine.view_index() ?? 0) < 2 ||
+            !(boardRef.current?.engine.is_at_main_end() ?? true),
         }
       : undefined,
     pass: {
