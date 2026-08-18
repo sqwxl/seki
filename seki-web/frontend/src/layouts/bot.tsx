@@ -429,7 +429,6 @@ function BotGame({
       }
 
       boardRef.current = board;
-      board.clearVariations();
       syncUi();
       maybeRequestBotMove();
     }
