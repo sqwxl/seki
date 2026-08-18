@@ -567,6 +567,7 @@ html:has(.mobile-drawer-backdrop.open) {
 .nav-dropdown-item {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.35em;
   width: 100%;
   box-sizing: border-box;
