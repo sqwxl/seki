@@ -7,9 +7,9 @@ import { GameStatus } from "../components/game-status";
 import {
   IconGrid4x4,
   IconKomi,
+  IconRefresh,
   IconSettings,
   IconStonesBw,
-  IconTrash,
 } from "../components/icons";
 import { PlayerPanel } from "../components/player-panel";
 import { TabBar, type TabDef } from "../components/tab-bar";
@@ -183,7 +183,7 @@ function AnalysisSettingsPanel(props: AnalysisPageProps) {
       <div>
         <QuickConfirmButton
           id="analysis-reset"
-          icon={IconTrash}
+          icon={IconRefresh}
           label="Reset"
           title="Reset board"
           confirm={{
