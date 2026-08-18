@@ -105,6 +105,9 @@ button,
 .btn-raised {
   margin: 0;
   padding: 0.4em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-muted);
@@ -159,7 +162,13 @@ button:disabled:hover {
   border-color: var(--border);
 }
 
-/* --- Link-styled button (overrides base reset) --- */
+button > .icon {
+  font-size: 1.2em;
+}
+
+button > .icon + span {
+  margin-left: 0.4em;
+}
 
 button.link {
   background: none;
@@ -271,7 +280,6 @@ nav {
   margin-left: auto;
 }
 
-/* Navbar connection indicator: fixed-size slot, no layout shift on state change */
 .nav-presence {
   display: block;
   width: 0.5em;
@@ -318,8 +326,6 @@ a:visited {
 .mobile-menu-wrapper .nav-icon svg:last-child {
   margin-left: 0.5em;
 }
-
-/* --- Nav dropdown (shared by notification bell + user menu) --- */
 
 .nav-dropdown-wrapper {
   position: relative;
@@ -593,8 +599,6 @@ a.nav-dropdown-item {
   pointer-events: none;
 }
 
-/* --- User menu trigger --- */
-
 .user-menu-trigger {
   background: none;
   border: none;
@@ -711,7 +715,6 @@ a.nav-dropdown-item {
   gap: 0.5em;
 }
 
-/* Players + board flow together */
 .board-main {
   display: flex;
   flex-direction: column;
@@ -858,7 +861,6 @@ a.nav-dropdown-item {
   }
 }
 
-/* games list toggle toolbar */
 .games-list-toolbar {
   display: flex;
   justify-content: flex-start;
@@ -879,7 +881,6 @@ a.nav-dropdown-item {
   }
 }
 
-/* mini goban grid */
 .games-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -1004,7 +1005,6 @@ a.nav-dropdown-item {
   color: var(--fg);
 }
 
-/* Standalone 404 page (served by the router fallback, no app bundle). */
 .not-found {
   min-height: 100dvh;
   display: flex;

@@ -93,7 +93,7 @@ export function AnalysisScreen() {
   }
 
   return (
-    <div class="game-page analysis-page">
+    <div class="game-page">
       <div ref={rootRef} class="game-page-body" />
       {!mod && <LoadingState />}
     </div>
