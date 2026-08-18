@@ -1,4 +1,4 @@
-import { ConfirmButton, type ControlsProps } from "./controls-shared";
+import { QuickConfirmButton, type ControlsProps } from "./controls-shared";
 import { IconCancel, IconWhiteFlag } from "./icons";
 
 export function LobbyControls(props: ControlsProps) {
@@ -11,7 +11,7 @@ export function LobbyControls(props: ControlsProps) {
   return (
     <div class="lobby-controls">
       {props.abort && (
-        <ConfirmButton
+        <QuickConfirmButton
           id="abort-btn"
           icon={IconCancel}
           title="Abort game"
@@ -21,13 +21,14 @@ export function LobbyControls(props: ControlsProps) {
         />
       )}
       {props.claimVictory && (
-        <ConfirmButton
+        <QuickConfirmButton
           id="claim-victory-btn"
           icon={IconWhiteFlag}
           title="Claim victory (opponent left)"
           disabled={props.claimVictory.disabled}
           confirm={props.claimVictory}
           buttonClass="btn-success"
+          confirmClass="btn-success"
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 import {
-  ConfirmButton,
+  QuickConfirmButton,
   type ControlsProps,
 } from "../components/controls-shared";
 import { GameInfo } from "../components/game-info";
@@ -181,15 +181,13 @@ function AnalysisSettingsPanel(props: AnalysisPageProps) {
         />
       </div>
       <div>
-        <ConfirmButton
+        <QuickConfirmButton
           id="analysis-reset"
           icon={IconTrash}
           label="Reset"
           title="Reset board"
           confirm={{
-            message: "Reset board? All moves and variations will be cleared.",
             onConfirm: props.onReset,
-            closeOnConfirm: true,
           }}
         />
       </div>
