@@ -355,7 +355,7 @@ a:visited {
   top: var(--nav-height, 0px);
   right: 0;
   bottom: 0;
-  width: 16em;
+  width: 12em;
   min-width: 0;
   max-width: none;
   border: 0;
