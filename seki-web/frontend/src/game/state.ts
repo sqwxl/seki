@@ -142,7 +142,7 @@ export const controlRequest = signal<
 // Board reference (async, set after WASM loads)
 // ---------------------------------------------------------------------------
 export const board = signal<Board | undefined>(undefined);
-// Set by the live game page while mounted; the mobile nav drawer renders
+// Set by the live game page while mounted; the nav drawer renders
 // the Download SGF item only while this is non-null.
 export const liveSgfExport = signal<(() => void) | undefined>(undefined);
 

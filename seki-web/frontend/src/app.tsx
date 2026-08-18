@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { AccountLinks } from "./components/account-menu";
 import { AiModelDownloadDialog } from "./components/ai-model-download-dialog";
 import { IconPlus } from "./components/icons";
-import { MobileMenu } from "./components/mobile-menu";
+import { NavDrawer } from "./components/nav-drawer";
 import { NotificationBell } from "./components/notification-bell";
 import { SettingsMenu } from "./components/settings-menu";
 import type { UserData } from "./game/types";
@@ -486,7 +486,7 @@ function App() {
             <AccountLinks user={currentUser} onLogout={handleLogout} />
           </span>
           <span class="mobile-only">
-            <MobileMenu user={currentUser} onLogout={handleLogout} />
+            <NavDrawer user={currentUser} onLogout={handleLogout} />
           </span>
         </div>
       </nav>

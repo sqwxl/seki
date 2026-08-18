@@ -29,7 +29,7 @@ import {
 import { SettingsDropdownContent } from "./settings-menu";
 import { UserLabel } from "./user-label";
 
-export function MobileMenu({
+export function NavDrawer({
   user,
   onLogout,
 }: {
@@ -94,7 +94,7 @@ export function MobileMenu({
   }
 
   return (
-    <div class="nav-dropdown-wrapper mobile-menu-wrapper" ref={ref}>
+    <div class="nav-dropdown-wrapper nav-drawer-wrapper" ref={ref}>
       <button
         type="button"
         class="nav-icon"
@@ -120,11 +120,11 @@ export function MobileMenu({
         )}
       </button>
       <div
-        class={`mobile-drawer-backdrop${open ? " open" : ""}`}
+        class={`nav-drawer-backdrop${open ? " open" : ""}`}
         onClick={() => setOpen(false)}
       />
       <div
-        class={`nav-dropdown mobile-menu-dropdown${open ? " open" : ""}`}
+        class={`nav-dropdown nav-drawer${open ? " open" : ""}`}
         role="dialog"
         aria-label="Menu"
       >
