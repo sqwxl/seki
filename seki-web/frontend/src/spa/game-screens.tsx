@@ -220,9 +220,6 @@ export function GameScreenRoute({
     route.accessToken
       ? `access_token=${encodeURIComponent(route.accessToken)}`
       : null,
-    route.inviteToken
-      ? `invite_token=${encodeURIComponent(route.inviteToken)}`
-      : null,
   ].filter(Boolean);
   const params = parts.length > 0 ? `?${parts.join("&")}` : "";
   const routePath = `/games/${route.id}${params}`;

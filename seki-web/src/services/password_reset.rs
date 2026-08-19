@@ -1,40 +1,15 @@
 use argon2::password_hash::SaltString;
-use argon2::password_hash::rand_core::{OsRng, RngCore};
-use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+use argon2::password_hash::rand_core::OsRng;
+use argon2::{Argon2, PasswordHasher};
 use chrono::{Duration, Utc};
 
 use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::user::User;
 use crate::services::mailer::Mailer;
-
+use crate::services::tokens::{generate_token, hash_token, verify_token};
 /// Reset links expire after this long; users can request a new one.
 pub const TOKEN_TTL: Duration = Duration::minutes(60);
-
-fn generate_token() -> String {
-    let mut bytes = [0u8; 32];
-    OsRng.fill_bytes(&mut bytes);
-    // URL-safe hex; stored only as an argon2 hash.
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn hash_token(token: &str) -> Result<String, AppError> {
-    let salt = SaltString::generate(&mut OsRng);
-    Ok(Argon2::default()
-        .hash_password(token.as_bytes(), &salt)
-        .map_err(|e| AppError::Internal(format!("Token hash error: {e}")))?
-        .to_string())
-}
-
-fn verify_token(token: &str, token_hash: &str) -> bool {
-    PasswordHash::new(token_hash)
-        .map(|parsed| {
-            Argon2::default()
-                .verify_password(token.as_bytes(), &parsed)
-                .is_ok()
-        })
-        .unwrap_or(false)
-}
 
 /// Sends a reset link if a registered user has this email. Always succeeds
 /// from the caller's perspective — never reveals whether the email exists.
@@ -44,7 +19,8 @@ pub async fn request_reset(
     email: &str,
     base_url: &str,
 ) -> Result<(), AppError> {
-    let Some(user) = User::find_by_email(db, email).await? else {
+    let email = crate::models::user::normalize_email(email);
+    let Some(user) = User::find_by_email(db, &email).await? else {
         return Ok(());
     };
 
@@ -66,7 +42,7 @@ pub async fn request_reset(
 
     let reset_url = format!("{base_url}/reset-password?token={token}");
     mailer
-        .send_password_reset(email, &user.username, &reset_url)
+        .send_password_reset(&email, &user.username, &reset_url)
         .await;
 
     Ok(())

@@ -164,6 +164,7 @@ Important persisted fields beyond the obvious basics:
 - `STATIC_DIR` — static file path (Docker sets `/app/static`)
 - `BASE_URL` — base origin used in invitation links
 - `APP_CREDENTIAL_SECRET` — JWT signing secret for PWA app credentials (auto-generated if unset)
+- `SESSION_SECRET` — session cookie signing/encryption key; keeps browser sessions valid across restarts (auto-generated per boot if unset)
 - `RELEASE_ID` — version string for health endpoint (default: `"unknown"`)
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` — optional mailer configuration for invite emails
 - `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` — optional Web Push VAPID keys

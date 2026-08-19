@@ -19,7 +19,6 @@ export type Route =
       kind: "game";
       id: number;
       accessToken?: string | null;
-      inviteToken?: string | null;
     }
   | { kind: "analysis" }
   | { kind: "profile"; username: string }

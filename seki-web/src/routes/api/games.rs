@@ -29,6 +29,8 @@ pub(crate) struct GameResponse {
     pub(crate) is_private: bool,
     /// Open seat may only be filled through the invite token.
     pub(crate) invite_only: bool,
+    /// For email invites: single-use login link for the opponent.
+    pub(crate) invite_link: Option<String>,
     pub(crate) allow_undo: bool,
     pub(crate) result: Option<String>,
     pub(crate) black: Option<UserResponse>,
@@ -213,10 +215,10 @@ pub(super) async fn create_game(
         creator_color,
     };
 
-    let game = game_creator::create_game(&state, &api_user, params).await?;
+    let (game, challenge_token) = game_creator::create_game(&state, &api_user, params).await?;
     let gwp = Game::find_with_players(&state.db, game.id).await?;
     crate::services::live::notify_game_created(&state, &gwp);
-    if let (Some(email), Some(token)) = (&invite_email, &game.invite_token) {
+    if let (Some(email), Some(token)) = (&invite_email, challenge_token.as_ref()) {
         let mailer = state.mailer.clone();
         let email = email.clone();
         let token = token.clone();
@@ -233,10 +235,10 @@ pub(super) async fn create_game(
         .get_or_init_engine(&state.db, &gwp.game)
         .await?;
 
-    Ok((
-        axum::http::StatusCode::CREATED,
-        Json(super::users::build_game_response(&state, game.id, &gwp, &engine).await),
-    ))
+    let mut response = super::users::build_game_response(&state, game.id, &gwp, &engine).await;
+    response.invite_link = challenge_token.map(|t| format!("/invite/{t}"));
+
+    Ok((axum::http::StatusCode::CREATED, Json(response)))
 }
 
 #[utoipa::path(

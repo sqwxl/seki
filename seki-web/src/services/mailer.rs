@@ -106,13 +106,7 @@ impl Mailer {
         }
     }
 
-    pub async fn send_invitation(
-        &self,
-        to: &str,
-        game_id: i64,
-        invite_token: &str,
-        base_url: &str,
-    ) {
+    pub async fn send_invitation(&self, to: &str, game_id: i64, token: &str, base_url: &str) {
         let transport = match &self.transport {
             Some(t) => t,
             None => {
@@ -137,7 +131,8 @@ impl Mailer {
             }
         };
 
-        let link = format!("{base_url}/games/{game_id}?invite_token={invite_token}");
+        // Single-use login link; the token identifies the challengee server-side.
+        let link = format!("{base_url}/invite/{token}");
 
         let body = format!(
             "You've been invited to a game of Go on Seki!\n\n\

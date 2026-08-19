@@ -69,7 +69,6 @@ export function parseRoute(url: URL): Route {
       kind: "game",
       id: Number(gameMatch[1]),
       accessToken: url.searchParams.get("access_token"),
-      inviteToken: url.searchParams.get("invite_token"),
     };
   }
 
@@ -100,9 +99,6 @@ export function getRouteDataUrl(route: Route): string | undefined {
       const gameParams = [
         route.accessToken
           ? `access_token=${encodeURIComponent(route.accessToken)}`
-          : null,
-        route.inviteToken
-          ? `invite_token=${encodeURIComponent(route.inviteToken)}`
           : null,
       ].filter(Boolean);
 

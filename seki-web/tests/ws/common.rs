@@ -544,7 +544,7 @@ impl TestServer {
         game_id
     }
 
-    async fn ws_connect(&self, jar: &Arc<Jar>) -> WsClient {
+    pub async fn ws_connect(&self, jar: &Arc<Jar>) -> WsClient {
         let url = format!("ws://{}/ws", self.addr);
         let request = tungstenite::http::Request::builder()
             .uri(&url)

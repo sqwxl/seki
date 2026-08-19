@@ -148,12 +148,6 @@ pub async fn create_game(
 
     let invite_email = form.invite_email.clone();
 
-    let email_to_send = if is_email {
-        form.invite_email.clone()
-    } else {
-        invite_email.clone()
-    };
-
     let params = CreateGameParams {
         cols,
         rows: cols,
@@ -162,7 +156,7 @@ pub async fn create_game(
         is_private: form.is_private.as_deref() == Some("true"),
         allow_undo: form.allow_undo.as_deref() == Some("true"),
         color,
-        invite_email: email_to_send,
+        invite_email: invite_email.clone(),
         invite_username,
         time_control,
         main_time_secs,
@@ -177,12 +171,12 @@ pub async fn create_game(
     };
 
     match game_creator::create_game(&state, &current_user, params).await {
-        Ok(game) => {
+        Ok((game, challenge_token)) => {
             if let Ok(gwp) = Game::find_with_players(&state.db, game.id).await {
                 crate::services::live::notify_game_created(&state, &gwp);
             }
 
-            if let (Some(email), Some(token)) = (&invite_email, &game.invite_token) {
+            if let (Some(email), Some(token)) = (&invite_email, challenge_token.as_ref()) {
                 let mailer = state.mailer.clone();
                 let email = email.clone();
                 let token = token.clone();
@@ -200,7 +194,11 @@ pub async fn create_game(
             let url = format!("/games/{}", game.id);
 
             if json {
-                Ok(axum::Json(serde_json::json!({ "redirect": url })).into_response())
+                let mut payload = serde_json::json!({ "redirect": url });
+                if let Some(link) = challenge_token {
+                    payload["invite_link"] = serde_json::json!(format!("/invite/{link}"));
+                }
+                Ok(axum::Json(payload).into_response())
             } else {
                 Ok(Redirect::to(&url).into_response())
             }

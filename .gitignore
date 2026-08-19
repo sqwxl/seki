@@ -17,6 +17,10 @@ seki-web/frontend/node_modules/
 seki.db
 seki.db-shm
 seki.db-wal
+seki-e2e.db
+seki-e2e.db-shm
+seki-e2e.db-wal
+test-results/
 gtp.toml
 gtp-pi.toml
 docs

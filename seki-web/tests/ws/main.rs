@@ -4,6 +4,7 @@ mod api;
 mod chat;
 mod disconnect;
 mod game_lifecycle;
+mod invite;
 mod ko;
 mod lobby;
 mod moves;

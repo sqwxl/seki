@@ -14,7 +14,7 @@ use crate::AppState;
 use crate::error::AppError;
 use crate::models::app_credential::AppCredential;
 use crate::models::rating::RatingProfile;
-use crate::models::user::User;
+use crate::models::user::{User, normalize_email};
 use crate::routes::flash::{
     FlashSeverity, redirect_with_flash, redirect_with_flash_severity, wants_json,
 };
@@ -22,7 +22,6 @@ use crate::services::jwt;
 use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, OptionalCurrentUser, USER_ID_KEY};
 use crate::views::user_data_from_user_with_rank;
 
-/// Minimum password length, shared by registration and password reset.
 pub const PASSWORD_MIN_LENGTH: usize = 8;
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
@@ -134,9 +133,9 @@ pub async fn register(
     let email = form
         .email
         .as_deref()
-        .map(str::trim)
+        .map(normalize_email)
         .filter(|e| !e.is_empty());
-    if let Some(email) = email {
+    if let Some(email) = email.as_deref() {
         if email.parse::<lettre::Address>().is_err() {
             let msg = "Please enter a valid email address.";
             if json {
@@ -202,7 +201,7 @@ pub async fn register(
     crate::models::rating::RatingProfile::get_or_create(&state.db, current_user.id).await?;
 
     if let Some(email) = email {
-        User::update_email(&state.db, current_user.id, Some(email)).await?;
+        User::update_email(&state.db, current_user.id, Some(&email)).await?;
     }
 
     let target = if query.redirect.is_empty() {

@@ -204,7 +204,6 @@ function joinGameMessage(gameId: number): Record<string, unknown> {
     action: "join_game",
     game_id: gameId,
     access_token: search.get("access_token") ?? undefined,
-    invite_token: search.get("invite_token") ?? undefined,
   };
 }
 

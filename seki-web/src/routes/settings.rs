@@ -9,7 +9,7 @@ use tower_sessions::Session;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::rating::RatingProfile;
-use crate::models::user::User;
+use crate::models::user::{User, normalize_email};
 use crate::routes::flash::{FlashMessage, FlashSeverity, set_flash, wants_json};
 use crate::session::CurrentUser;
 
@@ -116,7 +116,7 @@ pub async fn update_email(
     headers: axum::http::HeaderMap,
     axum::Form(form): axum::Form<UpdateEmailForm>,
 ) -> Result<Response, AppError> {
-    let email = form.email.trim().to_string();
+    let email = normalize_email(&form.email);
     let json = wants_json(&headers);
 
     // Empty submission clears the stored email.

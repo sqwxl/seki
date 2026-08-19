@@ -71,7 +71,7 @@ pub async fn create_game(
     state: &AppState,
     creator: &User,
     params: CreateGameParams,
-) -> Result<Game, AppError> {
+) -> Result<(Game, Option<String>), AppError> {
     // Komi must be a half-integer (e.g. 0.5, 6.5, -3.5) to prevent draws
     if params.komi.fract().abs() != 0.5 {
         return Err(AppError::UnprocessableEntity(
@@ -124,6 +124,7 @@ pub async fn create_game(
         ));
     }
 
+    let invite_email = params.invite_email.as_deref().filter(|e| !e.is_empty());
     let opponent = if let Some(ref username) = params.invite_username {
         if !username.is_empty() {
             Some(
@@ -136,32 +137,26 @@ pub async fn create_game(
         } else {
             None
         }
-    } else if let Some(ref email) = params.invite_email {
-        if !email.is_empty() {
-            // If a user with this email exists, create a challenge with them.
-            // Otherwise leave the slot empty — they join via the invitation link.
-            let opponent = User::find_by_email(&state.db, email).await?;
-            if let Some(user) = opponent.as_ref()
-                && user.id == creator.id
-            {
-                return Err(AppError::UnprocessableEntity(
-                    "That email belongs to your own account — challenge a different user"
-                        .to_string(),
-                ));
-            }
-            opponent
-        } else {
-            None
+    } else if let Some(email) = invite_email {
+        let email = crate::models::user::normalize_email(email);
+        email.parse::<lettre::Address>().map_err(|_| {
+            AppError::UnprocessableEntity("Please enter a valid email address.".to_string())
+        })?;
+
+        let opponent = User::find_or_create_by_email(&state.db, &email).await?;
+        if opponent.id == creator.id {
+            return Err(AppError::UnprocessableEntity(
+                "That email belongs to your own account — challenge a different user".to_string(),
+            ));
         }
+        Some(opponent)
     } else {
         None
     };
 
-    // A raw email invite does not assign the second seat yet.
-    // Mark it invite-only so only the token holder can fill that seat.
-    let invite_only =
-        params.invite_email.as_ref().is_some_and(|e| !e.is_empty()) && opponent.is_none();
-    let is_private = params.is_private || invite_only;
+    // Email invites always fill both seats, so the game is never invite-only;
+    // privacy is the creator's choice (form's is_private).
+    let is_private = params.is_private;
 
     if params.ranked {
         let creator_profile = RatingProfile::find(&state.db, creator.id).await?;
@@ -171,7 +166,7 @@ pub async fn create_game(
             creator_profile.as_ref(),
             rating::RankedCreateEligibility {
                 is_private: params.is_private,
-                invite_only,
+                invite_only: false,
                 has_direct_opponent: opponent.is_some(),
                 handicap: params.handicap,
                 komi: params.komi,
@@ -211,7 +206,6 @@ pub async fn create_game(
     };
 
     let access_token = generate_game_token();
-    let invite_token = invite_only.then(generate_game_token);
 
     // Compute initial clock values for timed games
     let tc = TimeControl::from_tc_type(
@@ -244,7 +238,7 @@ pub async fn create_game(
         is_private,
         params.allow_undo,
         &access_token,
-        invite_token.as_deref(),
+        None,
         params.time_control,
         params.main_time_secs,
         params.increment_secs,
@@ -257,7 +251,7 @@ pub async fn create_game(
         nigiri,
         creator_color.as_deref(),
         params.open_to.as_deref(),
-        invite_only,
+        false,
         params.ranked,
         rating_range_mode,
         max_rating_difference_lower,
@@ -285,6 +279,20 @@ pub async fn create_game(
         );
     }
 
+    // Email invites mint a one-time login token bound to the challengee.
+    let challenge_token = if invite_email.is_some() {
+        Some(
+            crate::services::challenge_invites::mint(
+                &state.db,
+                game.id,
+                opponent_id.expect("email invite always resolves an opponent"),
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
+
     // When both seats are assigned up front, this is a direct challenge:
     // the invited player must accept or decline before play starts.
     if opponent.is_some() {
@@ -292,7 +300,7 @@ pub async fn create_game(
         push::notify_direct_challenge(state, &game, &creator.username).await;
     }
 
-    Ok(game)
+    Ok((game, challenge_token))
 }
 
 fn generate_game_token() -> String {

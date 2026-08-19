@@ -9,11 +9,8 @@ use crate::models::game_read::GameListRatingFilters;
 use crate::models::message::Message;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
-use crate::services::engine_builder;
 use crate::services::live::{self, LiveGameItem, build_live_items};
-use crate::services::{
-    game_joiner, presentation_actions, rating, state_assembly, state_serializer,
-};
+use crate::services::{presentation_actions, rating, state_serializer};
 use crate::session::CurrentUser;
 use crate::views::games_show::InitialGameProps;
 use crate::views::{UserData, user_data_from_user_with_rank};
@@ -212,9 +209,6 @@ pub(crate) async fn game_show(
     if let Some(token) = query.access_token {
         params.push(format!("access_token={token}"));
     }
-    if let Some(token) = query.invite_token {
-        params.push(format!("invite_token={token}"));
-    }
     Ok(Json(
         load_game_show(&state, &current_user, id, params).await?,
     ))
@@ -239,44 +233,13 @@ pub(crate) async fn load_game_show(
         }
     }
 
-    let mut gwp = Game::find_with_players(&state.db, id).await?;
-    let mut is_player = gwp.has_player(current_user.id);
+    let gwp = Game::find_with_players(&state.db, id).await?;
+    let is_player = gwp.has_player(current_user.id);
     let tokens = crate::services::game_access::GameViewTokens {
         access_token: query.access_token.as_deref(),
         invite_token: query.invite_token.as_deref(),
     };
     let has_valid_access_token = crate::services::game_access::has_valid_token(&gwp, tokens);
-    let has_valid_invite_token = gwp
-        .game
-        .invite_token
-        .as_deref()
-        .zip(query.invite_token.as_deref())
-        .is_some_and(|(game_tok, query_tok)| game_tok == query_tok);
-
-    let has_open_slot = gwp.is_open();
-    if !is_player
-        && has_open_slot
-        && gwp.game.requires_invite_token_to_join()
-        && has_valid_invite_token
-    {
-        game_joiner::join_open_game(&state.db, &gwp, &current_user.user).await?;
-
-        let game = Game::find_by_id(&state.db, id).await?;
-        let engine = engine_builder::build_engine(&state.db, &game).await?;
-        let updated_gwp = Game::find_with_players(&state.db, id).await?;
-        if let Ok(loaded) =
-            state_assembly::load_game_state(state, &updated_gwp, &engine, id, false).await
-        {
-            state
-                .registry
-                .broadcast(id, &loaded.value.to_string())
-                .await;
-        }
-        crate::services::live::notify_game_created(state, &updated_gwp);
-
-        gwp = updated_gwp;
-        is_player = true;
-    }
 
     if current_user.is_bot
         && !gwp.has_player(current_user.id)
@@ -350,7 +313,6 @@ pub(crate) async fn load_game_show(
 #[derive(Deserialize)]
 pub(crate) struct ShowGameQuery {
     access_token: Option<String>,
-    invite_token: Option<String>,
 }
 
 #[derive(Serialize)]

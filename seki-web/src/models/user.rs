@@ -9,15 +9,324 @@ use crate::db::DbPool;
 const DEFAULT_RATING_DISPLAY: &str = "kyu_dan";
 
 const ADJECTIVES: &[&str] = &[
-    "bold", "calm", "clever", "swift", "keen", "bright", "gentle", "nimble", "quiet", "fierce",
-    "wise", "brave", "noble", "steady", "agile", "deft", "glad", "proud", "lively", "merry",
-    "witty", "daring", "eager", "hardy", "jolly", "placid", "shy", "stout", "vivid", "warm",
+    "bold",
+    "calm",
+    "clever",
+    "swift",
+    "keen",
+    "bright",
+    "gentle",
+    "nimble",
+    "quiet",
+    "fierce",
+    "wise",
+    "brave",
+    "noble",
+    "steady",
+    "agile",
+    "deft",
+    "glad",
+    "proud",
+    "lively",
+    "merry",
+    "witty",
+    "daring",
+    "eager",
+    "hardy",
+    "jolly",
+    "placid",
+    "shy",
+    "stout",
+    "vivid",
+    "warm",
+    "amber",
+    "azure",
+    "beryl",
+    "brisk",
+    "bronze",
+    "celestial",
+    "cheerful",
+    "cherry",
+    "cinnamon",
+    "clear",
+    "coral",
+    "cosmic",
+    "crimson",
+    "crystal",
+    "curious",
+    "dapper",
+    "dawn",
+    "deep",
+    "dense",
+    "droll",
+    "dusky",
+    "ember",
+    "emerald",
+    "fancy",
+    "fast",
+    "fiery",
+    "floral",
+    "fond",
+    "forest",
+    "frank",
+    "frosty",
+    "gilded",
+    "golden",
+    "graceful",
+    "grand",
+    "great",
+    "hazel",
+    "hearty",
+    "hidden",
+    "high",
+    "honey",
+    "humble",
+    "icy",
+    "indigo",
+    "ivory",
+    "kind",
+    "leafy",
+    "light",
+    "lofty",
+    "lucky",
+    "lunar",
+    "mellow",
+    "mild",
+    "misty",
+    "moonlit",
+    "mossy",
+    "muted",
+    "mystic",
+    "opal",
+    "orchid",
+    "pale",
+    "patient",
+    "peaceful",
+    "pearly",
+    "quick",
+    "radiant",
+    "rare",
+    "rosy",
+    "royal",
+    "ruby",
+    "rustic",
+    "serene",
+    "shady",
+    "sharp",
+    "silent",
+    "silver",
+    "simple",
+    "sleek",
+    "sleepy",
+    "smooth",
+    "solar",
+    "solemn",
+    "sprightly",
+    "starry",
+    "sunny",
+    "sweet",
+    "teal",
+    "tender",
+    "timeless",
+    "tranquil",
+    "true",
+    "turquoise",
+    "twilight",
+    "velvet",
+    "violet",
+    "wild",
+    "windy",
+    "winter",
+    "young",
 ];
 
 const NOUNS: &[&str] = &[
-    "crane", "tiger", "dragon", "bear", "eagle", "fox", "hawk", "heron", "otter", "panda", "raven",
-    "robin", "stone", "wolf", "badger", "cedar", "dove", "elm", "finch", "grove", "hare", "jade",
-    "koi", "lark", "maple", "oak", "pine", "reed", "sage", "sparrow", "thorn", "wren",
+    "crane",
+    "tiger",
+    "dragon",
+    "bear",
+    "eagle",
+    "fox",
+    "hawk",
+    "heron",
+    "otter",
+    "panda",
+    "raven",
+    "robin",
+    "stone",
+    "wolf",
+    "badger",
+    "cedar",
+    "dove",
+    "elm",
+    "finch",
+    "grove",
+    "hare",
+    "jade",
+    "koi",
+    "lark",
+    "maple",
+    "oak",
+    "pine",
+    "reed",
+    "sage",
+    "sparrow",
+    "thorn",
+    "wren",
+    "alpaca",
+    "antelope",
+    "apple",
+    "apricot",
+    "ash",
+    "aster",
+    "aurora",
+    "bamboo",
+    "banyan",
+    "bass",
+    "bay",
+    "beaver",
+    "birch",
+    "bluebird",
+    "blossom",
+    "boar",
+    "boulder",
+    "bramble",
+    "breeze",
+    "brook",
+    "cactus",
+    "cardinal",
+    "cattail",
+    "chamomile",
+    "chestnut",
+    "chickadee",
+    "clover",
+    "cloud",
+    "condor",
+    "coyote",
+    "crab",
+    "crocus",
+    "daffodil",
+    "daisy",
+    "deer",
+    "dingo",
+    "dolphin",
+    "driftwood",
+    "dune",
+    "eel",
+    "elk",
+    "falcon",
+    "fern",
+    "ferret",
+    "fig",
+    "firefly",
+    "flint",
+    "flower",
+    "foam",
+    "frost",
+    "gecko",
+    "ginkgo",
+    "glacier",
+    "glade",
+    "goldfish",
+    "goose",
+    "gopher",
+    "granite",
+    "grass",
+    "gull",
+    "hibiscus",
+    "iris",
+    "island",
+    "jasmine",
+    "juniper",
+    "kelp",
+    "kingfisher",
+    "ladybug",
+    "lagoon",
+    "lantern",
+    "laurel",
+    "lavender",
+    "lemur",
+    "lily",
+    "lion",
+    "lotus",
+    "lynx",
+    "magnolia",
+    "mallard",
+    "marble",
+    "marigold",
+    "meadow",
+    "mist",
+    "moon",
+    "mountain",
+    "mulberry",
+    "mushroom",
+    "myrtle",
+    "nectar",
+    "nightingale",
+    "nuthatch",
+    "ocean",
+    "olive",
+    "oriole",
+    "oyster",
+    "palm",
+    "papaya",
+    "peacock",
+    "pearl",
+    "pebble",
+    "pelican",
+    "peony",
+    "petal",
+    "phoenix",
+    "pinecone",
+    "poppy",
+    "porpoise",
+    "prairie",
+    "puffin",
+    "quartz",
+    "quill",
+    "rainbow",
+    "raspberry",
+    "ridge",
+    "river",
+    "rock",
+    "rose",
+    "rowan",
+    "sand",
+    "scallop",
+    "seal",
+    "shell",
+    "shore",
+    "sky",
+    "snail",
+    "snowflake",
+    "spruce",
+    "star",
+    "starling",
+    "stream",
+    "sunbeam",
+    "sunflower",
+    "surf",
+    "swan",
+    "sycamore",
+    "thrush",
+    "tide",
+    "toad",
+    "topaz",
+    "tortoise",
+    "trout",
+    "tulip",
+    "turtle",
+    "valley",
+    "vine",
+    "violet",
+    "vixen",
+    "walrus",
+    "whale",
+    "wheat",
+    "woodpecker",
+    "yarrow",
+    "zephyr",
+    "zebra",
 ];
 
 fn generate_name() -> String {
@@ -25,6 +334,10 @@ fn generate_name() -> String {
     let adj = ADJECTIVES[rng.random_range(0..ADJECTIVES.len())];
     let noun = NOUNS[rng.random_range(0..NOUNS.len())];
     format!("{adj}-{noun}")
+}
+
+pub fn normalize_email(email: &str) -> String {
+    email.trim().to_lowercase()
 }
 
 #[derive(Debug, Clone, FromRow)]
@@ -113,15 +426,34 @@ impl User {
     }
 
     pub async fn find_or_create_by_email(pool: &DbPool, email: &str) -> Result<User, sqlx::Error> {
-        if let Some(user) = Self::find_by_email(pool, email).await? {
+        let email = normalize_email(email);
+        if let Some(user) = Self::find_by_email(pool, &email).await? {
             return Ok(user);
         }
-        let name = generate_name();
-        sqlx::query_as::<_, User>("INSERT INTO users (email, username) VALUES ($1, $2) RETURNING *")
-            .bind(email)
+        // Retry with a new random name on username collisions (the name pool
+        // is small); if a concurrent mint claimed the email meanwhile, return
+        // that user instead of spinning.
+        loop {
+            let name = generate_name();
+            let token = generate_token();
+            let result = sqlx::query_as::<_, User>(
+                "INSERT INTO users (email, username, session_token) VALUES ($1, $2, $3) RETURNING *",
+            )
+            .bind(&email)
             .bind(&name)
+            .bind(&token)
             .fetch_one(pool)
-            .await
+            .await;
+            match result {
+                Ok(user) => return Ok(user),
+                Err(sqlx::Error::Database(e)) if e.is_unique_violation() => {
+                    if let Some(user) = Self::find_by_email(pool, &email).await? {
+                        return Ok(user);
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
     }
 
     pub fn display_name(&self) -> &str {
@@ -321,15 +653,32 @@ impl User {
         }
     }
 
+    pub async fn ensure_session_token(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        user_id: i64,
+    ) -> Result<String, sqlx::Error> {
+        let token = generate_token();
+        let row: (Option<String>,) = sqlx::query_as(
+            "UPDATE users SET session_token = COALESCE(session_token, $1), \
+             updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING session_token",
+        )
+        .bind(&token)
+        .bind(user_id)
+        .fetch_one(executor)
+        .await?;
+        Ok(row.0.unwrap_or(token))
+    }
+
     pub async fn update_email(
         executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,
         email: Option<&str>,
     ) -> Result<User, sqlx::Error> {
+        let email = email.map(normalize_email);
         sqlx::query_as::<_, User>(
             "UPDATE users SET email = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
         )
-        .bind(email)
+        .bind(&email)
         .bind(user_id)
         .fetch_one(executor)
         .await

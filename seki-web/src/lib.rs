@@ -251,6 +251,7 @@ pub async fn build_router_with_registry_and_presence(
             )),
         )
         .route("/logout", post(routes::auth::logout))
+        .route("/invite/{token}", get(routes::invite::accept))
         .route("/reset-password", get(routes::spa::shell))
         .route(
             "/reset-password/request",

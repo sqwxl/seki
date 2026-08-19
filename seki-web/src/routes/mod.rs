@@ -4,6 +4,7 @@ pub mod fcm;
 pub mod flash;
 pub mod games;
 pub mod health;
+pub mod invite;
 pub mod push;
 pub mod reload;
 pub mod settings;
