@@ -1,6 +1,7 @@
 import { useEffect } from "preact/hooks";
 import type { UserData } from "../game/types";
 import { readUserData } from "../game/util";
+import { PASSWORD_MIN_LENGTH } from "../utils/constants";
 import { activeFlash, clearFlash, setFlash } from "../utils/flash";
 import { authUrl } from "../utils/spa-navigation";
 import { setAppCredential } from "../utils/storage";
@@ -129,7 +130,7 @@ export function AuthFormScreen({
             name="password"
             id="password"
             required
-            minLength={8}
+            minLength={PASSWORD_MIN_LENGTH}
             autocomplete={
               mode === "login" ? "current-password" : "new-password"
             }
@@ -143,7 +144,7 @@ export function AuthFormScreen({
               name="password_confirmation"
               id="password_confirmation"
               required
-              minLength={8}
+              minLength={PASSWORD_MIN_LENGTH}
               autocomplete="new-password"
             />
           </div>
@@ -159,6 +160,11 @@ export function AuthFormScreen({
         <button type="submit">
           {mode === "login" ? "Log in" : "Register"}
         </button>
+        {mode === "login" && (
+          <p>
+            <a href="/reset-password">Forgot password?</a>
+          </p>
+        )}
       </form>
       <p>
         {mode === "login" ? (

@@ -52,6 +52,60 @@ impl Mailer {
         }
     }
 
+    pub async fn send_password_reset(&self, to: &str, username: &str, reset_url: &str) {
+        let transport = match &self.transport {
+            Some(t) => t,
+            None => {
+                tracing::warn!("Skipping password reset email (SMTP not configured)");
+                return;
+            }
+        };
+
+        let from: Mailbox = match self.from.parse() {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Invalid SMTP_FROM address '{}': {e}", self.from);
+                return;
+            }
+        };
+
+        let to_mailbox: Mailbox = match to.parse() {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Invalid recipient address '{to}': {e}");
+                return;
+            }
+        };
+
+        let body = format!(
+            "Hi {username},\n\n\
+             We received a request to reset your Seki password.\n\n\
+             Click the link below to choose a new password:\n\
+             {reset_url}\n\n\
+             This link expires in 60 minutes and can only be used once.\n\n\
+             If you didn't request this, you can safely ignore this email — your password won't change."
+        );
+
+        let message = match Message::builder()
+            .from(from)
+            .to(to_mailbox)
+            .subject("Reset your Seki password")
+            .body(body)
+        {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Failed to build password reset email: {e}");
+                return;
+            }
+        };
+
+        if let Err(e) = transport.send(message).await {
+            tracing::error!("Failed to send password reset email to {to}: {e}");
+        } else {
+            tracing::info!("Password reset email sent to {to}");
+        }
+    }
+
     pub async fn send_invitation(
         &self,
         to: &str,

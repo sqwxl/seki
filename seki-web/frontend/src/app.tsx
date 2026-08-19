@@ -424,7 +424,10 @@ function App() {
 
   // Auth pages show only the brand — no nav links or account actions (the
   // anonymous session in the navbar is confusing mid-login).
-  const isAuthPage = route.kind === "login" || route.kind === "register";
+  const isAuthPage =
+    route.kind === "login" ||
+    route.kind === "register" ||
+    route.kind === "reset-password";
 
   async function handleLogout() {
     const credential = getAppCredential();

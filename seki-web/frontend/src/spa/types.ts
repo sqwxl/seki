@@ -25,6 +25,7 @@ export type Route =
   | { kind: "profile"; username: string }
   | { kind: "login"; redirect?: string | null }
   | { kind: "register"; redirect?: string | null }
+  | { kind: "reset-password"; token?: string | null }
   | { kind: "settings" }
   | { kind: "not-found" };
 

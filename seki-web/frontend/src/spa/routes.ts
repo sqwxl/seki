@@ -58,6 +58,10 @@ export function parseRoute(url: URL): Route {
     return { kind: "settings" };
   }
 
+  if (path === "/reset-password") {
+    return { kind: "reset-password", token: url.searchParams.get("token") };
+  }
+
   const gameMatch = path.match(/^\/games\/(\d+)$/);
 
   if (gameMatch) {

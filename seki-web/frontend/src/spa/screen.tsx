@@ -17,6 +17,7 @@ import {
 } from "./game-screens";
 import { PlayersScreen } from "./players-screen";
 import { ProfileScreen } from "./profile-screen";
+import { ResetPasswordScreen } from "./reset-password-screen";
 import type { NavigateFn, Route } from "./types";
 
 export function Screen({
@@ -111,6 +112,8 @@ export function Screen({
       );
     case "settings":
       return <SettingsRedirect currentUser={currentUser} navigate={navigate} />;
+    case "reset-password":
+      return <ResetPasswordScreen token={route.token} />;
     default:
       return <NotFoundScreen />;
   }

@@ -180,6 +180,20 @@ impl User {
         .await
     }
 
+    pub async fn set_password(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        user_id: i64,
+        password_hash: &str,
+    ) -> Result<User, sqlx::Error> {
+        sqlx::query_as::<_, User>(
+            "UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+        )
+        .bind(password_hash)
+        .bind(user_id)
+        .fetch_one(executor)
+        .await
+    }
+
     pub async fn update_username(
         executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,

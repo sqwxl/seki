@@ -61,11 +61,20 @@ pub(crate) async fn redirect_with_flash(
     target: &str,
     message: &str,
 ) -> Result<Response, AppError> {
+    redirect_with_flash_severity(session, target, message, FlashSeverity::Error).await
+}
+
+pub(crate) async fn redirect_with_flash_severity(
+    session: &Session,
+    target: &str,
+    message: &str,
+    severity: FlashSeverity,
+) -> Result<Response, AppError> {
     set_flash(
         session,
         FlashMessage {
             message: message.to_string(),
-            severity: FlashSeverity::Error,
+            severity,
         },
     )
     .await?;

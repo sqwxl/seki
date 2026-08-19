@@ -15,10 +15,15 @@ use crate::error::AppError;
 use crate::models::app_credential::AppCredential;
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
-use crate::routes::flash::{redirect_with_flash, wants_json};
+use crate::routes::flash::{
+    FlashSeverity, redirect_with_flash, redirect_with_flash_severity, wants_json,
+};
 use crate::services::jwt;
-use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, USER_ID_KEY};
+use crate::session::{ANON_USER_TOKEN_COOKIE, CurrentUser, OptionalCurrentUser, USER_ID_KEY};
 use crate::views::user_data_from_user_with_rank;
+
+/// Minimum password length, shared by registration and password reset.
+pub const PASSWORD_MIN_LENGTH: usize = 8;
 
 fn referer_path(headers: &axum::http::HeaderMap) -> String {
     headers
@@ -85,8 +90,8 @@ pub async fn register(
     }
 
     // TODO: Same as previous comment
-    if form.password.len() < 8 {
-        let msg = "Password must be at least 8 characters.";
+    if form.password.len() < PASSWORD_MIN_LENGTH {
+        let msg = format!("Password must be at least {PASSWORD_MIN_LENGTH} characters.");
         if json {
             return Ok((
                 StatusCode::UNPROCESSABLE_ENTITY,
@@ -94,7 +99,7 @@ pub async fn register(
             )
                 .into_response());
         }
-        return redirect_with_flash(&session, "/register", msg).await;
+        return redirect_with_flash(&session, "/register", &msg).await;
     }
 
     if form.password != form.password_confirmation {
@@ -507,4 +512,117 @@ pub async fn revoke_token(
         .map_err(AppError::Database)?;
 
     Ok(Json(json!({"ok": true})))
+}
+
+// --- Password reset ---
+
+#[derive(Deserialize)]
+pub struct RequestResetForm {
+    pub email: String,
+}
+
+#[derive(Deserialize)]
+pub struct ResetPasswordForm {
+    pub token: String,
+    pub password: String,
+    pub password_confirmation: String,
+}
+
+#[derive(Deserialize)]
+pub struct ResetTokenQuery {
+    pub token: String,
+}
+
+// POST /reset-password/request
+pub async fn request_reset(
+    State(state): State<AppState>,
+    session: Session,
+    headers: axum::http::HeaderMap,
+    Form(form): Form<RequestResetForm>,
+) -> Result<Response, AppError> {
+    let email = form.email.trim().to_string();
+    let base_url = std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:3000".into());
+
+    crate::services::password_reset::request_reset(&state.db, &state.mailer, &email, &base_url)
+        .await?;
+
+    // Never reveal whether the email has an account.
+    let msg = "If an account exists with that email, a reset link has been sent.";
+    if wants_json(&headers) {
+        return Ok(Json(json!({ "message": msg })).into_response());
+    }
+    redirect_with_flash_severity(&session, "/reset-password", msg, FlashSeverity::Success).await
+}
+
+// GET /api/web/password-reset?token=... — validates a token without consuming it.
+pub async fn reset_token_info(
+    State(state): State<AppState>,
+    Query(query): Query<ResetTokenQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let user = crate::services::password_reset::token_info(&state.db, &query.token).await?;
+    match user {
+        Some(user) => Ok(Json(json!({ "valid": true, "username": user.username }))),
+        None => Ok(Json(json!({ "valid": false }))),
+    }
+}
+
+// POST /reset-password
+pub async fn reset_password(
+    State(state): State<AppState>,
+    session: Session,
+    current_user: OptionalCurrentUser,
+    Form(form): Form<ResetPasswordForm>,
+) -> Result<Response, AppError> {
+    if form.password.len() < PASSWORD_MIN_LENGTH {
+        return redirect_with_flash(
+            &session,
+            &format!("/reset-password?token={}", form.token),
+            &format!("Password must be at least {PASSWORD_MIN_LENGTH} characters."),
+        )
+        .await;
+    }
+    if form.password != form.password_confirmation {
+        return redirect_with_flash(
+            &session,
+            &format!("/reset-password?token={}", form.token),
+            "Passwords do not match.",
+        )
+        .await;
+    }
+
+    let Some(user) =
+        crate::services::password_reset::reset_password(&state.db, &form.token, &form.password)
+            .await?
+    else {
+        let msg = "This reset link is invalid or has expired. Please request a new one.";
+        return redirect_with_flash(&session, "/reset-password", msg).await;
+    };
+
+    // Auto-login on anonymous sessions; a session logged in as a different
+    // registered user is left alone.
+    let should_login = match current_user.user.as_ref() {
+        None => true,
+        Some(u) => !u.is_registered() || u.id == user.id,
+    };
+    if should_login && let Some(token) = user.session_token.as_ref() {
+        session
+            .insert(USER_ID_KEY, token)
+            .await
+            .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
+        return redirect_with_flash_severity(
+            &session,
+            "/",
+            "Password updated. You're logged in.",
+            FlashSeverity::Success,
+        )
+        .await;
+    }
+
+    redirect_with_flash_severity(
+        &session,
+        "/login",
+        "Password updated. Please log in.",
+        FlashSeverity::Success,
+    )
+    .await
 }

@@ -251,6 +251,23 @@ pub async fn build_router_with_registry_and_presence(
             )),
         )
         .route("/logout", post(routes::auth::logout))
+        .route("/reset-password", get(routes::spa::shell))
+        .route(
+            "/reset-password/request",
+            post(routes::auth::request_reset).layer(GovernorLayer::new(
+                GovernorConfigBuilder::default()
+                    .per_second(1)
+                    .burst_size(5)
+                    .use_headers()
+                    .finish()
+                    .expect("valid rate limit config"),
+            )),
+        )
+        .route("/reset-password", post(routes::auth::reset_password))
+        .route(
+            "/api/web/password-reset",
+            get(routes::auth::reset_token_info),
+        )
         .route("/settings", get(routes::spa::shell))
         .route("/settings/token", post(routes::settings::generate_token))
         .route("/settings/email", post(routes::settings::update_email))
