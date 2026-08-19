@@ -422,6 +422,10 @@ function App() {
     [locationState.key, locationState.version],
   );
 
+  // Auth pages show only the brand — no nav links or account actions (the
+  // anonymous session in the navbar is confusing mid-login).
+  const isAuthPage = route.kind === "login" || route.kind === "register";
+
   async function handleLogout() {
     const credential = getAppCredential();
 
@@ -462,33 +466,37 @@ function App() {
             <span>Seki</span>
           </a>
         </div>
-        <div class="desktop-nav-primary">
-          {!currentUser?.is_bot && (
-            <>
-              <a href="/games/new" title="New game" class="nav-icon">
-                <IconPlus />
-              </a>
-              <a href="/games">Games</a>
-              <a href="/games/spectate">Spectate</a>
-              <a href="/bot">Bot</a>
-              <a href="/analysis">Analysis</a>
-              <a href="/players">Players</a>
-            </>
-          )}
-        </div>
-        <div class="nav-actions">
-          {!currentUser?.is_bot && <NavPresence />}
-          {!currentUser?.is_bot && <NotificationBell />}
-          <span class="desktop-only">
-            {!currentUser?.is_bot && <SettingsMenu />}
-          </span>
-          <span class="desktop-only">
-            <AccountLinks user={currentUser} onLogout={handleLogout} />
-          </span>
-          <span class="mobile-only">
-            <NavDrawer user={currentUser} onLogout={handleLogout} />
-          </span>
-        </div>
+        {!isAuthPage && (
+          <>
+            <div class="desktop-nav-primary">
+              {!currentUser?.is_bot && (
+                <>
+                  <a href="/games/new" title="New game" class="nav-icon">
+                    <IconPlus />
+                  </a>
+                  <a href="/games">Games</a>
+                  <a href="/games/spectate">Spectate</a>
+                  <a href="/bot">Bot</a>
+                  <a href="/analysis">Analysis</a>
+                  <a href="/players">Players</a>
+                </>
+              )}
+            </div>
+            <div class="nav-actions">
+              {!currentUser?.is_bot && <NavPresence />}
+              {!currentUser?.is_bot && <NotificationBell />}
+              <span class="desktop-only">
+                {!currentUser?.is_bot && <SettingsMenu />}
+              </span>
+              <span class="desktop-only">
+                <AccountLinks user={currentUser} onLogout={handleLogout} />
+              </span>
+              <span class="mobile-only">
+                <NavDrawer user={currentUser} onLogout={handleLogout} />
+              </span>
+            </div>
+          </>
+        )}
       </nav>
       <FlashBanner />
       <AiModelDownloadDialog />
