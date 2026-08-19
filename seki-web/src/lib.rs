@@ -119,7 +119,17 @@ pub async fn build_router_with_registry_and_presence(
         .await
         .expect("Failed to migrate session store");
 
-    let key = session_key.unwrap_or_else(tower_sessions::cookie::Key::generate);
+    let key = match session_key {
+        Some(key) => key,
+        None => match std::env::var("SESSION_SECRET") {
+            // Stable across restarts/deploys — without it every boot
+            // invalidates all browser sessions (Key::generate is random).
+            Ok(secret) if !secret.is_empty() => {
+                tower_sessions::cookie::Key::derive_from(secret.as_bytes())
+            }
+            _ => tower_sessions::cookie::Key::generate(),
+        },
+    };
     let session_layer = SessionManagerLayer::new(session_store)
         .with_private(key)
         .with_secure(session_secure)
