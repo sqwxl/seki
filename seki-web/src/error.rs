@@ -45,6 +45,11 @@ impl AppError {
         }
     }
 
+    /// User-facing message without the error-name prefix.
+    pub fn message(&self) -> String {
+        self.status_and_message().1
+    }
+
     fn api_code(&self) -> &'static str {
         match self {
             AppError::NotFound(_) => "not_found",

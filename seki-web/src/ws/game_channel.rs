@@ -278,7 +278,7 @@ pub async fn handle_message(
             tx,
             &ws_msg(&ServerMsg::Error {
                 game_id: Some(game_id),
-                message: e.to_string(),
+                message: e.message(),
                 client_message_id,
             }),
         );

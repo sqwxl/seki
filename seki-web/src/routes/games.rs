@@ -218,7 +218,7 @@ async fn create_game_error_response(
     if json {
         return Ok((
             StatusCode::UNPROCESSABLE_ENTITY,
-            axum::Json(serde_json::json!({ "error": e.to_string() })),
+            axum::Json(serde_json::json!({ "error": e.message() })),
         )
             .into_response());
     }
@@ -226,7 +226,7 @@ async fn create_game_error_response(
     set_flash(
         session,
         FlashMessage {
-            message: e.to_string(),
+            message: e.message(),
             severity: FlashSeverity::Error,
         },
     )
