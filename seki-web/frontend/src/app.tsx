@@ -341,6 +341,7 @@ function App() {
 
     const onClick = (event: MouseEvent) => {
       if (
+        !(event.target instanceof Element) ||
         event.defaultPrevented ||
         event.button !== 0 ||
         event.metaKey ||
@@ -375,7 +376,7 @@ function App() {
     };
 
     const onPrefetch = (event: MouseEvent | FocusEvent | TouchEvent) => {
-      if (!authReady) {
+      if (!authReady || !(event.target instanceof Element)) {
         return;
       }
 
