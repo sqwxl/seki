@@ -8,6 +8,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
 use serde_json::json;
+use std::borrow::Cow;
 use tower_sessions::Session;
 
 use crate::AppState;
@@ -164,6 +165,10 @@ pub async fn register(
 
     let is_bot = form.is_bot.as_deref() == Some("true");
 
+    // The pre-registration username; the profile redirect must not point at
+    // it after the rename.
+    let previous_username = current_user.username.clone();
+
     // Hash password
     let salt = SaltString::generate(&mut OsRng);
     let password_hash = Argon2::default()
@@ -209,10 +214,18 @@ pub async fn register(
     } else {
         &query.redirect
     };
+    // The invitee may have registered from their anonymous profile page;
+    // that username no longer exists after the rename, so point the redirect
+    // at the fresh profile instead.
+    let target = if target == format!("/users/{previous_username}") {
+        Cow::Owned(format!("/users/{username}"))
+    } else {
+        Cow::Borrowed(target)
+    };
     if json {
         return Ok(axum::Json(json!({"redirect": target})).into_response());
     }
-    Ok(Redirect::to(target).into_response())
+    Ok(Redirect::to(&target).into_response())
 }
 
 #[derive(Deserialize)]

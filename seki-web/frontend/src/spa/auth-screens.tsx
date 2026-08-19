@@ -116,7 +116,13 @@ export function AuthFormScreen({
         {mode === "register" && (
           <div>
             <label for="email">Email (optional)</label>
-            <input type="email" name="email" id="email" autocomplete="email" />
+            <input
+              type="email"
+              name="email"
+              id="email"
+              autocomplete="email"
+              defaultValue={currentUser?.email ?? ""}
+            />
             <p class="form-help">
               An email is optional, but without one, you will not be able to
               reset your password if you lose it.
