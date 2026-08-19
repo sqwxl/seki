@@ -26,6 +26,8 @@ EnvironmentFile=-$APP_DIR/current/release.env
 ExecStart=$APP_DIR/current/bin/seki-web
 Restart=always
 RestartSec=3
+StandardOutput=append:$ENV_DIR/seki.log
+StandardError=append:$ENV_DIR/seki.log
 
 [Install]
 WantedBy=default.target
