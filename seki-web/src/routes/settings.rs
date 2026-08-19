@@ -78,6 +78,13 @@ pub async fn update_preferences(
         .and_then(|value| value.as_bool());
 
     if let Some(participating) = rating_participating {
+        // Rating participation only means something for registered accounts;
+        // keep the disabled checkbox on anonymous profiles honest.
+        if !current_user.is_registered() {
+            return Err(AppError::UnprocessableEntity(
+                "Register to participate in rated games.".to_string(),
+            ));
+        }
         RatingProfile::set_participating(&state.db, current_user.id, participating).await?;
     }
 

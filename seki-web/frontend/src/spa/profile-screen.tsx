@@ -139,9 +139,10 @@ export function ProfileScreen({
           Challenge
         </button>
       )}
-      {data.rating && (
-        <RatingProfileSummary rating={data.rating} navigate={navigate} />
-      )}
+      {data.rating &&
+        !(profile.is_own_profile && !profile.user_is_registered) && (
+          <RatingProfileSummary rating={data.rating} navigate={navigate} />
+        )}
       <section>
         <h2>Games</h2>
         <UserGames initial={data.initial_games} />
@@ -149,73 +150,82 @@ export function ProfileScreen({
       {data.is_own_profile && (
         <section>
           <h2>Settings</h2>
-          {data.user_is_registered ? (
+          <h3>Rating</h3>
+          <RatingParticipationSettings
+            ratingParticipating={
+              data.profile_user?.preferences.rating_participating
+            }
+            disabled={!data.user_is_registered}
+          />
+          {!data.user_is_registered && (
+            <p>
+              <em>
+                You must <a href={authUrl("register")}>register</a> to
+                participate in rated games.
+              </em>
+            </p>
+          )}
+          <h3>Username</h3>
+          <form
+            key={`username-${profile.profile_username}`}
+            action={`/users/${encodeURIComponent(profile.profile_username)}`}
+            method="post"
+            class="inline-form"
+            onSubmit={submitUsername}
+          >
+            <input
+              type="text"
+              name="username"
+              defaultValue={profile.profile_username}
+              maxLength={30}
+              style={{ width: "30ch" }}
+            />
+            <SubmitButton
+              state={usernameState}
+              idle="Update"
+              busy="Updating"
+              success="Updated"
+            />
+          </form>
+          {!(profile.profile_user?.is_bot && profile.is_own_profile) && (
             <>
-              <h3>Rating</h3>
-              <RatingParticipationSettings
-                ratingParticipating={
-                  data.profile_user?.preferences.rating_participating
-                }
-              />
-              <h3>Username</h3>
+              <h3>Email</h3>
+              {!profile.user_email && (
+                <p>
+                  <em>
+                    {data.user_is_registered
+                      ? "Heads up! You have no email set. Without one you will not be able to reset your password if you lose it; locking you out of your account forever."
+                      : "Heads up! You have no email set. Add one so your account stays recoverable when you register."}
+                  </em>
+                </p>
+              )}
               <form
-                key={`username-${profile.profile_username}`}
-                action={`/users/${encodeURIComponent(profile.profile_username)}`}
+                key={`email-${profile.profile_username}`}
+                action="/settings/email"
                 method="post"
                 class="inline-form"
-                onSubmit={submitUsername}
+                onSubmit={submitEmail}
               >
                 <input
-                  type="text"
-                  name="username"
-                  defaultValue={profile.profile_username}
-                  maxLength={30}
+                  type="email"
+                  name="email"
+                  defaultValue={profile.user_email ?? ""}
+                  placeholder="your@email.com"
                   style={{ width: "30ch" }}
                 />
                 <SubmitButton
-                  state={usernameState}
-                  idle="Update"
-                  busy="Updating"
-                  success="Updated"
+                  state={emailState}
+                  idle={profile.user_email ? "Update" : "Save"}
+                  busy="Saving"
+                  success="Saved"
                 />
               </form>
-              {!(profile.profile_user?.is_bot && profile.is_own_profile) && (
-                <>
-                  <h3>Email</h3>
-                  {!profile.user_email && (
-                    <p>
-                      <em>
-                        Heads up! You have no email set. Without one you will
-                        not be able to reset your password if you lose it;
-                        locking you out of your account forever.
-                      </em>
-                    </p>
-                  )}
-                  <form
-                    key={`email-${profile.profile_username}`}
-                    action="/settings/email"
-                    method="post"
-                    class="inline-form"
-                    onSubmit={submitEmail}
-                  >
-                    <input
-                      type="email"
-                      name="email"
-                      defaultValue={profile.user_email ?? ""}
-                      placeholder="your@email.com"
-                      style={{ width: "30ch" }}
-                    />
-                    <SubmitButton
-                      state={emailState}
-                      idle={profile.user_email ? "Update" : "Save"}
-                      busy="Saving"
-                      success="Saved"
-                    />
-                  </form>
-                  <h3>Notifications</h3>
-                  <NotificationSettings hasEmail={!!data.user_email} />
-                </>
-              )}
+              <h3>Notifications</h3>
+              <NotificationSettings hasEmail={!!data.user_email} />
+            </>
+          )}
+          {data.user_is_registered && (
+            <>
               <h3>API Token</h3>
               <div class="api-token">
                 <code id="api-token">{apiToken}</code>
@@ -224,11 +234,6 @@ export function ProfileScreen({
                 </button>
               </div>
             </>
-          ) : (
-            <p>
-              <a href={authUrl("register")}>Register</a> to access API tokens
-              and other settings.
-            </p>
           )}
         </section>
       )}

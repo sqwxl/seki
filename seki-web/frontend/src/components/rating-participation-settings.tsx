@@ -12,16 +12,23 @@ export function initialRatingParticipation(
 
 export function RatingParticipationSettings({
   ratingParticipating,
+  disabled = false,
 }: {
   ratingParticipating?: boolean;
+  disabled?: boolean;
 }) {
   const userData = readUserData();
   const prefs = userData?.preferences ?? {};
   const [participating, setParticipating] = useState(
-    initialRatingParticipation(prefs, ratingParticipating),
+    // Anonymous users can't participate; force the checkbox off.
+    disabled ? false : initialRatingParticipation(prefs, ratingParticipating),
   );
 
   function toggleParticipation() {
+    if (disabled) {
+      return;
+    }
+
     const next = !participating;
 
     setParticipating(next);
@@ -33,6 +40,7 @@ export function RatingParticipationSettings({
       <input
         type="checkbox"
         checked={participating}
+        disabled={disabled}
         onChange={toggleParticipation}
       />
       Participate in ranked games?

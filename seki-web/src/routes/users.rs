@@ -128,12 +128,13 @@ pub async fn update_username(
     Path(username): Path<String>,
     Form(form): Form<UpdateUsernameForm>,
 ) -> Result<Response, AppError> {
-    // Must be viewing own profile and registered
+    // Must be viewing own profile (anonymous users may rename too — the
+    // registration flow reuses the chosen name).
     let profile_user = User::find_by_username(&state.db, &username)
         .await?
         .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-    if current_user.id != profile_user.id || !current_user.is_registered() {
+    if current_user.id != profile_user.id {
         return Err(AppError::Unauthorized("Not allowed".to_string()));
     }
 
