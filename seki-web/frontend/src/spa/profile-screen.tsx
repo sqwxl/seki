@@ -3,13 +3,14 @@ import { IconRenew } from "../components/icons";
 import { NotificationSettings } from "../components/notification-settings";
 import { RatingProfileSummary } from "../components/profile-rating-graph";
 import { RatingParticipationSettings } from "../components/rating-participation-settings";
+import { SubmitButton, useSubmitState } from "../components/submit-button";
 import { UserLabel } from "../components/user-label";
 import { UserGames } from "../layouts/user-games";
 import { clearFlash, setFlash } from "../utils/flash";
 import { authUrl } from "../utils/spa-navigation";
 import { postForm } from "../utils/web-client";
 import { pageTitle, setHead } from "./head";
-import { useRouteData } from "./route-data";
+import { fetchJson, useRouteData } from "./route-data";
 import { ErrorState, LoadingState } from "./screen-state";
 import type { NavigateFn, ProfileData } from "./types";
 
@@ -31,6 +32,16 @@ export function ProfileScreen({
     `/api/web/users/${encodeURIComponent(username)}`,
   );
   const [apiToken, setApiToken] = useState<string | null>(null);
+  const [usernameState, runUsernameSubmit] = useSubmitState();
+  const [emailState, runEmailSubmit] = useSubmitState();
+  // Live copy of route data: identity edits update in place instead of
+  // navigating, so the screen never remounts and the button keeps its
+  // success state.
+  const [live, setLive] = useState<ProfileData | undefined>(data);
+
+  useEffect(() => {
+    setLive(data);
+  }, [data]);
 
   useEffect(() => {
     setHead(pageTitle(username), `${username}'s Go profile on Seki`);
@@ -42,36 +53,40 @@ export function ProfileScreen({
 
   async function submitUsername(e: Event) {
     e.preventDefault();
-    clearFlash();
-
     const form = e.currentTarget as HTMLFormElement;
-
-    try {
-      const result = await postForm(form.action, new FormData(form));
+    runUsernameSubmit(async () => {
+      await postForm(form.action, new FormData(form));
       await refreshSession();
-      if (typeof result.redirect === "string") {
-        navigate(result.redirect);
-      }
-    } catch (err) {
-      setFlash((err as { message: string }).message);
-    }
+      const newUsername = String(
+        new FormData(form).get("username") ?? "",
+      ).trim();
+      // Mutate the address in place — the SPA state stays put, so there is
+      // no remount and no loading flash.
+      window.history.replaceState(
+        {},
+        "",
+        `/users/${encodeURIComponent(newUsername)}`,
+      );
+      setLive(
+        await fetchJson<ProfileData>(
+          `/api/web/users/${encodeURIComponent(newUsername)}`,
+        ),
+      );
+    });
   }
 
   async function submitEmail(e: Event) {
     e.preventDefault();
-    clearFlash();
-
     const form = e.currentTarget as HTMLFormElement;
-
-    try {
-      const result = await postForm(form.action, new FormData(form));
+    runEmailSubmit(async () => {
+      await postForm(form.action, new FormData(form));
       await refreshSession();
-      if (typeof result.redirect === "string") {
-        navigate(result.redirect, true, true);
-      }
-    } catch (err) {
-      setFlash((err as { message: string }).message);
-    }
+      setLive(
+        await fetchJson<ProfileData>(
+          `/api/web/users/${encodeURIComponent(live?.profile_username ?? username)}`,
+        ),
+      );
+    });
   }
 
   async function generateToken() {
@@ -104,18 +119,20 @@ export function ProfileScreen({
     return <LoadingState />;
   }
 
+  const profile = live ?? data;
+
   return (
     <>
       <h1>
-        <UserLabel user={data.profile_user} noLink />
+        <UserLabel user={profile.profile_user} noLink />
       </h1>
-      {!data.is_own_profile && (
+      {!profile.is_own_profile && (
         <button
           type="button"
           class="btn"
           onClick={() =>
             navigate(
-              `/games/challenge/${encodeURIComponent(data.profile_username)}`,
+              `/games/challenge/${encodeURIComponent(profile.profile_username)}`,
             )
           }
         >
@@ -142,8 +159,8 @@ export function ProfileScreen({
               />
               <h3>Username</h3>
               <form
-                key={`username-${data.profile_username}`}
-                action={`/users/${encodeURIComponent(data.profile_username)}`}
+                key={`username-${profile.profile_username}`}
+                action={`/users/${encodeURIComponent(profile.profile_username)}`}
                 method="post"
                 class="inline-form"
                 onSubmit={submitUsername}
@@ -151,17 +168,22 @@ export function ProfileScreen({
                 <input
                   type="text"
                   name="username"
-                  defaultValue={data.profile_username}
+                  defaultValue={profile.profile_username}
                   maxLength={30}
                   style={{ width: "30ch" }}
                 />
-                <button type="submit">Update</button>
+                <SubmitButton
+                  state={usernameState}
+                  idle="Update"
+                  busy="Updating"
+                  success="Updated"
+                />
               </form>
-              {!(data.profile_user?.is_bot && data.is_own_profile) && (
+              {!(profile.profile_user?.is_bot && profile.is_own_profile) && (
                 <>
                   <h3>Email</h3>
                   <form
-                    key={`email-${data.profile_username}`}
+                    key={`email-${profile.profile_username}`}
                     action="/settings/email"
                     method="post"
                     class="inline-form"
@@ -170,13 +192,16 @@ export function ProfileScreen({
                     <input
                       type="email"
                       name="email"
-                      defaultValue={data.user_email ?? ""}
+                      defaultValue={profile.user_email ?? ""}
                       placeholder="your@email.com"
                       style={{ width: "30ch" }}
                     />
-                    <button type="submit">
-                      {data.user_email ? "Update" : "Save"}
-                    </button>
+                    <SubmitButton
+                      state={emailState}
+                      idle={profile.user_email ? "Update" : "Save"}
+                      busy="Saving"
+                      success="Saved"
+                    />
                   </form>
                   <h3>Notifications</h3>
                   <NotificationSettings hasEmail={!!data.user_email} />
