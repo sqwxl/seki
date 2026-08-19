@@ -78,6 +78,7 @@ function App() {
   );
 
   const seededInitialFlash = useRef(false);
+  const lastFlashKey = useRef<string>();
   const preserveFlashForNextNavigation = useRef(false);
   const preserveFlashAfterUrlCleanup = useRef(false);
 
@@ -290,10 +291,19 @@ function App() {
 
   useEffect(() => {
     const url = currentUrl();
+    const key = `${url.pathname}${url.search}`;
+    // authReady flips after mount and re-runs this effect; only evaluate the
+    // flash when the URL actually changed, or a bootstrap flash would be
+    // cleared the moment auth resolves.
+    const keyChanged = lastFlashKey.current !== key;
+    lastFlashKey.current = key;
+
     const initial = !seededInitialFlash.current;
     const nextFlash = initial
       ? (initialFlash.current ?? readFlashFromUrl(url))
-      : readFlashFromUrl(url);
+      : keyChanged
+        ? readFlashFromUrl(url)
+        : undefined;
 
     seededInitialFlash.current = true;
 
@@ -303,7 +313,7 @@ function App() {
 
     if (nextFlash) {
       setFlashState(nextFlash);
-    } else if (!preservedFlash) {
+    } else if (keyChanged && !preservedFlash) {
       clearFlash();
     }
 
