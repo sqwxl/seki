@@ -49,6 +49,8 @@ pub struct RegisterForm {
     pub password: String,
     pub password_confirmation: String,
     #[serde(default)]
+    pub email: Option<String>,
+    #[serde(default)]
     pub is_bot: Option<String>,
 }
 
@@ -124,6 +126,38 @@ pub async fn register(
         return redirect_with_flash(&session, "/register", msg).await;
     }
 
+    let email = form
+        .email
+        .as_deref()
+        .map(str::trim)
+        .filter(|e| !e.is_empty());
+    if let Some(email) = email {
+        if email.parse::<lettre::Address>().is_err() {
+            let msg = "Please enter a valid email address.";
+            if json {
+                return Ok((
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    axum::Json(json!({"error": msg, "field": "email"})),
+                )
+                    .into_response());
+            }
+            return redirect_with_flash(&session, "/register", msg).await;
+        }
+        if let Some(existing) = User::find_by_email(&state.db, email).await?
+            && existing.id != current_user.id
+        {
+            let msg = "This email is already in use.";
+            if json {
+                return Ok((
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    axum::Json(json!({"error": msg, "field": "email"})),
+                )
+                    .into_response());
+            }
+            return redirect_with_flash(&session, "/register", msg).await;
+        }
+    }
+
     let is_bot = form.is_bot.as_deref() == Some("true");
 
     // Hash password
@@ -161,6 +195,10 @@ pub async fn register(
 
     // Ensure rating profile exists for the newly registered user
     crate::models::rating::RatingProfile::get_or_create(&state.db, current_user.id).await?;
+
+    if let Some(email) = email {
+        User::update_email(&state.db, current_user.id, email).await?;
+    }
 
     let target = if query.redirect.is_empty() {
         "/"

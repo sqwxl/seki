@@ -182,6 +182,15 @@ export function ProfileScreen({
               {!(profile.profile_user?.is_bot && profile.is_own_profile) && (
                 <>
                   <h3>Email</h3>
+                  {!profile.user_email && (
+                    <p>
+                      <em>
+                        Heads up! You have no email set. Without one you will
+                        not be able to reset your password if you lose it;
+                        locking you out of your account forever.
+                      </em>
+                    </p>
+                  )}
                   <form
                     key={`email-${profile.profile_username}`}
                     action="/settings/email"

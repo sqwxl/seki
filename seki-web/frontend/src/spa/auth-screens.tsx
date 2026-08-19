@@ -112,6 +112,16 @@ export function AuthFormScreen({
             autoFocus
           />
         </div>
+        {mode === "register" && (
+          <div>
+            <label for="email">Email (optional)</label>
+            <input type="email" name="email" id="email" autocomplete="email" />
+            <p class="form-help">
+              An email is optional, but without one, you will not be able to
+              reset your password if you lose it.
+            </p>
+          </div>
+        )}
         <div>
           <label for="password">Password</label>
           <input
