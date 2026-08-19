@@ -195,6 +195,95 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+
+  return outputArray;
+}
+
+async function fetchVapidPublicKey(): Promise<string | undefined> {
+  try {
+    const response = await fetch("/api/web/vapid-public-key", {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      return undefined;
+    }
+
+    const data = (await response.json()) as { public_key: string };
+
+    return data.public_key;
+  } catch {
+    return undefined;
+  }
+}
+
+// Re-register a (re)created subscription under the current session and tell
+// open clients the new server-side id so their toggle can still revoke it.
+async function registerPushSubscription(
+  subscription: PushSubscription,
+): Promise<void> {
+  const response = await fetch("/api/push-subscription", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      endpoint: subscription.endpoint,
+      user_agent: navigator.userAgent,
+      keys: subscription.toJSON().keys,
+    }),
+  });
+
+  if (!response.ok) {
+    return;
+  }
+
+  const data = (await response.json()) as { id: number };
+  const clients = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+
+  for (const client of clients) {
+    client.postMessage({ type: "push-subscription-id", id: data.id });
+  }
+}
+
+// The browser fires this when the push service invalidated the subscription
+// (e.g. 410 Gone). Re-subscribe so notifications keep working in the
+// background, without the app being open.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      const vapidKey = await fetchVapidPublicKey();
+
+      if (!vapidKey) {
+        return;
+      }
+
+      try {
+        const subscription = await self.registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+        await registerPushSubscription(subscription);
+      } catch {
+        // Repair failed; the app retries on its next load.
+      }
+    })(),
+  );
+});
+
 self.addEventListener("push", (event) => {
   if (!event.data) {
     return;

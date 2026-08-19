@@ -28,6 +28,7 @@ import {
   stripFlashParams,
   type FlashMessage,
 } from "./utils/flash";
+import { repairPushSubscriptionIfNeeded } from "./utils/os-notifications";
 import { initPreferences } from "./utils/preferences";
 import {
   requestSpaNavigation,
@@ -191,6 +192,7 @@ function App() {
     setAuthReady(true);
 
     wsAuthReady();
+    void repairPushSubscriptionIfNeeded();
   }
 
   async function fetchToken() {

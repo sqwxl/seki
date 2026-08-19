@@ -13,7 +13,7 @@ export function isPushSupported(): boolean {
   return "serviceWorker" in navigator && "PushManager" in window;
 }
 
-async function getServiceWorkerRegistration(): Promise<
+export async function getServiceWorkerRegistration(): Promise<
   ServiceWorkerRegistration | undefined
 > {
   if (!("serviceWorker" in navigator)) {

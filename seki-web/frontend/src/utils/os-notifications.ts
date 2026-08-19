@@ -1,6 +1,7 @@
 import { signal } from "@preact/signals";
 import { getFcmToken, isNativeApp, onBridgeReady } from "../native/bridge";
 import {
+  getServiceWorkerRegistration,
   isPushSupported,
   registerSubscription,
   subscribeToPush,
@@ -70,6 +71,70 @@ function compute(): boolean {
 }
 
 export const osNotificationsEnabled = signal(compute());
+
+// The service worker re-subscribes on pushsubscriptionchange and posts the new
+// server-side id so the toggle can still revoke it.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    const data = event.data as { type?: string; id?: number } | undefined;
+
+    if (data?.type === "push-subscription-id" && typeof data.id === "number") {
+      storage.set(PUSH_SUBSCRIPTION_ID, String(data.id));
+    }
+  });
+}
+
+/**
+ * Re-registers the push subscription when the browser's one silently died
+ * (e.g. the push service returned 410 and the server disabled the
+ * destination). Without this the toggle stays "on" while nothing is
+ * deliverable. Safe to run on every load: no-ops when healthy.
+ */
+export async function repairPushSubscriptionIfNeeded(): Promise<void> {
+  if (!compute() || !isPushSupported()) {
+    return;
+  }
+
+  const registration = await getServiceWorkerRegistration();
+
+  if (!registration) {
+    return;
+  }
+
+  const storedId = readPushSubscriptionId();
+  const existing = await registration.pushManager.getSubscription();
+
+  if (existing && storedId) {
+    return;
+  }
+
+  if (existing) {
+    // Subscribed in the browser, but the server id was lost (storage cleared).
+    const result = await registerSubscription(existing.toJSON());
+
+    if (result) {
+      storage.set(PUSH_SUBSCRIPTION_ID, String(result.id));
+    }
+
+    return;
+  }
+
+  if (storedId) {
+    // Dead browser subscription: drop the stale server row, then re-subscribe.
+    await unsubscribePush(storedId);
+    storage.remove(PUSH_SUBSCRIPTION_ID);
+  }
+
+  const subscription = await subscribeToPush();
+
+  if (subscription) {
+    const result = await registerSubscription(subscription);
+
+    if (result) {
+      storage.set(PUSH_SUBSCRIPTION_ID, String(result.id));
+    }
+  }
+}
 
 // Ask once per device, at value moments (creating or joining a game). The
 // localStorage marker is set the moment we prompt, so granting, denying, or
