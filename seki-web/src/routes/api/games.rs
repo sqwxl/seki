@@ -72,6 +72,9 @@ pub(crate) struct CreateGameRequest {
     #[serde(default)]
     invite_email: Option<String>,
     #[serde(default)]
+    /// Optional personal note included in the invitation email.
+    invite_message: Option<String>,
+    #[serde(default)]
     /// Assign the second seat immediately and create a direct challenge.
     invite_username: Option<String>,
     #[serde(default)]
@@ -224,9 +227,18 @@ pub(super) async fn create_game(
         let token = token.clone();
         let base_url = std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:3000".into());
         let game_id = game.id;
+        let creator_username = api_user.username.clone();
+        let invite_message = body.invite_message.clone();
         tokio::spawn(async move {
             mailer
-                .send_invitation(&email, game_id, &token, &base_url)
+                .send_invitation(
+                    &email,
+                    game_id,
+                    &token,
+                    &base_url,
+                    &creator_username,
+                    invite_message.as_deref(),
+                )
                 .await;
         });
     }

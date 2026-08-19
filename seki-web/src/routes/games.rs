@@ -38,6 +38,7 @@ pub struct CreateGameForm {
     pub max_rating_difference: Option<i32>,
     pub variant: Option<String>,
     pub custom_settings: Option<String>,
+    pub invite_message: Option<String>,
 }
 
 // POST /games
@@ -183,13 +184,22 @@ pub async fn create_game(
                     let mailer = state.mailer.clone();
                     let email = email.clone();
                     let token = token.clone();
+                    let creator_username = current_user.username.clone();
+                    let invite_message = form.invite_message.clone();
                     let base_url = std::env::var("BASE_URL")
                         .unwrap_or_else(|_| "http://localhost:3000".into());
                     let game_id = game.id;
 
                     tokio::spawn(async move {
                         mailer
-                            .send_invitation(&email, game_id, &token, &base_url)
+                            .send_invitation(
+                                &email,
+                                game_id,
+                                &token,
+                                &base_url,
+                                &creator_username,
+                                invite_message.as_deref(),
+                            )
                             .await;
                     });
                 }

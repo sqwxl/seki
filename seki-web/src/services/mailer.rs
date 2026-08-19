@@ -106,7 +106,15 @@ impl Mailer {
         }
     }
 
-    pub async fn send_invitation(&self, to: &str, game_id: i64, token: &str, base_url: &str) {
+    pub async fn send_invitation(
+        &self,
+        to: &str,
+        game_id: i64,
+        token: &str,
+        base_url: &str,
+        creator_username: &str,
+        message: Option<&str>,
+    ) {
         let transport = match &self.transport {
             Some(t) => t,
             None => {
@@ -134,17 +142,24 @@ impl Mailer {
         // Single-use login link; the token identifies the challengee server-side.
         let link = format!("{base_url}/invite/{token}");
 
+        let message_body = match message {
+            Some(msg) => format!("\n\n{creator_username} says: \"{msg}\"\n"),
+            None => String::new(),
+        };
+
         let body = format!(
-            "You've been invited to a game of Go on Seki!\n\n\
+            "{creator_username} has invited you to a game of Go on Seki!\n\n\
              Click the link below to join:\n\
-             {link}\n\n\
+             {link}\n\
+             {message_body}\n\
              If you didn't expect this email, you can safely ignore it."
         );
 
-        let message = match Message::builder()
+        let subject = format!("{creator_username} is inviting you to a game of Go on Seki!");
+        let email = match Message::builder()
             .from(from)
             .to(to_mailbox)
-            .subject("You've been invited to a game on Seki")
+            .subject(subject)
             .body(body)
         {
             Ok(m) => m,
@@ -154,7 +169,7 @@ impl Mailer {
             }
         };
 
-        if let Err(e) = transport.send(message).await {
+        if let Err(e) = transport.send(email).await {
             tracing::error!("Failed to send invitation email to {to}: {e}");
         } else {
             tracing::info!("Invitation email sent to {to} for game {game_id}");
