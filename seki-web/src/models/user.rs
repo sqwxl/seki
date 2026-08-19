@@ -310,7 +310,7 @@ impl User {
     pub async fn update_email(
         executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,
-        email: &str,
+        email: Option<&str>,
     ) -> Result<User, sqlx::Error> {
         sqlx::query_as::<_, User>(
             "UPDATE users SET email = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",

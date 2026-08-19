@@ -119,7 +119,8 @@ pub async fn update_email(
     let email = form.email.trim().to_string();
     let json = wants_json(&headers);
 
-    if email.parse::<lettre::Address>().is_err() {
+    // Empty submission clears the stored email.
+    if !email.is_empty() && email.parse::<lettre::Address>().is_err() {
         let msg = "Please enter a valid email address.";
         if json {
             return Ok((
@@ -140,7 +141,8 @@ pub async fn update_email(
     }
 
     // Check for duplicates (another user with this email)
-    if let Some(existing) = User::find_by_email(&state.db, &email).await?
+    if !email.is_empty()
+        && let Some(existing) = User::find_by_email(&state.db, &email).await?
         && existing.id != current_user.id
     {
         let msg = "This email is already in use.";
@@ -162,7 +164,12 @@ pub async fn update_email(
         return Ok(Redirect::to("/settings").into_response());
     }
 
-    User::update_email(&state.db, current_user.id, &email).await?;
+    User::update_email(
+        &state.db,
+        current_user.id,
+        (!email.is_empty()).then_some(email.as_str()),
+    )
+    .await?;
 
     let url = format!("/users/{}", current_user.username);
     if json {

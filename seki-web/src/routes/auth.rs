@@ -197,7 +197,7 @@ pub async fn register(
     crate::models::rating::RatingProfile::get_or_create(&state.db, current_user.id).await?;
 
     if let Some(email) = email {
-        User::update_email(&state.db, current_user.id, email).await?;
+        User::update_email(&state.db, current_user.id, Some(email)).await?;
     }
 
     let target = if query.redirect.is_empty() {
