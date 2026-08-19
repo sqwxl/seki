@@ -321,6 +321,33 @@ a:visited {
   text-decoration: none;
 }
 
+/* Text links inside prose elements are the link color; nav, menus, and
+   panels keep the inherited color. */
+h1 a,
+h2 a,
+h3 a,
+h4 a,
+h5 a,
+h6 a,
+p a,
+blockquote a,
+li a,
+dd a,
+dt a,
+small a,
+strong a,
+em a,
+figcaption a,
+caption a {
+  color: var(--blue);
+}
+
+/* User labels are identity chips, not prose links — keep them inheriting
+   (their stone icons use currentColor, so a blue anchor bleeds into them). */
+a:has(.user-label) {
+  color: inherit;
+}
+
 .nav-icon {
   display: flex;
   align-items: center;
