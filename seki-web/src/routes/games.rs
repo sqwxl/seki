@@ -50,160 +50,170 @@ pub async fn create_game(
 ) -> Result<Response, AppError> {
     let json = wants_json(&headers);
 
-    // TODO: Extract form validation to separate function; order predicates from least to most expensive
+    let result: Result<Response, AppError> = async {
+        // TODO: Extract form validation to separate function; order predicates from least to most expensive
 
-    let variant = form.variant.as_deref().unwrap_or("open");
-    let invite_username = form
-        .invite_username
-        .as_deref()
-        .map(str::trim)
-        .filter(|username| !username.is_empty())
-        .map(str::to_string);
+        let variant = form.variant.as_deref().unwrap_or("open");
+        let invite_username = form
+            .invite_username
+            .as_deref()
+            .map(str::trim)
+            .filter(|username| !username.is_empty())
+            .map(str::to_string);
 
-    if variant == "challenge" && invite_username.is_none() {
-        return create_game_error_response(
-            &session,
-            json,
-            AppError::UnprocessableEntity("Direct challenges require an opponent".to_string()),
-        )
-        .await;
-    }
-
-    let is_ranked = form.ranked.as_deref() == Some("true");
-    let is_open = variant == "open";
-    let is_email = variant == "email";
-    // Custom-settings open games: creator pre-selects handicap/komi/color.
-    let custom_settings = is_open && !is_ranked && form.custom_settings.as_deref() == Some("true");
-
-    let komi = if is_ranked || (is_open && !custom_settings) {
-        6.5
-    } else {
-        form.komi
-            .ok_or_else(|| AppError::UnprocessableEntity("Missing komi".to_string()))?
-    };
-    let handicap = if is_ranked || (is_open && !custom_settings) {
-        0
-    } else {
-        form.handicap
-            .ok_or_else(|| AppError::UnprocessableEntity("Missing handicap".to_string()))?
-    };
-    if (is_ranked || (is_open && !custom_settings))
-        && (form.komi.is_some() || form.handicap.is_some() || form.color.is_some())
-    {
-        return Err(AppError::UnprocessableEntity(
-            "Ranked and open games derive handicap, komi, and color after an opponent joins"
-                .to_string(),
-        ));
-    }
-
-    let rating_range = if is_open && form.rating_range_mode.as_deref() == Some("absolute") {
-        RatingRangePreference::Absolute(form.max_rating_difference.ok_or_else(|| {
-            AppError::UnprocessableEntity("Missing max_rating_difference".to_string())
-        })?)
-    } else if is_open && form.max_rating_difference.is_some() {
-        RatingRangePreference::Absolute(form.max_rating_difference.unwrap())
-    } else {
-        RatingRangePreference::Unlimited
-    };
-
-    let color = if is_ranked || (is_open && !custom_settings) {
-        "black".to_string()
-    } else {
-        form.color
-            .clone()
-            .ok_or_else(|| AppError::UnprocessableEntity("Missing color".to_string()))?
-    };
-    let creator_color = custom_settings.then(|| color.clone());
-
-    let cols = form.cols;
-
-    let time_control = match form.time_control.as_deref() {
-        Some("fischer") => TimeControlType::Fischer,
-        Some("byoyomi") => TimeControlType::Byoyomi,
-        Some("correspondence") => TimeControlType::Correspondence,
-        _ => TimeControlType::None,
-    };
-
-    let (main_time_secs, increment_secs, byoyomi_time_secs, byoyomi_periods) = match time_control {
-        TimeControlType::Fischer => (
-            form.main_time_minutes.map(|m| m * 60),
-            form.increment_secs,
-            None,
-            None,
-        ),
-        TimeControlType::Byoyomi => (
-            form.main_time_minutes.map(|m| m * 60),
-            None,
-            form.byoyomi_time_secs,
-            form.byoyomi_periods,
-        ),
-        TimeControlType::Correspondence => (
-            form.correspondence_days.map(|d| d * 86400),
-            None,
-            None,
-            None,
-        ),
-        TimeControlType::None => (None, None, None, None),
-    };
-
-    let invite_email = form.invite_email.clone();
-
-    let params = CreateGameParams {
-        cols,
-        rows: cols,
-        komi,
-        handicap,
-        is_private: form.is_private.as_deref() == Some("true"),
-        allow_undo: form.allow_undo.as_deref() == Some("true"),
-        color,
-        invite_email: invite_email.clone(),
-        invite_username,
-        time_control,
-        main_time_secs,
-        increment_secs,
-        byoyomi_time_secs,
-        byoyomi_periods,
-        open_to: form.open_to,
-        ranked: is_ranked && !is_email,
-        rating_range,
-        open_game: is_open,
-        creator_color,
-    };
-
-    match game_creator::create_game(&state, &current_user, params).await {
-        Ok((game, challenge_token)) => {
-            if let Ok(gwp) = Game::find_with_players(&state.db, game.id).await {
-                crate::services::live::notify_game_created(&state, &gwp);
-            }
-
-            if let (Some(email), Some(token)) = (&invite_email, challenge_token.as_ref()) {
-                let mailer = state.mailer.clone();
-                let email = email.clone();
-                let token = token.clone();
-                let base_url =
-                    std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:3000".into());
-                let game_id = game.id;
-
-                tokio::spawn(async move {
-                    mailer
-                        .send_invitation(&email, game_id, &token, &base_url)
-                        .await;
-                });
-            }
-
-            let url = format!("/games/{}", game.id);
-
-            if json {
-                let mut payload = serde_json::json!({ "redirect": url });
-                if let Some(link) = challenge_token {
-                    payload["invite_link"] = serde_json::json!(format!("/invite/{link}"));
-                }
-                Ok(axum::Json(payload).into_response())
-            } else {
-                Ok(Redirect::to(&url).into_response())
-            }
+        if variant == "challenge" && invite_username.is_none() {
+            return create_game_error_response(
+                &session,
+                json,
+                AppError::UnprocessableEntity("Direct challenges require an opponent".to_string()),
+            )
+            .await;
         }
 
+        let is_ranked = form.ranked.as_deref() == Some("true");
+        let is_open = variant == "open";
+        let is_email = variant == "email";
+        // Custom-settings open games: creator pre-selects handicap/komi/color.
+        let custom_settings =
+            is_open && !is_ranked && form.custom_settings.as_deref() == Some("true");
+
+        let komi = if is_ranked || (is_open && !custom_settings) {
+            6.5
+        } else {
+            form.komi
+                .ok_or_else(|| AppError::UnprocessableEntity("Missing komi".to_string()))?
+        };
+        let handicap = if is_ranked || (is_open && !custom_settings) {
+            0
+        } else {
+            form.handicap
+                .ok_or_else(|| AppError::UnprocessableEntity("Missing handicap".to_string()))?
+        };
+        if (is_ranked || (is_open && !custom_settings))
+            && (form.komi.is_some() || form.handicap.is_some() || form.color.is_some())
+        {
+            return Err(AppError::UnprocessableEntity(
+                "Ranked and open games derive handicap, komi, and color after an opponent joins"
+                    .to_string(),
+            ));
+        }
+
+        let rating_range = if is_open && form.rating_range_mode.as_deref() == Some("absolute") {
+            RatingRangePreference::Absolute(form.max_rating_difference.ok_or_else(|| {
+                AppError::UnprocessableEntity("Missing max_rating_difference".to_string())
+            })?)
+        } else if is_open && form.max_rating_difference.is_some() {
+            RatingRangePreference::Absolute(form.max_rating_difference.unwrap())
+        } else {
+            RatingRangePreference::Unlimited
+        };
+
+        let color = if is_ranked || (is_open && !custom_settings) {
+            "black".to_string()
+        } else {
+            form.color
+                .clone()
+                .ok_or_else(|| AppError::UnprocessableEntity("Missing color".to_string()))?
+        };
+        let creator_color = custom_settings.then(|| color.clone());
+
+        let cols = form.cols;
+
+        let time_control = match form.time_control.as_deref() {
+            Some("fischer") => TimeControlType::Fischer,
+            Some("byoyomi") => TimeControlType::Byoyomi,
+            Some("correspondence") => TimeControlType::Correspondence,
+            _ => TimeControlType::None,
+        };
+
+        let (main_time_secs, increment_secs, byoyomi_time_secs, byoyomi_periods) =
+            match time_control {
+                TimeControlType::Fischer => (
+                    form.main_time_minutes.map(|m| m * 60),
+                    form.increment_secs,
+                    None,
+                    None,
+                ),
+                TimeControlType::Byoyomi => (
+                    form.main_time_minutes.map(|m| m * 60),
+                    None,
+                    form.byoyomi_time_secs,
+                    form.byoyomi_periods,
+                ),
+                TimeControlType::Correspondence => (
+                    form.correspondence_days.map(|d| d * 86400),
+                    None,
+                    None,
+                    None,
+                ),
+                TimeControlType::None => (None, None, None, None),
+            };
+
+        let invite_email = form.invite_email.clone();
+
+        let params = CreateGameParams {
+            cols,
+            rows: cols,
+            komi,
+            handicap,
+            is_private: form.is_private.as_deref() == Some("true"),
+            allow_undo: form.allow_undo.as_deref() == Some("true"),
+            color,
+            invite_email: invite_email.clone(),
+            invite_username,
+            time_control,
+            main_time_secs,
+            increment_secs,
+            byoyomi_time_secs,
+            byoyomi_periods,
+            open_to: form.open_to,
+            ranked: is_ranked && !is_email,
+            rating_range,
+            open_game: is_open,
+            creator_color,
+        };
+
+        match game_creator::create_game(&state, &current_user, params).await {
+            Ok((game, challenge_token)) => {
+                if let Ok(gwp) = Game::find_with_players(&state.db, game.id).await {
+                    crate::services::live::notify_game_created(&state, &gwp);
+                }
+
+                if let (Some(email), Some(token)) = (&invite_email, challenge_token.as_ref()) {
+                    let mailer = state.mailer.clone();
+                    let email = email.clone();
+                    let token = token.clone();
+                    let base_url = std::env::var("BASE_URL")
+                        .unwrap_or_else(|_| "http://localhost:3000".into());
+                    let game_id = game.id;
+
+                    tokio::spawn(async move {
+                        mailer
+                            .send_invitation(&email, game_id, &token, &base_url)
+                            .await;
+                    });
+                }
+
+                let url = format!("/games/{}", game.id);
+
+                if json {
+                    let mut payload = serde_json::json!({ "redirect": url });
+                    if let Some(link) = challenge_token {
+                        payload["invite_link"] = serde_json::json!(format!("/invite/{link}"));
+                    }
+                    Ok(axum::Json(payload).into_response())
+                } else {
+                    Ok(Redirect::to(&url).into_response())
+                }
+            }
+
+            Err(e) => Err(e),
+        }
+    }
+    .await;
+
+    match result {
+        Ok(response) => Ok(response),
         Err(e) => create_game_error_response(&session, json, e).await,
     }
 }

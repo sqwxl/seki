@@ -2,6 +2,7 @@
 // Rated: derived settings (handicap/komi) shown as read-only preview.
 // Unrated: settings editable; derived settings still previewed when opponent selected.
 
+import { useEffect } from "preact/hooks";
 import type { DerivedHandicapKomi, RankData } from "../../game/types";
 import { BoardSettingsFields } from "./board-parameters";
 import {
@@ -81,6 +82,16 @@ export function DirectChallengeForm({
       (selectedOpponentCannotRank
         ? "Opponent is not participating in ranking."
         : undefined));
+
+  // A saved ranked setting from a previous session must not stick when the
+  // user can't create ranked challenges (e.g. anonymous): ranked keeps the
+  // komi/handicap/color inputs disabled, so their values never reach the
+  // server and the create request fails.
+  useEffect(() => {
+    if ((!isRegistered || rankedBlockedReason) && s.ranked) {
+      set("ranked", false);
+    }
+  }, [isRegistered, rankedBlockedReason, s.ranked, set]);
 
   return (
     <SettingsFieldset>
