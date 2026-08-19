@@ -140,7 +140,16 @@ pub async fn create_game(
         if !email.is_empty() {
             // If a user with this email exists, create a challenge with them.
             // Otherwise leave the slot empty — they join via the invitation link.
-            User::find_by_email(&state.db, email).await?
+            let opponent = User::find_by_email(&state.db, email).await?;
+            if let Some(user) = opponent.as_ref()
+                && user.id == creator.id
+            {
+                return Err(AppError::UnprocessableEntity(
+                    "That email belongs to your own account — challenge a different user"
+                        .to_string(),
+                ));
+            }
+            opponent
         } else {
             None
         }
