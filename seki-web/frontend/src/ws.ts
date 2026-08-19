@@ -78,9 +78,24 @@ function becameVisible() {
 }
 
 function ensureConnected() {
+  // Wait for the session bootstrap before the first connect: connecting
+  // early can carry a stale cookie, get a 401, and Chromium keeps the
+  // failed socket pooled — the next reconnect then hangs in CONNECTING.
+  if (!authReady) {
+    return;
+  }
+
   if (!ws && !reconnectTimer) {
     connect();
   }
+}
+
+let authReady = false;
+
+/** Called once the session is established; connects any pending WebSocket. */
+export function wsAuthReady(): void {
+  authReady = true;
+  ensureConnected();
 }
 
 const RECONNECT_TIMEOUT_MS = 2000;

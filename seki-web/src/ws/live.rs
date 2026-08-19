@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{Query, State, WebSocketUpgrade};
-use axum::response::Response;
+use axum::http::{HeaderValue, StatusCode, header};
+use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
 use seki_api::ws::ClientMsg;
@@ -51,9 +52,15 @@ pub async fn ws_upgrade(
     } else if let Some(user) = current_user.user {
         user.id
     } else {
-        return Err(AppError::Unauthorized(
-            "Authentication required".to_string(),
-        ));
+        // Must close the connection: Chromium keeps failed upgrade sockets
+        // pooled for auth reuse, and the next WebSocket to this host then
+        // reuses the poisoned socket and hangs in CONNECTING forever.
+        return Ok((
+            StatusCode::UNAUTHORIZED,
+            [(header::CONNECTION, HeaderValue::from_static("close"))],
+            "Authentication required",
+        )
+            .into_response());
     };
     Ok(ws.on_upgrade(move |socket| handle_live_socket(socket, state, user_id)))
 }

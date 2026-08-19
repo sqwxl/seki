@@ -40,7 +40,7 @@ import {
   setAppCredential,
 } from "./utils/storage";
 import { initTheme } from "./utils/theme";
-import { ensureConnected, wsConnected } from "./ws";
+import { wsAuthReady, wsConnected } from "./ws";
 
 type AuthTokenResponse = {
   token: string;
@@ -87,7 +87,6 @@ function App() {
     initUnreadTracking();
 
     void initializeAuth();
-    ensureConnected();
   }, []);
 
   useEffect(() => {
@@ -189,6 +188,8 @@ function App() {
     }
 
     setAuthReady(true);
+
+    wsAuthReady();
   }
 
   async function fetchToken() {
