@@ -221,7 +221,7 @@ export function ProfileScreen({
                 />
               </form>
               <h3>Notifications</h3>
-              <NotificationSettings hasEmail={!!data.user_email} />
+              <NotificationSettings hasEmail={!!profile.user_email} />
             </>
           )}
           {data.user_is_registered && (
