@@ -11,6 +11,7 @@ pub struct PushDestination {
     pub auth: String,
     pub user_agent: Option<String>,
     pub enabled: bool,
+    pub visible: bool,
     pub last_delivered_at: Option<String>,
     pub last_failure_at: Option<String>,
     pub failure_reason: Option<String>,
@@ -120,6 +121,26 @@ impl PushDestination {
             .execute(executor)
             .await
             .map(|_| ())
+    }
+
+    /// Tracks whether the app is currently open on this device, so the server
+    /// can skip pushing to it (the SW-side check is unreliable on iOS).
+    pub async fn set_visible(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        id: i64,
+        user_id: i64,
+        visible: bool,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE push_destinations SET visible = $1, updated_at = current_timestamp \
+             WHERE id = $2 AND user_id = $3",
+        )
+        .bind(visible)
+        .bind(id)
+        .bind(user_id)
+        .execute(executor)
+        .await
+        .map(|_| ())
     }
 
     pub async fn enable(

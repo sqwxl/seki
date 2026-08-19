@@ -510,3 +510,75 @@ async fn registered_challengee_with_non_pristine_anon_visitor_redirects_to_login
         format!("/login?redirect=/games/{game_id}")
     );
 }
+
+#[tokio::test]
+async fn push_skips_visible_destinations_when_app_connected() {
+    use seki_web::services::push::{PushPayload, PushService};
+
+    let server = TestServer::start().await;
+    let user_id: i64 = sqlx::query_scalar("SELECT id FROM users WHERE username = 'test-white'")
+        .fetch_one(&server.pool)
+        .await
+        .unwrap();
+    // Dummy endpoint: any real send attempt fails and records a failure.
+    sqlx::query(
+        "INSERT INTO push_destinations (user_id, endpoint, p256dh, auth, enabled, visible) \
+         VALUES (?, 'https://push.example/endpoint', 'x', 'y', 1, 0)",
+    )
+    .bind(user_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+    let dest_id: i64 = sqlx::query_scalar("SELECT id FROM push_destinations WHERE user_id = ?")
+        .bind(user_id)
+        .fetch_one(&server.pool)
+        .await
+        .unwrap();
+
+    // Zero-key VAPID builder — never actually sends, only exercises the skip.
+    let service = PushService::new("I0sBANCQIfhO_8BFUyocVk7QOdzUHLfg3NJhYTVfe0E").unwrap();
+    let payload = PushPayload {
+        title: "t".into(),
+        body: None,
+        icon: None,
+        badge: None,
+        data: None,
+    };
+
+    // Visible + connected: destination is skipped, nothing is attempted.
+    sqlx::query("UPDATE push_destinations SET visible = 1 WHERE id = ?")
+        .bind(dest_id)
+        .execute(&server.pool)
+        .await
+        .unwrap();
+    service
+        .send_to_user(&server.pool, user_id, &payload, true)
+        .await
+        .unwrap();
+    let failures: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM push_destinations WHERE id = ? AND last_failure_at IS NOT NULL",
+    )
+    .bind(dest_id)
+    .fetch_one(&server.pool)
+    .await
+    .unwrap();
+    assert_eq!(failures, 0);
+
+    // Not visible: the send is attempted and fails against the dummy endpoint.
+    sqlx::query("UPDATE push_destinations SET visible = 0 WHERE id = ?")
+        .bind(dest_id)
+        .execute(&server.pool)
+        .await
+        .unwrap();
+    let _ = service
+        .send_to_user(&server.pool, user_id, &payload, true)
+        .await;
+    let failures: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM push_destinations WHERE id = ? AND last_failure_at IS NOT NULL",
+    )
+    .bind(dest_id)
+    .fetch_one(&server.pool)
+    .await
+    .unwrap();
+    assert_eq!(failures, 1);
+}

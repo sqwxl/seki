@@ -94,12 +94,21 @@ impl PushService {
         db: &crate::db::DbPool,
         user_id: i64,
         payload: &PushPayload,
+        // The app is currently open on a live connection for this user: skip
+        // devices that report visible. The SW-side check is unreliable on
+        // iOS, so the decision is made here instead. The WS-connected guard
+        // also covers apps killed without a pagehide (stale visible flag).
+        app_is_connected: bool,
     ) -> Result<(), AppError> {
         let destinations = PushDestination::find_by_user_and_enabled(db, user_id)
             .await
             .map_err(AppError::Database)?;
 
         for destination in &destinations {
+            if app_is_connected && destination.visible {
+                continue;
+            }
+
             let result = self.send(destination, payload).await;
             match result {
                 Ok(()) => {
@@ -169,7 +178,15 @@ pub async fn send_notification(
         "push: sending {event_type} notification to user {target_id} for game {game_id}"
     );
 
-    if let Err(e) = service.send_to_user(&state.db, target_id, &payload).await {
+    if let Err(e) = service
+        .send_to_user(
+            &state.db,
+            target_id,
+            &payload,
+            state.presence.is_connected(target_id).await,
+        )
+        .await
+    {
         tracing::error!("push: failed to send notification to user {target_id}: {e}");
     }
 

@@ -129,6 +129,10 @@ pub fn router() -> Router<AppState> {
             "/push-subscription/{id}",
             axum::routing::delete(push::disable_subscription),
         )
+        .route(
+            "/push-subscription/{id}/visibility",
+            axum::routing::post(push::set_visibility),
+        )
         // FCM tokens
         .route("/fcm-token", post(fcm::register_fcm_token))
         .route(

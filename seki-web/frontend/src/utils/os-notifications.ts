@@ -200,6 +200,49 @@ async function unregisterFcmToken(): Promise<void> {
   storage.remove(FCM_TOKEN_ID);
 }
 
+/**
+ * Report the app's visibility per device so the server can skip pushing to
+ * open apps (the SW-side client check is unreliable on iOS).
+ */
+async function reportVisibility(visible: boolean): Promise<void> {
+  const id = readPushSubscriptionId();
+
+  if (!id) {
+    return;
+  }
+
+  try {
+    await fetch(`/api/push-subscription/${id}/visibility`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visible }),
+    });
+  } catch {
+    // Best effort
+  }
+}
+
+/**
+ * Track foreground/background state so pushes are suppressed while the app is
+ * open. Register listeners whenever push is supported; the report no-ops
+ * until a subscription id exists.
+ */
+export function initPushVisibilityReporting(): void {
+  if (!isPushSupported()) {
+    return;
+  }
+
+  const reportCurrent = () => {
+    void reportVisibility(document.visibilityState === "visible");
+  };
+
+  document.addEventListener("visibilitychange", reportCurrent);
+  window.addEventListener("pagehide", () => void reportVisibility(false));
+  window.addEventListener("pageshow", () => void reportVisibility(true));
+
+  reportCurrent();
+}
+
 export async function toggleOsNotifications(): Promise<void> {
   if (isNativeApp()) {
     const next = storage.get(NOTIFICATIONS) === "on" ? "off" : "on";
@@ -271,6 +314,7 @@ export async function toggleOsNotifications(): Promise<void> {
 
       if (result) {
         storage.set(PUSH_SUBSCRIPTION_ID, String(result.id));
+        void reportVisibility(true);
       }
     }
   } else {

@@ -167,4 +167,33 @@ pub async fn disable_subscription(
     Ok(Json(serde_json::json!({ "ok": true })))
 }
 
+// POST /api/push-subscription/{id}/visibility
+#[derive(Deserialize)]
+pub struct VisibilityPayload {
+    pub visible: bool,
+}
+
+pub async fn set_visibility(
+    State(state): State<AppState>,
+    current_user: CurrentUser,
+    Path(id): Path<i64>,
+    Json(body): Json<VisibilityPayload>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let all = PushDestination::find_by_user(&state.db, current_user.id)
+        .await
+        .map_err(AppError::Database)?;
+
+    if !all.iter().any(|d| d.id == id) {
+        return Err(AppError::Forbidden(
+            "Subscription does not belong to current user".into(),
+        ));
+    }
+
+    PushDestination::set_visible(&state.db, id, current_user.id, body.visible)
+        .await
+        .map_err(AppError::Database)?;
+
+    Ok(Json(serde_json::json!({ "ok": true })))
+}
+
 // POST /api/push-subscription/suppress — not implemented yet (deferred)
