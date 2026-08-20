@@ -175,4 +175,62 @@ impl Mailer {
             tracing::info!("Invitation email sent to {to} for game {game_id}");
         }
     }
+
+    pub async fn send_turn_reminder(
+        &self,
+        to: &str,
+        game_id: i64,
+        opponent_username: &str,
+        base_url: &str,
+    ) {
+        let transport = match &self.transport {
+            Some(t) => t,
+            None => {
+                tracing::warn!("Skipping turn reminder email (SMTP not configured)");
+                return;
+            }
+        };
+
+        let from: Mailbox = match self.from.parse() {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Invalid SMTP_FROM address '{}': {e}", self.from);
+                return;
+            }
+        };
+
+        let to_mailbox: Mailbox = match to.parse() {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Invalid recipient address '{to}': {e}");
+                return;
+            }
+        };
+
+        let link = format!("{base_url}/games/{game_id}");
+        let subject = format!("Your go game against {opponent_username} — 12 hours left");
+        let body = format!(
+            "Heads up! You have ~12h left to make a move in your game against {opponent_username}.\n\n\
+             Play here: {link}"
+        );
+
+        let email = match Message::builder()
+            .from(from)
+            .to(to_mailbox)
+            .subject(subject)
+            .body(body)
+        {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::error!("Failed to build turn reminder email: {e}");
+                return;
+            }
+        };
+
+        if let Err(e) = transport.send(email).await {
+            tracing::error!("Failed to send turn reminder email to {to}: {e}");
+        } else {
+            tracing::info!("Turn reminder email sent to {to} for game {game_id}");
+        }
+    }
 }

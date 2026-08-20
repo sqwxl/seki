@@ -481,6 +481,11 @@ impl User {
             preferences = serde_json::json!({});
         }
         preferences["rating_display"] = self.rating_display_preference().into();
+        preferences["notify_your_turn_corr_email"] = preferences
+            .get("notify_your_turn_corr_email")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(true)
+            .into();
         preferences
     }
 

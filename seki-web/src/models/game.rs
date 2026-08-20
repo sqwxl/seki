@@ -59,6 +59,7 @@ pub struct Game {
     pub clock_active_stone: Option<i32>,
     pub clock_last_move_at: Option<DateTime<Utc>>,
     pub clock_expires_at: Option<DateTime<Utc>>,
+    pub corr_reminder_last_seen_ms: Option<i64>,
     pub territory_review_expires_at: Option<DateTime<Utc>>,
     pub nigiri: bool,
     pub creator_color: Option<String>,
@@ -725,6 +726,33 @@ impl Game {
         )
         .fetch_all(executor)
         .await
+    }
+
+    pub async fn find_active_correspondence_games(
+        executor: impl sqlx::SqliteExecutor<'_>,
+    ) -> Result<Vec<Game>, sqlx::Error> {
+        sqlx::query_as::<_, Game>(
+            "SELECT * FROM games \
+             WHERE result IS NULL AND time_control = 'correspondence'",
+        )
+        .fetch_all(executor)
+        .await
+    }
+
+    pub async fn set_corr_reminder_last_seen(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        game_id: i64,
+        remaining_ms: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE games SET corr_reminder_last_seen_ms = $1, updated_at = CURRENT_TIMESTAMP \
+             WHERE id = $2",
+        )
+        .bind(remaining_ms)
+        .bind(game_id)
+        .execute(executor)
+        .await
+        .map(|_| ())
     }
 
     pub async fn set_territory_review_deadline(
