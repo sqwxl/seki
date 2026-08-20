@@ -1,0 +1,8 @@
+target
+vendor
+node_modules
+dist
+build
+.git
+# ProGuard rules, not Prolog
+*.pro
