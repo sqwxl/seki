@@ -23,6 +23,7 @@ pub struct PushDestination {
 #[allow(dead_code)]
 pub struct PushDestinationMeta {
     pub id: i64,
+    pub endpoint: String,
     pub user_agent: Option<String>,
     pub enabled: bool,
     pub last_delivered_at: Option<String>,
@@ -66,7 +67,7 @@ impl PushDestination {
         user_id: i64,
     ) -> Result<Vec<PushDestinationMeta>, sqlx::Error> {
         sqlx::query_as::<_, PushDestinationMeta>(
-            "SELECT id, user_agent, enabled, last_delivered_at, last_failure_at, created_at FROM push_destinations WHERE user_id = $1",
+            "SELECT id, endpoint, user_agent, enabled, last_delivered_at, last_failure_at, created_at FROM push_destinations WHERE user_id = $1",
         )
         .bind(user_id)
         .fetch_all(executor)
@@ -112,11 +113,13 @@ impl PushDestination {
         .map(|_| ())
     }
 
-    pub async fn disable(
+    /// Remove a destination entirely — a disabled one can never deliver and
+    /// would only accumulate against the per-user limit.
+    pub async fn delete(
         executor: impl sqlx::SqliteExecutor<'_>,
         id: i64,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE push_destinations SET enabled = 0, updated_at = current_timestamp WHERE id = $1")
+        sqlx::query("DELETE FROM push_destinations WHERE id = $1")
             .bind(id)
             .execute(executor)
             .await
@@ -138,19 +141,6 @@ impl PushDestination {
         .bind(visible)
         .bind(id)
         .bind(user_id)
-        .execute(executor)
-        .await
-        .map(|_| ())
-    }
-
-    pub async fn enable(
-        executor: impl sqlx::SqliteExecutor<'_>,
-        id: i64,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "UPDATE push_destinations SET enabled = 1, updated_at = current_timestamp WHERE id = $1",
-        )
-        .bind(id)
         .execute(executor)
         .await
         .map(|_| ())
@@ -188,11 +178,25 @@ impl PushDestination {
         executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,
     ) -> Result<i64, sqlx::Error> {
-        let row: (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM push_destinations WHERE user_id = $1")
-                .bind(user_id)
-                .fetch_one(executor)
-                .await?;
+        let row: (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM push_destinations WHERE user_id = $1 AND enabled = 1",
+        )
+        .bind(user_id)
+        .fetch_one(executor)
+        .await?;
         Ok(row.0)
+    }
+
+    /// Dead destinations (410'd or toggled off) can never deliver; drop them
+    /// so they don't accumulate against the per-user limit.
+    pub async fn prune_disabled_for_user(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        user_id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM push_destinations WHERE user_id = $1 AND enabled = 0")
+            .bind(user_id)
+            .execute(executor)
+            .await
+            .map(|_| ())
     }
 }

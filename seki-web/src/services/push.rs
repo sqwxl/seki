@@ -123,11 +123,11 @@ impl PushService {
                         .ok();
                     if reason.contains("410") {
                         tracing::info!(
-                            "push: disabling expired destination {} for user {}",
+                            "push: removing expired destination {} for user {}",
                             destination.id,
                             user_id
                         );
-                        PushDestination::disable(db, destination.id).await.ok();
+                        PushDestination::delete(db, destination.id).await.ok();
                     }
                 }
             }

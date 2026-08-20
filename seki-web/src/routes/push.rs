@@ -56,6 +56,12 @@ pub async fn register_subscription(
         ));
     }
 
+    // Dead destinations (410'd or toggled off) can never deliver; prune them
+    // so they don't accumulate against the per-user limit.
+    PushDestination::prune_disabled_for_user(&state.db, current_user.id)
+        .await
+        .map_err(AppError::Database)?;
+
     let count = PushDestination::count_for_user(&state.db, current_user.id)
         .await
         .map_err(AppError::Database)?;
@@ -132,6 +138,7 @@ pub async fn list_subscriptions(
         .map(|s| {
             serde_json::json!({
                 "id": s.id,
+                "endpoint": s.endpoint,
                 "user_agent": s.user_agent,
                 "enabled": s.enabled,
                 "last_delivered_at": s.last_delivered_at,
@@ -160,7 +167,7 @@ pub async fn disable_subscription(
         ));
     }
 
-    PushDestination::disable(&state.db, id)
+    PushDestination::delete(&state.db, id)
         .await
         .map_err(AppError::Database)?;
 

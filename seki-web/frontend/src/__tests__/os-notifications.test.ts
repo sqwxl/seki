@@ -169,9 +169,93 @@ describe("push subscription repair", () => {
       },
     });
 
+    const calls: Array<[string, string]> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push([String(url), init?.method ?? "GET"]);
+
+        return new Response(
+          JSON.stringify({
+            subscriptions: [
+              { id: 7, endpoint: "https://push.example/e", enabled: true },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+
     await repairPushSubscriptionIfNeeded();
 
     expect(registration.pushManager.subscribe).not.toHaveBeenCalled();
     expect(localStorage.getItem("seki:push_subscription_id")).toBe("7");
+  });
+
+  it("re-registers when the browser subscription is dead server-side", async () => {
+    setNotificationPermission("granted");
+    localStorage.setItem("seki:notifications", "on");
+    localStorage.setItem("seki:push_subscription_id", "7");
+
+    const subscribe = vi.fn();
+    const registration = {
+      pushManager: {
+        getSubscription: vi.fn(async () => ({
+          endpoint: "https://push.example/dead",
+          toJSON: () => ({
+            endpoint: "https://push.example/dead",
+            keys: { p256dh: "x", auth: "y" },
+          }),
+        })),
+        subscribe,
+      },
+    };
+    Object.defineProperty(window, "PushManager", {
+      value: {},
+      configurable: true,
+    });
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        addEventListener: vi.fn(),
+        register: vi.fn(async () => registration),
+        ready: Promise.resolve(registration),
+      },
+    });
+
+    const calls: Array<[string, string]> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        calls.push([String(url), init?.method ?? "GET"]);
+
+        if (init?.method === "POST") {
+          return new Response(JSON.stringify({ id: 9 }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // The browser endpoint has no enabled server entry (410'd).
+        return new Response(
+          JSON.stringify({
+            subscriptions: [
+              { id: 7, endpoint: "https://push.example/other", enabled: false },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }),
+    );
+
+    await repairPushSubscriptionIfNeeded();
+
+    expect(
+      calls.some(
+        ([url, method]) =>
+          url.endsWith("/api/push-subscription") && method === "POST",
+      ),
+    ).toBe(true);
+    expect(localStorage.getItem("seki:push_subscription_id")).toBe("9");
   });
 });

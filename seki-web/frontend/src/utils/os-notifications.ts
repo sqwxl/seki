@@ -84,6 +84,28 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+async function fetchPushSubscriptions(): Promise<
+  Array<{ id: number; endpoint: string; enabled: boolean }>
+> {
+  try {
+    const response = await fetch("/api/push-subscription", {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const data = (await response.json()) as {
+      subscriptions?: Array<{ id: number; endpoint: string; enabled: boolean }>;
+    };
+
+    return data.subscriptions ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Re-registers the push subscription when the browser's one silently died
  * (e.g. the push service returned 410 and the server disabled the
@@ -104,12 +126,23 @@ export async function repairPushSubscriptionIfNeeded(): Promise<void> {
   const storedId = readPushSubscriptionId();
   const existing = await registration.pushManager.getSubscription();
 
-  if (existing && storedId) {
-    return;
-  }
-
   if (existing) {
-    // Subscribed in the browser, but the server id was lost (storage cleared).
+    // The browser still holds a subscription — but is it live server-side?
+    // A 410'd endpoint can linger in the browser while the server has it
+    // disabled or removed, so check the destination list before trusting it.
+    const subscriptions = await fetchPushSubscriptions();
+    const entry = subscriptions.find((s) => s.endpoint === existing.endpoint);
+
+    if (entry?.enabled) {
+      if (storedId !== entry.id) {
+        storage.set(PUSH_SUBSCRIPTION_ID, String(entry.id));
+      }
+
+      return;
+    }
+
+    // Missing or dead server-side: re-register (idempotent — re-enables or
+    // recreates the destination).
     const result = await registerSubscription(existing.toJSON());
 
     if (result) {
