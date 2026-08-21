@@ -79,8 +79,13 @@ export function ProfileScreen({
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;
     runEmailSubmit(async () => {
-      await postForm(form.action, new FormData(form));
+      const result = await postForm(form.action, new FormData(form));
       await refreshSession();
+
+      if (typeof result.flash === "string") {
+        setFlash(result.flash);
+      }
+
       setLive(
         await fetchJson<ProfileData>(
           `/api/web/users/${encodeURIComponent(live?.profile_username ?? username)}`,

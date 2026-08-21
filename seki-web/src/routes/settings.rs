@@ -171,14 +171,38 @@ pub async fn update_email(
         return Ok(Redirect::to("/settings").into_response());
     }
 
-    User::update_email(
-        &state.db,
-        current_user.id,
-        (!email.is_empty()).then_some(email.as_str()),
-    )
-    .await?;
-
     let url = format!("/users/{}", current_user.username);
+
+    if email.is_empty() {
+        // Removing the email needs no confirmation; clear pending too.
+        User::update_email(&state.db, current_user.id, None).await?;
+        crate::services::email_confirmation::clear(&state.db, current_user.id).await?;
+    } else {
+        // New email: keep the current one until the confirmation link is used.
+        let base_url = std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:3000".into());
+        crate::services::email_confirmation::request(
+            &state.db,
+            &state.mailer,
+            current_user.id,
+            &email,
+            &base_url,
+        )
+        .await?;
+        let msg = format!("Confirmation email sent to {email} — expires in 24 hours.");
+        if json {
+            return Ok(Json(json!({"redirect": url, "flash": msg})).into_response());
+        }
+        set_flash(
+            &session,
+            FlashMessage {
+                message: msg,
+                severity: FlashSeverity::Success,
+            },
+        )
+        .await?;
+        return Ok(Redirect::to(&url).into_response());
+    }
+
     if json {
         Ok(Json(json!({"redirect": url})).into_response())
     } else {

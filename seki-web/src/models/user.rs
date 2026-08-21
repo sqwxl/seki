@@ -346,6 +346,7 @@ pub struct User {
     pub id: i64,
     pub session_token: Option<String>,
     pub email: Option<String>,
+    pub pending_email: Option<String>,
     pub username: String,
     pub password_hash: Option<String>,
     pub api_token: Option<String>,
@@ -425,9 +426,22 @@ impl User {
         }
     }
 
+    /// Match a confirmed email or one pending confirmation by another invite.
+    /// Invite-minted users start with a pending email, so re-invites reuse
+    /// them instead of minting duplicates.
+    pub async fn find_by_email_or_pending(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        email: &str,
+    ) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1 OR pending_email = $1")
+            .bind(email)
+            .fetch_optional(executor)
+            .await
+    }
+
     pub async fn find_or_create_by_email(pool: &DbPool, email: &str) -> Result<User, sqlx::Error> {
         let email = normalize_email(email);
-        if let Some(user) = Self::find_by_email(pool, &email).await? {
+        if let Some(user) = Self::find_by_email_or_pending(pool, &email).await? {
             return Ok(user);
         }
         // Retry with a new random name on username collisions (the name pool
@@ -437,7 +451,8 @@ impl User {
             let name = generate_name();
             let token = generate_token();
             let result = sqlx::query_as::<_, User>(
-                "INSERT INTO users (email, username, session_token) VALUES ($1, $2, $3) RETURNING *",
+                "INSERT INTO users (pending_email, username, session_token) \
+                 VALUES ($1, $2, $3) RETURNING *",
             )
             .bind(&email)
             .bind(&name)
@@ -447,7 +462,7 @@ impl User {
             match result {
                 Ok(user) => return Ok(user),
                 Err(sqlx::Error::Database(e)) if e.is_unique_violation() => {
-                    if let Some(user) = Self::find_by_email(pool, &email).await? {
+                    if let Some(user) = Self::find_by_email_or_pending(pool, &email).await? {
                         return Ok(user);
                     }
                 }
@@ -672,6 +687,38 @@ impl User {
         .fetch_one(executor)
         .await?;
         Ok(row.0.unwrap_or(token))
+    }
+
+    pub async fn set_pending_email(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        user_id: i64,
+        email: Option<&str>,
+    ) -> Result<User, sqlx::Error> {
+        let email = email.map(normalize_email);
+        sqlx::query_as::<_, User>(
+            "UPDATE users SET pending_email = $1, updated_at = CURRENT_TIMESTAMP \
+             WHERE id = $2 RETURNING *",
+        )
+        .bind(&email)
+        .bind(user_id)
+        .fetch_one(executor)
+        .await
+    }
+
+    /// Promotes the pending email to the confirmed email. Fails with a unique
+    /// violation if another account confirmed the same address first.
+    pub async fn confirm_pending_email(
+        executor: impl sqlx::SqliteExecutor<'_>,
+        user_id: i64,
+    ) -> Result<User, sqlx::Error> {
+        sqlx::query_as::<_, User>(
+            "UPDATE users SET email = pending_email, pending_email = NULL, \
+             updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND pending_email IS NOT NULL \
+             RETURNING *",
+        )
+        .bind(user_id)
+        .fetch_one(executor)
+        .await
     }
 
     pub async fn update_email(

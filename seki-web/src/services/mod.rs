@@ -1,6 +1,7 @@
 pub mod challenge_invites;
 pub mod clock;
 pub mod clock_sweep;
+pub mod email_confirmation;
 pub mod engine_builder;
 pub mod fcm;
 pub mod game_access;

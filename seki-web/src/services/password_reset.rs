@@ -7,7 +7,8 @@ use crate::db::DbPool;
 use crate::error::AppError;
 use crate::models::user::User;
 use crate::services::mailer::Mailer;
-use crate::services::tokens::{generate_token, hash_token, verify_token};
+use crate::services::tokens::{generate_token, sha256_hex};
+
 /// Reset links expire after this long; users can request a new one.
 pub const TOKEN_TTL: Duration = Duration::minutes(60);
 
@@ -25,7 +26,7 @@ pub async fn request_reset(
     };
 
     let token = generate_token();
-    let token_hash = hash_token(&token)?;
+    let token_sha256 = sha256_hex(&token);
     let expires_at = (Utc::now() + TOKEN_TTL).to_rfc3339();
 
     // A new request invalidates previous outstanding ones.
@@ -33,9 +34,9 @@ pub async fn request_reset(
         .bind(user.id)
         .execute(db)
         .await?;
-    sqlx::query("INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, ?)")
+    sqlx::query("INSERT INTO password_resets (user_id, token_sha256, expires_at) VALUES (?, ?, ?)")
         .bind(user.id)
-        .bind(&token_hash)
+        .bind(&token_sha256)
         .bind(&expires_at)
         .execute(db)
         .await?;
@@ -69,7 +70,8 @@ pub async fn reset_password(
 
     // Mark used; a concurrent request with the same token loses the race.
     let consumed = sqlx::query(
-        "UPDATE password_resets SET used_at = CURRENT_TIMESTAMP WHERE id = ? AND used_at IS NULL",
+        "UPDATE password_resets SET used_at = CURRENT_TIMESTAMP \
+         WHERE id = ? AND used_at IS NULL",
     )
     .bind(row_id)
     .execute(db)
@@ -88,22 +90,16 @@ pub async fn reset_password(
     Ok(Some(User::find_by_id(db, user_id).await?))
 }
 
-/// Finds the (row id, user id) of a currently valid token by verifying the
-/// token against stored hashes (argon2 is salted, so exact matching is
-/// impossible — verification is the only lookup).
+/// Finds the (row id, user id) of a currently valid token via its sha256.
 async fn valid_token_row(db: &DbPool, token: &str) -> Result<Option<(i64, i64)>, AppError> {
-    let Some((id, _, user_id)) = sqlx::query_as::<_, (i64, String, i64)>(
-        "SELECT id, token_hash, user_id FROM password_resets \
-         WHERE used_at IS NULL AND expires_at > CURRENT_TIMESTAMP",
+    let row = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT id, user_id FROM password_resets \
+         WHERE token_sha256 = ? AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP",
     )
-    .fetch_all(db)
-    .await?
-    .into_iter()
-    .find(|(_, hash, _)| verify_token(token, hash)) else {
-        return Ok(None);
-    };
-
-    Ok(Some((id, user_id)))
+    .bind(sha256_hex(token))
+    .fetch_optional(db)
+    .await?;
+    Ok(row)
 }
 
 #[cfg(test)]
@@ -111,11 +107,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn token_roundtrip() {
-        let token = generate_token();
-        let hash = hash_token(&token).unwrap();
-        assert!(verify_token(&token, &hash));
-        assert!(!verify_token("wrong-token", &hash));
-        assert_ne!(hash, token);
+    fn token_sha256_is_deterministic() {
+        assert_eq!(sha256_hex("abc"), sha256_hex("abc"));
+        assert_ne!(sha256_hex("abc"), sha256_hex("abd"));
     }
 }

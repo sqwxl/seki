@@ -1,3 +1,4 @@
+mod email;
 mod games;
 mod players;
 mod settings;
@@ -22,6 +23,10 @@ pub fn router() -> Router<AppState> {
         .route("/web/games", axum::routing::get(games::games_index))
         .route("/web/games/new", axum::routing::get(games::new_game))
         .route("/web/games/{id}", axum::routing::get(games::game_show))
+        .route(
+            "/web/confirm-email",
+            axum::routing::post(email::confirm_email),
+        )
         .route("/web/analysis", axum::routing::get(games::analysis))
         .route("/web/players", axum::routing::get(players::players_index))
         .route(

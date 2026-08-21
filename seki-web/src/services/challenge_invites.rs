@@ -1,19 +1,13 @@
 use chrono::{Duration, Utc};
-use sha2::{Digest, Sha256};
 
 use crate::db::DbPool;
 use crate::error::AppError;
-use crate::services::tokens::generate_token;
+use crate::services::tokens::{generate_token, sha256_hex};
 
 /// Challenge tokens are single-use logins for email-invited opponents.
 /// Long TTL: invites can sit in an inbox for weeks. Low risk: consumed on
 /// first use, and the account stays anonymous until the invitee registers.
 pub const TOKEN_TTL: Duration = Duration::days(30);
-
-fn sha256_hex(input: &str) -> String {
-    let digest = Sha256::digest(input.as_bytes());
-    digest.iter().map(|b| format!("{b:02x}")).collect()
-}
 
 /// Mint a one-time login token bound to a game + challengee. Returns the raw
 /// token — the only copy; the DB stores only its sha256.

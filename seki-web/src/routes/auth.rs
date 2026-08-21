@@ -206,7 +206,17 @@ pub async fn register(
     crate::models::rating::RatingProfile::get_or_create(&state.db, current_user.id).await?;
 
     if let Some(email) = email {
-        User::update_email(&state.db, current_user.id, Some(&email)).await?;
+        // The email is pended and confirmed via a link rather than trusted
+        // on registration.
+        let base_url = std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:3000".into());
+        crate::services::email_confirmation::request(
+            &state.db,
+            &state.mailer,
+            current_user.id,
+            &email,
+            &base_url,
+        )
+        .await?;
     }
 
     let target = if query.redirect.is_empty() {

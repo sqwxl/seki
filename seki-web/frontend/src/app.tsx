@@ -445,7 +445,8 @@ function App() {
   const isAuthPage =
     route.kind === "login" ||
     route.kind === "register" ||
-    route.kind === "reset-password";
+    route.kind === "reset-password" ||
+    route.kind === "confirm-email";
 
   async function handleLogout() {
     const credential = getAppCredential();

@@ -27,6 +27,7 @@ pub(crate) struct UserProfileData {
     pub is_own_profile: bool,
     pub api_token: Option<String>,
     pub user_email: Option<String>,
+    pub pending_email: Option<String>,
     pub user_is_registered: bool,
 }
 
@@ -83,6 +84,11 @@ pub(crate) async fn load_user_profile(
         },
         user_email: if is_own_profile {
             current_user.email.clone()
+        } else {
+            None
+        },
+        pending_email: if is_own_profile {
+            profile_user.pending_email.clone()
         } else {
             None
         },

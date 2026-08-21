@@ -3,6 +3,7 @@ mod common;
 mod api;
 mod chat;
 mod disconnect;
+mod email_confirmation;
 mod game_lifecycle;
 mod invite;
 mod ko;

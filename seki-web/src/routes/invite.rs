@@ -41,6 +41,7 @@ pub async fn accept(
             && current.id == challengee.id
         {
             challenge_invites::consume(&state.db, row_id).await?;
+            confirm_invite_email(&state, challengee.id).await;
             return Ok(Redirect::to(&game_url).into_response());
         }
         return Ok(Redirect::to(&format!("/login?redirect={game_url}")).into_response());
@@ -58,6 +59,7 @@ pub async fn accept(
         if current.id == challengee.id {
             // Already the invited player — the token's job is done.
             challenge_invites::consume(&state.db, row_id).await?;
+            confirm_invite_email(&state, challengee.id).await;
             return Ok(Redirect::to(&game_url).into_response());
         }
         if !is_pristine_anon(&state, current).await? {
@@ -80,8 +82,19 @@ pub async fn accept(
         .await
         .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
     challenge_invites::consume(&state.db, row_id).await?;
+    confirm_invite_email(&state, challengee.id).await;
 
     Ok(Redirect::to(&game_url).into_response())
+}
+
+/// Joining via the invite confirms the invite email the creator supplied
+/// (the inviter vouched for it). Conflicts — another account confirmed the
+/// address first — are logged and ignored.
+async fn confirm_invite_email(state: &AppState, user_id: i64) {
+    match User::confirm_pending_email(&state.db, user_id).await {
+        Ok(_) => {}
+        Err(e) => tracing::warn!("Failed to confirm invite email for user {user_id}: {e}"),
+    }
 }
 
 /// An anonymous user with no account state worth losing — safe to swap away from.

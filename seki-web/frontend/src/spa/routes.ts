@@ -62,6 +62,10 @@ export function parseRoute(url: URL): Route {
     return { kind: "reset-password", token: url.searchParams.get("token") };
   }
 
+  if (path === "/confirm-email") {
+    return { kind: "confirm-email", token: url.searchParams.get("token") };
+  }
+
   const gameMatch = path.match(/^\/games\/(\d+)$/);
 
   if (gameMatch) {

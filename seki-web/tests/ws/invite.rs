@@ -384,22 +384,40 @@ async fn invite_email_is_normalized_to_lowercase() {
         .await
         .unwrap();
 
-    // Mixed-case invite mints one lowercase user…
-    let (_game_id, _link) = create_email_invite(&server, "Invitee@Example.COM", false).await;
-    let emails: Vec<String> =
-        sqlx::query_scalar("SELECT email FROM users WHERE email = 'invitee@example.com'")
-            .fetch_all(&server.pool)
+    // Mixed-case invite mints one user with the address pending…
+    let (game_id, link) = create_email_invite(&server, "Invitee@Example.COM", false).await;
+    let pending: Vec<String> = sqlx::query_scalar(
+        "SELECT pending_email FROM users WHERE pending_email = 'invitee@example.com'",
+    )
+    .fetch_all(&server.pool)
+    .await
+    .unwrap();
+    assert_eq!(pending, vec!["invitee@example.com".to_string()]);
+    let confirmed: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE email = 'invitee@example.com'")
+            .fetch_one(&server.pool)
             .await
             .unwrap();
-    assert_eq!(emails, vec!["invitee@example.com".to_string()]);
+    assert_eq!(confirmed, 0);
 
-    // …and a differently-cased invite to the same address reuses that user.
+    // …a differently-cased invite to the same address reuses that user.
     let (_game_id2, _link2) = create_email_invite(&server, "invitee@example.com", false).await;
     let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(&server.pool)
         .await
         .unwrap();
     assert_eq!(after, before + 1);
+
+    // Joining via the invite link confirms the email (the inviter vouched
+    // for it).
+    let _jar = login_via_invite(&server, &link).await;
+    let _ = game_id;
+    let confirmed: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE email = 'invitee@example.com'")
+            .fetch_one(&server.pool)
+            .await
+            .unwrap();
+    assert_eq!(confirmed, 1);
 }
 
 #[tokio::test]

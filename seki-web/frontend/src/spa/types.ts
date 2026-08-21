@@ -25,6 +25,7 @@ export type Route =
   | { kind: "login"; redirect?: string | null }
   | { kind: "register"; redirect?: string | null }
   | { kind: "reset-password"; token?: string | null }
+  | { kind: "confirm-email"; token?: string | null }
   | { kind: "settings" }
   | { kind: "not-found" };
 
@@ -121,6 +122,7 @@ export type ProfileData = {
   is_own_profile: boolean;
   api_token?: string | null;
   user_email?: string | null;
+  pending_email?: string | null;
   user_is_registered: boolean;
 };
 

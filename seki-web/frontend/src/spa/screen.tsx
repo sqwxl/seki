@@ -3,6 +3,7 @@ import type { UserData } from "../game/types";
 import { setFlash } from "../utils/flash";
 import {
   AuthFormScreen,
+  ConfirmEmailScreen,
   NotFoundScreen,
   SettingsRedirect,
 } from "./auth-screens";
@@ -114,6 +115,8 @@ export function Screen({
       return <SettingsRedirect currentUser={currentUser} navigate={navigate} />;
     case "reset-password":
       return <ResetPasswordScreen token={route.token} />;
+    case "confirm-email":
+      return <ConfirmEmailScreen token={route.token} />;
     default:
       return <NotFoundScreen />;
   }

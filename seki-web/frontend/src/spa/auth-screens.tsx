@@ -1,4 +1,4 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import type { UserData } from "../game/types";
 import { readUserData } from "../game/util";
 import { PASSWORD_MIN_LENGTH } from "../utils/constants";
@@ -75,11 +75,24 @@ export function AuthFormScreen({
       // fail with "Only players can perform this action".
       window.__ws?.close();
 
+      const registeredWithEmail =
+        mode === "register" &&
+        typeof new FormData(form).get("email") === "string" &&
+        (new FormData(form).get("email") as string).trim() !== "";
+      if (registeredWithEmail) {
+        setFlash("Confirmation email sent — check your inbox.");
+      }
+
       const botUser = readUserData();
       if (botUser?.is_bot) {
-        navigate(`/users/${encodeURIComponent(botUser.display_name)}`, true);
+        navigate(
+          `/users/${encodeURIComponent(botUser.display_name)}`,
+          true,
+          false,
+          registeredWithEmail,
+        );
       } else if (typeof result.redirect === "string") {
-        navigate(result.redirect, true);
+        navigate(result.redirect, true, false, registeredWithEmail);
       }
     } catch (err) {
       setFlash((err as { message: string }).message);
@@ -215,4 +228,67 @@ export function NotFoundScreen() {
   }, []);
 
   return <ErrorState message="Page not found." />;
+}
+
+export function ConfirmEmailScreen({ token }: { token?: string | null }) {
+  const [state, setState] = useState<"loading" | "success" | "error">(
+    "loading",
+  );
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setHead(pageTitle("Confirm email"), "Confirm your email address");
+
+    if (!token) {
+      setState("error");
+      setMessage("This confirmation link is invalid or has expired.");
+      return;
+    }
+
+    (async () => {
+      try {
+        const response = await fetch("/api/web/confirm-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ token }),
+        });
+
+        if (response.ok) {
+          setState("success");
+          return;
+        }
+
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        setState("error");
+        setMessage(
+          data.error ?? "This confirmation link is invalid or has expired.",
+        );
+      } catch {
+        setState("error");
+        setMessage("Something went wrong. Please try again.");
+      }
+    })();
+  }, [token]);
+
+  return (
+    <>
+      <h1>Confirm email</h1>
+      {state === "loading" && <p>Confirming…</p>}
+      {state === "success" && (
+        <p style={{ textAlign: "center" }}>
+          <em>Your email was confirmed.</em>
+        </p>
+      )}
+      {state === "error" && (
+        <p style={{ textAlign: "center" }}>
+          <em>{message}</em>
+        </p>
+      )}
+    </>
+  );
 }
