@@ -66,7 +66,8 @@ async fn get_or_create_template() -> &'static PathBuf {
                 ("test-spectator", "test-spectator-api-token-99999"),
             ] {
                 sqlx::query(
-                    "INSERT INTO users (username, password_hash, api_token) VALUES ($1, $2, $3)",
+                    "INSERT INTO users (username, password_hash, api_token, api_token_created_at) \
+                     VALUES ($1, $2, $3, CURRENT_TIMESTAMP)",
                 )
                 .bind(username)
                 .bind(hash)

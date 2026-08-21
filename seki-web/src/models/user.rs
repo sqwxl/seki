@@ -544,14 +544,19 @@ impl User {
         .await
     }
 
+    /// API tokens expire after a year; stale ones are rejected here and
+    /// cleared by the maintenance sweep.
     pub async fn find_by_api_token(
         executor: impl sqlx::SqliteExecutor<'_>,
         token: &str,
     ) -> Result<Option<User>, sqlx::Error> {
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE api_token = $1")
-            .bind(crate::services::tokens::sha256_hex(token))
-            .fetch_optional(executor)
-            .await
+        sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE api_token = $1 \
+             AND api_token_created_at > datetime('now', '-365 days')",
+        )
+        .bind(crate::services::tokens::sha256_hex(token))
+        .fetch_optional(executor)
+        .await
     }
 
     pub async fn update_preferences(
@@ -729,7 +734,8 @@ impl User {
         let token = generate_token();
         let token_hash = crate::services::tokens::sha256_hex(&token);
         let user = sqlx::query_as::<_, User>(
-            "UPDATE users SET api_token = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
+            "UPDATE users SET api_token = $1, api_token_created_at = CURRENT_TIMESTAMP, \
+             updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
         )
         .bind(&token_hash)
         .bind(user_id)
@@ -756,7 +762,8 @@ impl User {
         }
 
         sqlx::query_as::<_, User>(
-            "INSERT INTO users (username, api_token, password_hash) VALUES ($1, $2, $3) RETURNING *",
+            "INSERT INTO users (username, api_token, api_token_created_at, password_hash) \
+             VALUES ($1, $2, CURRENT_TIMESTAMP, $3) RETURNING *",
         )
         .bind(token)
         .bind(crate::services::tokens::sha256_hex(token))

@@ -778,6 +778,27 @@ async fn invalid_token_returns_401() {
 }
 
 #[tokio::test]
+async fn expired_api_token_returns_401() {
+    let server = LightServer::start().await;
+    let (_, raw_token) =
+        seki_web::models::user::User::generate_api_token(&server.pool, server.black_id)
+            .await
+            .unwrap();
+    sqlx::query(
+        "UPDATE users SET api_token_created_at = datetime('now', '-400 days') WHERE id = ?",
+    )
+    .bind(server.black_id)
+    .execute(&server.pool)
+    .await
+    .unwrap();
+
+    let resp = server
+        .request(Method::GET, "/api/me", &raw_token, None)
+        .await;
+    assert_eq!(resp.status(), 401);
+}
+
+#[tokio::test]
 async fn wrong_turn_returns_error() {
     let server = LightServer::start().await;
     let game_id = server.create_and_join().await;
