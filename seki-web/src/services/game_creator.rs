@@ -1,11 +1,10 @@
-use rand::RngExt;
-
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::game::{Game, TimeControlType};
 use crate::models::rating::RatingProfile;
 use crate::models::user::User;
 use crate::services::clock::{ClockState, TimeControl};
+use crate::services::tokens::generate_token;
 use crate::services::{push, rating};
 
 // TODO: Move to config file
@@ -205,7 +204,7 @@ pub async fn create_game(
         }
     };
 
-    let access_token = generate_game_token();
+    let access_token = generate_token();
 
     // Compute initial clock values for timed games
     let tc = TimeControl::from_tc_type(
@@ -301,14 +300,4 @@ pub async fn create_game(
     }
 
     Ok((game, challenge_token))
-}
-
-fn generate_game_token() -> String {
-    let mut rng = rand::rng();
-    (0..22)
-        .map(|_| {
-            let idx = rng.random_range(0..62);
-            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[idx] as char
-        })
-        .collect()
 }

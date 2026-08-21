@@ -5,6 +5,7 @@ use sqlx::QueryBuilder;
 use sqlx::Sqlite;
 
 use crate::db::DbPool;
+use crate::services::tokens::generate_token;
 
 const DEFAULT_RATING_DISPLAY: &str = "kyu_dan";
 
@@ -798,16 +799,6 @@ impl UserSearchRow {
     pub fn is_registered(&self) -> bool {
         self.password_hash.is_some()
     }
-}
-
-fn generate_token() -> String {
-    let mut rng = rand::rng();
-    (0..22)
-        .map(|_| {
-            let idx = rng.random_range(0..62);
-            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[idx] as char
-        })
-        .collect()
 }
 
 fn merge_json(target: &mut serde_json::Value, patch: &serde_json::Value) {
