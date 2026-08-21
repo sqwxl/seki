@@ -407,23 +407,6 @@ impl TestServer {
             .unwrap()
     }
 
-    pub async fn get_invite_token(&self, game_id: i64) -> String {
-        sqlx::query_scalar::<_, String>("SELECT invite_token FROM games WHERE id = $1")
-            .bind(game_id)
-            .fetch_one(&self.pool)
-            .await
-            .unwrap()
-    }
-
-    pub async fn make_game_invite_only(&self, game_id: i64, invite_token: &str) {
-        sqlx::query("UPDATE games SET invite_only = true, invite_token = $2 WHERE id = $1")
-            .bind(game_id)
-            .bind(invite_token)
-            .execute(&self.pool)
-            .await
-            .unwrap();
-    }
-
     pub async fn join_game_as_spectator(&self, game_id: i64) -> reqwest::Response {
         self.client_spectator
             .post(format!("http://{}/api/games/{game_id}/join", self.addr))
@@ -1086,23 +1069,6 @@ impl LightServer {
             .fetch_one(&self.pool)
             .await
             .unwrap()
-    }
-
-    pub async fn get_invite_token(&self, game_id: i64) -> String {
-        sqlx::query_scalar::<_, String>("SELECT invite_token FROM games WHERE id = $1")
-            .bind(game_id)
-            .fetch_one(&self.pool)
-            .await
-            .unwrap()
-    }
-
-    pub async fn make_game_invite_only(&self, game_id: i64, invite_token: &str) {
-        sqlx::query("UPDATE games SET invite_only = true, invite_token = $2 WHERE id = $1")
-            .bind(game_id)
-            .bind(invite_token)
-            .execute(&self.pool)
-            .await
-            .unwrap();
     }
 
     pub async fn try_create_game_with(&self, opts: Value) -> LightResponse {

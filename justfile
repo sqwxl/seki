@@ -27,6 +27,6 @@ random-bots:
     watchexec -r -w seki-random-bots -- cargo run -p seki-random-bots -- --config random-bots.toml --verbose
 
 deploy:
-    cargo test --all
+    cargo test --all -j 4
     pnpm --dir seki-web/frontend test
     bash scripts/deploy-prebuilt.sh

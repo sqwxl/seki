@@ -6,7 +6,6 @@ use crate::models::user::User;
 #[derive(Debug, Clone, Copy)]
 pub struct RankedCreateEligibility {
     pub is_private: bool,
-    pub invite_only: bool,
     pub has_direct_opponent: bool,
     pub handicap: i32,
     pub komi: f64,
@@ -40,24 +39,9 @@ pub fn can_create_ranked(
         ));
     }
 
-    if eligibility.invite_only {
-        return Err(AppError::UnprocessableEntity(
-            "Raw invite-only games cannot be ranked".to_string(),
-        ));
-    }
-
     if eligibility.time_control == TimeControlType::None {
         return Err(AppError::UnprocessableEntity(
             "Ranked games require a time control".to_string(),
-        ));
-    }
-
-    let is_open_game = !eligibility.has_direct_opponent && !eligibility.invite_only;
-    let is_direct_challenge = eligibility.has_direct_opponent && !eligibility.invite_only;
-
-    if !(is_open_game || is_direct_challenge) {
-        return Err(AppError::UnprocessableEntity(
-            "Ranked games must be open games or direct challenges".to_string(),
         ));
     }
 

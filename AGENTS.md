@@ -23,6 +23,17 @@ just deploy                         # deploy prebuilt artifacts
 
 Note: the dev server runs on **port 3333** (not the default 3000).
 
+> **Resource constraints:** the dev machine has 16 cores but only 14GB RAM
+> (+ 8GB zram swap). Rust builds run one `rustc` per core by default, so
+> heavy compiles (`cargo clippy --all-targets`, workspace-wide tests) can
+> OOM and freeze the desktop. Mitigations (already applied to `justfile`
+> and lefthook):
+> - Run one cargo command at a time; verify it completes before the next.
+> - Cap jobs on heavy builds: `cargo test --all -j 4`, `cargo clippy --all-targets -j 4`.
+> - Prefer `cargo check -p seki-web` for quick verification; run the full
+>   ws test suite (`cargo test -p seki-web --test ws -j 4`) when needed.
+> - Check `free -h` before big builds.
+
 Direct commands:
 
 ```bash

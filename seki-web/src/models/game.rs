@@ -35,7 +35,6 @@ pub struct Game {
     pub white_id: Option<i64>,
     pub undo_rejected: bool,
     pub access_token: Option<String>,
-    pub invite_token: Option<String>,
     pub cols: i32,
     pub rows: i32,
     pub komi: f64,
@@ -64,7 +63,6 @@ pub struct Game {
     pub nigiri: bool,
     pub creator_color: Option<String>,
     pub open_to: Option<String>,
-    pub invite_only: bool,
     pub ranked: bool,
     pub rating_applied: bool,
     pub black_rating_before: Option<f64>,
@@ -100,13 +98,8 @@ impl Game {
         self.is_private
     }
 
-    /// `invite_only` controls whether an empty seat may be filled without the invite token.
-    pub fn requires_invite_token_to_join(&self) -> bool {
-        self.invite_only
-    }
-
-    /// A challenge is a game with both seats assigned that is waiting for the invited
-    /// player to accept or decline before live play begins.
+    /// A challenge is a game with both seats assigned that is waiting for the
+    /// invited player to accept or decline before live play begins.
     pub fn is_challenge(&self) -> bool {
         self.stage == "challenge"
     }
@@ -116,7 +109,6 @@ impl Game {
     ) -> Result<Vec<Game>, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "SELECT * FROM games WHERE is_private = false \
-             AND invite_only = false \
              AND COALESCE(result, '') != 'Aborted' \
              AND COALESCE(result, '') != 'Declined' \
              AND (result IS NULL OR updated_at >= datetime('now', '-5 minutes')) \
@@ -367,7 +359,6 @@ impl Game {
         is_private: bool,
         allow_undo: bool,
         access_token: &str,
-        invite_token: Option<&str>,
         time_control: TimeControlType,
         main_time_secs: Option<i32>,
         increment_secs: Option<i32>,
@@ -380,7 +371,6 @@ impl Game {
         nigiri: bool,
         creator_color: Option<&str>,
         open_to: Option<&str>,
-        invite_only: bool,
         ranked: bool,
         rating_range_mode: &str,
         max_rating_difference_lower: Option<i32>,
@@ -390,12 +380,12 @@ impl Game {
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as::<_, Game>(
             "INSERT INTO games (creator_id, opponent_id, black_id, white_id, cols, rows, komi, handicap, \
-             is_private, allow_undo, access_token, invite_token, time_control, main_time_secs, \
+             is_private, allow_undo, access_token, time_control, main_time_secs, \
              increment_secs, byoyomi_time_secs, byoyomi_periods, \
-             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, creator_color, open_to, invite_only, ranked, \
+             clock_black_ms, clock_white_ms, clock_black_periods, clock_white_periods, nigiri, creator_color, open_to, ranked, \
              rating_range_mode, max_rating_difference_lower, max_rating_difference_higher, \
              rating_difference_lower_unlimited, rating_difference_higher_unlimited)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
              RETURNING *",
         )
         .bind(creator_id)
@@ -409,7 +399,6 @@ impl Game {
         .bind(is_private)
         .bind(allow_undo)
         .bind(access_token)
-        .bind(invite_token)
         .bind(time_control)
         .bind(main_time_secs)
         .bind(increment_secs)
@@ -422,7 +411,6 @@ impl Game {
         .bind(nigiri)
         .bind(creator_color)
         .bind(open_to)
-        .bind(invite_only)
         .bind(ranked)
         .bind(rating_range_mode)
         .bind(max_rating_difference_lower)

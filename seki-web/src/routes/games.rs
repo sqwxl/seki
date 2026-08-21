@@ -281,11 +281,7 @@ pub async fn join_game(
     // TODO: why include here and not at file start?
     use crate::services::game_access;
 
-    game_access::check_join_tokens(
-        &gwp,
-        query.access_token.as_deref(),
-        query.invite_token.as_deref(),
-    )?;
+    game_access::check_join_tokens(&gwp, query.access_token.as_deref())?;
 
     if gwp.game.open_to.as_deref() == Some("registered") && !current_user.is_registered() {
         return Err(AppError::UnprocessableEntity(

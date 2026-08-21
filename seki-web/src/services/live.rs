@@ -235,7 +235,6 @@ pub fn game_settings_for_game(game: &Game) -> GameSettings {
         byoyomi_time_secs: game.byoyomi_time_secs,
         byoyomi_periods: game.byoyomi_periods,
         is_private: game.is_private,
-        invite_only: game.invite_only,
         ranked: game.ranked,
         rating_status: if game.ranked { "ranked" } else { "unranked" }.to_string(),
         color_reason: game.derived_color_reason.clone(),

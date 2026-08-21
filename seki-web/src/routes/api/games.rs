@@ -27,8 +27,6 @@ pub(crate) struct GameResponse {
     pub(crate) handicap: i32,
     /// Hidden from non-participants unless they have the access token.
     pub(crate) is_private: bool,
-    /// Open seat may only be filled through the invite token.
-    pub(crate) invite_only: bool,
     /// For email invites: single-use login link for the opponent.
     pub(crate) invite_link: Option<String>,
     pub(crate) allow_undo: bool,
@@ -103,15 +101,12 @@ pub(crate) struct CreateGameRequest {
 #[derive(Deserialize, ToSchema)]
 pub(crate) struct GetGameQuery {
     pub(crate) access_token: Option<String>,
-    pub(crate) invite_token: Option<String>,
 }
 
 #[derive(Deserialize, ToSchema)]
 pub(crate) struct JoinGameRequest {
     /// Private access token required to access private games through the API.
     access_token: Option<String>,
-    /// Invite token required to fill an invite-only seat.
-    invite_token: Option<String>,
 }
 
 #[utoipa::path(
@@ -278,7 +273,6 @@ pub(super) async fn get_game(
         api_user.as_ref().map(|u| u.id),
         crate::services::game_access::GameViewTokens {
             access_token: query.access_token.as_deref(),
-            invite_token: query.invite_token.as_deref(),
         },
     ) {
         return Err(AppError::NotFound("Game not found".to_string()).into());
@@ -374,11 +368,7 @@ pub(super) async fn join_game(
         .into());
     }
 
-    crate::services::game_access::check_join_tokens(
-        &gwp,
-        body.access_token.as_deref(),
-        body.invite_token.as_deref(),
-    )?;
+    crate::services::game_access::check_join_tokens(&gwp, body.access_token.as_deref())?;
 
     game_joiner::join_open_game(&state.db, &gwp, &api_user).await?;
 

@@ -156,12 +156,10 @@ async fn handle_live_socket(socket: WebSocket, state: AppState, user_id: i64) {
                         ClientMsg::JoinGame {
                             game_id,
                             access_token,
-                            invite_token,
                         } => {
                             if let Ok(gwp) = Game::find_with_players(&state.db, game_id).await {
                                 let tokens = crate::services::game_access::GameViewTokens {
                                     access_token: access_token.as_deref(),
-                                    invite_token: invite_token.as_deref(),
                                 };
                                 if !crate::services::game_access::can_view_game(
                                     &gwp,

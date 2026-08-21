@@ -49,7 +49,6 @@ pub(super) async fn get_messages(
         api_user.as_ref().map(|u| u.id),
         crate::services::game_access::GameViewTokens {
             access_token: query.access_token.as_deref(),
-            invite_token: query.invite_token.as_deref(),
         },
     ) {
         return Err(AppError::NotFound("Game not found".to_string()).into());

@@ -36,7 +36,6 @@ pub struct GameSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub byoyomi_periods: Option<i32>,
     pub is_private: bool,
-    pub invite_only: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ranked: bool,
     pub rating_status: String,

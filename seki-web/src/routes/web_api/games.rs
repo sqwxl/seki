@@ -196,7 +196,6 @@ pub(crate) async fn load_new_game(
 #[derive(Deserialize)]
 struct GameShowToken {
     access_token: Option<String>,
-    invite_token: Option<String>,
 }
 
 pub(crate) async fn game_show(
@@ -220,16 +219,11 @@ pub(crate) async fn load_game_show(
     id: i64,
     query_params: Vec<String>,
 ) -> Result<GamePageData, AppError> {
-    let mut query = GameShowToken {
-        access_token: None,
-        invite_token: None,
-    };
+    let mut query = GameShowToken { access_token: None };
     for pair in query_params {
         let mut parts = pair.splitn(2, '=');
-        match (parts.next(), parts.next()) {
-            (Some("access_token"), Some(value)) => query.access_token = Some(value.to_string()),
-            (Some("invite_token"), Some(value)) => query.invite_token = Some(value.to_string()),
-            _ => {}
+        if let (Some("access_token"), Some(value)) = (parts.next(), parts.next()) {
+            query.access_token = Some(value.to_string());
         }
     }
 
@@ -237,7 +231,6 @@ pub(crate) async fn load_game_show(
     let is_player = gwp.has_player(current_user.id);
     let tokens = crate::services::game_access::GameViewTokens {
         access_token: query.access_token.as_deref(),
-        invite_token: query.invite_token.as_deref(),
     };
     let has_valid_access_token = crate::services::game_access::has_valid_token(&gwp, tokens);
 
@@ -462,10 +455,6 @@ async fn can_join_game(
     }
 
     if gwp.game.requires_access_token_to_join() && !has_valid_access_token {
-        return Ok(false);
-    }
-
-    if gwp.game.requires_invite_token_to_join() {
         return Ok(false);
     }
 

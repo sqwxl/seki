@@ -165,7 +165,6 @@ pub async fn create_game(
             creator_profile.as_ref(),
             rating::RankedCreateEligibility {
                 is_private: params.is_private,
-                invite_only: false,
                 has_direct_opponent: opponent.is_some(),
                 handicap: params.handicap,
                 komi: params.komi,
@@ -237,7 +236,6 @@ pub async fn create_game(
         is_private,
         params.allow_undo,
         &access_token,
-        None,
         params.time_control,
         params.main_time_secs,
         params.increment_secs,
@@ -250,7 +248,6 @@ pub async fn create_game(
         nigiri,
         creator_color.as_deref(),
         params.open_to.as_deref(),
-        false,
         params.ranked,
         rating_range_mode,
         max_rating_difference_lower,

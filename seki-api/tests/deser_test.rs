@@ -7,14 +7,14 @@ use seki_api::ws::{LiveGameItem, ServerMsg};
 
 #[test]
 fn deserialize_live_item_with_ranked_present() {
-    let json = r#"{"id":1,"creator_id":1,"stage":"unstarted","black":null,"white":null,"settings":{"cols":19,"rows":19,"handicap":0,"max_rating_difference_lower":null,"max_rating_difference_higher":null,"rating_difference_lower_unlimited":true,"rating_difference_higher_unlimited":true,"rating_range_mode":"absolute","time_control":"fischer","main_time_secs":null,"increment_secs":null,"byoyomi_time_secs":null,"byoyomi_periods":null,"is_private":false,"invite_only":false,"ranked":false,"rating_status":"unranked","color_reason":null,"calibration_policy_version":null},"move_count":null,"ranked":false,"derived_handicap":null,"derived_komi":null,"derived_color_reason":null}"#;
+    let json = r#"{"id":1,"creator_id":1,"stage":"unstarted","black":null,"white":null,"settings":{"cols":19,"rows":19,"handicap":0,"max_rating_difference_lower":null,"max_rating_difference_higher":null,"rating_difference_lower_unlimited":true,"rating_difference_higher_unlimited":true,"rating_range_mode":"absolute","time_control":"fischer","main_time_secs":null,"increment_secs":null,"byoyomi_time_secs":null,"byoyomi_periods":null,"is_private":false,"ranked":false,"rating_status":"unranked","color_reason":null,"calibration_policy_version":null},"move_count":null,"ranked":false,"derived_handicap":null,"derived_komi":null,"derived_color_reason":null}"#;
     let item: LiveGameItem = serde_json::from_str(json).unwrap();
     assert!(!item.ranked);
 }
 
 #[test]
 fn deserialize_live_item_without_ranked_field() {
-    let json = r#"{"id":1,"creator_id":1,"stage":"unstarted","black":null,"white":null,"settings":{"cols":19,"rows":19,"handicap":0,"max_rating_difference_lower":null,"max_rating_difference_higher":null,"rating_difference_lower_unlimited":true,"rating_difference_higher_unlimited":true,"rating_range_mode":"absolute","time_control":"fischer","main_time_secs":null,"increment_secs":null,"byoyomi_time_secs":null,"byoyomi_periods":null,"is_private":false,"invite_only":false,"ranked":false,"rating_status":"unranked","color_reason":null,"calibration_policy_version":null},"move_count":null,"derived_handicap":null,"derived_komi":null,"derived_color_reason":null}"#;
+    let json = r#"{"id":1,"creator_id":1,"stage":"unstarted","black":null,"white":null,"settings":{"cols":19,"rows":19,"handicap":0,"max_rating_difference_lower":null,"max_rating_difference_higher":null,"rating_difference_lower_unlimited":true,"rating_difference_higher_unlimited":true,"rating_range_mode":"absolute","time_control":"fischer","main_time_secs":null,"increment_secs":null,"byoyomi_time_secs":null,"byoyomi_periods":null,"is_private":false,"ranked":false,"rating_status":"unranked","color_reason":null,"calibration_policy_version":null},"move_count":null,"derived_handicap":null,"derived_komi":null,"derived_color_reason":null}"#;
     let item: LiveGameItem = serde_json::from_str(json).unwrap();
     assert!(!item.ranked);
 }
@@ -40,7 +40,6 @@ fn time_control_serialization_round_trip() {
         byoyomi_time_secs: None,
         byoyomi_periods: None,
         is_private: false,
-        invite_only: false,
         ranked: false,
         rating_status: "unranked".into(),
         color_reason: None,
@@ -279,18 +278,16 @@ fn client_msg_transport_variants() {
 }
 
 #[test]
-fn client_msg_join_game_with_tokens() {
-    let json = r#"{"action":"join_game","game_id":7,"access_token":"abc","invite_token":"def"}"#;
+fn client_msg_join_game_with_token() {
+    let json = r#"{"action":"join_game","game_id":7,"access_token":"abc"}"#;
     let msg: seki_api::ws::ClientMsg = serde_json::from_str(json).unwrap();
     match msg {
         seki_api::ws::ClientMsg::JoinGame {
             game_id,
             access_token,
-            invite_token,
         } => {
             assert_eq!(game_id, 7);
             assert_eq!(access_token.as_deref(), Some("abc"));
-            assert_eq!(invite_token.as_deref(), Some("def"));
         }
         _ => panic!("expected JoinGame variant"),
     }

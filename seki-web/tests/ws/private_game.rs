@@ -1,5 +1,4 @@
 use axum::http::Method;
-use serde_json::json;
 
 use crate::common::LightServer;
 
@@ -46,58 +45,4 @@ async fn private_game_accessible_to_player() {
         )
         .await;
     assert_eq!(resp.status(), 200);
-}
-
-#[tokio::test]
-async fn join_invite_only_game_with_token() {
-    let ts = LightServer::start().await;
-    let game_id = ts.create_private_game().await;
-
-    // Mark as invite-only with a valid invite token.
-    ts.make_game_invite_only(game_id, "invite-only-token").await;
-
-    let access_token = ts.get_access_token(game_id).await;
-    let invite_token = ts.get_invite_token(game_id).await;
-
-    // White joins via API with both tokens
-    let resp = ts
-        .request(
-            Method::POST,
-            &format!("/api/games/{game_id}/join"),
-            "test-white-api-token-67890",
-            Some(&json!({
-                "access_token": access_token,
-                "invite_token": invite_token,
-            })),
-        )
-        .await;
-    assert!(
-        resp.status().is_success(),
-        "join should succeed: {}",
-        resp.status()
-    );
-}
-
-#[tokio::test]
-async fn join_invite_only_game_without_token_rejected() {
-    let ts = LightServer::start().await;
-    let game_id = ts.create_private_game().await;
-
-    // Mark as invite-only with a valid invite token.
-    ts.make_game_invite_only(game_id, "invite-only-token").await;
-
-    let access_token = ts.get_access_token(game_id).await;
-
-    // White tries to join without invite token → 422
-    let resp = ts
-        .request(
-            Method::POST,
-            &format!("/api/games/{game_id}/join"),
-            "test-white-api-token-67890",
-            Some(&json!({
-                "access_token": access_token,
-            })),
-        )
-        .await;
-    assert_eq!(resp.status(), 422);
 }

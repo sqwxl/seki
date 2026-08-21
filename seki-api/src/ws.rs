@@ -27,8 +27,6 @@ pub enum ClientMsg {
         game_id: i64,
         #[serde(skip_serializing_if = "Option::is_none")]
         access_token: Option<String>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        invite_token: Option<String>,
     },
     /// Leave a game room without closing the connection.
     LeaveGame {
@@ -178,7 +176,6 @@ impl ClientMsg {
         ClientMsg::JoinGame {
             game_id,
             access_token: None,
-            invite_token: None,
         }
     }
 

@@ -8,7 +8,8 @@ pre-commit:
       stage_fixed: true
     clippy:
       glob: '*.rs'
-      run: cargo clippy --all-targets -- -D warnings
+      # -j 4: full --all-targets rebuilds with 16 parallel jobs OOMs the dev machine
+      run: cargo clippy --all-targets -j 4 -- -D warnings
     prettier:
       glob: seki-web/**/*.{mjs,ts,tsx,css}
       run: pnpm dlx prettier --write {staged_files}
