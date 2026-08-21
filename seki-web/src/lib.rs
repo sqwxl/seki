@@ -4,7 +4,6 @@ use axum::extract::DefaultBodyLimit;
 use axum::http::{HeaderName, HeaderValue, Request, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, patch, post};
-use rand::RngExt;
 use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use tokio::sync::broadcast;
@@ -37,7 +36,6 @@ pub struct AppState {
     pub presence_subs: ws::presence_subscriptions::PresenceSubscriptions,
     pub live_tx: broadcast::Sender<String>,
     pub mailer: services::mailer::Mailer,
-    pub jwt_secret: String,
 }
 
 fn no_store_layer() -> SetResponseHeaderLayer<HeaderValue> {
@@ -146,30 +144,6 @@ pub async fn build_router_with_registry_and_presence(
         .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/static").to_string());
     let static_dir_path = PathBuf::from(&static_dir);
 
-    let jwt_secret = if let Ok(secret) = std::env::var("APP_CREDENTIAL_SECRET") {
-        secret
-    } else {
-        // Load persisted secret from DB, or generate and store on first boot
-        let secret = crate::models::server_config::load_jwt_secret(&pool)
-            .await
-            .expect("Failed to load JWT secret from DB")
-            .unwrap_or_else(|| {
-                use rand::distr::Alphanumeric;
-                let mut rng = rand::rng();
-                let s: String = (&mut rng)
-                    .sample_iter(&Alphanumeric)
-                    .take(64)
-                    .map(char::from)
-                    .collect();
-                s
-            });
-        // Persist on first boot (ON CONFLICT upsert is idempotent on restarts)
-        crate::models::server_config::store_jwt_secret(&pool, &secret)
-            .await
-            .expect("Failed to store JWT secret in DB");
-        secret
-    };
-
     let state = AppState {
         db: pool,
         registry,
@@ -177,7 +151,6 @@ pub async fn build_router_with_registry_and_presence(
         presence_subs: ws::presence_subscriptions::PresenceSubscriptions::new(),
         live_tx,
         mailer,
-        jwt_secret,
     };
 
     // Deploy layout: <releases>/<id>/static/dist is what each release serves;

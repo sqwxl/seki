@@ -8,7 +8,6 @@ pub mod game_access;
 pub mod game_actions;
 pub mod game_creator;
 pub mod game_joiner;
-pub mod jwt;
 pub mod live;
 pub mod mailer;
 pub mod maintenance;

@@ -143,7 +143,7 @@ Axum 0.8 web app. Top-level modules:
 
 **Auth (API):** Bearer token authentication. `ApiUser` extractor reads `Authorization: Bearer <token>` header, looks up by `api_token` column, requires a registered account, returns 401 JSON on failure. Tokens are managed from the `/settings` web page.
 
-**App credentials:** JWT-based identity persistence for PWAs (`app_credential` model). Signed with `APP_CREDENTIAL_SECRET`, 90-day rolling expiry.
+**App credentials:** opaque refresh tokens for PWA identity persistence (`app_credential` model). Stored as sha256 like all other tokens; rotated on restore, revoked on logout, 90-day rolling expiry.
 
 **Push notifications:** Web Push (VAPID) for browsers, FCM for native apps. Tokens stored in `fcm_tokens` and `push_destinations` tables.
 
@@ -174,7 +174,6 @@ Important persisted fields beyond the obvious basics:
 - `ENVIRONMENT` — set to `production` for secure cookies
 - `STATIC_DIR` — static file path (Docker sets `/app/static`)
 - `BASE_URL` — base origin used in invitation links
-- `APP_CREDENTIAL_SECRET` — JWT signing secret for PWA app credentials (auto-generated if unset)
 - `SESSION_SECRET` — session cookie signing/encryption key; keeps browser sessions valid across restarts (auto-generated per boot if unset)
 - `RELEASE_ID` — version string for health endpoint (default: `"unknown"`)
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` — optional mailer configuration for invite emails
@@ -183,7 +182,7 @@ Important persisted fields beyond the obvious basics:
 
 ## Key Dependency Versions
 
-axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-sessions-sqlx-store 0.15, sqlx 0.8 (sqlite), askama 0.15, utoipa 5 (OpenAPI), utoipa-scalar 0.3 (docs UI), tower_governor 0.8 (rate limiting), skillratings 0.29 (Glicko-2), argon2 0.5, lettre 0.11 (email), jsonwebtoken 9 (app credentials), web-push 0.11, Rust edition 2024, Node 24, pnpm, Preact ~10.29.2, @preact/signals ^1.3, esbuild ^0.27, TypeScript 5.x, Vitest ^4, Vite 8, wasm-bindgen 0.2, js-sys 0.3.
+axum 0.8, tower-sessions 0.14 (must use 0.14+ for axum-core 0.5 compat), tower-sessions-sqlx-store 0.15, sqlx 0.8 (sqlite), askama 0.15, utoipa 5 (OpenAPI), utoipa-scalar 0.3 (docs UI), tower_governor 0.8 (rate limiting), skillratings 0.29 (Glicko-2), argon2 0.5, lettre 0.11 (email), web-push 0.11, Rust edition 2024, Node 24, pnpm, Preact ~10.29.2, @preact/signals ^1.3, esbuild ^0.27, TypeScript 5.x, Vitest ^4, Vite 8, wasm-bindgen 0.2, js-sys 0.3.
 
 ## Naming: User vs Player
 
