@@ -18,7 +18,7 @@ just setup                          # install deps (wasm-pack, watchexec, pnpm, 
 just run                            # parallel: wasm-hot + serve-hot + frontend-hot
 just katago                         # run GTP bridge
 just random-bots                    # run QA bots
-just deploy                         # deploy prebuilt artifacts
+just deploy                         # runs cargo test --all -j 4, then deploy-prebuilt.sh (migration check against a prod DB copy, ARM build, upload, verify)
 ```
 
 Note: the dev server runs on **port 3333** (not the default 3000).

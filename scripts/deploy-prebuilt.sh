@@ -9,6 +9,9 @@ DEPLOY_HOST="${DEPLOY_HOST:-sqwxl@pi5.local}"
 PACKAGE_OUTPUT_FILE="$(mktemp /tmp/seki-package-output.XXXXXX)"
 trap 'rm -f "$PACKAGE_OUTPUT_FILE"' EXIT
 
+echo "Checking migrations against a copy of the production database"
+APP_DIR="$APP_DIR" bash "$ROOT_DIR/scripts/check-migrations.sh"
+
 if ! PACKAGE_OUTPUT_FILE="$PACKAGE_OUTPUT_FILE" "$ROOT_DIR/scripts/package-release.sh"; then
     echo "Release packaging failed" >&2
     exit 1

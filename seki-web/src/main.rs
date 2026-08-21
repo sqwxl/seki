@@ -5,6 +5,27 @@ use tower_http::normalize_path::NormalizePathLayer;
 
 #[tokio::main]
 async fn main() {
+    // `--check-migrations [db-path]`: apply migrations to a database and exit
+    // (used by the deploy script against a copy of the production DB) without
+    // starting the server.
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(pos) = args.iter().position(|a| a == "--check-migrations") {
+        let db_path = args.get(pos + 1).map(String::as_str).unwrap_or_default();
+        let url = if db_path.is_empty() {
+            std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://seki.db".to_string())
+        } else {
+            format!("sqlite://{db_path}")
+        };
+        let pool = seki_web::db::create_pool(&url)
+            .await
+            .expect("Failed to create database pool");
+        seki_web::db::run_migrations(&pool)
+            .await
+            .expect("Failed to run migrations");
+        println!("Migrations OK on {url}");
+        return;
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
