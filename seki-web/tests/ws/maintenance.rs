@@ -2,11 +2,10 @@ use crate::common::TestServer;
 
 async fn stale_anon_user(server: &TestServer, username: &str) -> i64 {
     sqlx::query_scalar(
-        "INSERT INTO users (username, session_token, created_at) \
-         VALUES (?, ?, datetime('now', '-60 days')) RETURNING id",
+        "INSERT INTO users (username, created_at) \
+         VALUES (?, datetime('now', '-60 days')) RETURNING id",
     )
     .bind(username)
-    .bind(format!("session-{username}"))
     .fetch_one(&server.pool)
     .await
     .unwrap()

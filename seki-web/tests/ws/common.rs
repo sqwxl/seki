@@ -60,28 +60,14 @@ async fn get_or_create_template() -> &'static PathBuf {
             seki_web::db::run_migrations(&pool).await.unwrap();
 
             let hash = password_hash();
-            for (token, username, api_token) in [
-                (
-                    "black-session-token",
-                    "test-black",
-                    "test-black-api-token-12345",
-                ),
-                (
-                    "white-session-token",
-                    "test-white",
-                    "test-white-api-token-67890",
-                ),
-                (
-                    "spectator-session-token",
-                    "test-spectator",
-                    "test-spectator-api-token-99999",
-                ),
+            for (username, api_token) in [
+                ("test-black", "test-black-api-token-12345"),
+                ("test-white", "test-white-api-token-67890"),
+                ("test-spectator", "test-spectator-api-token-99999"),
             ] {
                 sqlx::query(
-                    "INSERT INTO users (session_token, username, password_hash, api_token) \
-                     VALUES ($1, $2, $3, $4)",
+                    "INSERT INTO users (username, password_hash, api_token) VALUES ($1, $2, $3)",
                 )
-                .bind(token)
                 .bind(username)
                 .bind(hash)
                 .bind(api_token)

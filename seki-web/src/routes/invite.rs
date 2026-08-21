@@ -76,9 +76,8 @@ pub async fn accept(
     }
 
     // Anonymous challengee: bind the visitor's session to them, once.
-    let session_token = User::ensure_session_token(&state.db, challengee.id).await?;
     session
-        .insert(USER_ID_KEY, session_token)
+        .insert(USER_ID_KEY, challengee.id)
         .await
         .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
     challenge_invites::consume(&state.db, row_id).await?;

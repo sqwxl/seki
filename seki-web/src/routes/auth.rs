@@ -315,16 +315,12 @@ pub async fn login(
         return redirect_with_flash(&session, &login_target, login_err).await;
     }
 
-    // Save the current anonymous token in a cookie so we can restore it on logout
-    let anon_token = session.get::<String>(USER_ID_KEY).await.ok().flatten();
+    // Save the current anonymous user id in a cookie so we can restore it on logout
+    let anon_user_id = session.get::<i64>(USER_ID_KEY).await.ok().flatten();
 
-    // Switch session to this user's token
-    let token = user
-        .session_token
-        .as_ref()
-        .ok_or_else(|| AppError::Internal("Registered user has no session token".to_string()))?;
+    // Switch the session to this user.
     session
-        .insert(USER_ID_KEY, token.clone())
+        .insert(USER_ID_KEY, user.id)
         .await
         .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
 
@@ -340,10 +336,10 @@ pub async fn login(
         Redirect::to(target).into_response()
     };
 
-    if let Some(token) = anon_token {
+    if let Some(user_id) = anon_user_id {
         response.headers_mut().insert(
             axum::http::header::SET_COOKIE,
-            format!("{ANON_USER_TOKEN_COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax")
+            format!("{ANON_USER_TOKEN_COOKIE}={user_id}; Path=/; HttpOnly; SameSite=Lax")
                 .parse()
                 .unwrap(),
         );
@@ -365,9 +361,11 @@ pub async fn logout(
         .map_err(|e| AppError::Internal(format!("Session flush error: {e}")))?;
 
     // Restore the anonymous identity saved at login
-    if let Some(token) = &anon_token {
+    if let Some(token) = &anon_token
+        && let Ok(user_id) = token.parse::<i64>()
+    {
         session
-            .insert(USER_ID_KEY, token.clone())
+            .insert(USER_ID_KEY, user_id)
             .await
             .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
     }
@@ -494,12 +492,10 @@ pub async fn restore_session(
         .map_err(AppError::Database)?;
 
     // Establish session
-    if let Some(ref session_token) = user.session_token {
-        session
-            .insert(USER_ID_KEY, session_token.clone())
-            .await
-            .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
-    }
+    session
+        .insert(USER_ID_KEY, user.id)
+        .await
+        .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
 
     let rating_profile = if user.is_registered() {
         RatingProfile::find(&state.db, user.id).await?
@@ -626,9 +622,9 @@ pub async fn reset_password(
         None => true,
         Some(u) => !u.is_registered() || u.id == user.id,
     };
-    if should_login && let Some(token) = user.session_token.as_ref() {
+    if should_login {
         session
-            .insert(USER_ID_KEY, token)
+            .insert(USER_ID_KEY, user.id)
             .await
             .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
         return redirect_with_flash_severity(

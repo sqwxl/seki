@@ -33,28 +33,30 @@ impl FromRequestParts<crate::AppState> for CurrentUser {
         let pool = &state.db;
 
         // Try to find existing user from session
-        if let Some(token) = session
-            .get::<String>(USER_ID_KEY)
-            .await
-            .map_err(|e| AppError::Internal(format!("Session get error: {e}")))?
-        {
-            if let Some(user) = User::find_by_session_token(pool, &token).await? {
-                return Ok(CurrentUser { user });
+        let user_id = match session.get::<i64>(USER_ID_KEY).await {
+            Ok(id) => id,
+            // Unreadable identity (pre-user-id session format) — logged out.
+            Err(e) => {
+                tracing::warn!("Session identity unreadable (legacy format?): {e}");
+                None
             }
-            // Stale token, remove it
-            tracing::warn!("Stale session token: {}", token);
-            let _ = session.remove::<String>(USER_ID_KEY).await;
+        };
+        if let Some(user_id) = user_id {
+            match User::find_by_id(pool, user_id).await {
+                Ok(user) => return Ok(CurrentUser { user }),
+                Err(sqlx::Error::RowNotFound) => {
+                    // Stale user id, remove it
+                    tracing::warn!("Stale session user id: {user_id}");
+                    let _ = session.remove::<i64>(USER_ID_KEY).await;
+                }
+                Err(e) => return Err(e.into()),
+            }
         }
 
         // Create anonymous user
         let user = User::create(pool).await?;
-        let token = user
-            .session_token
-            .as_ref()
-            .expect("newly created user should have session_token")
-            .clone();
         session
-            .insert(USER_ID_KEY, token)
+            .insert(USER_ID_KEY, user.id)
             .await
             .map_err(|e| AppError::Internal(format!("Session insert error: {e}")))?;
 
@@ -77,20 +79,18 @@ impl FromRequestParts<crate::AppState> for OptionalCurrentUser {
             .await
             .map_err(|_| AppError::Internal("Session not available".to_string()))?;
 
-        let Some(token) = session
-            .get::<String>(USER_ID_KEY)
-            .await
-            .map_err(|e| AppError::Internal(format!("Session get error: {e}")))?
-        else {
+        let Some(user_id) = session.get::<i64>(USER_ID_KEY).await.unwrap_or(None) else {
             return Ok(OptionalCurrentUser { user: None });
         };
 
-        if let Some(user) = User::find_by_session_token(&state.db, &token).await? {
-            return Ok(OptionalCurrentUser { user: Some(user) });
+        match User::find_by_id(&state.db, user_id).await {
+            Ok(user) => return Ok(OptionalCurrentUser { user: Some(user) }),
+            Err(sqlx::Error::RowNotFound) => {
+                tracing::warn!("Stale session user id: {user_id}");
+                let _ = session.remove::<i64>(USER_ID_KEY).await;
+            }
+            Err(e) => return Err(e.into()),
         }
-
-        tracing::warn!("Stale session token: {}", token);
-        let _ = session.remove::<String>(USER_ID_KEY).await;
 
         Ok(OptionalCurrentUser { user: None })
     }

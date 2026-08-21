@@ -345,7 +345,6 @@ pub fn normalize_email(email: &str) -> String {
 #[allow(dead_code)] // Fields populated by SELECT * via sqlx
 pub struct User {
     pub id: i64,
-    pub session_token: Option<String>,
     pub email: Option<String>,
     pub pending_email: Option<String>,
     pub username: String,
@@ -386,16 +385,6 @@ impl User {
         query.build_query_as::<User>().fetch_all(executor).await
     }
 
-    pub async fn find_by_session_token(
-        executor: impl sqlx::SqliteExecutor<'_>,
-        token: &str,
-    ) -> Result<Option<User>, sqlx::Error> {
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE session_token = $1")
-            .bind(token)
-            .fetch_optional(executor)
-            .await
-    }
-
     pub async fn find_by_email(
         executor: impl sqlx::SqliteExecutor<'_>,
         email: &str,
@@ -407,17 +396,14 @@ impl User {
     }
 
     pub async fn create(pool: &DbPool) -> Result<User, sqlx::Error> {
-        let token = generate_token();
         // Retry with a new name on unique constraint violation
         loop {
             let name = generate_name();
-            let result = sqlx::query_as::<_, User>(
-                "INSERT INTO users (session_token, username) VALUES ($1, $2) RETURNING *",
-            )
-            .bind(&token)
-            .bind(&name)
-            .fetch_one(pool)
-            .await;
+            let result =
+                sqlx::query_as::<_, User>("INSERT INTO users (username) VALUES ($1) RETURNING *")
+                    .bind(&name)
+                    .fetch_one(pool)
+                    .await;
 
             match result {
                 Ok(user) => return Ok(user),
@@ -450,14 +436,11 @@ impl User {
         // that user instead of spinning.
         loop {
             let name = generate_name();
-            let token = generate_token();
             let result = sqlx::query_as::<_, User>(
-                "INSERT INTO users (pending_email, username, session_token) \
-                 VALUES ($1, $2, $3) RETURNING *",
+                "INSERT INTO users (pending_email, username) VALUES ($1, $2) RETURNING *",
             )
             .bind(&email)
             .bind(&name)
-            .bind(&token)
             .fetch_one(pool)
             .await;
             match result {
@@ -783,7 +766,6 @@ impl User {
 #[allow(dead_code)]
 pub struct UserSearchRow {
     pub id: i64,
-    pub session_token: Option<String>,
     pub email: Option<String>,
     pub username: String,
     pub password_hash: Option<String>,
