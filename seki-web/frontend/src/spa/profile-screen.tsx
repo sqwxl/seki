@@ -126,6 +126,14 @@ export function ProfileScreen({
       <h1>
         <UserLabel user={profile.profile_user} noLink />
       </h1>
+      {profile.is_own_profile && !profile.user_is_registered && (
+        <p style={{ textAlign: "center" }}>
+          <em class="fg-red">Attention!</em> You are using an anonymous,
+          unregistered account. <a href={authUrl("register")}>Register here</a>{" "}
+          and create a password to never lose access, participate in rankings
+          and more.
+        </p>
+      )}
       {!profile.is_own_profile && (
         <button
           type="button"
@@ -150,20 +158,16 @@ export function ProfileScreen({
       {data.is_own_profile && (
         <section>
           <h2>Settings</h2>
-          <h3>Rating</h3>
-          <RatingParticipationSettings
-            ratingParticipating={
-              data.profile_user?.preferences.rating_participating
-            }
-            disabled={!data.user_is_registered}
-          />
-          {!data.user_is_registered && (
-            <p>
-              <em>
-                You must <a href={authUrl("register")}>register</a> to
-                participate in rated games.
-              </em>
-            </p>
+          {profile.user_is_registered && (
+            <>
+              <h3>Rating</h3>
+              <RatingParticipationSettings
+                ratingParticipating={
+                  data.profile_user?.preferences.rating_participating
+                }
+                disabled={!data.user_is_registered}
+              />
+            </>
           )}
           <h3>Username</h3>
           <form

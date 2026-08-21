@@ -339,6 +339,7 @@ em a,
 figcaption a,
 caption a {
   color: var(--blue);
+  text-decoration: underline;
 }
 
 /* User labels are identity chips, not prose links — keep them inheriting
