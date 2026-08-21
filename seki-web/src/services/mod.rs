@@ -11,6 +11,7 @@ pub mod game_joiner;
 pub mod jwt;
 pub mod live;
 pub mod mailer;
+pub mod maintenance;
 pub mod password_reset;
 pub mod presentation_actions;
 pub mod push;

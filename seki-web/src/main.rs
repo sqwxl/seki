@@ -31,6 +31,11 @@ async fn main() {
         seki_web::services::clock_sweep::run(sweep_state).await;
     });
 
+    let maintenance_db = state.db.clone();
+    tokio::spawn(async move {
+        seki_web::services::maintenance::run(maintenance_db).await;
+    });
+
     #[cfg(debug_assertions)]
     let app = {
         let reload_layer = tower_livereload::LiveReloadLayer::new();

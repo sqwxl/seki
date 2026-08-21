@@ -8,6 +8,7 @@ mod game_lifecycle;
 mod invite;
 mod ko;
 mod lobby;
+mod maintenance;
 mod moves;
 mod pass;
 mod presence;
