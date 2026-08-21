@@ -70,7 +70,7 @@ async fn get_or_create_template() -> &'static PathBuf {
                 )
                 .bind(username)
                 .bind(hash)
-                .bind(api_token)
+                .bind(seki_web::services::tokens::sha256_hex(api_token))
                 .execute(&pool)
                 .await
                 .unwrap();

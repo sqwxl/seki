@@ -120,7 +120,6 @@ export type ProfileData = {
   rating?: ProfileRatingData | null;
   initial_games: UserGamesInitialData;
   is_own_profile: boolean;
-  api_token?: string | null;
   user_email?: string | null;
   pending_email?: string | null;
   user_is_registered: boolean;

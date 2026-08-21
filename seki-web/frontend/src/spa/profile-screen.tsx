@@ -47,10 +47,6 @@ export function ProfileScreen({
     setHead(pageTitle(username), `${username}'s Go profile on Seki`);
   }, [username]);
 
-  useEffect(() => {
-    setApiToken(data?.api_token ?? null);
-  }, [data?.api_token]);
-
   async function submitUsername(e: Event) {
     e.preventDefault();
     const form = e.currentTarget as HTMLFormElement;

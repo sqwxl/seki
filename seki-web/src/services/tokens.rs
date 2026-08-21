@@ -10,7 +10,7 @@ pub(crate) fn generate_token() -> String {
 
 /// Deterministic hash used as the lookup key for one-time tokens: indexed
 /// equality beats scanning + verifying every outstanding row.
-pub(crate) fn sha256_hex(input: &str) -> String {
+pub fn sha256_hex(input: &str) -> String {
     let digest = Sha256::digest(input.as_bytes());
     digest.iter().map(|b| format!("{b:02x}")).collect()
 }

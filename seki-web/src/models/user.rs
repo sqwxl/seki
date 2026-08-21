@@ -549,7 +549,7 @@ impl User {
         token: &str,
     ) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE api_token = $1")
-            .bind(token)
+            .bind(crate::services::tokens::sha256_hex(token))
             .fetch_optional(executor)
             .await
     }
@@ -720,18 +720,22 @@ impl User {
         .await
     }
 
+    /// Generates a new API token; only its sha256 is stored. Returns the
+    /// user and the raw token (shown once at generation).
     pub async fn generate_api_token(
         executor: impl sqlx::SqliteExecutor<'_>,
         user_id: i64,
-    ) -> Result<User, sqlx::Error> {
+    ) -> Result<(User, String), sqlx::Error> {
         let token = generate_token();
-        sqlx::query_as::<_, User>(
+        let token_hash = crate::services::tokens::sha256_hex(&token);
+        let user = sqlx::query_as::<_, User>(
             "UPDATE users SET api_token = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
         )
-        .bind(&token)
+        .bind(&token_hash)
         .bind(user_id)
         .fetch_one(executor)
-        .await
+        .await?;
+        Ok((user, token))
     }
 
     /// Dev-only: find or auto-create a user for `random-bot-{N}` tokens.
@@ -755,7 +759,7 @@ impl User {
             "INSERT INTO users (username, api_token, password_hash) VALUES ($1, $2, $3) RETURNING *",
         )
         .bind(token)
-        .bind(token)
+        .bind(crate::services::tokens::sha256_hex(token))
         .bind("auto-created-dev-bot")
         .fetch_optional(pool)
         .await
