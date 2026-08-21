@@ -281,6 +281,8 @@ nav {
   display: inline-flex;
   align-items: center;
   gap: 0.5em;
+  /* Suppress the blue tap highlight on press (buttons already do this). */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .brand-stone {
